@@ -1,3 +1,9 @@
+# Generated protobuf and grpc code
+*_pb2.py
+*_pb2_grpc.py
+
+## Below here is the GitHub python .gitignore
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
