@@ -13,23 +13,31 @@
 # limitations under the License.
 """The Python implementation of the GRPC helloworld.Greeter client."""
 
-from __future__ import print_function
+import time
+import os
 
 import grpc
 
 import helloworld_pb2
 import helloworld_pb2_grpc
 
+start = time.monotonic()
+heartbeat_file = open(str(os.getpid()), 'w')
 
 def run():
     # NOTE(gRPC Python Team): .close() is possible on a channel and should be
     # used in circumstances in which the with statement does not fit the needs
     # of the code.
-    with grpc.insecure_channel('localhost:50051') as channel:
+    global start
+    with grpc.insecure_channel('corn-syrup.uwaterloo.ca:28430') as channel:
         stub = helloworld_pb2_grpc.GreeterStub(channel)
         response = stub.SayHello(helloworld_pb2.HelloRequest(name='you'))
-    print("Greeter client received:", response.entities[0].data[0])
+    assert 42 == response.entities[0].data[0]
+    print(int(time.monotonic() - start), file = heartbeat_file, flush=True)
+    start = time.monotonic()
 
 
 if __name__ == '__main__':
-    run()
+    while True:
+        time.sleep(1)
+        run()
