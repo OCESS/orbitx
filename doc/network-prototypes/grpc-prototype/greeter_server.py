@@ -16,6 +16,7 @@
 from concurrent import futures
 import time
 import random
+import os
 
 import grpc
 
@@ -27,6 +28,7 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class Greeter(helloworld_pb2_grpc.GreeterServicer):
 
     def SayHello(self, request, context):
+        print(os.getpid())
         reply = helloworld_pb2.HelloReply()
         for i in range(0,60):
             entity = reply.entities.add()

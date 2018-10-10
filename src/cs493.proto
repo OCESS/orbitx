@@ -1,0 +1,37 @@
+// A syntax note: in a protobuf definition, 'double x = 10;' does not mean
+// that the starting value of x will be 10, it just means that x is the tenth
+// field. This is used for backwards compatibility purposes.
+syntax = "proto3";
+
+
+// Keep state in sync with all clients
+service StateSyncher {
+    // Sync physical entities
+    // There needs to be an input, but there currently isn't any reason to have
+    // an input. So for now, we just put something in here (ClientId).
+    rpc GetPhysicalState (ClientId) returns (PhysicalState) {}
+}
+
+
+message ClientId {
+    enum Client {
+        FLIGHT = 0;
+    }
+    Client id = 1;
+}
+
+// Definition for an object that behaves according to Newtonian physics
+message Entity {
+    double x = 10;
+    double y = 11;
+    double vx = 12;
+    double vy = 13;
+    double ax = 14;
+    double ay = 15;
+    double mass = 16;
+}
+
+message PhysicalState {
+    repeated Entity entities = 1;
+    double timestamp = 2;
+}

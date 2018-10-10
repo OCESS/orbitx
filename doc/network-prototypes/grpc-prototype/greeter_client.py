@@ -29,7 +29,7 @@ def run():
     # used in circumstances in which the with statement does not fit the needs
     # of the code.
     global start
-    with grpc.insecure_channel('corn-syrup.uwaterloo.ca:28430') as channel:
+    with grpc.insecure_channel('localhost:28430') as channel:
         stub = helloworld_pb2_grpc.GreeterStub(channel)
         response = stub.SayHello(helloworld_pb2.HelloRequest(name='you'))
     assert 42 == response.entities[0].data[0]
