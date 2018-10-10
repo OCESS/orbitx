@@ -1,0 +1,10 @@
+Both zmq and grpc are sufficient for our purposes, performance-wise.
+
+zmq is, for our purposes, a much better socket library that has more
+feature-rich sockets.
+
+grpc is a layer above sockets, and implements distributed system functinality.
+Also, protobufs are baked into grpc which is useful since we're going to be
+using protobufs for communication anyway.
+
+Since our system is a distributed system, grpc is better for our purposes.
