@@ -9,7 +9,7 @@ service StateSyncher {
     // Sync physical entities
     // There needs to be an input, but there currently isn't any reason to have
     // an input. So for now, we just put something in here (ClientId).
-    rpc GetPhysicalState (ClientId) returns (PhysicalState) {}
+    rpc get_physical_state (ClientId) returns (PhysicalState) {}
 }
 
 
@@ -17,7 +17,7 @@ message ClientId {
     enum Client {
         FLIGHT = 0;
     }
-    Client id = 1;
+    Client ident = 1;
 }
 
 // Definition for an object that behaves according to Newtonian physics

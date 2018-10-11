@@ -18,15 +18,15 @@ import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
 import constants as constants
 
-stateLock = threading.Lock()
-physicalState = protos.PhysicalState()
+state_lock = threading.Lock()
+physical_state = protos.PhysicalState()
 
 class StateSyncher(grpc_stubs.StateSyncherServicer):
     """
     Service for sending state to clients.
     """
 
-    def GetPhysicalState(self, request, context):
+    def get_physical_state(self, request, context):
         """
         Server-side implementation of this remote procedure call (RPC).
 
@@ -38,9 +38,25 @@ class StateSyncher(grpc_stubs.StateSyncherServicer):
 
         Magic!
         """
-        with stateLock:
-            self.localPhysicalState = physicalState
-        return self.localPhysicalState
+        with state_lock:
+            self.local_physical_state = physical_state
+        return self.local_physical_state
+
+def generate_entities():
+    "Quick function to fill up some entities, before Ye Qin gets physics in"
+    import random
+    global physical_state
+    with state_lock:
+        if not physical_state.entities:
+            physical_state.entities.add()
+        physical_state.timestamp = time.monotonic()
+        physical_state.entities[0].x = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].y = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].vx = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].vy = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].ax = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].ay = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].mass = random.uniform(-1e300, 1e300)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -56,7 +72,8 @@ def main():
 
     try:
         while True:
-            time.sleep(60 * 60 * 24)
+            generate_entities()
+            time.sleep(1)
     except KeyboardInterrupt:
         server.stop(0)
 
