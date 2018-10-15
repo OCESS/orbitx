@@ -1,3 +1,11 @@
+        '### Thank you for taking the dive into this arcane file!
+        '### For guidance, just follow the signposts.
+        '### You can find a signpost by ctrl-F for the string "'###"
+        '### Hopefully, you can get the gist of this file by just looking for these special comments!
+        '### -- Patrick Melanson 2018
+
+        '### starsr is an important save file that contains most of the state of this program.
+        '### The list of objects is represented by this 2D array, 'P'. Each entity has 10 or so fields.
 1111    ON ERROR GOTO 9000
         SCREEN 12
         PALETTE 8, 19 + (19 * 256) + (19 * 65536)
@@ -44,6 +52,8 @@
 
         PH5 = P(12, 5)
      
+        '### this section is just a lot of constants. TSflagVECTOR defines what
+        '### timesteps there are. 60 is the fastest, 0.015625 is the slowest and most accurate.
         'System variables
 99      'eng = 0:    vflag = 0:  Aflag = 0:   Sflag = 0: Sangle = 0: cen = 0:     targ = 0:
         'tr = 0:     dte = 0:   Eflag = 0: master = 0: MODULEflag = 0
@@ -87,6 +97,7 @@
         'vernP! = -100
         OLDts = .25
        
+        '### here we do more file loading. Sub 701 loads state from a file.
         'load situation file
         OPEN "I", #1, "orbitstr.txt"
         if EOF(1) then z$="": close #1: goto 51
@@ -136,6 +147,8 @@
        
         'Calculate gravitational acceleration for each object pair
         FOR i = 1 TO 241
+         '### This 2d array, B, encodes whether each object pair should actually attract.
+         '### the data in B comes from save file loading.
          IF B(1, i) = B(0, i) THEN 106
          IF ufo1 = 0 AND (B(1, i) = 38 OR B(0, i) = 38) THEN 106
          IF ufo2 = 0 AND (B(1, i) = 39 OR B(0, i) = 39) THEN 106
@@ -178,6 +191,7 @@
 101     cenX = Px(cen, 3) + cenXoff
         cenY = Py(cen, 3) + cenYoff
        
+        '### these vectors that are talked about are some helpful guides printed on screen, and are purely visual.
         'Erase velocity, approach velocity, and orientation vectors
         IF DISPflag = 0 THEN LINE (30, 120)-(30 + (5 * SIN(Sangle)), 120 + (5 * COS(Sangle))), 0
         IF DISPflag = 0 THEN LINE (30, 120)-(30 + (10 * SIN(Vvangle)), 120 + (10 * COS(Vvangle))), 0
@@ -368,6 +382,7 @@
         IF DISPflag = 0 THEN GOSUB 400
 165     RETURN 109
 
+        '### You can safely ignore this. This is code specific to one year of mission.
         'Landing on Hyperion
 166     Rmin = 1E+26
         AtargPRIME = angle
@@ -404,6 +419,9 @@
         RETURN 106
 
 
+        '### This is how contact is checked. In this physics engine, you can tell something has
+        '### made contact when their circles intersect. The farther they intersect into each other,
+        '### the stronger the collision ("explFLAG" is what happens when you explode).
         'Detect contact with an object
 102     IF CONflag = 0 THEN 112
         MATCHaacc=0
@@ -428,6 +446,8 @@
 
 
 
+        '### AYSE is a special ship that can be controlled when the main habitat is docked with it.
+        '### it's basically a coat and shoes for the habitat.
         'Docked with AYSE drive module
 112     explFLAG2 = 0
         IF AYSE = 150 THEN Vx(32) = Vx(28): Vy(32) = Vy(28): Px(32, 3) = Px(28, 3): Py(32, 3) = Py(28, 3): AYSEangle = Sangle
@@ -532,7 +552,7 @@
 
 109     NEXT i
        
-
+        '### I forget what this is, but I think the landing target is a 1D point on the surface of a body.
         'Calculate parameters for landing target
         IF targ < 40 THEN 179
         IF SQR(((Px(40, 3) - OLDcenX) * mag / AU) ^ 2 + ((Py(40, 3) - OLDcenY) * mag * 1 / AU) ^ 2) < 401 THEN PSET (300 + (Px(40, 3) - OLDcenX) * mag / AU, 220 + (Py(40, 3) - OLDcenY) * mag * 1 / AU), 8 * trail
@@ -667,6 +687,8 @@
         OLDts = ts
         
 
+        '### CHR$(x) is a weird quickbasic function. Really, just look at the keyboard map PDF in the binary directory.
+        '### if you don't have that PDF let me know.
         'Control input
 103     z$ = INKEY$
         IF z$ = "" THEN 105
@@ -691,7 +713,8 @@
         IF z$ = "+" AND mag < 130000000000# THEN mag = mag / .75: GOSUB 405
         IF z$ = "-" AND mag > 6.8E-11 THEN mag = mag * .75:  GOSUB 405
         
-
+        '### vernor thrusters IRL are thrusters used for turning a craft.
+        '### here, they rotate the hab.
         IF vernP! <= 0 THEN 115
         IF z$ <> CHR$(0) + "I" THEN 116
         IF (8192 AND NAVmalf) = 8192 THEN 115
@@ -767,7 +790,7 @@
         if TSindex = 6 and TIMER - tttt < .01 then 103
         GOTO 100
 
-
+        '### different navmodes use this subroutine. e.g. "ccw prog" will orient the hab in the direction of an orbit.
         'SUBROUTINE Automatic space craft orientation calculations
 301     IF explosion > 1 THEN Ztel(2) = 0: Ztel(1) = 1
         IF ufo1 = 0 AND Ztel(17) = 1 AND PROBEflag = 1 THEN GOSUB 7000: PROBEflag = 0
@@ -877,6 +900,7 @@
         THRUSTx = THRUSTx + (Av * SIN(Sangle + (vernA / RAD)))
         THRUSTy = THRUSTy + (Av * COS(Sangle + (vernA / RAD)))
        
+        '### This is calculations for atmospheric drag
         Are = 0
         IF atm = 40 AND Ztel(16) <> 3.141593 THEN Are = 0: GOTO 319
         difX = Vx(atm) - Vx(28) + VwindX
@@ -901,6 +925,7 @@
         THRUSTy = THRUSTy - (Are * COS(VvRangle))
 321     IF Pr > 100 AND Pr / 200 > RND THEN explFLAG1 = 1
 
+        '### This is only relevant to one field of the engineering program.
 319     Agrav = (THRUSTx - (Are * SIN(VvRangle))) ^ 2
         Agrav = Agrav + ((THRUSTy - (Are * COS(VvRangle))) ^ 2)
         Agrav = SQR(Agrav)
@@ -1072,7 +1097,8 @@
 702     LOCATE 10, 60: PRINT "                  ";
         GOTO 700
 
-
+        '### .RND files are fixed-fieldwidth binary files. You can pretty much think of it as
+        '### binary data. This loads various flight-specific data from a save file.
 701     OPEN "R", #1, filename$+".RND", 1427
         inpSTR$=space$(1427)
         GET #1, 1, inpSTR$
@@ -1355,6 +1381,10 @@
 '        LOCATE 3, 60: PRINT CHR$(74); CHR$(97); CHR$(109); CHR$(101); CHR$(115); " "; CHR$(77); CHR$(97); CHR$(103); CHR$(119); CHR$(111); CHR$(111); CHR$(100);
 '        RETURN
 
+        '### This is actually kind of interesting. Trigger this by pressing 'o' in the program.
+        '### This basically calculates some orbital parameters, such as eccentricity, periapsis, and apoapsis.
+        '### Then, it draws the orbit on-screen. Fun stuff!
+        '### If we ever get to this, I have some good wikipedia articles that will help for this.
         'Orbit Projection
 3000    GOSUB 3005
         GOSUB 3008
@@ -1492,6 +1522,8 @@
         RETURN
         '****************************************************
 
+        '### We were talking about consequences of large timesteps.
+        '### In orbit, this is the only major consequence; the ISS sometimes crashes into Earth.
         'Restore orbital altitude of ISS after large time step
 3100    difX = Px(3, 3) - Px(35, 3)
         difY = Py(3, 3) - Py(35, 3)
