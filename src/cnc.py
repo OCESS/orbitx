@@ -54,8 +54,7 @@ def generate_entities():
         physical_state.entities[0].y = random.uniform(-1e300, 1e300)
         physical_state.entities[0].vx = random.uniform(-1e300, 1e300)
         physical_state.entities[0].vy = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].ax = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].ay = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].r = random.uniform(-1e300, 1e300)
         physical_state.entities[0].mass = random.uniform(-1e300, 1e300)
 
 def main():
