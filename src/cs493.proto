@@ -28,6 +28,7 @@ message Entity {
     double vy = 13;
     double r=14;
     double mass = 16;
+    //spin speed?
 }
 
 message PhysicalState {
