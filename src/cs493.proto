@@ -26,8 +26,7 @@ message Entity {
     double y = 11;
     double vx = 12;
     double vy = 13;
-    double ax = 14;
-    double ay = 15;
+    double r=14;
     double mass = 16;
 }
 
