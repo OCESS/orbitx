@@ -2,6 +2,19 @@ from vpython import *
 from planets import planet_list
 import random
 
+import cs493_pb2 as protos #object defnts
+
+physical_state = protos.PhysicalState()
+planet = physical_state.entities.add()
+planet.x = random.randint(-600, 600)
+planet.y = random.randint(-600, 600)
+planet.vx = random.uniform(-1e300, 1e300)
+planet.vy = random.uniform(-1e300, 1e300)
+planet.r = 400
+planet.mass = random.uniform(-1e300, 1e300)
+
+print(physical_state)
+
 # center: Location at which the camera continually looks
 scene = canvas(title='Space Simulator', align="left", width=600, height=600, center =vector(0,0,0))
 
@@ -11,15 +24,19 @@ def planet_init(planetData):  # retrieves data from planet dictionary and create
     pTexture = 'textures/' + planetData['name'] + '.jpg'
     x = random.randint(-600, 600)
 
-    pSphere = sphere(pos =vector(x,0,0), radius = x, texture=pTexture, make_trail = True)
+    pSphere = sphere(pos =vector(planet.x,0,planet.y), radius = planet.r, texture=pTexture, make_trail = True)
     return pSphere  # return a sphere object
 
 def planet_update(planets):
     x=random.randint(-600,600)
     print(x)
     for i in planets:
-        i.pos=vector(x,0,0)
+        i.pos=vector(planet.x,0,planet.y)
 
+
+for planet in physical_state.entities:
+    planet.x
+    planet.y
 
 
 def main():

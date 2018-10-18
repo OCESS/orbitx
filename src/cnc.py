@@ -50,12 +50,12 @@ def generate_entities():
         if not physical_state.entities:
             physical_state.entities.add()
         physical_state.timestamp = time.monotonic()
-        physical_state.entities[0].x = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].y = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].vx = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].vy = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].r = random.uniform(-1e300, 1e300)
-        physical_state.entities[0].mass = random.uniform(-1e300, 1e300)
+        physical_state.entities[0].x = random.uniform(-30, 30)
+        physical_state.entities[0].y = random.uniform(-30, 30)
+        physical_state.entities[0].vx = random.uniform(-30, 30)
+        physical_state.entities[0].vy = random.uniform(-30, 30)
+        physical_state.entities[0].r = random.uniform(20, 30)
+        physical_state.entities[0].mass = random.uniform(-30, 30)
 
 def main():
     parser = argparse.ArgumentParser()

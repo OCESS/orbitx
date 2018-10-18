@@ -27,6 +27,8 @@ sdist/
 var/
 wheels/
 bin/
+etc/
+share/
 *.egg-info/
 .installed.cfg
 *.egg
