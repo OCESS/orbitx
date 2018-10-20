@@ -2,6 +2,8 @@
 *_pb2.py
 *_pb2_grpc.py
 
+pip-selfcheck.json
+
 ## Below here is the GitHub python .gitignore
 
 # Byte-compiled / optimized / DLL files
