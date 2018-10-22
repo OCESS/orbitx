@@ -22,7 +22,9 @@ def main():
     parser.add_argument(
         '--cnc-address', type=str, default=common.DEFAULT_CNC_ADDRESS)
     parser.add_argument('--cnc-port', type=int, default=common.DEFAULT_PORT)
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        print('Got unrecognized args,', unknown)
 
     print('Connecting to CnC server...')
     with network.StateClient(args.cnc_address, args.cnc_port) as physical_state_getter:
