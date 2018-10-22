@@ -4,6 +4,8 @@
 
 pip-selfcheck.json
 
+venv/
+
 ## Below here is the GitHub python .gitignore
 
 # Byte-compiled / optimized / DLL files
