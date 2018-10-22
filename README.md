@@ -18,9 +18,9 @@ It's recommended you develop and run in a virtualenv. Setup is as follows:
 
 ```
 git clone https://github.com/OCESS/cs493
-python3 -m venv cs493
 cd cs493
-source bin/activate
+python3 -m venv venv --prompt=cs493
+source ven/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -28,7 +28,7 @@ and when you want to restart development:
 
 ```
 cd cs493
-source bin/activate
+source venv/bin/activate
 ```
 
 This project is mostly python, so no building required. However, there is a
