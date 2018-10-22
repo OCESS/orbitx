@@ -33,7 +33,6 @@ def main():
         print('Connected.')
         try:
             while True:
-                print('Getting update from CnC server...')
                 gui.draw(physical_state_getter())
                 gui.wait(1)
         except KeyboardInterrupt:

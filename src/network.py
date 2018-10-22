@@ -1,6 +1,7 @@
 """Network-related classes."""
 
 import threading
+import time
 
 import grpc
 import cs493_pb2 as protos
@@ -57,11 +58,22 @@ class StateClient:
     def __init__(self, cnc_address, cnc_port):
         self.cnc_location = f'{cnc_address}:{cnc_port}'
 
+    def _get_physical_state(self):
+        rpc_attempts_remaining = 5
+        while True:
+            try:
+                return self.stub.get_physical_state(
+                    protos.ClientId(ident=protos.ClientId.FLIGHT))
+            except grpc.RpcError:
+                rpc_attempts_remaining -= 1
+                if rpc_attempts_remaining > 0:
+                    raise
+                time.sleep(1)
+
     def __enter__(self):
         self.channel = grpc.insecure_channel(self.cnc_location)
         self.stub = grpc_stubs.StateServerStub(self.channel)
-        return lambda: self.stub.get_physical_state(
-            protos.ClientId(ident=protos.ClientId.FLIGHT))
+        return self._get_physical_state
 
     def __exit__(self, *args):
         self.channel.close()
