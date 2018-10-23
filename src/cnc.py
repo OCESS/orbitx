@@ -30,6 +30,7 @@ def generate_entities():
         if not physical_state.entities:
             physical_state.entities.add()
         physical_state.timestamp = time.monotonic()
+        physical_state.entities[0].name = 'Earth'
         physical_state.entities[0].x = random.uniform(-60, 60)
         physical_state.entities[0].y = random.uniform(-60, 60)
         physical_state.entities[0].vx = random.uniform(-30, 30)

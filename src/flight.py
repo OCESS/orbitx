@@ -10,6 +10,7 @@ updates from the central server.
 import argparse
 import time
 import threading
+import os
 
 import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
@@ -29,7 +30,7 @@ def main():
     print('Connecting to CnC server...')
     with network.StateClient(args.cnc_address, args.cnc_port) as physical_state_getter:
         print('Initializing graphics (thanks sean)...')
-        gui = flight_gui.FlightGui(physical_state_getter)
+        gui = flight_gui.FlightGui(physical_state_getter())
         print('Connected.')
         try:
             while True:

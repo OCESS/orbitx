@@ -22,6 +22,7 @@ message ClientId {
 
 // Definition for an object that behaves according to Newtonian physics
 message Entity {
+    string name = 1;
     double x = 10;
     double y = 11;
     double vx = 12;
