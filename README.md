@@ -19,9 +19,11 @@ It's recommended you develop and run in a virtualenv. Setup is as follows:
 ```
 git clone https://github.com/OCESS/cs493
 cd cs493
-python3 -m venv venv --prompt=cs493
+python3 -m venv venv # or however you can create a python3 virtualenv
 source ven/bin/activate
-pip install -r requirements.txt
+pip install --upgrade pip # not required, but a good idea
+cd src
+make install # installs packages in requirements.txt, make sure you've activated your venv!
 ```
 
 and when you want to restart development:
@@ -33,7 +35,9 @@ source venv/bin/activate
 
 This project is mostly python, so no building required. However, there is a
 Makefile in `src/` to generate python code from the protobuf file. Run `make`
-in the `src/` directory to generate these definitions.
+in the `src/` directory to generate these definitions. As well, this Makefile
+has a target to set up jupyter notebook to serve a GUI, if you're into that
+sort of thing.
 
 ## Running
 
@@ -53,9 +57,8 @@ src/flight.py: Flight client. Run with ./flight.py
 
 doc/: Any documentation for this project
 doc/orbitsource: Source code for relevant components of legacy Orbit
-doc/network-prototypes/: Prototype networking experiments
+doc/\*-prototypes/: Prototypes for various components
 
 data/: Data that does not fit in src/, e.g. save files
 
 test/: Unit and integration tests
-```

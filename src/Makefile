@@ -2,6 +2,7 @@ proto:
 	python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. cs493.proto
 
 install:
+	pip install -r ../requirements.txt
 	jupyter nbextension enable --py --sys-prefix appmode
 	jupyter serverextension enable --py --sys-prefix appmode
 
