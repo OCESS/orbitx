@@ -4,3 +4,5 @@ protobuf
 six
 vpython
 appmode
+numpy
+scipy
