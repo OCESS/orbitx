@@ -244,5 +244,5 @@ class PEngine(object):
 #PE.Load_json("data.json")
 #PE.run_step(1)
 #for i in range(0,90000000):
-#    PE.run_step(1)
-
+#    PE.run_step(1) #run step with h=1
+#PE.Entities[C] #to get object with name C
