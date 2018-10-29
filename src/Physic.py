@@ -1,9 +1,3 @@
-
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
 import scipy as sp
 import scipy.sparse as sparse
@@ -244,10 +238,10 @@ class PEngine(object):
 
 # In[ ]:
 
-
-PE=PEngine()
-PE.Load_json("data.json")
-PE.run_step(1)
-for i in range(0,90000000):
-    PE.run_step(1)
+#example code:
+#PE=PEngine()
+#PE.Load_json("data.json")
+#PE.run_step(1)
+#for i in range(0,90000000):
+#    PE.run_step(1)
 
