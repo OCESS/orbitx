@@ -18,6 +18,7 @@ import common
 import flight_gui
 import network
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -38,6 +39,7 @@ def main():
                 gui.wait(1)
         except KeyboardInterrupt:
             pass
+
 
 if __name__ == '__main__':
     main()

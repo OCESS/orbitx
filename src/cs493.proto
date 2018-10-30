@@ -29,7 +29,8 @@ message Entity {
     double vy = 13;
     double r = 14;
     double mass = 16;
-    //spin speed?
+    double spin = 17; // the 'angular velocity'
+    double heading = 18; // the 'angular position'
 }
 
 message PhysicalState {

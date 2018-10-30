@@ -21,6 +21,7 @@ import network
 state_lock = threading.Lock()
 physical_state = protos.PhysicalState()
 
+
 def generate_entities():
     "Quick function to fill up some entities, before Ye Qin gets physics in"
     import random
@@ -38,6 +39,7 @@ def generate_entities():
         physical_state.entities[0].r = random.uniform(20, 30)
         physical_state.entities[0].mass = random.uniform(-30, 30)
 
+
 def main():
     global state_lock
     state_server = network.StateServer()
@@ -50,7 +52,7 @@ def main():
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=4))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{args.port}')
-    server.start() # This doesn't block!
+    server.start()  # This doesn't block!
     print(f'Listening for RPC calls on port {args.port}. Ctrl-C exits.')
 
     try:
@@ -60,6 +62,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         server.stop(0)
+
 
 if __name__ == '__main__':
     main()

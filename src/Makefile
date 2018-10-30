@@ -9,3 +9,7 @@ install:
 .PHONY: clean
 clean:
 	rm -f *_pb2.py *_pb2_grpc.py
+
+.PHONY: format
+format:
+	python -m autopep8 -j 0 --recursive --in-place --hang-closing .

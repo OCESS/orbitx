@@ -7,6 +7,7 @@ import grpc
 import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
 
+
 class StateServer(grpc_stubs.StateServerServicer):
     """
     Service for sending state to clients.
@@ -22,12 +23,14 @@ class StateServer(grpc_stubs.StateServerServicer):
 
     Magic!
     """
+
     def __init__(self):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
 
     def notify_state_change(self, physical_state, physical_state_lock):
-        # This flag is to make sure this class is set up and being used properly
+        # This flag is to make sure this class is set up and being used
+        # properly
         self._class_used_properly = True
         with physical_state_lock:
             physical_state_copy = physical_state
@@ -55,6 +58,7 @@ class StateClient:
                 sleep(1)
                 physical_state = physical_state_getter()
     """
+
     def __init__(self, cnc_address, cnc_port):
         self.cnc_location = f'{cnc_address}:{cnc_port}'
 

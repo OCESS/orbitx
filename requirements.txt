@@ -6,3 +6,4 @@ vpython
 appmode
 numpy
 scipy
+autopep8
