@@ -9,7 +9,6 @@ from collections import OrderedDict
 import random
 import string
 import google.protobuf.json_format
-import threading
 
 import cs493_pb2 as protos
 import common
@@ -118,12 +117,13 @@ class PEngine(object):
         def __init__(self, code=0):
             self.code = code
 
-    def __init__(self, flight_save_file=None):
+    def __init__(self, flight_savefile=None, mirror_state=None):
         # If this needs to be called again, call self.__init__ during runtime
-        self.state_lock = threading.Lock()
         self.state = protos.PhysicalState(timestamp=0.0)
-        if flight_save_file:
-            self.Load_json(flight_save_file)
+        if flight_savefile:
+            self.Load_json(flight_savefile)
+        elif mirror_state:
+            self.state = mirror_state()
         self._integrator = None
         self._init = False
 
@@ -153,16 +153,19 @@ class PEngine(object):
     def Load_json(self, file):
         with open(file) as f:
             data = f.read()
-        self.state = google.protobuf.json_format.Parse(
+        return google.protobuf.json_format.Parse(
             data, self.state)
 
     def Save_json(self, file=common.AUTOSAVE_SAVEFILE):
         with open(file, 'w') as outfile:
-            with self.state_lock:
-                outfile.write(google.protobuf.json_format.MessageToJson(
-                    self.state))
+            outfile.write(google.protobuf.json_format.MessageToJson(
+                self.state))
 
-    def gather_data(self):
+    def set_state(self, physical_state):
+        self.state = physical_state
+        self._gather_data()
+
+    def _gather_data(self):
         self.X = np.asarray(
             [entity.x
                 for entity in self.state.entities]
@@ -195,7 +198,7 @@ class PEngine(object):
         self.M = self.M.astype(object, copy=False)
 
     def _initialize(self):
-        self.gather_data()
+        self._gather_data()
         # add code here for init
         self._init = True
 
@@ -246,7 +249,7 @@ class PEngine(object):
         for entity in list(self.state.entities):
             if isinstance(self.state.entities[name], str):
                 del self.state.entities[name]
-        self.gather_data()
+        self._gather_data()
 
     def _collision_detect(self, out):
         X = out[0]
@@ -261,22 +264,21 @@ class PEngine(object):
         return True
 
     def run_step(self, step_size, atol=0.5, nsteps=750):
-        with self.state_lock:
-            if not self._init:
-                self._initialize()
-            if self._integrator is None:
-                t0 = self.state.timestamp
-                y0 = [self.X, self.Y, self.DX, self.DY]
-                y0 = np.concatenate(y0).ravel()
-                self._integrator = ode(derive).set_integrator(
-                    'vode', method='bdf', atol=atol, nsteps=nsteps)
-                self._integrator.set_initial_value(y0, t0).set_f_params(
-                    len(self.state.entities), self.r, self.M)
-            out = self._integrator.integrate(self._integrator.t + step_size)
-            out = extract(out, len(self.state.entities))
-            self.out = out
-            self.update(out)
-            self._collision_detect(out)
+        if not self._init:
+            self._initialize()
+        if self._integrator is None:
+            t0 = self.state.timestamp
+            y0 = [self.X, self.Y, self.DX, self.DY]
+            y0 = np.concatenate(y0).ravel()
+            self._integrator = ode(derive).set_integrator(
+                'vode', method='bdf', atol=atol, nsteps=nsteps)
+            self._integrator.set_initial_value(y0, t0).set_f_params(
+                len(self.state.entities), self.r, self.M)
+        out = self._integrator.integrate(self._integrator.t + step_size)
+        out = extract(out, len(self.state.entities))
+        self.out = out
+        self.update(out)
+        self._collision_detect(out)
 
     def get_time(self):
         return 0  # time in date + time

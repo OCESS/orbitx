@@ -29,21 +29,21 @@ class StateServer(grpc_stubs.StateServerServicer):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
 
-    def notify_state_change(self, physical_state, physical_state_lock):
+    def notify_state_change(self, physical_state_copy):
         # This flag is to make sure this class is set up and being used
         # properly. When changing this code, consider that multithreading is
         # hard. This StateServer will be in a different thread than the main
         # thread of whatever is using this GRPC server.
-        with physical_state_lock:
-            physical_state_copy = copy.deepcopy(physical_state)
+        # So REMEMBER: the argument should not be modified by the main thread!
+        # an easy way to ensure this is by passing in a copy.deepcopy.
         with self._internal_state_lock:
             self._internal_state_copy = physical_state_copy
-        self._class_used_properly = True
+            self._class_used_properly = True
 
     def get_physical_state(self, request, context):
         """Server-side implementation of this remote procedure call (RPC)."""
-        assert self._class_used_properly
         with self._internal_state_lock:
+            assert self._class_used_properly
             return self._internal_state_copy
 
 
@@ -67,7 +67,7 @@ class StateClient:
 
     def _get_physical_state(self):
         return self.stub.get_physical_state(
-            protos.ClientId(ident=protos.ClientId.FLIGHT))
+            protos.ClientId(ident=protos.ClientId.MIRRORING_CLIENT))
 
     def __enter__(self):
         self.channel = grpc.insecure_channel(self.cnc_location)

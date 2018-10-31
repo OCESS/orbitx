@@ -19,7 +19,8 @@ service StateServer {
 
 message ClientId {
     enum Client {
-        FLIGHT = 0;
+        LEAD_SERVER = 0;
+        MIRRORING_CLIENT = 1;
     }
     Client ident = 1;
 }
