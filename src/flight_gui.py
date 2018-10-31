@@ -38,7 +38,6 @@ class FlightGui:
 
     def _draw_sphere(self, planet):
         texture = os.path.join(self._texture_path, planet.name + '.jpg')
-        print(texture)
         if os.path.isfile(texture):
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, 0, planet.y),
@@ -47,6 +46,7 @@ class FlightGui:
                 texture=texture
                 )
         else:
+            print('Could not find texture', texture)
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, 0, planet.y),
                 radius=planet.r,

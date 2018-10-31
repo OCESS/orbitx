@@ -1,3 +1,6 @@
+// If you're getting 'cs493_pb2 module not found' errors,
+// remember to run `make` or `make proto`!!
+
 // A syntax note: in a protobuf definition, 'double x = 10;' does not mean
 // that the starting value of x will be 10, it just means that x is the tenth
 // field. This is used for backwards compatibility purposes.
@@ -5,6 +8,7 @@ syntax = "proto3";
 
 
 // Keep state in sync with all clients
+// This is a GRPC protobuf definition, not just plain protobuf code.
 service StateServer {
     // Sync physical entities
     // There needs to be an input, but there currently isn't any reason to have
@@ -20,7 +24,15 @@ message ClientId {
     Client ident = 1;
 }
 
-// Definition for an object that behaves according to Newtonian physics
+// To use this object in python code, you can do things like:
+// entity1 = Entity()
+// entity1.name = 'bob'
+// or,
+// entity2 = Entity(name='bob')
+// entity1 == entity2
+// This protobuf object is good for serializing this data to other things,
+// like JSON or over the network. GRPC requires protobufs as well!
+// Google 'protobuf python generated code reference' for more examples.
 message Entity {
     string name = 1;
     double x = 10;
@@ -33,6 +45,23 @@ message Entity {
     double heading = 18; // the 'angular position'
 }
 
+// To use this in python code, think of `entities` as a list, except to add an
+// item to the list you have to use the special `add(...)` method. For example,
+// ps = PhysicalState()
+// ps.timestamp = 5
+// or equivalently, ps = PhysicalState(timestamp=5)
+// then,
+// entity0 = ps.entities.add()
+// entity0.name = 'bob'
+// ps.entities[0] == entity0
+// or you can also do
+// ps.entities.add(name='belize')
+// ps.entities[1].name == 'belize'
+// This comes with all the usual python list goodness, like
+// for entity in ps.entities:
+//     print(entity.name)
+// Again, googling 'protobuf python generated code reference' and looking for
+// repeated fields will help answer other questions.
 message PhysicalState {
     repeated Entity entities = 1;
     double timestamp = 2;

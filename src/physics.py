@@ -3,15 +3,16 @@ import numpy as np
 import scipy as sp
 import scipy.sparse as sparse
 import random as rd
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
 import time
 from scipy.integrate import *
 from collections import OrderedDict
 import random
 import string
-import json
+import google.protobuf.json_format
+import threading
 
+import cs493_pb2 as protos
+import common
 
 # In[2]:
 
@@ -117,14 +118,14 @@ class PEngine(object):
         def __init__(self, code=0):
             self.code = code
 
-    def __init__(self, time=0):
-        self.reset()
-        self.time = time
-
-    def reset(self):
-        self.Entities = OrderedDict({})
-        self.integrator = None
-        self.init = False
+    def __init__(self, flight_save_file=None):
+        # If this needs to be called again, call self.__init__ during runtime
+        self.state_lock = threading.Lock()
+        self.state = protos.PhysicalState(timestamp=0.0)
+        if flight_save_file:
+            self.Load_json(flight_save_file)
+        self._integrator = None
+        self._init = False
 
     def _random_name(self):
         name = ''.join(
@@ -139,81 +140,53 @@ class PEngine(object):
         Y = random.uniform(1e25, 1e30)
         r = random.uniform(1e5, 1e6)
         M = random.uniform(1e24, 1e26)
-        self.Entities[name] = Entity(name, [X, Y], r, M)
+        self.add_entity(
+            name=name, x=X, y=Y, vx=0, vy=0, r=r, mass=M, spin=0, heading=0)
 
-    def create_entity(self, name, coor, r, M, v=[0, 0], spin=0, movable=True):
-        self.Entities[name] = Entity(name, coor, r, M, v, spin, movable)
-
-    def add_entity(self, Entity):
-        self.Entities[Entity.name] = Entity
+    def add_entity(self, **kwargs):
+        # How to use this magical function:
+        # self.add_entity(name='Earth', x=5, y=10, etc etc etc)
+        # Just pass all the variables that exist in an Entity message protobuf
+        # (see cs493.proto) and it'll all happen automatically!
+        self.state.entities.add(**kwargs)
 
     def Load_json(self, file):
-        try:
-            with open(file) as f:
-                data = json.load(f)
-        except IOError:
-            print("Load file failure, no such file")
-        self.reset()
-        if "time" in data:
-            self.time = data["time"]
-        else:
-            self.time = 0
-        for Entity in data["entities"]:
-            if "name" in Entity:
-                name = Entity["name"]
-            else:
-                name = PE._random_name()
-            if "displacement" in Entity:
-                coor = Entity["displacement"]
-            elif "coordinates" in Entity:
-                coor = Entity["coordinates"]
-            else:
-                coor = [random.uniform(1e25, 1e30), random.uniform(1e25, 1e30)]
-            if "radius" in Entity:
-                r = Entity["radius"]
-            else:
-                r = random.uniform(1e25, 1e30)
-            if "mass" in Entity:
-                m = Entity["mass"]
-            else:
-                m = random.uniform(1e24, 1e26)
-            if "velocity" in Entity:
-                v = Entity["velocity"]
-            else:
-                v = [0, 0]
-            if "angular speed" in Entity:
-                spin = Entity["angular speed"]
-            else:
-                spin = 0
-            self.create_entity(name, coor, r, m, v, spin)
+        with open(file) as f:
+            data = f.read()
+        self.state = google.protobuf.json_format.Parse(
+            data, self.state)
 
-    def Save_json(PE, file="save.json"):
-        json_dict = {"entities": []}
-        json_dict["time"] = PE.time
-        for _, Entity in PE.Entities.items():
-            json_dict["entities"] += [Entity.json_save()]
+    def Save_json(self, file=common.AUTOSAVE_SAVEFILE):
         with open(file, 'w') as outfile:
-            json.dump(json_dict, outfile, indent=4)
+            with self.state_lock:
+                outfile.write(google.protobuf.json_format.MessageToJson(
+                    self.state))
 
     def gather_data(self):
         self.X = np.asarray(
-            [entity.coordinates[0] for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.x
+                for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.Y = np.asarray(
-            [entity.coordinates[1] for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.y
+                for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.DX = np.asarray(
-            [entity.V[0] for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.vx
+             for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.DY = np.asarray(
-            [entity.V[1] for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.vy
+             for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.r = np.asarray(
-            [entity.r for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.r
+             for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.M = np.asarray(
-            [entity.M for _, entity in self.Entities.items()]
-            ).reshape(1, len(self.Entities))
+            [entity.mass
+             for entity in self.state.entities]
+        ).reshape(1, len(self.state.entities))
         self.X = self.X.astype(object, copy=False)
         self.Y = self.Y.astype(object, copy=False)
         self.DX = self.DX.astype(object, copy=False)
@@ -221,42 +194,48 @@ class PEngine(object):
         self.r = self.r.astype(object, copy=False)
         self.M = self.M.astype(object, copy=False)
 
-    def initialize(self):
+    def _initialize(self):
         self.gather_data()
         # add code here for init
-        self.init = True
+        self._init = True
 
     def update(self, y):
-        for X, Y, DX, DY, Entity in zip(
-            y[0][0], y[1][0], y[2][0], y[3][0], [
-                E[1] for E in PE.Entities.items()]):
-            Entity.coordinates = [X, Y]
-            Entity.V = [DX, DY]
+        for X, Y, DX, DY, entity in zip(
+                y[0][0], y[1][0], y[2][0], y[3][0],
+                self.state.entities):
+            entity.x = X
+            entity.y = Y
+            entity.vx = DX
+            entity.vy = DY
 
     def merge(self, e1, e2):
         if e1 == e2:
             raise self.Bad_Merge()
-        e1 = list(self.Entities.keys())[e1]
-        e2 = list(self.Entities.keys())[e2]
+        e1 = list(self.state.entities.keys())[e1]
+        e2 = list(self.state.entities.keys())[e2]
         if isinstance(
-                self.Entities[e1],
+                self.state.entities[e1],
                 str) or isinstance(
-                self.Entities[e2],
+                self.state.entities[e2],
                 str):
             raise self.Bad_Merge()
-        main = max([(e1, self.Entities[e1].M), (e2, self.Entities[e2].M)])
+        main = max([(e1, self.state.entities[e1].M),
+                    (e2, self.state.entities[e2].M)])
         if e1 is main[0]:
-            victim = (e2, self.Entities[e2].M)
+            victim = (e2, self.state.entities[e2].M)
         else:
-            victim = (e1, self.Entities[e1].M)
-        mV = self.Entities[main[0]].V
-        vV = self.Entities[victim[0]].V
+            victim = (e1, self.state.entities[e1].M)
+        mV = self.state.entities[main[0]].V
+        vV = self.state.entities[victim[0]].V
         # need change speed
-        self.Entities[main[0]].M += self.Entities[victim[0]].M
-        self.Entities[main[0]].r += 3  # change radius, to change
-        self.Entities[victim[0]] = main[0]
+        self.state.entities[
+            main[0]
+        ].M += self.state.entities[victim[0]].M
+        # change radius, to change
+        self.state.entities[main[0]].r += 3
+        self.state.entities[victim[0]] = main[0]
 
-    def collison_handle(self, coll):
+    def _collision_handle(self, coll):
         for i, j in zip(coll[0], coll[1]):
             try:
                 self.merge(i, j)
@@ -264,12 +243,12 @@ class PEngine(object):
                 continue
             # except:
             #    print("Merge fail")
-        for name in list(self.Entities.keys()):
-            if isinstance(self.Entities[name], str):
-                del self.Entities[name]
+        for entity in list(self.state.entities):
+            if isinstance(self.state.entities[name], str):
+                del self.state.entities[name]
         self.gather_data()
 
-    def collision_detect(self, out):
+    def _collision_detect(self, out):
         X = out[0]
         Y = out[1]
         D = distance(X, Y)
@@ -278,25 +257,26 @@ class PEngine(object):
         coll = np.where(((D - R) < 0) - np.identity(D.shape[0]))
         if coll[0].shape[0] == 0:
             return False
-        self.collison_handle(coll)
+        self._collision_handle(coll)
         return True
 
     def run_step(self, step_size, atol=0.5, nsteps=750):
-        if not self.init:
-            self.initialize()
-        if self.integrator is None:
-            t0 = self.time
-            y0 = [self.X, self.Y, self.DX, self.DY]
-            y0 = np.concatenate(y0).ravel()
-            self.integrator = ode(derive).set_integrator(
-                'vode', method='bdf', atol=atol, nsteps=nsteps)
-            self.integrator.set_initial_value(y0, t0).set_f_params(
-                len(self.Entities), self.r, self.M)
-        out = self.integrator.integrate(self.integrator.t + step_size)
-        out = extract(out, len(self.Entities))
-        self.out = out
-        self.update(out)
-        self.collision_detect(out)
+        with self.state_lock:
+            if not self._init:
+                self._initialize()
+            if self._integrator is None:
+                t0 = self.state.timestamp
+                y0 = [self.X, self.Y, self.DX, self.DY]
+                y0 = np.concatenate(y0).ravel()
+                self._integrator = ode(derive).set_integrator(
+                    'vode', method='bdf', atol=atol, nsteps=nsteps)
+                self._integrator.set_initial_value(y0, t0).set_f_params(
+                    len(self.state.entities), self.r, self.M)
+            out = self._integrator.integrate(self._integrator.t + step_size)
+            out = extract(out, len(self.state.entities))
+            self.out = out
+            self.update(out)
+            self._collision_detect(out)
 
     def get_time(self):
         return 0  # time in date + time

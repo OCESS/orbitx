@@ -11,44 +11,38 @@ import argparse
 import threading
 import concurrent.futures
 import time
+import os
 import grpc
 
 import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
 import common
 import network
-
-state_lock = threading.Lock()
-physical_state = protos.PhysicalState()
-
-
-def generate_entities():
-    "Quick function to fill up some entities, before Ye Qin gets physics in"
-    import random
-    global physical_state
-    global state_lock
-    with state_lock:
-        if not physical_state.entities:
-            physical_state.entities.add()
-        physical_state.timestamp = time.monotonic()
-        physical_state.entities[0].name = 'Earth'
-        physical_state.entities[0].x = random.uniform(-60, 60)
-        physical_state.entities[0].y = random.uniform(-60, 60)
-        physical_state.entities[0].vx = random.uniform(-30, 30)
-        physical_state.entities[0].vy = random.uniform(-30, 30)
-        physical_state.entities[0].r = random.uniform(20, 30)
-        physical_state.entities[0].mass = random.uniform(-30, 30)
+import physics
 
 
 def main():
-    global state_lock
     state_server = network.StateServer()
 
+    # Parse CLI arguments. Jupyter might add extra arguments, ignore them.
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=common.DEFAULT_PORT)
-    args = parser.parse_args()
+    parser.add_argument('--flight-save', type=str,
+                        default=common.DEFAULT_FLIGHT_SAVE_FILE)
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        print('Got unrecognized args,', unknown)
+    # os.path.normpath deduplicates slashes and turns '/' into '\' on windows
+    args.flight_save = os.path.normpath(args.flight_save)
+    if not os.path.isabs(args.flight_save):
+        # Take relative paths relative to the data/saves/
+        args.flight_save = common.savefile(args.flight_save)
 
-    print('Starting CnC server...')
+    print('Starting up physics engine,',
+          f'loading save at {os.path.abspath(args.flight_save)}...')
+    physics_engine = physics.PEngine(args.flight_save)
+
+    print('Starting up networking...')
     server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=4))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{args.port}')
@@ -56,12 +50,20 @@ def main():
     print(f'Listening for RPC calls on port {args.port}. Ctrl-C exits.')
 
     try:
-        while True:
-            generate_entities()
-            state_server.notify_state_change(physical_state, state_lock)
-            time.sleep(1)
+        for _ in range(0, 9001):
+            next_tick_time = time.monotonic() + 1.0
+            physics_engine.run_step(1)
+            state_server.notify_state_change(
+                physics_engine.state, physics_engine.state_lock)
+            physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
+            time_until_next_tick = next_tick_time - time.monotonic()
+            time.sleep(time_until_next_tick)
     except KeyboardInterrupt:
         server.stop(0)
+        print('Got Ctrl-C, exiting...')
+    except:
+        server.stop(0)
+        raise
 
 
 if __name__ == '__main__':
