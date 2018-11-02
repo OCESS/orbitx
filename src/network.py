@@ -1,8 +1,6 @@
 """Network-related classes."""
 
 import threading
-import time
-import copy
 
 import grpc
 import cs493_pb2 as protos

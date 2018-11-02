@@ -8,16 +8,13 @@ modules, and receives updates from networked modules.
 """
 
 import argparse
-import threading
 import concurrent.futures
 import time
 import os
 import grpc
 import urllib.parse
-import contextlib
 import copy
 
-import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
 import common
 import network
@@ -26,7 +23,7 @@ import flight_gui
 
 
 def parse_args():
-    # Parse CLI arguments. Jupyter might add extra arguments, ignore them.
+    """Parse CLI arguments. Jupyter might add extra arguments, ignore them."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
@@ -60,7 +57,6 @@ def parse_args():
                         ))
 
     parser.add_argument('--serve-on-port', type=int, metavar='PORT',
-                        default=common.DEFAULT_LEAD_SERVER_PORT,
                         help=(
                             'For a lead server, specifies which port to serve '
                             'physics data on. Specifying this for a mirror is '
@@ -82,6 +78,7 @@ def parse_args():
         args.data_location.scheme == 'mirror'
 
     if args.data_location.scheme == 'file':
+        # We're in lead server mode
         assert not args.data_location.netloc
         assert args.data_location.path
         assert not args.data_location.query
@@ -91,7 +88,13 @@ def parse_args():
             args.data_location._replace(
                 path=common.savefile(args.data_location.path)
             )
+        if args.serve_on_port is None:
+            # We can't have a default value of this port, because we want to
+            # check for its existence when we're in mirroring client mode
+            args.serve_on_port = common.DEFAULT_LEAD_SERVER_PORT
     else:
+        # We're in mirroring client mode
+        assert args.serve_on_port is None  # Meaningless in this mode
         assert args.data_location.netloc
         assert not args.data_location.path
         assert not args.data_location.query
@@ -108,6 +111,7 @@ def parse_args():
 
 
 def lead_server_loop(args):
+    """Main, 'while True'-style loop for a lead server. Blocking."""
     # Before you make changes to the lead server architecture, consider that
     # the GRPC server runs in a separate thread than this thread!
     state_server = network.StateServer()
@@ -146,11 +150,12 @@ def lead_server_loop(args):
 
 
 def mirroring_loop(args):
+    """Main, 'while True'-style loop for a mirroring client. Blocking."""
     currently_mirroring = True
 
     print('Connecting to CnC server...')
     with network.StateClient(
-            args.data_location.hostname, args.data_location.port
+        args.data_location.hostname, args.data_location.port
     ) as mirror_state:
         print(f'Getting physics engine state [{args.data_location.geturl()}]')
         physics_engine = physics.PEngine(mirror_state=mirror_state)
@@ -184,6 +189,7 @@ def mirroring_loop(args):
 
 
 def main():
+    """Delegate work to either lead_server_loop or mirroring_loop."""
     args = parse_args()
     try:
         if args.data_location.scheme == 'file':

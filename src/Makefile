@@ -12,4 +12,4 @@ clean:
 
 .PHONY: format
 format:
-	python -m autopep8 -j 0 --recursive --in-place --hang-closing .
+	python -m autopep8 -j 0 --recursive --in-place .

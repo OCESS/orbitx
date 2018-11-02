@@ -3,7 +3,6 @@ Class that provides a main loop for flight.
 
 The main loop drawsa GUI and collects input.
 """
-import threading
 import os
 
 
@@ -17,7 +16,7 @@ class FlightGui:
             width=600,
             height=600,
             center=vpython.vector(0, 0, 0)
-            )
+        )
 
         self._spheres = {}
 
@@ -44,14 +43,14 @@ class FlightGui:
                 radius=planet.r,
                 make_trail=True,
                 texture=texture
-                )
+            )
         else:
             print('Could not find texture', texture)
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, 0, planet.y),
                 radius=planet.r,
                 make_trail=True
-                )
+            )
 
     def _update_sphere(self, planet):
         self._spheres[planet.name].pos = self._vpython.vector(
