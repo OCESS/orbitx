@@ -8,18 +8,22 @@ modules, and receives updates from networked modules.
 """
 
 import argparse
-import concurrent.futures
-import time
-import os
-import grpc
-import urllib.parse
 import copy
+import os
+import queue
+import sys
+import threading
+import time
+import concurrent.futures
+import urllib.parse
+
+import grpc
 
 import cs493_pb2_grpc as grpc_stubs
 import common
+import flight_gui
 import network
 import physics
-import flight_gui
 
 
 def parse_args():
@@ -110,6 +114,12 @@ def parse_args():
     return args
 
 
+def hacky_input_thread(cmd_queue):
+    """This is hacky but works with jupyter notebook for the demo. Hi Nova!"""
+    while True:
+        cmd_queue.put(input('Centre planet on:'))
+
+
 def lead_server_loop(args):
     """Main, 'while True'-style loop for a lead server. Blocking."""
     # Before you make changes to the lead server architecture, consider that
@@ -131,18 +141,29 @@ def lead_server_loop(args):
         if args.flight_gui:
             print('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(physics_engine.state)
+            cmd_queue = queue.Queue()
+            input_thread = threading.Thread(
+                target=hacky_input_thread, args=(cmd_queue,)
+            )
+            input_thread.start()
 
         next_tick_time = time.monotonic() + 1.0
+        last_loop_time = time.monotonic()
 
         for _ in range(0, 9001):
             physics_engine.run_step(100000)
             state_server.notify_state_change(
                 copy.deepcopy(physics_engine.state))
-            physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
+            # physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
+            last_loop_time = time.monotonic()
 
             if args.flight_gui:
                 gui.draw(physics_engine.state)
-                gui.wait(1)
+                try:
+                    gui.recentre_camera(cmd_queue.get_nowait())
+                except queue.Empty:
+                    pass
+                gui.rate(1)
             else:
                 time_until_next_tick = next_tick_time - time.monotonic()
                 time.sleep(time_until_next_tick)
@@ -175,7 +196,7 @@ def mirroring_loop(args):
 
                 if args.flight_gui:
                     gui.draw(physics_engine.state)
-                    gui.wait(1)
+                    gui.rate(1)
                 else:
                     time_until_next_tick = next_tick_time - time.monotonic()
                     time.sleep(time_until_next_tick)

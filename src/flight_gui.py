@@ -7,6 +7,12 @@ import os
 
 
 class FlightGui:
+    def _handle_keydown(self, evt):
+        print('Got keydown', evt)
+
+    def _handle_click(self, evt):
+        print('Got click', evt)
+
     def __init__(self, physical_state_to_draw, texture_path=None):
         import vpython  # Note that this might actually start an HTTP server!
         self._vpython = vpython
@@ -18,6 +24,9 @@ class FlightGui:
             center=vpython.vector(0, 0, 0)
         )
 
+        self._scene.bind('keydown', self._handle_keydown)
+        self._scene.bind('click', self._handle_click)
+
         self._spheres = {}
 
         self._texture_path = texture_path
@@ -27,12 +36,14 @@ class FlightGui:
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
+            if planet.name == 'Sun':
+                self._scene.camera.follow(self._spheres[planet.name])
 
     def draw(self, physical_state_to_draw):
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
 
-    def wait(self, framerate):
+    def rate(self, framerate):
         self._vpython.rate(framerate)
 
     def _draw_sphere(self, planet):
@@ -55,3 +66,9 @@ class FlightGui:
     def _update_sphere(self, planet):
         self._spheres[planet.name].pos = self._vpython.vector(
             planet.x, planet.y, 0)
+
+    def recentre_camera(self, planet_name):
+        try:
+            self._scene.camera.follow(self._spheres[planet_name])
+        except KeyError:
+            print('Unrecognized planet to follow:', planet_name)

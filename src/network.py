@@ -3,6 +3,7 @@
 import threading
 
 import grpc
+
 import cs493_pb2 as protos
 import cs493_pb2_grpc as grpc_stubs
 

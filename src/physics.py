@@ -1,9 +1,10 @@
-# some import might not be need
-import numpy as np
-from scipy.integrate import *
 import random
 import string
+import time
+
 import google.protobuf.json_format
+import numpy as np
+from scipy.integrate import *
 
 import cs493_pb2 as protos
 import common
@@ -121,6 +122,7 @@ class PEngine(object):
             self.state = mirror_state()
         self._integrator = None
         self._init = False
+        self._last_step = time.monotonic()
 
     def _random_name(self):
         name = ''.join(
@@ -258,25 +260,46 @@ class PEngine(object):
         self._collision_handle(coll)
         return True
 
-    def run_step(self, step_size, atol=0.5, nsteps=750):
+    def run_step(self, time_acceleration, atol=0.5, nsteps=750):
+        # A note about time,
+        # cribbed from https://docs.python.org/3/library/time.html
+        # time.time() is the float number of seconds since epoch
+        # however! it's not accurate enough for our needs (a precision
+        # less than 1 second). Also, if someone sets the machine's time
+        # back, time.time() will return non-monotonic values.
+        # So our solution is:
+        # in self.state.timestamp, store time.time(). Things like the GUI
+        # will then format this timestamp as something like "October 2018" etc.
+        # But if we want to find out how much time has passed between calls to
+        # run_step, use time.monotonic()! This will be what self._integrator.t
+        # is set to. Thus, self._integrator.t != self.state.timestamp!
+
         if not self._init:
             self._initialize()
         if self._integrator is None:
-            t0 = self.state.timestamp
+            t0 = 0.0
             y0 = [self.X, self.Y, self.DX, self.DY]
             y0 = np.concatenate(y0).ravel()
             self._integrator = ode(derive).set_integrator(
                 'vode', method='bdf', atol=atol, nsteps=nsteps)
             self._integrator.set_initial_value(y0, t0).set_f_params(
                 len(self.state.entities), self.r, self.M)
-        out = self._integrator.integrate(self._integrator.t + step_size)
+
+        # Simulate only the amount of time that has passed since the last call
+        # to this function.
+        time_step = time.monotonic() - self._last_step
+        if time_step <= 0.0:
+            print('time_step too small:', time_step)
+            time_step = 1
+        self._last_step = time.monotonic()
+        out = self._integrator.integrate(
+            self._integrator.t + time_acceleration * time_step
+        )
         out = extract(out, len(self.state.entities))
+        self.state.timestamp = time.time()
         self.out = out
         self.update(out)
         self._collision_detect(out)
-
-    def get_time(self):
-        return 0  # time in date + time
 
 
 # In[ ]:
