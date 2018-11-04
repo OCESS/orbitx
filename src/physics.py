@@ -4,11 +4,13 @@ import time
 
 import google.protobuf.json_format
 import numpy as np
+import scipy.special
 from scipy.integrate import *
 
 import cs493_pb2 as protos
 import common
 
+scipy.special.seterr(all='raise')
 # In[2]:
 
 
@@ -208,44 +210,58 @@ class PEngine(object):
             entity.vx = DX
             entity.vy = DY
 
-    def merge(self, e1, e2):
+    def _merge(self, e1, e2):
         if e1 == e2:
             raise self.Bad_Merge()
-        e1 = list(self.state.entities.keys())[e1]
-        e2 = list(self.state.entities.keys())[e2]
-        if isinstance(
-                self.state.entities[e1],
-                str) or isinstance(
-                self.state.entities[e2],
-                str):
-            raise self.Bad_Merge()
-        main = max([(e1, self.state.entities[e1].M),
-                    (e2, self.state.entities[e2].M)])
-        if e1 is main[0]:
-            victim = (e2, self.state.entities[e2].M)
-        else:
-            victim = (e1, self.state.entities[e1].M)
-        mV = self.state.entities[main[0]].V
-        vV = self.state.entities[victim[0]].V
-        # need change speed
-        self.state.entities[
-            main[0]
-        ].M += self.state.entities[victim[0]].M
-        # change radius, to change
-        self.state.entities[main[0]].r += 3
-        self.state.entities[victim[0]] = main[0]
+        e1 = self.state.entities[e1]
+        e2 = self.state.entities[e2]
+        print(e1, e2)
+
+        # Resolve a collision by:
+        # 1. calculating positions and velocities of the two entities
+        # 2. do a 1D collision calculation along the normal between the two
+        # 3. recombine the velocity vectors
+        e1_pos = np.asarray([e1.x, e1.y])
+        e1_v = np.asarray([e1.vx, e1.vy])
+        e2_pos = np.asarray([e2.x, e2.y])
+        e2_v = np.asarray([e2.vx, e2.vy])
+
+        norm = e1_pos - e2_pos
+        unit_norm = norm / np.linalg.norm(norm)
+        # The unit tangent is perpendicular to the unit normal vector
+        unit_tang = unit_norm
+        unit_tang[0], unit_tang[1] = -unit_tang[1], unit_tang[0]
+
+        # Calculate both normal and tangent velocities for both entities
+        v1n = scipy.dot(unit_norm, e1_v)
+        v1t = scipy.dot(unit_tang, e1_v)
+        v2n = scipy.dot(unit_norm, e2_v)
+        v2t = scipy.dot(unit_tang, e2_v)
+
+        # Use https://en.wikipedia.org/wiki/Elastic_collision
+        # to find the new normal velocities (a 1D collision)
+        new_v1n = (v1n * (e1.mass - e2.mass) + 2 *
+                   e2.mass * v2n) / (e1.mass + e2.mass)
+        new_v2n = (v2n * (e2.mass - e1.mass) + 2 *
+                   e1.mass * v1n) / (e1.mass + e2.mass)
+
+        # Calculate new velocities
+        v1 = new_v1n * unit_norm + v1t * unit_tang
+        v2 = new_v2n * unit_norm + v2t * unit_tang
+
+        e1.vx = v1[0]
+        e1.vy = v1[1]
+        e2.vx = v2[0]
+        e2.vy = v2[1]
 
     def _collision_handle(self, coll):
         for i, j in zip(coll[0], coll[1]):
             try:
-                self.merge(i, j)
+                self._merge(i, j)
             except self.Bad_Merge:
                 continue
             # except:
             #    print("Merge fail")
-        for entity in list(self.state.entities):
-            if isinstance(self.state.entities[name], str):
-                del self.state.entities[name]
         self._gather_data()
 
     def _collision_detect(self, out):
@@ -260,7 +276,7 @@ class PEngine(object):
         self._collision_handle(coll)
         return True
 
-    def run_step(self, time_acceleration, atol=0.5, nsteps=750):
+    def run_step(self, time_acceleration):
         # A note about time,
         # cribbed from https://docs.python.org/3/library/time.html
         # time.time() is the float number of seconds since epoch
@@ -281,7 +297,10 @@ class PEngine(object):
             y0 = [self.X, self.Y, self.DX, self.DY]
             y0 = np.concatenate(y0).ravel()
             self._integrator = ode(derive).set_integrator(
-                'vode', method='bdf', atol=atol, nsteps=nsteps)
+                'dopri5',
+                rtol=0.01,
+                nsteps=750*time_acceleration
+            )
             self._integrator.set_initial_value(y0, t0).set_f_params(
                 len(self.state.entities), self.r, self.M)
 
