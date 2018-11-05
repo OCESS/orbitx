@@ -11,7 +11,6 @@ import cs493_pb2 as protos
 import common
 
 scipy.special.seterr(all='raise')
-# In[2]:
 
 
 def distance(X, Y):
@@ -87,28 +86,37 @@ def derive(t, y, n, r, M):
 # In[3]:
 
 
-class Entity(object):
-    def __init__(self, name, coor, r, M, v=[0, 0], spin=0, movable=True):
-        self.name = name
-        self.coordinates = coor
-        self.r = r
-        self.M = M
-        self.V = v
-        self.spin = spin
-        self.movable = movable
+class PhysicsEntity(object):
+    def __init__(self, entity):
+        assert isinstance(entity, protos.Entity)
+        self.name = entitiy.name
+        self.pos = np.asarray([entity.x, entity.y])
+        self.r = entity.r
+        self.v = np.asarray([entity.vx, entity.vy])
+        self.m = entity.mass
+        self.spin = entity.spin
+        self.heading = entity.heading
 
-    def json_save(self):
-        return {
-            "name": self.name,
-            "velocity": self.V,
-            "mass": self.M,
-            "radius": self.r,
-            "coordinates": self.coordinates,
-            "angular speed": self.spin}
+    def as_proto(self):
+        return protos.Entity(
+            name=self.name,
+            x=self.pos[0],
+            y=self.pos[1],
+            vx=self.v[0],
+            vy=self.v[1],
+            r=self.r,
+            mass=self.m,
+            spin=self.spin,
+            heading=self.heading
+        )
 
 
 # In[4]:
 
+
+# TODO: make referring to internal state as a list of entities or a big numpy
+# array the same thing, or at least make it hard to make one not consistent
+# with the other
 
 class PEngine(object):
     class Bad_Merge(Exception):  # exception for merging same object
@@ -210,33 +218,28 @@ class PEngine(object):
             entity.vx = DX
             entity.vy = DY
 
-    def _merge(self, e1, e2):
-        if e1 == e2:
+    def _merge(self, e1_index, e2_index):
+        if e1_index == e2_index:
             raise self.Bad_Merge()
-        e1 = self.state.entities[e1]
-        e2 = self.state.entities[e2]
-        print(e1, e2)
+        e1 = PhysicsEntity(self.state.entities[e1_index])
+        e2 = PhysicsEntity(self.state.entities[e2_index])
 
         # Resolve a collision by:
         # 1. calculating positions and velocities of the two entities
         # 2. do a 1D collision calculation along the normal between the two
         # 3. recombine the velocity vectors
-        e1_pos = np.asarray([e1.x, e1.y])
-        e1_v = np.asarray([e1.vx, e1.vy])
-        e2_pos = np.asarray([e2.x, e2.y])
-        e2_v = np.asarray([e2.vx, e2.vy])
 
-        norm = e1_pos - e2_pos
+        norm = e1.pos - e2.pos
         unit_norm = norm / np.linalg.norm(norm)
         # The unit tangent is perpendicular to the unit normal vector
         unit_tang = unit_norm
         unit_tang[0], unit_tang[1] = -unit_tang[1], unit_tang[0]
 
         # Calculate both normal and tangent velocities for both entities
-        v1n = scipy.dot(unit_norm, e1_v)
-        v1t = scipy.dot(unit_tang, e1_v)
-        v2n = scipy.dot(unit_norm, e2_v)
-        v2t = scipy.dot(unit_tang, e2_v)
+        v1n = scipy.dot(unit_norm, e1.v)
+        v1t = scipy.dot(unit_tang, e1.v)
+        v2n = scipy.dot(unit_norm, e2.v)
+        v2t = scipy.dot(unit_tang, e2.v)
 
         # Use https://en.wikipedia.org/wiki/Elastic_collision
         # to find the new normal velocities (a 1D collision)
@@ -249,10 +252,12 @@ class PEngine(object):
         v1 = new_v1n * unit_norm + v1t * unit_tang
         v2 = new_v2n * unit_norm + v2t * unit_tang
 
-        e1.vx = v1[0]
-        e1.vy = v1[1]
-        e2.vx = v2[0]
-        e2.vy = v2[1]
+        e1.v = v1
+        e2.v = v2
+
+        self.state.entities[e1_index] = e1.as_proto()
+        self.state.entities[e2_index] = e2.as_proto()
+
 
     def _collision_handle(self, coll):
         for i, j in zip(coll[0], coll[1]):
@@ -297,7 +302,7 @@ class PEngine(object):
             y0 = [self.X, self.Y, self.DX, self.DY]
             y0 = np.concatenate(y0).ravel()
             self._integrator = ode(derive).set_integrator(
-                'dopri5',
+                'dope853',
                 rtol=0.01,
                 nsteps=750*time_acceleration
             )
@@ -315,18 +320,7 @@ class PEngine(object):
             self._integrator.t + time_acceleration * time_step
         )
         out = extract(out, len(self.state.entities))
-        self.state.timestamp = time.time()
+        self.state.timestamp = time.time() + time_acceleration * time_step
         self.out = out
         self.update(out)
         self._collision_detect(out)
-
-
-# In[ ]:
-
-# example code:
-# PE=PEngine()
-# PE.Load_json("data.json")
-# PE.run_step(1)
-# for i in range(0,90000000):
-#    PE.run_step(1) #run step with h=1
-# PE.Entities[C] #to get object with name C
