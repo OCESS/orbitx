@@ -28,26 +28,29 @@ scipy.special.seterr(all='raise')
 
 def force(MM, X, Y):
     G = 6.674e-11
-    n = len(X.shape)
-    D = (X - X.transpose())**2 + (Y - Y.transpose())**2
-    return np.multiply(G * (MM / (D + 0.00001)),
-                       np.where(np.identity(n), 0, 1))
+    D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
+    # This matrix will tell np.divide to not divide along the diagonal, i.e.
+    # don't calculate the force between an entity and itself.
+    where_matrix = np.full(D2.shape, True)
+    np.fill_diagonal(where_matrix, False)
+    force_matrix = np.divide(MM, D2, where=where_matrix)
+    return G * force_matrix
 
 
 def force_sum(force):
-    return np.sum(force, 1)
+    return np.sum(force, 0)
 
 
-def vec_to_angle(X, Y):
+def angle_matrix(X, Y):
     Xd = X - X.transpose()
     Yd = Y - Y.transpose()
-    return np.arctan2(Yd, Xd + 0.00001)
+    return np.arctan2(Yd, Xd)
 
 
-def angle_to_vec_stuff(ang, hyp):
+def polar_to_cartesian(ang, hyp):
     X = np.multiply(np.cos(ang), hyp)
     Y = np.multiply(np.sin(ang), hyp)
-    return X, Y
+    return X.T, Y.T
 
 
 def f_to_a(f, M):
@@ -55,15 +58,20 @@ def f_to_a(f, M):
 
 
 def get_acc(X, Y, M):
-    MM = M * np.transpose(M)
-    ang = vec_to_angle(X, Y)
+    # Turn X, Y, M into column vectors, which is easier to do math with.
+    # (row vectors won't transpose)
+    X = np.array([X])
+    Y = np.array([Y])
+    M = np.array([M])
+    MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
+    ang = angle_matrix(X, Y)
     FORCE = force(MM, X, Y)
-    Xf, Yf = angle_to_vec_stuff(ang, FORCE)
+    Xf, Yf = polar_to_cartesian(ang, FORCE)
     Xf = force_sum(Xf)
     Yf = force_sum(Yf)
     Xa = f_to_a(Xf, M)
     Ya = f_to_a(Yf, M)
-    return Xa, Ya
+    return np.array(Xa)[0], np.array(Ya)[0]
 
 
 def extract_from_y_1d(y_1d):
@@ -275,7 +283,6 @@ class PEngine(object):
         e2_index_list = np.where(X == pair[1][0])[0]
         assert len(e1_index_list) == 1
         assert len(e2_index_list) == 1
-        # breakpoint()
         e1 = self._physics_entity_at(y, e1_index_list[0])
         e2 = self._physics_entity_at(y, e2_index_list[0])
         e1, e2 = self._resolve_collision(e1, e2)
@@ -339,7 +346,6 @@ class PEngine(object):
             self._template_physical_state.timestamp
 
         while True:
-            # breakpoint()
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [latest_t,
