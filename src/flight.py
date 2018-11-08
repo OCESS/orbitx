@@ -89,7 +89,7 @@ def parse_args():
         assert not args.data_location.fragment
         if not os.path.isabs(args.data_location.path):
             # Take relative paths relative to the data/saves/
-            args.data_location._replace(
+            args.data_location = args.data_location._replace(
                 path=common.savefile(args.data_location.path)
             )
         if args.serve_on_port is None:
@@ -105,7 +105,7 @@ def parse_args():
         assert not args.data_location.fragment
         if not args.data_location.port:
             # Port is optional. If it does not exist use the default port.
-            args.data_location._replace(netloc=(
+            args.data_location = args.data_location._replace(netloc=(
                 args.data_location.hostname +
                 ':' +
                 str(common.DEFAULT_LEAD_SERVER_PORT)
@@ -126,8 +126,10 @@ def lead_server_loop(args):
     # the GRPC server runs in a separate thread than this thread!
     state_server = network.StateServer()
 
-    print(f'Starting up physics, loading save at {args.data_location.path}')
+    print('Starting up physics engine (thanks ye qin)')
+    print(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
+    physics_engine.set_time_acceleration(10)
 
     print('Starting up lead server networking...')
     server = grpc.server(
@@ -140,34 +142,26 @@ def lead_server_loop(args):
 
         if args.flight_gui:
             print('Initializing graphics (thanks sean)...')
-            gui = flight_gui.FlightGui(physics_engine.state)
+            gui = flight_gui.FlightGui(physics_engine.get_state())
             cmd_queue = queue.Queue()
             input_thread = threading.Thread(
                 target=hacky_input_thread, args=(cmd_queue,)
             )
             input_thread.start()
 
-        next_tick_time = time.monotonic() + 1.0
-        last_loop_time = time.monotonic()
-
         for _ in range(0, 9001):
-            physics_engine.run_step(100000)
+            state = physics_engine.get_state()
             state_server.notify_state_change(
-                copy.deepcopy(physics_engine.state))
+                copy.deepcopy(state))
             # physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
-            last_loop_time = time.monotonic()
 
             if args.flight_gui:
-                gui.draw(physics_engine.state)
+                gui.draw(state)
                 try:
                     gui.recentre_camera(cmd_queue.get_nowait())
                 except queue.Empty:
                     pass
-                gui.rate(1)
-            else:
-                time_until_next_tick = next_tick_time - time.monotonic()
-                time.sleep(time_until_next_tick)
-                next_tick_time = time.monotonic() + 1.0
+                gui.rate(common.TICK_RATE)
 
 
 def mirroring_loop(args):
@@ -185,22 +179,16 @@ def mirroring_loop(args):
             print('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(mirror_state())
 
-        next_tick_time = time.monotonic() + 1.0
-
         for _ in range(0, 9001):
             try:
                 if currently_mirroring:
                     physics_engine.set_state(mirror_state())
                 else:
-                    physics_engine.run_step(1)
+                    state = physics_engine.get_state()
 
                 if args.flight_gui:
-                    gui.draw(physics_engine.state)
-                    gui.rate(1)
-                else:
-                    time_until_next_tick = next_tick_time - time.monotonic()
-                    time.sleep(time_until_next_tick)
-                    next_tick_time = time.monotonic() + 1.0
+                    gui.draw(state)
+                    gui.rate(common.TICK_RATE)
             except KeyboardInterrupt:
                 # TODO: hacky solution to turn off mirroring right now is a ^C
                 if currently_mirroring:

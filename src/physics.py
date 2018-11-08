@@ -1,25 +1,34 @@
-import random
+import collections
+import itertools
 import string
 import time
 
 import google.protobuf.json_format
 import numpy as np
+import numpy.linalg as linalg
 import scipy.special
 from scipy.integrate import *
 
 import cs493_pb2 as protos
 import common
 
+# Higher values of this result in faster simulation but more chance of missing
+# a collision. Units of this are in seconds.
+MAX_STEP_SIZE = 1.0
+FUTURE_WORK_SIZE = 10.0
 scipy.special.seterr(all='raise')
 
-
-def distance(X, Y):
-    return np.sqrt((X - X.transpose())**2 + (Y - Y.transpose())**2)
+# Note on variable naming:
+# a lowercase single letter, like `x`, is likely a scalar
+# an uppercase single letter, like `X`, is likely a 1D row vector of scalars
+# `y` is either the y position, or a vector of the form [X, Y, DX, DY]. i.e. 2D
+# `y_1d` is the 1D row vector flattened version of the above `y` 2D vector,
+#     which is required by `solve_ivp` inputs and outputs
 
 
 def force(MM, X, Y):
     G = 6.674e-11
-    n = X.shape[1]
+    n = len(X.shape)
     D = (X - X.transpose())**2 + (Y - Y.transpose())**2
     return np.multiply(G * (MM / (D + 0.00001)),
                        np.where(np.identity(n), 0, 1))
@@ -57,41 +66,63 @@ def get_acc(X, Y, M):
     return Xa, Ya
 
 
-def new_v(h, DX, DY, DX2, DY2):
-    DX = DX + h * DX2
-    DY = DY + h * DY2
-
-
-def extract(y, n):
-    X = (y[0:n]).reshape(1, n)
-    Y = (y[n:2 * n]).reshape(1, n)
-    DX = (y[2 * n:3 * n]).reshape(1, n)
-    DY = (y[3 * n:4 * n]).reshape(1, n)
-    # M=(y[4*n:5*n]).reshape(1,n)
+def extract_from_y_1d(y_1d):
+    n = len(y_1d) // 4
+    X = (y_1d[0:n])
+    Y = (y_1d[n:2 * n])
+    DX = (y_1d[2 * n:3 * n])
+    DY = (y_1d[3 * n:4 * n])
     return X, Y, DX, DY
 
 
-def derive(t, y, n, r, M):
-    X, Y, DX, DY = extract(y, n)
-    Xa, Ya = get_acc(X, Y, M)
-    DX = DX + Xa
-    DY = DY + Ya
-    X = X + DX
-    Y = Y + DY
-    ans = [DX, DY, Xa, Ya]
-    ans = np.concatenate(ans).ravel()
-    return ans
+def event_altitude(x1, y1, vx1, vy1, r1, x2, y2, vx2, vy2, r2):
+    # Return a negative value if two entities are moving closer,
+    # Return zero if two entities are touching,
+    # Return a positive value if two entities are moving farther.
+    pos = [x1 - x2, y1 - y2]
+    v = [vx1 - vx2, vy1 - vy2]
+    altitude = linalg.norm(pos) - r1 - r2  # Should always be positive
+    relative_speed = linalg.norm(v)  # Negative when moving closer
+    if relative_speed == 0:
+        return altitude
+    else:
+        return altitude * np.sign(relative_speed)
 
 
-# In[3]:
+def smallest_altitude_pair(X, Y, DX, DY, R):
+    assert len(X) > 1
+    object_pairs = itertools.combinations(zip(X, Y, DX, DY, R), 2)
+    return min(object_pairs,
+               key=lambda pair: abs(event_altitude(*pair[0], *pair[1])))
+
+
+def smallest_altitude_event(t, y_1d):
+    """This function is passed in to solve_ivp to detect a collision.
+
+    To accomplish this, and also to stop solve_ivp when there is a collision,
+    this function has the attributes `terminal = True` and `radii = [...]`.
+    radii will be set by a PEngine when it's instantiated.
+    The only time the return value of this function matters is when it reaches
+    zero. Ctrl-F 'events' in
+    docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
+    for more info.
+    """
+    X, Y, DX, DY = extract_from_y_1d(y_1d)
+    pair = smallest_altitude_pair(X, Y, DX, DY, smallest_altitude_event.radii)
+    return event_altitude(*pair[0], *pair[1])
+
+
+smallest_altitude_event.terminal = True  # Event stops integration
+smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
+smallest_altitude_event.radii = []
 
 
 class PhysicsEntity(object):
     def __init__(self, entity):
         assert isinstance(entity, protos.Entity)
-        self.name = entitiy.name
+        self.name = entity.name
         self.pos = np.asarray([entity.x, entity.y])
-        self.r = entity.r
+        self.R = entity.r
         self.v = np.asarray([entity.vx, entity.vy])
         self.m = entity.mass
         self.spin = entity.spin
@@ -104,126 +135,111 @@ class PhysicsEntity(object):
             y=self.pos[1],
             vx=self.v[0],
             vy=self.v[1],
-            r=self.r,
+            r=self.R,
             mass=self.m,
             spin=self.spin,
             heading=self.heading
         )
 
 
-# In[4]:
-
-
-# TODO: make referring to internal state as a list of entities or a big numpy
-# array the same thing, or at least make it hard to make one not consistent
-# with the other
-
 class PEngine(object):
-    class Bad_Merge(Exception):  # exception for merging same object
-        def __init__(self, code=0):
-            self.code = code
+    """Physics Engine class. Encapsulates simulating physical state.
+
+    Methods beginning with an underscore are not part of the API and change!
+
+    Example usage:
+    pe = PEngine(flight_savefile)
+    state = pe.get_state()
+    pe.set_time_acceleration(20)
+    # Simulates 20 * [amount of time elapsed since last get_state() call]:
+    state = pe.get_state()
+    """
 
     def __init__(self, flight_savefile=None, mirror_state=None):
-        # If this needs to be called again, call self.__init__ during runtime
-        self.state = protos.PhysicalState(timestamp=0.0)
+        # A PhysicalState, but no x, y, vx, or vy. That's handled by get_state.
+        self._template_physical_state = protos.PhysicalState()
+        # TODO: get rid of this check by only taking in a PhysicalState as arg.
         if flight_savefile:
             self.Load_json(flight_savefile)
         elif mirror_state:
-            self.state = mirror_state()
-        self._integrator = None
-        self._init = False
-        self._last_step = time.monotonic()
+            self.set_state(mirror_state())
+        else:
+            raise ValueError('need either a file or a lead server')
+        self._reset_solutions()
+        self._time_acceleration = 1.0
+        self._last_state_request_time = time.monotonic()
+        if len(self._template_physical_state.entities) > 1:
+            self._events_function = smallest_altitude_event
+        else:
+            # If there's only one entity, make a no-op events function
+            self._events_function = lambda t, y: 1
 
-    def _random_name(self):
-        name = ''.join(
-            random.choice(
-                string.ascii_uppercase +
-                string.digits) for _ in range(10))
-        return name
+    def set_time_acceleration(self, time_acceleration):
+        """Change the speed at which this PEngine simulates at."""
+        self._time_acceleration = time_acceleration
+        self._reset_solutions()
 
-    def random_entity(self, name=None):
-        name = self._random_name(self)
-        X = random.uniform(1e25, 1e30)
-        Y = random.uniform(1e25, 1e30)
-        r = random.uniform(1e5, 1e6)
-        M = random.uniform(1e24, 1e26)
-        self.add_entity(
-            name=name, x=X, y=Y, vx=0, vy=0, r=r, mass=M, spin=0, heading=0)
+    def _time_elapsed(self):
+        time_elapsed = time.monotonic() - self._last_state_request_time
+        self._last_state_request_time = time.monotonic()
+        return max(time_elapsed, 0.001)
 
-    def add_entity(self, **kwargs):
-        # How to use this magical function:
-        # self.add_entity(name='Earth', x=5, y=10, etc etc etc)
-        # Just pass all the variables that exist in an Entity message protobuf
-        # (see cs493.proto) and it'll all happen automatically!
-        self.state.entities.add(**kwargs)
+    def _reset_solutions(self):
+        # self._solutions is effectively a cache of ODE solutions, which
+        # can be evaluated continuously for any value of t.
+        # If something happens to invalidate this cache, clear the cache.
+        self._solutions = collections.deque(maxlen=10)
+
+    def _physics_entity_at(self, y, i):
+        """Returns a PhysicsEntity constructed from the i'th entity."""
+        physics_entity = PhysicsEntity(
+            self._template_physical_state.entities[i])
+        physics_entity.pos = np.asarray([y[0][i], y[1][i]])
+        physics_entity.v = np.asarray([y[2][i], y[3][i]])
+        return physics_entity
+
+    def _merge_physics_entity_into(self, physics_entity, y, i):
+        """Inverse of _physics_entity_at, merges a physics_entity into y."""
+        y[0][i], y[1][i] = physics_entity.pos
+        y[2][i], y[3][i] = physics_entity.v
+        return y
 
     def Load_json(self, file):
         with open(file) as f:
             data = f.read()
-        return google.protobuf.json_format.Parse(
-            data, self.state)
+        read_state = protos.PhysicalState()
+        google.protobuf.json_format.Parse(data, read_state)
+        self.set_state(read_state)
 
     def Save_json(self, file=common.AUTOSAVE_SAVEFILE):
         with open(file, 'w') as outfile:
             outfile.write(google.protobuf.json_format.MessageToJson(
-                self.state))
+                self._state_from_ode_solution(
+                    self._template_physical_state.timestamp,
+                    [self.X, self.Y, self.DX, self.DY])))
 
     def set_state(self, physical_state):
-        self.state = physical_state
-        self._gather_data()
-
-    def _gather_data(self):
-        self.X = np.asarray(
-            [entity.x
-                for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
-        self.Y = np.asarray(
-            [entity.y
-                for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
-        self.DX = np.asarray(
-            [entity.vx
-             for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
-        self.DY = np.asarray(
-            [entity.vy
-             for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
-        self.r = np.asarray(
-            [entity.r
-             for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
+        self.X = np.asarray([entity.x for entity in physical_state.entities])
+        self.Y = np.asarray([entity.y for entity in physical_state.entities])
+        self.DX = np.asarray([entity.vx for entity in physical_state.entities])
+        self.DY = np.asarray([entity.vy for entity in physical_state.entities])
+        self.R = np.asarray([entity.r for entity in physical_state.entities])
         self.M = np.asarray(
-            [entity.mass
-             for entity in self.state.entities]
-        ).reshape(1, len(self.state.entities))
-        self.X = self.X.astype(object, copy=False)
-        self.Y = self.Y.astype(object, copy=False)
-        self.DX = self.DX.astype(object, copy=False)
-        self.DY = self.DY.astype(object, copy=False)
-        self.r = self.r.astype(object, copy=False)
-        self.M = self.M.astype(object, copy=False)
+            [entity.mass for entity in physical_state.entities])
+        smallest_altitude_event.radii = self.R
 
-    def _initialize(self):
-        self._gather_data()
-        # add code here for init
-        self._init = True
+        # Don't store positions and velocities in the physical_state,
+        # it should only be returned from get_state()
+        self._template_physical_state.CopyFrom(physical_state)
+        for entity in self._template_physical_state.entities:
+            entity.ClearField('x')
+            entity.ClearField('y')
+            entity.ClearField('vx')
+            entity.ClearField('vy')
 
-    def update(self, y):
-        for X, Y, DX, DY, entity in zip(
-                y[0][0], y[1][0], y[2][0], y[3][0],
-                self.state.entities):
-            entity.x = X
-            entity.y = Y
-            entity.vx = DX
-            entity.vy = DY
+        self._reset_solutions()
 
-    def _merge(self, e1_index, e2_index):
-        if e1_index == e2_index:
-            raise self.Bad_Merge()
-        e1 = PhysicsEntity(self.state.entities[e1_index])
-        e2 = PhysicsEntity(self.state.entities[e2_index])
-
+    def _resolve_collision(self, e1, e2):
         # Resolve a collision by:
         # 1. calculating positions and velocities of the two entities
         # 2. do a 1D collision calculation along the normal between the two
@@ -232,8 +248,7 @@ class PEngine(object):
         norm = e1.pos - e2.pos
         unit_norm = norm / np.linalg.norm(norm)
         # The unit tangent is perpendicular to the unit normal vector
-        unit_tang = unit_norm
-        unit_tang[0], unit_tang[1] = -unit_tang[1], unit_tang[0]
+        unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
 
         # Calculate both normal and tangent velocities for both entities
         v1n = scipy.dot(unit_norm, e1.v)
@@ -243,84 +258,116 @@ class PEngine(object):
 
         # Use https://en.wikipedia.org/wiki/Elastic_collision
         # to find the new normal velocities (a 1D collision)
-        new_v1n = (v1n * (e1.mass - e2.mass) + 2 *
-                   e2.mass * v2n) / (e1.mass + e2.mass)
-        new_v2n = (v2n * (e2.mass - e1.mass) + 2 *
-                   e1.mass * v1n) / (e1.mass + e2.mass)
+        new_v1n = (v1n * (e1.m - e2.m) + 2 * e2.m * v2n) / (e1.m + e2.m)
+        new_v2n = (v2n * (e2.m - e1.m) + 2 * e1.m * v1n) / (e1.m + e2.m)
 
         # Calculate new velocities
-        v1 = new_v1n * unit_norm + v1t * unit_tang
-        v2 = new_v2n * unit_norm + v2t * unit_tang
+        e1.v = new_v1n * unit_norm + v1t * unit_tang
+        e2.v = new_v2n * unit_norm + v2t * unit_tang
 
-        e1.v = v1
-        e2.v = v2
+        return e1, e2
 
-        self.state.entities[e1_index] = e1.as_proto()
-        self.state.entities[e2_index] = e2.as_proto()
+    def _collision_handle(self, y):
+        pair = smallest_altitude_pair(*y, self.R)
+        # Find the indices of both objects, which are in the form (x, y, r)
+        X = y[0]
+        e1_index_list = np.where(X == pair[0][0])[0]
+        e2_index_list = np.where(X == pair[1][0])[0]
+        assert len(e1_index_list) == 1
+        assert len(e2_index_list) == 1
+        # breakpoint()
+        e1 = self._physics_entity_at(y, e1_index_list[0])
+        e2 = self._physics_entity_at(y, e2_index_list[0])
+        e1, e2 = self._resolve_collision(e1, e2)
+        y = self._merge_physics_entity_into(e1, y, e1_index_list[0])
+        y = self._merge_physics_entity_into(e2, y, e2_index_list[0])
+        return y
 
+    def _derive(self, t, y_1d):
+        X, Y, DX, DY = extract_from_y_1d(y_1d)
+        Xa, Ya = get_acc(X, Y, self.M)
+        DX = DX + Xa
+        DY = DY + Ya
+        # We got a 1d row vector, make sure to return a 1d row vector.
+        return np.concatenate([DX, DY, Xa, Ya], axis=None)
 
-    def _collision_handle(self, coll):
-        for i, j in zip(coll[0], coll[1]):
-            try:
-                self._merge(i, j)
-            except self.Bad_Merge:
-                continue
-            # except:
-            #    print("Merge fail")
-        self._gather_data()
+    def _state_from_ode_solution(self, t, y):
+        y = extract_from_y_1d(y)
+        state = protos.PhysicalState()
+        state.MergeFrom(self._template_physical_state)
+        state.timestamp = t
+        for x, y, vx, vy, entity in zip(
+                y[0], y[1], y[2], y[3], state.entities):
+            entity.x = x
+            entity.y = y
+            entity.vx = vx
+            entity.vy = vy
+        return state
 
-    def _collision_detect(self, out):
-        X = out[0]
-        Y = out[1]
-        D = distance(X, Y)
-        R = self.r + self.r.transpose()
-        # coll=np.where(((D-R)<0))
-        coll = np.where(((D - R) < 0) - np.identity(D.shape[0]))
-        if coll[0].shape[0] == 0:
-            return False
-        self._collision_handle(coll)
-        return True
+    def get_state(self, requested_t=None):
+        """Return the latest physical state of the simulation."""
+        if requested_t is None:
+            # Always update the current timestamp of our physical state.
+            time_elapsed = self._time_elapsed()
+            requested_t = self._template_physical_state.timestamp + \
+                time_elapsed * self._time_acceleration
 
-    def run_step(self, time_acceleration):
-        # A note about time,
-        # cribbed from https://docs.python.org/3/library/time.html
-        # time.time() is the float number of seconds since epoch
-        # however! it's not accurate enough for our needs (a precision
-        # less than 1 second). Also, if someone sets the machine's time
-        # back, time.time() will return non-monotonic values.
-        # So our solution is:
-        # in self.state.timestamp, store time.time(). Things like the GUI
-        # will then format this timestamp as something like "October 2018" etc.
-        # But if we want to find out how much time has passed between calls to
-        # run_step, use time.monotonic()! This will be what self._integrator.t
-        # is set to. Thus, self._integrator.t != self.state.timestamp!
+        while len(self._solutions) == 0 or \
+                self._solutions[-1].t_max < requested_t:
+            self._generate_new_ode_solutions()
 
-        if not self._init:
-            self._initialize()
-        if self._integrator is None:
-            t0 = 0.0
-            y0 = [self.X, self.Y, self.DX, self.DY]
-            y0 = np.concatenate(y0).ravel()
-            self._integrator = ode(derive).set_integrator(
-                'dope853',
-                rtol=0.01,
-                nsteps=750*time_acceleration
+        for soln in self._solutions:
+            if soln.t_min <= requested_t and requested_t <= soln.t_max:
+                return self._state_from_ode_solution(
+                    requested_t, soln(requested_t))
+        assert False
+
+    def _generate_new_ode_solutions(self):
+        # An overview of how time is managed:
+        # self._template_physical_state.timestamp is the current time in the
+        # simulation. Every call to get_state(), it is incremented by the
+        # amount of time that passed since the last call to get_state(),
+        # factoring in time_acceleration.
+        # self._solutions is a fixed-size queue of ODE solutions.
+        # Each element has an attribute, t_max, which describes the largest
+        # time that the solution can be evaluated at and still be accurate.
+        # The highest such t_max should always be larger than the current
+        # simulation time, i.e. self._template_physical_state.timestamp.
+        latest_y = (self.X, self.Y, self.DX, self.DY)
+        latest_t = self._solutions[-1].t_max if \
+            len(self._solutions) else \
+            self._template_physical_state.timestamp
+
+        while True:
+            # breakpoint()
+            ivp_out = scipy.integrate.solve_ivp(
+                self._derive,
+                [latest_t,
+                 latest_t + FUTURE_WORK_SIZE * self._time_acceleration],
+                # solve_ivp requires a 1D y0 array
+                np.concatenate(latest_y, axis=None),
+                events=self._events_function,
+                max_step=MAX_STEP_SIZE,
+                dense_output=True
             )
-            self._integrator.set_initial_value(y0, t0).set_f_params(
-                len(self.state.entities), self.r, self.M)
 
-        # Simulate only the amount of time that has passed since the last call
-        # to this function.
-        time_step = time.monotonic() - self._last_step
-        if time_step <= 0.0:
-            print('time_step too small:', time_step)
-            time_step = 1
-        self._last_step = time.monotonic()
-        out = self._integrator.integrate(
-            self._integrator.t + time_acceleration * time_step
-        )
-        out = extract(out, len(self.state.entities))
-        self.state.timestamp = time.time() + time_acceleration * time_step
-        self.out = out
-        self.update(out)
-        self._collision_detect(out)
+            self._solutions.append(ivp_out.sol)
+            latest_y = extract_from_y_1d(ivp_out.y[:, -1])
+            latest_t = ivp_out.t[-1]
+
+            assert ivp_out.status >= 0
+            if ivp_out.status == 0:
+                # Finished integration successfully, done integrating
+                break
+            else:
+                # We got a collision, simulation ends with the first collision.
+                assert len(ivp_out.t_events[0]) == 1
+                # t_events is `[array([time_of_collision])]`
+                time_of_collision = ivp_out.t_events[0][0]
+                # The last column of the solution is the state at the collision
+                latest_y = self._collision_handle(latest_y)
+                # Redo the solve_ivp step
+                continue
+
+        self.X, self.Y, self.DX, self.DY = latest_y
+        self._template_physical_state.timestamp = latest_t
