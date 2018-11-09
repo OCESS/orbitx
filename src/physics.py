@@ -286,6 +286,7 @@ class PEngine(object):
         e1 = self._physics_entity_at(y, e1_index_list[0])
         e2 = self._physics_entity_at(y, e2_index_list[0])
         e1, e2 = self._resolve_collision(e1, e2)
+        print(e1.name+" "+e2.name)
         y = self._merge_physics_entity_into(e1, y, e1_index_list[0])
         y = self._merge_physics_entity_into(e2, y, e2_index_list[0])
         return y
@@ -327,7 +328,7 @@ class PEngine(object):
             if soln.t_min <= requested_t and requested_t <= soln.t_max:
                 return self._state_from_ode_solution(
                     requested_t, soln(requested_t))
-        assert False
+        assert False, str(self._solutions[0].t_min)+" " + str(self._solutions[-1].t_max) +" "+ str(requested_t)
 
     def _generate_new_ode_solutions(self):
         # An overview of how time is managed:
@@ -353,7 +354,7 @@ class PEngine(object):
                 # solve_ivp requires a 1D y0 array
                 np.concatenate(latest_y, axis=None),
                 events=self._events_function,
-                max_step=MAX_STEP_SIZE,
+                max_step=MAX_STEP_SIZE * self._time_acceleration,
                 dense_output=True
             )
 

@@ -146,7 +146,7 @@ class FlightGui:
         texture = os.path.join(self._texture_path, planet.name + '.jpg')
         if os.path.isfile(texture):
             return self._vpython.sphere(
-                pos=self._vpython.vector(planet.x, 0, planet.y),
+                pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
                 make_trail=True,
                 texture=texture
@@ -154,7 +154,7 @@ class FlightGui:
         else:
             print('Could not find texture', texture)
             return self._vpython.sphere(
-                pos=self._vpython.vector(planet.x, 0, planet.y),
+                pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
                 make_trail=True
             )

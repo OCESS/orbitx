@@ -117,7 +117,7 @@ def parse_args():
 def hacky_input_thread(cmd_queue):
     """This is hacky but works with jupyter notebook for the demo. Hi Nova!"""
     while True:
-        cmd_queue.put(input('Centre planet on:'))
+        cmd_queue.put(input('Time acceleration, or planet centre: '))
 
 
 def lead_server_loop(args):
@@ -129,7 +129,7 @@ def lead_server_loop(args):
     print('Starting up physics engine (thanks ye qin)')
     print(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
-    physics_engine.set_time_acceleration(10)
+    physics_engine.set_time_acceleration(1000)
 
     print('Starting up lead server networking...')
     server = grpc.server(
@@ -149,7 +149,7 @@ def lead_server_loop(args):
             )
             input_thread.start()
 
-        for _ in range(0, 9001):
+        while True:
             state = physics_engine.get_state()
             state_server.notify_state_change(
                 copy.deepcopy(state))
@@ -158,7 +158,13 @@ def lead_server_loop(args):
             if args.flight_gui:
                 gui.draw(state)
                 try:
-                    gui.recentre_camera(cmd_queue.get_nowait())
+                    cmd = cmd_queue.get_nowait()
+                    if cmd.isdigit():
+                        physics_engine.set_time_acceleration(float(cmd))
+                        print('Set time acceleration', float(cmd))
+                    else:
+                        gui.recentre_camera(cmd_queue.get_nowait())
+                        print('Recentred on', cmd)
                 except queue.Empty:
                     pass
                 gui.rate(common.TICK_RATE)
@@ -179,7 +185,7 @@ def mirroring_loop(args):
             print('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(mirror_state())
 
-        for _ in range(0, 9001):
+        while True:
             try:
                 if currently_mirroring:
                     physics_engine.set_state(mirror_state())
