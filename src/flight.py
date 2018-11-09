@@ -163,7 +163,7 @@ def lead_server_loop(args):
                         physics_engine.set_time_acceleration(float(cmd))
                         print('Set time acceleration', float(cmd))
                     else:
-                        gui.recentre_camera(cmd_queue.get_nowait())
+                        gui.recentre_camera(cmd)
                         print('Recentred on', cmd)
                 except queue.Empty:
                     pass

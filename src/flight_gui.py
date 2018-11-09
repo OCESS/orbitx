@@ -141,6 +141,7 @@ class FlightGui:
     def draw(self, physical_state_to_draw):
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
+            self._update_label(planet)
 
     def rate(self, framerate):
         self._vpython.rate(framerate)
@@ -159,7 +160,7 @@ class FlightGui:
                 texture=texture
             )
         else:
-            print('Could not find texture', texture)
+            #print('Could not find texture', texture)
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
@@ -167,8 +168,11 @@ class FlightGui:
             )
 
     def _update_sphere(self, planet):
-
         self._spheres[planet.name].pos = self._vpython.vector(
+            planet.x, planet.y, 0)
+
+    def _update_label(self, planet):
+        self._labels[planet.name].pos = self._vpython.vector(
             planet.x, planet.y, 0)
 
 
