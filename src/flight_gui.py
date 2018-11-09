@@ -18,10 +18,11 @@ class FlightGui:
         self._vpython = vpython
         self._scene = vpython.canvas(
             title='Space Simulator',
-            align='left',
-            width=600,
+            align='right',
+            width=1000,
             height=600,
-            center=vpython.vector(0, 0, 0)
+            center=vpython.vector(0, 0, 0),
+            autoscale=True
         )
 
         self._scene.bind('keydown', self._handle_keydown)
