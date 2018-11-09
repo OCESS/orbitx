@@ -14,6 +14,8 @@ class FlightGui:
     def set_caption(self):
         if self.cur_caption == 0:
             self._scene.caption = "\n"
+            self._scene.append_to_caption("ref Vo: ")
+            self._scene.append_to_caption("\n")
             self._scene.append_to_caption("<b>center:</b>", self.caption_obj[0], "\n")
             self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
             self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
@@ -116,6 +118,7 @@ class FlightGui:
         self.set_caption()
 
         self._spheres = {}
+        self._labels = {}
 
         self._texture_path = texture_path
         if texture_path is None:
@@ -124,7 +127,7 @@ class FlightGui:
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
-            #self._spheres[planet.name] = self._label_sphere(planet)
+            self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == 'Sun':
                 self._scene.camera.follow(self._spheres[planet.name])
 
@@ -135,6 +138,9 @@ class FlightGui:
     def rate(self, framerate):
         self._vpython.rate(framerate)
 
+    def _draw_labels(self, planet):
+        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, 0, planet.y), text=planet.name, xoffset=0, yoffset=50, hiehgt=16,
+                          border=4, font='sans')
 
     def _draw_sphere(self, planet):
         texture = os.path.join(self._texture_path, planet.name + '.jpg')
