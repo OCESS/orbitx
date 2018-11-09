@@ -6,6 +6,8 @@ pip-selfcheck.json
 
 venv/
 
+.*.ipynb
+
 ## Below here is the GitHub python .gitignore
 
 # Byte-compiled / optimized / DLL files
