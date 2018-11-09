@@ -14,7 +14,14 @@ class FlightGui:
     def set_caption(self):
         if self.cur_caption == 0:
             self._scene.caption = "\n"
-            self._scene.append_to_caption("ref Vo: ")
+            self._scene.append_to_caption("ref Vo: XXX" + "\n")
+            self._scene.append_to_caption("V hab-ref: XXX" + "\n")
+            self._scene.append_to_caption("Vtarg-ref: XXX" + "\n")
+            self._scene.append_to_caption("Engine: XXX"  + "\n")
+            self._scene.append_to_caption("\n")
+            self._scene.append_to_caption("Acc: XXX" + "\n")
+            self._scene.append_to_caption("Vcen: XXX" + "\n")
+            self._scene.append_to_caption("Vtan: XXX" + "\n")
             self._scene.append_to_caption("\n")
             self._scene.append_to_caption("<b>center:</b>", self.caption_obj[0], "\n")
             self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
@@ -139,7 +146,7 @@ class FlightGui:
         self._vpython.rate(framerate)
 
     def _draw_labels(self, planet):
-        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, 0, planet.y), text=planet.name, xoffset=0, yoffset=50, hiehgt=16,
+        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=50, hiehgt=16,
                           border=4, font='sans')
 
     def _draw_sphere(self, planet):
