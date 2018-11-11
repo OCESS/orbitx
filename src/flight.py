@@ -9,11 +9,10 @@ modules, and receives updates from networked modules.
 
 import argparse
 import copy
+import logging
 import os
 import queue
-import sys
 import threading
-import time
 import concurrent.futures
 import urllib.parse
 
@@ -24,6 +23,8 @@ import common
 import flight_gui
 import network
 import physics
+
+log = logging.getLogger()
 
 
 def parse_args():
@@ -74,7 +75,7 @@ def parse_args():
 
     args, unknown = parser.parse_known_args()
     if unknown:
-        print('Got unrecognized args,', unknown)
+        log.info(f'Got unrecognized args: {unknown}')
 
     args.data_location = urllib.parse.urlparse(args.data_location)
     # Check that the data_location is well-formed
@@ -126,22 +127,22 @@ def lead_server_loop(args):
     # the GRPC server runs in a separate thread than this thread!
     state_server = network.StateServer()
 
-    print('Starting up physics engine (thanks ye qin)')
-    print(f'Loading save at {args.data_location.path}')
+    log.info('Starting up physics engine (thanks ye qin)')
+    log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
     physics_engine.set_time_acceleration(1000)
 
-    print('Starting up lead server networking...')
+    log.info('Starting up lead server networking...')
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{args.serve_on_port}')
     server.start()  # This doesn't block! We need a context manager from now on
     with common.GrpcServerContext(server):
-        print(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
+        log.info(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
 
         if args.flight_gui:
-            print('Initializing graphics (thanks sean)...')
+            log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(physics_engine.get_state())
             cmd_queue = queue.Queue()
             input_thread = threading.Thread(
@@ -161,10 +162,10 @@ def lead_server_loop(args):
                     cmd = cmd_queue.get_nowait()
                     if cmd.isdigit():
                         physics_engine.set_time_acceleration(float(cmd))
-                        print('Set time acceleration', float(cmd))
+                        log.info('Set time acceleration', float(cmd))
                     else:
                         gui.recentre_camera(cmd)
-                        print('Recentred on', cmd)
+                        log.info(f'Recentred on {cmd}')
                 except queue.Empty:
                     pass
                 gui.rate(common.TICK_RATE)
@@ -174,15 +175,15 @@ def mirroring_loop(args):
     """Main, 'while True'-style loop for a mirroring client. Blocking."""
     currently_mirroring = True
 
-    print('Connecting to CnC server...')
+    log.info('Connecting to CnC server...')
     with network.StateClient(
         args.data_location.hostname, args.data_location.port
     ) as mirror_state:
-        print(f'Getting physics engine state [{args.data_location.geturl()}]')
+        log.info(f'Querying lead server {args.data_location.geturl()}')
         physics_engine = physics.PEngine(mirror_state=mirror_state)
 
         if args.flight_gui:
-            print('Initializing graphics (thanks sean)...')
+            log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(mirror_state())
 
         while True:

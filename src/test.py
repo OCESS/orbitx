@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import logging
 import unittest
 
 import common
 import physics
+
+log = logging.getLogger()
+
 
 class PhysicsEngineTestCase(unittest.TestCase):
     def test_simple_collision(self):

@@ -3,7 +3,10 @@ Class that provides a main loop for flight.
 
 The main loop drawsa GUI and collects input.
 """
+import logging
 import os
+
+log = logging.getLogger()
 
 
 class FlightGui:
@@ -48,7 +51,6 @@ class FlightGui:
 
     def _handle_keydown(self, evt):
         global show_label, pause
-        #print('Got keydown', evt)
         k = evt.key
         if (k == 'l'):
             show_label = not show_label
@@ -97,7 +99,6 @@ class FlightGui:
             self.set_caption()
 
     def _handle_click(self, evt):
-        #print('Got click', evt)
         # global obj, clicked
         try:
             obj = self._scene.mouse.pick
@@ -166,7 +167,7 @@ class FlightGui:
                 texture=texture
             )
         else:
-            #print('Could not find texture', texture)
+            log.info(f'Could not find texture {texture}')
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
@@ -182,10 +183,8 @@ class FlightGui:
         self._labels[planet.name].pos = self._vpython.vector(
             planet.x, planet.y, 0)
 
-
     def recentre_camera(self, planet_name):
         try:
             self._scene.camera.follow(self._spheres[planet_name])
         except KeyError:
-            print('Unrecognized planet to follow:', planet_name)
-
+            log.error(f'Unrecognized planet to follow: "{planet_name}"')

@@ -60,7 +60,7 @@ message Entity {
 // ps.entities[1].name == 'belize'
 // This comes with all the usual python list goodness, like
 // for entity in ps.entities:
-//     print(entity.name)
+//     log.info(entity.name)
 // Again, googling 'protobuf python generated code reference' and looking for
 // repeated fields will help answer other questions.
 message PhysicalState {

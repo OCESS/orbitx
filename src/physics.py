@@ -1,5 +1,6 @@
 import collections
 import itertools
+import logging
 import time
 
 import google.protobuf.json_format
@@ -16,6 +17,7 @@ import common
 MAX_STEP_SIZE = 1.0
 FUTURE_WORK_SIZE = 10.0
 scipy.special.seterr(all='raise')
+log = logging.getLogger()
 
 # Note on variable naming:
 # a lowercase single letter, like `x`, is likely a scalar
@@ -183,6 +185,9 @@ class PEngine(object):
 
     def set_time_acceleration(self, time_acceleration):
         """Change the speed at which this PEngine simulates at."""
+        if time_acceleration <= 0:
+            log.error(f'Time acceleration {time_acceleration} must be > 0')
+            return
         self._time_acceleration = time_acceleration
         self._reset_solutions()
 
@@ -285,7 +290,7 @@ class PEngine(object):
         e1 = self._physics_entity_at(y, e1_index_list[0])
         e2 = self._physics_entity_at(y, e2_index_list[0])
         e1, e2 = self._resolve_collision(e1, e2)
-        print(e1.name, e2.name)
+        log.info(f'Collision between {e1.name} and {e2.name}')
         y = self._merge_physics_entity_into(e1, y, e1_index_list[0])
         y = self._merge_physics_entity_into(e2, y, e2_index_list[0])
         return y
@@ -327,10 +332,11 @@ class PEngine(object):
             if soln.t_min <= requested_t and requested_t <= soln.t_max:
                 return self._state_from_ode_solution(
                     requested_t, soln(requested_t))
-        print('AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!',
-              self._solutions[0].t_min,
-              self._solutions[-1].t_max,
-              requested_t)
+        log.error((
+            'AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!'
+            f'{self._solutions[0].t_min}, {self._solutions[-1].t_max}, '
+            f'{requested_t}'
+        ))
         self._reset_solutions()
         return self.get_state(requested_t)
 
@@ -373,8 +379,6 @@ class PEngine(object):
             else:
                 # We got a collision, simulation ends with the first collision.
                 assert len(ivp_out.t_events[0]) == 1
-                # t_events is `[array([time_of_collision])]`
-                time_of_collision = ivp_out.t_events[0][0]
                 # The last column of the solution is the state at the collision
                 latest_y = self._collision_handle(latest_y)
                 # Redo the solve_ivp step

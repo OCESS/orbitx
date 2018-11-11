@@ -1,11 +1,14 @@
 """Network-related classes."""
 
+import logging
 import threading
 
 import grpc
 
 import orbitx_pb2 as protos
 import orbitx_pb2_grpc as grpc_stubs
+
+log = logging.getLogger()
 
 
 class StateServer(grpc_stubs.StateServerServicer):
