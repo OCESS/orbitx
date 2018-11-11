@@ -19,7 +19,7 @@ import urllib.parse
 
 import grpc
 
-import cs493_pb2_grpc as grpc_stubs
+import orbitx_pb2_grpc as grpc_stubs
 import common
 import flight_gui
 import network

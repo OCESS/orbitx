@@ -1,4 +1,4 @@
-// If you're getting 'cs493_pb2 module not found' errors,
+// If you're getting 'orbitx_pb2 module not found' errors,
 // remember to run `make` or `make proto`!!
 
 // A syntax note: in a protobuf definition, 'double x = 10;' does not mean

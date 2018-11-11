@@ -1,6 +1,5 @@
 import collections
 import itertools
-import string
 import time
 
 import google.protobuf.json_format
@@ -9,7 +8,7 @@ import numpy.linalg as linalg
 import scipy.special
 from scipy.integrate import *
 
-import cs493_pb2 as protos
+import orbitx_pb2 as protos
 import common
 
 # Higher values of this result in faster simulation but more chance of missing
