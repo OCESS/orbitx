@@ -112,7 +112,7 @@ class FlightGui:
         import vpython  # Note that this might actually start an HTTP server!
         self._vpython = vpython
         self._scene = vpython.canvas(
-            title='Space Simulator',
+            title='OrbitX',
             align='right',
             width=1000,
             height=600,
@@ -135,8 +135,13 @@ class FlightGui:
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
-            if planet.name == 'Sun':
-                self._scene.camera.follow(self._spheres[planet.name])
+            if planet.name == 'Sun':  # The sun is special!
+                self._scene.camera.follow(self._spheres[planet.name])  # thanks Copernicus
+                self._spheres[planet.name].emissive = True  # The sun glows!
+                self._scene.lights = []
+                self._lights = [self._vpython.local_light(
+                    pos=self._vpython.vector(planet.x, planet.y, 0)
+                )]
 
     def draw(self, physical_state_to_draw):
         for planet in physical_state_to_draw.entities:
@@ -157,6 +162,7 @@ class FlightGui:
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
                 make_trail=True,
+                shininess=0.1,
                 texture=texture
             )
         else:
@@ -164,6 +170,7 @@ class FlightGui:
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
+                shininess=0.1,
                 make_trail=True
             )
 
