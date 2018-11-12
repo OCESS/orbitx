@@ -51,7 +51,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
         # According to the above, this should be somewhere between 6500 and
         # 7000 m/s after one second.
         self.assertTrue(moved.entities[1].vx > 5000,
-            msg=f'vx is actually {moved.entities[1].vx}')
+                        msg=f'vx is actually {moved.entities[1].vx}')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -20,34 +20,41 @@ class FlightGui:
             self._scene.append_to_caption("ref Vo: XXX" + "\n")
             self._scene.append_to_caption("V hab-ref: XXX" + "\n")
             self._scene.append_to_caption("Vtarg-ref: XXX" + "\n")
-            self._scene.append_to_caption("Engine: XXX"  + "\n")
+            self._scene.append_to_caption("Engine: XXX" + "\n")
             self._scene.append_to_caption("\n")
             self._scene.append_to_caption("Acc: XXX" + "\n")
             self._scene.append_to_caption("Vcen: XXX" + "\n")
             self._scene.append_to_caption("Vtan: XXX" + "\n")
             self._scene.append_to_caption("\n")
-            self._scene.append_to_caption("<b>center:</b>", self.caption_obj[0], "\n")
+            self._scene.append_to_caption(
+                "<b>center:</b>", self.caption_obj[0], "\n")
             self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
             self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption("NAVmode:", self.caption_obj[3], "\n")
+            self._scene.append_to_caption(
+                "NAVmode:", self.caption_obj[3], "\n")
         elif self.cur_caption == 1:
             self._scene.caption = "\n"
             self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
-            self._scene.append_to_caption("<b>target:</b>", self.caption_obj[1], "\n")
+            self._scene.append_to_caption(
+                "<b>target:</b>", self.caption_obj[1], "\n")
             self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption("NAVmode:", self.caption_obj[3], "\n")
+            self._scene.append_to_caption(
+                "NAVmode:", self.caption_obj[3], "\n")
         elif self.cur_caption == 2:
             self._scene.caption = "\n"
             self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
             self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
-            self._scene.append_to_caption("<b>ref:</b>", self.caption_obj[2], "\n")
-            self._scene.append_to_caption("NAVmode:", self.caption_obj[3], "\n")
+            self._scene.append_to_caption(
+                "<b>ref:</b>", self.caption_obj[2], "\n")
+            self._scene.append_to_caption(
+                "NAVmode:", self.caption_obj[3], "\n")
         elif self.cur_caption == 3:
             self._scene.caption = "\n"
             self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
             self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
             self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption("<b>NAVmode:</b>", self.caption_obj[3], "\n")
+            self._scene.append_to_caption(
+                "<b>NAVmode:</b>", self.caption_obj[3], "\n")
 
     def _handle_keydown(self, evt):
         global show_label, pause
@@ -73,7 +80,7 @@ class FlightGui:
     def get_objname(self, obj):
         for k, v in self._spheres.items():
             if v == obj:
-                obj_name = k;
+                obj_name = k
         return obj_name
 
     def update_caption(self, obj):
@@ -84,17 +91,17 @@ class FlightGui:
             self.caption_obj[0] = obj_name
             self.set_caption()
         if self.cur_caption == 1:
-            #action required
+            # action required
             self.caption_obj[1] = obj_name
             self.set_caption()
 
         if self.cur_caption == 2:
-            #action required
+            # action required
             self.caption_obj[2] = obj_name
             self.set_caption()
 
         if self.cur_caption == 3:
-            #action required
+            # action required
             self.caption_obj[3] = obj_name
             self.set_caption()
 
@@ -137,7 +144,8 @@ class FlightGui:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == 'Sun':  # The sun is special!
-                self._scene.camera.follow(self._spheres[planet.name])  # thanks Copernicus
+                self._scene.camera.follow(
+                    self._spheres[planet.name])  # thanks Copernicus
                 self._spheres[planet.name].emissive = True  # The sun glows!
                 self._scene.lights = []
                 self._lights = [self._vpython.local_light(
@@ -154,7 +162,7 @@ class FlightGui:
 
     def _draw_labels(self, planet):
         return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=50, hiehgt=16,
-                          border=4, font='sans')
+                                   border=4, font='sans')
 
     def _draw_sphere(self, planet):
         texture = os.path.join(self._texture_path, planet.name + '.jpg')
