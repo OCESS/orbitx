@@ -12,6 +12,7 @@ import copy
 import logging
 import os
 import queue
+import sys
 import threading
 import concurrent.futures
 import urllib.parse
@@ -68,14 +69,15 @@ def parse_args():
                             ' an error.'
                         ))
 
-    parser.add_argument('--flight-gui', action='store_true', default=False,
-                        help=(
-                            'Launches a flight GUI.'
-                        ))
+    parser.add_argument('--gui', action='store_true', default=False,
+                        help='Launches a flight GUI.')
+
+    parser.add_argument('-v', '--verbose', action='store_true', default=False,
+                        help='Logs everything to stdout.')
 
     args, unknown = parser.parse_known_args()
     if unknown:
-        log.info(f'Got unrecognized args: {unknown}')
+        log.warning(f'Got unrecognized args: {unknown}')
 
     args.data_location = urllib.parse.urlparse(args.data_location)
     # Check that the data_location is well-formed
@@ -112,13 +114,24 @@ def parse_args():
                 str(common.DEFAULT_LEAD_SERVER_PORT)
             ))
 
+    if args.verbose:
+        # Instead of having DEBUG go to stderr and WARNING go to stdout,
+        # have everything go to only stdout.
+        common.important_handler.setLevel(logging.DEBUG)
+        log.handlers = []
+        log.addHandler(common.important_handler)
+
     return args
 
 
 def hacky_input_thread(cmd_queue):
-    """This is hacky but works with jupyter notebook for the demo. Hi Nova!"""
+    """This is hacky but works with jupyter notebook for the demo. Hi Colin!"""
     while True:
-        cmd_queue.put(input('Time acceleration, or planet centre: '))
+        cmd_queue.put(input((
+            f'Time acceleration [default={common.DEFAULT_TIME_ACC}], '
+            f'or planet centre [default=Sun]'
+            ':'
+        )))
 
 
 def lead_server_loop(args):
@@ -130,7 +143,7 @@ def lead_server_loop(args):
     log.info('Starting up physics engine (thanks ye qin)')
     log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
-    physics_engine.set_time_acceleration(1000)
+    physics_engine.set_time_acceleration(common.DEFAULT_TIME_ACC)
 
     log.info('Starting up lead server networking...')
     server = grpc.server(
@@ -141,7 +154,7 @@ def lead_server_loop(args):
     with common.GrpcServerContext(server):
         log.info(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
 
-        if args.flight_gui:
+        if args.gui:
             log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(physics_engine.get_state())
             cmd_queue = queue.Queue()
@@ -156,16 +169,17 @@ def lead_server_loop(args):
                 copy.deepcopy(state))
             # physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
 
-            if args.flight_gui:
+            if args.gui:
                 gui.draw(state)
                 try:
                     cmd = cmd_queue.get_nowait()
                     if cmd.isdigit():
                         physics_engine.set_time_acceleration(float(cmd))
-                        log.info('Set time acceleration', float(cmd))
+                    elif cmd == 'Error':
+                        # Produce an error
+                        assert False
                     else:
                         gui.recentre_camera(cmd)
-                        log.info(f'Recentred on {cmd}')
                 except queue.Empty:
                     pass
                 gui.rate(common.TICK_RATE)
@@ -182,7 +196,7 @@ def mirroring_loop(args):
         log.info(f'Querying lead server {args.data_location.geturl()}')
         physics_engine = physics.PEngine(mirror_state=mirror_state)
 
-        if args.flight_gui:
+        if args.gui:
             log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(mirror_state())
 
@@ -193,7 +207,7 @@ def mirroring_loop(args):
                 else:
                     state = physics_engine.get_state()
 
-                if args.flight_gui:
+                if args.gui:
                     gui.draw(state)
                     gui.rate(common.TICK_RATE)
             except KeyboardInterrupt:
@@ -217,6 +231,8 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
+    except:
+        log.exception('Exception in main loop! Execution halted.')
 
 
 if __name__ == '__main__':

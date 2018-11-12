@@ -167,7 +167,7 @@ class FlightGui:
                 texture=texture
             )
         else:
-            log.info(f'Could not find texture {texture}')
+            log.debug(f'Could not find texture {texture}')
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
