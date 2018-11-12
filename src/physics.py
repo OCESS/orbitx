@@ -26,6 +26,11 @@ log = logging.getLogger()
 # `y_1d` is the 1D row vector flattened version of the above `y` 2D vector,
 #     which is required by `solve_ivp` inputs and outputs
 
+# Note on the np.array family of functions
+# https://stackoverflow.com/a/52103839/1333978
+# Basically, it can sometimes be important in this module whether a call to
+# np.array() is copying something, or changing the dtype, etc.
+
 
 def force(MM, X, Y):
     G = 6.674e-11
@@ -61,9 +66,9 @@ def f_to_a(f, M):
 def get_acc(X, Y, M):
     # Turn X, Y, M into column vectors, which is easier to do math with.
     # (row vectors won't transpose)
-    X = np.array([X])
-    Y = np.array([Y])
-    M = np.array([M])
+    X = X.reshape(1, -1)
+    Y = Y.reshape(1, -1)
+    M = M.reshape(1, -1)
     MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
     ang = angle_matrix(X, Y)
     FORCE = force(MM, X, Y)
@@ -72,16 +77,11 @@ def get_acc(X, Y, M):
     Yf = force_sum(Yf)
     Xa = f_to_a(Xf, M)
     Ya = f_to_a(Yf, M)
-    return np.array(Xa)[0], np.array(Ya)[0]
+    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 
 def extract_from_y_1d(y_1d):
-    n = len(y_1d) // 4
-    X = (y_1d[0:n])
-    Y = (y_1d[n:2 * n])
-    DX = (y_1d[2 * n:3 * n])
-    DY = (y_1d[3 * n:4 * n])
-    return X, Y, DX, DY
+    return np.hsplit(y_1d, 4)
 
 
 def event_altitude(x1, y1, vx1, vy1, r1, x2, y2, vx2, vy2, r2):
@@ -206,8 +206,8 @@ class PEngine(object):
         """Returns a PhysicsEntity constructed from the i'th entity."""
         physics_entity = PhysicsEntity(
             self._template_physical_state.entities[i])
-        physics_entity.pos = np.asarray([y[0][i], y[1][i]])
-        physics_entity.v = np.asarray([y[2][i], y[3][i]])
+        physics_entity.pos = np.array([y[0][i], y[1][i]])
+        physics_entity.v = np.array([y[2][i], y[3][i]])
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -231,13 +231,18 @@ class PEngine(object):
                     [self.X, self.Y, self.DX, self.DY])))
 
     def set_state(self, physical_state):
-        self.X = np.asarray([entity.x for entity in physical_state.entities])
-        self.Y = np.asarray([entity.y for entity in physical_state.entities])
-        self.DX = np.asarray([entity.vx for entity in physical_state.entities])
-        self.DY = np.asarray([entity.vy for entity in physical_state.entities])
-        self.R = np.asarray([entity.r for entity in physical_state.entities])
-        self.M = np.asarray(
-            [entity.mass for entity in physical_state.entities])
+        self.X = np.array([entity.x for entity in physical_state.entities]
+            ).astype(np.float64)
+        self.Y = np.array([entity.y for entity in physical_state.entities]
+            ).astype(np.float64)
+        self.DX = np.array([entity.vx for entity in physical_state.entities]
+            ).astype(np.float64)
+        self.DY = np.array([entity.vy for entity in physical_state.entities]
+            ).astype(np.float64)
+        self.R = np.array([entity.r for entity in physical_state.entities]
+            ).astype(np.float64)
+        self.M = np.array([entity.mass for entity in physical_state.entities]
+            ).astype(np.float64)
         smallest_altitude_event.radii = self.R
 
         # Don't store positions and velocities in the physical_state,
@@ -301,7 +306,7 @@ class PEngine(object):
         DX = DX + Xa
         DY = DY + Ya
         # We got a 1d row vector, make sure to return a 1d row vector.
-        return np.concatenate([DX, DY, Xa, Ya], axis=None)
+        return np.concatenate((DX, DY, Xa, Ya), axis=None)
 
     def _state_from_ode_solution(self, t, y):
         y = extract_from_y_1d(y)

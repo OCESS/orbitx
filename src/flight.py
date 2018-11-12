@@ -175,9 +175,6 @@ def lead_server_loop(args):
                     cmd = cmd_queue.get_nowait()
                     if cmd.isdigit():
                         physics_engine.set_time_acceleration(float(cmd))
-                    elif cmd == 'Error':
-                        # Produce an error
-                        assert False
                     else:
                         gui.recentre_camera(cmd)
                 except queue.Empty:
