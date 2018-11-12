@@ -36,14 +36,15 @@ message ClientId {
 // Google 'protobuf python generated code reference' for more examples.
 message Entity {
     string name = 1;
-    double x = 10;
-    double y = 11;
-    double vx = 12;
-    double vy = 13;
-    double r = 14;
-    double mass = 16;
-    double spin = 17; // the 'angular velocity'
-    double heading = 18; // the 'angular position'
+    double x = 2;
+    double y = 3;
+    double vx = 4;
+    double vy = 5;
+    double r = 6;
+    double mass = 7;
+    double spin = 8; // the 'angular velocity'
+    double heading = 9; // the 'angular position'
+    double fuel = 10; // only spaceships have fuel
 }
 
 // To use this in python code, think of `entities` as a list, except to add an

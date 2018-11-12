@@ -81,6 +81,7 @@ def get_acc(X, Y, M):
 
 
 def extract_from_y_1d(y_1d):
+    # Split into 4 equal parts, [X, Y, DX, DY]
     return np.hsplit(y_1d, 4)
 
 
@@ -226,23 +227,27 @@ class PEngine(object):
     def Save_json(self, file=common.AUTOSAVE_SAVEFILE):
         with open(file, 'w') as outfile:
             outfile.write(google.protobuf.json_format.MessageToJson(
-                self._state_from_ode_solution(
+                self._state_from_y(
                     self._template_physical_state.timestamp,
-                    [self.X, self.Y, self.DX, self.DY])))
+                    [self.X, self.Y, self.DX, self.DY]),
+                including_default_value_fields=False))
 
     def set_state(self, physical_state):
         self.X = np.array([entity.x for entity in physical_state.entities]
-            ).astype(np.float64)
+                          ).astype(np.float64)
         self.Y = np.array([entity.y for entity in physical_state.entities]
-            ).astype(np.float64)
+                          ).astype(np.float64)
         self.DX = np.array([entity.vx for entity in physical_state.entities]
-            ).astype(np.float64)
+                           ).astype(np.float64)
         self.DY = np.array([entity.vy for entity in physical_state.entities]
-            ).astype(np.float64)
+                           ).astype(np.float64)
         self.R = np.array([entity.r for entity in physical_state.entities]
-            ).astype(np.float64)
+                          ).astype(np.float64)
         self.M = np.array([entity.mass for entity in physical_state.entities]
-            ).astype(np.float64)
+                          ).astype(np.float64)
+        self.Fuel = \
+            np.array([entity.fuel for entity in physical_state.entities]
+                     ).astype(np.float64)
         smallest_altitude_event.radii = self.R
 
         # Don't store positions and velocities in the physical_state,
@@ -302,14 +307,16 @@ class PEngine(object):
 
     def _derive(self, t, y_1d):
         X, Y, DX, DY = extract_from_y_1d(y_1d)
-        Xa, Ya = get_acc(X, Y, self.M)
+        Xa, Ya = get_acc(X, Y, self.M + self.Fuel)
         DX = DX + Xa
         DY = DY + Ya
         # We got a 1d row vector, make sure to return a 1d row vector.
         return np.concatenate((DX, DY, Xa, Ya), axis=None)
 
-    def _state_from_ode_solution(self, t, y):
-        y = extract_from_y_1d(y)
+    def _state_from_y(self, t, y):
+        if isinstance(y, np.ndarray) and len(y.shape) == 1:
+            # If y is a 1D ODE input
+            y = extract_from_y_1d(y)
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
@@ -335,7 +342,7 @@ class PEngine(object):
 
         for soln in self._solutions:
             if soln.t_min <= requested_t and requested_t <= soln.t_max:
-                return self._state_from_ode_solution(
+                return self._state_from_y(
                     requested_t, soln(requested_t))
         log.error((
             'AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!'
