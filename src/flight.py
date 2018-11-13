@@ -154,14 +154,14 @@ def lead_server_loop(args):
     with common.GrpcServerContext(server):
         log.info(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
 
+        cmd_queue = queue.Queue()
+        input_thread = threading.Thread(
+            target=hacky_input_thread, args=(cmd_queue,)
+        )
+        input_thread.start()
         if args.gui:
             log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(physics_engine.get_state())
-            cmd_queue = queue.Queue()
-            input_thread = threading.Thread(
-                target=hacky_input_thread, args=(cmd_queue,)
-            )
-            input_thread.start()
 
         while True:
             state = physics_engine.get_state()
@@ -169,16 +169,17 @@ def lead_server_loop(args):
                 copy.deepcopy(state))
             # physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
 
+            try:
+                cmd = cmd_queue.get_nowait()
+                if cmd.isdigit():
+                    physics_engine.set_time_acceleration(float(cmd))
+                else:
+                    gui.recentre_camera(cmd)
+            except queue.Empty:
+                pass
+
             if args.gui:
                 gui.draw(state)
-                try:
-                    cmd = cmd_queue.get_nowait()
-                    if cmd.isdigit():
-                        physics_engine.set_time_acceleration(float(cmd))
-                    else:
-                        gui.recentre_camera(cmd)
-                except queue.Empty:
-                    pass
                 gui.rate(common.TICK_RATE)
 
 

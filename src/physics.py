@@ -2,10 +2,12 @@ import collections
 import itertools
 import logging
 import time
+import warnings
 
 import google.protobuf.json_format
 import numpy as np
 import numpy.linalg as linalg
+import scipy.spatial
 import scipy.special
 from scipy.integrate import *
 
@@ -16,7 +18,7 @@ import common
 # a collision. Units of this are in seconds.
 MAX_STEP_SIZE = 1.0
 FUTURE_WORK_SIZE = 10.0
-scipy.special.seterr(all='raise')
+warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 log = logging.getLogger()
 
 # Note on variable naming:
@@ -112,17 +114,45 @@ def smallest_altitude_event(t, y_1d):
     To accomplish this, and also to stop solve_ivp when there is a collision,
     this function has the attributes `terminal = True` and `radii = [...]`.
     radii will be set by a PEngine when it's instantiated.
-    The only time the return value of this function matters is when it reaches
-    zero. Ctrl-F 'events' in
+    Unfortunately this can't be a PEngine method, since attributes of a method
+    can't be set.
+    Ctrl-F 'events' in
     docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
     for more info.
+    This should return a scalar, and specifically 0 to indicate a collision
     """
+    #breakpoint()
     X, Y, DX, DY = extract_from_y_1d(y_1d)
-    pair = smallest_altitude_pair(X, Y, DX, DY, smallest_altitude_event.radii)
-    return event_altitude(*pair[0], *pair[1])
+    posns = np.column_stack((X, Y))  # An n*2 vector of (x, y) positions
+    # An n*n matrix of _altitudes_ between each entity
+    alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
+        (smallest_altitude_event.radii + smallest_altitude_event.radii.T)
+    # To simplify calculations, an entity's altitude from itself is inf
+    np.fill_diagonal(alt_matrix, np.inf)
+
+    # Calculate approaching_matrix, where the i,j entry is -1 if entities i,j
+    # are approaching each other.
+    vx_col_vec = DX.reshape(1, -1)
+    vy_col_vec = DY.reshape(1, -1)
+    vx_sign_matrix = np.sign(vx_col_vec - vx_col_vec.T)
+    vy_sign_matrix = np.sign(vy_col_vec - vy_col_vec.T)
+    approaching_matrix = np.minimum(vx_sign_matrix, vy_sign_matrix)
+    # To dodge inf*0=NaN errors, an entity's sign velocity from itself is 1
+    np.fill_diagonal(approaching_matrix, 1)
+
+    # n*n matrix of squared relative *altitudes*, each of which is negative if
+    # the respective entities are approaching each other. Velocities of 0 are
+    # not multiplied in.
+    event_matrix = np.where(
+        approaching_matrix,
+        alt_matrix * approaching_matrix,
+        alt_matrix  # If approaching_matrix[i][j] == 0, use this value.
+    )
+    # Return this 'signed altitude' of the two entities closest to colliding.
+    return event_matrix.flat[np.abs(event_matrix).argmin()]  # This is a scalar
 
 
-# smallest_altitude_event.terminal = True  # Event stops integration TODO: demo
+smallest_altitude_event.terminal = True  # Event stops integration TODO: demo
 smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
 smallest_altitude_event.radii = []
 
@@ -248,7 +278,7 @@ class PEngine(object):
         self.Fuel = \
             np.array([entity.fuel for entity in physical_state.entities]
                      ).astype(np.float64)
-        smallest_altitude_event.radii = self.R
+        smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store positions and velocities in the physical_state,
         # it should only be returned from get_state()
@@ -367,8 +397,11 @@ class PEngine(object):
         latest_t = self._solutions[-1].t_max if \
             len(self._solutions) else \
             self._template_physical_state.timestamp
+        iterations = 0
 
         while True:
+            # log.debug(f'Iteration n{iterations}')
+            # iterations += 1
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [latest_t,
@@ -376,7 +409,7 @@ class PEngine(object):
                 # solve_ivp requires a 1D y0 array
                 np.concatenate(latest_y, axis=None),
                 events=self._events_function,
-                max_step=MAX_STEP_SIZE * self._time_acceleration,
+                max_step=MAX_STEP_SIZE,
                 dense_output=True
             )
 
