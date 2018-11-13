@@ -11,117 +11,11 @@ log = logging.getLogger()
 
 class FlightGui:
 
-    cur_caption = 0
-    caption_obj = ["Sun", "AYSE", "AYSE", "deprt ref"]
-
-
-    def set_caption(self):
-        if self.cur_caption == 0:
-            self._scene.caption = "\n"
-            self._scene.append_to_caption("ref Vo: XXX" + "\n")
-            self._scene.append_to_caption("V hab-ref: XXX" + "\n")
-            self._scene.append_to_caption("Vtarg-ref: XXX" + "\n")
-            self._scene.append_to_caption("Engine: XXX" + "\n")
-            self._scene.append_to_caption("\n")
-            self._scene.append_to_caption("Acc: XXX" + "\n")
-            self._scene.append_to_caption("Vcen: XXX" + "\n")
-            self._scene.append_to_caption("Vtan: XXX" + "\n")
-            self._scene.append_to_caption("\n")
-            self._scene.append_to_caption(
-                "<b>center:</b>", self.caption_obj[0], "\n")
-            self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
-            self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption(
-                "NAVmode:", self.caption_obj[3], "\n")
-        elif self.cur_caption == 1:
-            self._scene.caption = "\n"
-            self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
-            self._scene.append_to_caption(
-                "<b>target:</b>", self.caption_obj[1], "\n")
-            self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption(
-                "NAVmode:", self.caption_obj[3], "\n")
-        elif self.cur_caption == 2:
-            self._scene.caption = "\n"
-            self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
-            self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
-            self._scene.append_to_caption(
-                "<b>ref:</b>", self.caption_obj[2], "\n")
-            self._scene.append_to_caption(
-                "NAVmode:", self.caption_obj[3], "\n")
-        elif self.cur_caption == 3:
-            self._scene.caption = "\n"
-            self._scene.append_to_caption("center:", self.caption_obj[0], "\n")
-            self._scene.append_to_caption("target:", self.caption_obj[1], "\n")
-            self._scene.append_to_caption("ref:", self.caption_obj[2], "\n")
-            self._scene.append_to_caption(
-                "<b>NAVmode:</b>", self.caption_obj[3], "\n")
-
-    def _handle_keydown(self, evt):
-        global show_label, pause
-        k = evt.key
-        if (k == 'l'):
-            show_label = not show_label
-        elif (k == 'p'):
-            pause = not pause
-        elif (k == 'e'):
-            self._scene.center = self._spheres['Earth'].pos
-            #show = label_earth.visible
-            #label_earth.visible = not show
-            #label_earth.pos = earth.pos
-        elif (k == 's'):
-            self._scene.center = self._spheres['sun'].pos
-            #show = label_sun.visible
-            #label_sun.visible = not show
-            #label_sun.pos = sun.pos
-        elif (k == 't'):
-            self.cur_caption = (self.cur_caption + 1) % 4
-            self.set_caption()
-
-    def get_objname(self, obj):
-        for k, v in self._spheres.items():
-            if v == obj:
-                obj_name = k
-        return obj_name
-
-    def update_caption(self, obj):
-        obj_name = self.get_objname(obj)
-        if self.cur_caption == 0:
-            # action: update the camera center
-            self.scene.center = obj.pos
-            self.caption_obj[0] = obj_name
-            self.set_caption()
-        if self.cur_caption == 1:
-            # action required
-            self.caption_obj[1] = obj_name
-            self.set_caption()
-
-        if self.cur_caption == 2:
-            # action required
-            self.caption_obj[2] = obj_name
-            self.set_caption()
-
-        if self.cur_caption == 3:
-            # action required
-            self.caption_obj[3] = obj_name
-            self.set_caption()
-
-    def _handle_click(self, evt):
-        # global obj, clicked
-        try:
-            obj = self._scene.mouse.pick
-            if obj != None:
-                self.update_caption(obj)
-
-        except AttributeError:
-            pass
-        #clicked = True
-
     def __init__(self, physical_state_to_draw, texture_path=None):
         import vpython  # Note that this might actually start an HTTP server!
         self._vpython = vpython
         self._scene = vpython.canvas(
-            title='OrbitX\n',
+            title='<b>OrbitX\n</b>',
             align='right',
             width=1000,
             height=600,
@@ -131,9 +25,8 @@ class FlightGui:
 
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
-        self.set_caption()
-        self._create_menu()
-
+        self._set_caption()
+        #self._create_menus()
 
         self._spheres = {}
         self._labels = {}
@@ -142,6 +35,8 @@ class FlightGui:
         if texture_path is None:
             # If we're in src/ look for src/../textures/
             self._texture_path = 'textures'
+        stars = os.path.join(self._texture_path, 'Stars.jpg')
+        vpython.sphere(radius=30000000000, texture=stars)
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
@@ -155,14 +50,97 @@ class FlightGui:
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
 
-    def updateCenter(self, m):
-      value = m.selected
-      print(value)
-      self._scene.center = self._spheres[value].pos
-    
+    def _handle_keydown(self, evt):
+        """Input key handler"""
+        global show_label, pause
+        k = evt.key
+        if (k == 'l'):
+            show_label = not show_label
+        elif (k == 'p'):
+            pause = not pause
 
-    def _create_menu(self):
-        m = self._vpython.menu(choices=['Choose an object', 'Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune','Pluto'], pos=self._scene.title_anchor ,bind=self.updateCenter)
+        # elif (k == 'e'):
+        #    self._scene.center = self._spheres['Earth'].pos
+        #
+        # elif (k == 's'):
+        #    self._scene.center = self._spheres['Sun'].pos
+        #
+        # elif (k == 't'):
+        #    self.cur_caption = (self.cur_caption + 1) % 4
+        #    self.set_caption()
+
+    def _handle_click(self, evt):
+        # global obj, clicked
+        try:
+            obj = self._scene.mouse.pick
+            if obj != None:
+                self.update_caption(obj)
+
+        except AttributeError:
+            pass
+        # clicked = True
+
+    def get_objname(self, obj):
+        """Given object it finds the name of the planet"""
+
+        for k, v in self._spheres.items():
+            if v == obj:
+                obj_name = k
+        return obj_name
+
+    def _update_center(self, m):
+        """Change camera to focus on different object"""
+        value = m.selected
+        print(value)
+        self._scene.center = self._spheres[value].pos
+
+    #TODO: 1)Update with correct physics values
+    def _set_caption(self):
+        """Set and update the captions"""
+
+        self._scene.caption = "\n"
+        self._scene.append_to_caption("ref Vo: XXX" + "\n")
+        self._scene.append_to_caption("V hab-ref: XXX" + "\n")
+        self._scene.append_to_caption("Vtarg-ref: XXX" + "\n")
+        self._scene.append_to_caption("Engine: XXX" + "\n")
+        self._scene.append_to_caption("\n")
+        self._scene.append_to_caption("Acc: XXX" + "\n")
+        self._scene.append_to_caption("Vcen: XXX" + "\n")
+        self._scene.append_to_caption("Vtan: XXX" + "\n")
+        self._scene.append_to_caption("\n")
+        self._set_menus()
+
+    #TODO: create bind functions for target, ref, and NAV MODE
+    def _set_menus(self):
+        """This creates dropped down menu which is used when set_caption"""
+
+        self._scene.append_to_caption(
+            "<b>Center: </b>")
+        center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune','Pluto'],
+                                    pos=self._scene.caption_anchor,bind=self._update_center, selected='Sun')
+        self._scene.append_to_caption("\n")
+        self._scene.append_to_caption(
+            "<b>Target: </b>")
+        target = self._vpython.menu(
+            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
+                     'Neptune', 'Pluto','AYSE'],
+            pos=self._scene.caption_anchor, bind=self._update_center, selected='AYSE')
+        self._scene.append_to_caption("\n")
+        self._scene.append_to_caption(
+            "<b>Ref:      </b>")
+        ref = self._vpython.menu(
+            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
+                     'Neptune', 'Pluto', 'AYSE'],
+            pos=self._scene.caption_anchor, bind=self._update_center, selected='AYSE')
+        self._scene.append_to_caption("\n")
+        self._scene.append_to_caption(
+            "<b>Nav:     </b>")
+        NAVmode = self._vpython.menu(
+            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
+                     'Neptune', 'Pluto', 'deprt ref' ],
+            pos=self._scene.caption_anchor, bind=self._update_center, selected='deprt ref')
+        self._scene.append_to_caption("\n")
+
 
     def draw(self, physical_state_to_draw):
         for planet in physical_state_to_draw.entities:
