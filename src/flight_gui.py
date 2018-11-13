@@ -14,6 +14,7 @@ class FlightGui:
     cur_caption = 0
     caption_obj = ["Sun", "AYSE", "AYSE", "deprt ref"]
 
+
     def set_caption(self):
         if self.cur_caption == 0:
             self._scene.caption = "\n"
@@ -69,7 +70,7 @@ class FlightGui:
             #label_earth.visible = not show
             #label_earth.pos = earth.pos
         elif (k == 's'):
-            self._scene.center = self._spheres['Sun'].pos
+            self._scene.center = self._spheres['sun'].pos
             #show = label_sun.visible
             #label_sun.visible = not show
             #label_sun.pos = sun.pos
@@ -120,7 +121,7 @@ class FlightGui:
         import vpython  # Note that this might actually start an HTTP server!
         self._vpython = vpython
         self._scene = vpython.canvas(
-            title='OrbitX',
+            title='OrbitX\n',
             align='right',
             width=1000,
             height=600,
@@ -131,6 +132,8 @@ class FlightGui:
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
         self.set_caption()
+        self._create_menu()
+
 
         self._spheres = {}
         self._labels = {}
@@ -151,6 +154,15 @@ class FlightGui:
                 self._lights = [self._vpython.local_light(
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
+
+    def updateCenter(self, m):
+      value = m.selected
+      print(value)
+      self._scene.center = self._spheres[value].pos
+    
+
+    def _create_menu(self):
+        m = self._vpython.menu(choices=['Choose an object', 'Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune','Pluto'], pos=self._scene.title_anchor ,bind=self.updateCenter)
 
     def draw(self, physical_state_to_draw):
         for planet in physical_state_to_draw.entities:
