@@ -152,7 +152,7 @@ def smallest_altitude_event(t, y_1d):
     return event_matrix.flat[np.abs(event_matrix).argmin()]  # This is a scalar
 
 
-smallest_altitude_event.terminal = True  # Event stops integration TODO: demo
+smallest_altitude_event.terminal = True  # Event stops integration
 smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
 smallest_altitude_event.radii = []
 
@@ -231,7 +231,7 @@ class PEngine(object):
         # self._solutions is effectively a cache of ODE solutions, which
         # can be evaluated continuously for any value of t.
         # If something happens to invalidate this cache, clear the cache.
-        self._solutions = collections.deque(maxlen=10)
+        self._solutions = collections.deque(maxlen=100)
 
     def _physics_entity_at(self, y, i):
         """Returns a PhysicsEntity constructed from the i'th entity."""
@@ -368,7 +368,7 @@ class PEngine(object):
 
         while len(self._solutions) == 0 or \
                 self._solutions[-1].t_max < requested_t:
-            self._generate_new_ode_solutions()  # TODO: need to pass in t?
+            self._generate_new_ode_solutions(requested_t)
 
         for soln in self._solutions:
             if soln.t_min <= requested_t and requested_t <= soln.t_max:
@@ -379,10 +379,9 @@ class PEngine(object):
             f'{self._solutions[0].t_min}, {self._solutions[-1].t_max}, '
             f'{requested_t}'
         ))
-        self._reset_solutions()
-        return self.get_state(requested_t)
+        breakpoint()
 
-    def _generate_new_ode_solutions(self):
+    def _generate_new_ode_solutions(self, requested_t):
         # An overview of how time is managed:
         # self._template_physical_state.timestamp is the current time in the
         # simulation. Every call to get_state(), it is incremented by the
@@ -397,15 +396,19 @@ class PEngine(object):
         latest_t = self._solutions[-1].t_max if \
             len(self._solutions) else \
             self._template_physical_state.timestamp
-        iterations = 0
+        assert requested_t > latest_t  # requested_t must be in the future
 
         while True:
-            # log.debug(f'Iteration n{iterations}')
-            # iterations += 1
+            # self._solutions contains ODE solutions for the interval
+            # [self._solutions[0].t_min, self._solutions[-1].t_max]
+            # If we're in this function, requested_t is not in this interval!
+            # Then we should integrate the interval of
+            # [self._solutions[-1].t_max, requested_t]
+            # and hopefully a bit farther past the end of that interval.
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [latest_t,
-                 latest_t + FUTURE_WORK_SIZE * self._time_acceleration],
+                 requested_t + FUTURE_WORK_SIZE * self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
                 np.concatenate(latest_y, axis=None),
                 events=self._events_function,
@@ -417,17 +420,19 @@ class PEngine(object):
             latest_y = extract_from_y_1d(ivp_out.y[:, -1])
             latest_t = ivp_out.t[-1]
 
-            assert ivp_out.status >= 0
-            if ivp_out.status == 0:
-                # Finished integration successfully, done integrating
-                break
-            else:
+            if ivp_out.status < 0:
+                # Integration error
+                breakpoint()
+            if ivp_out.status > 0:
                 # We got a collision, simulation ends with the first collision.
                 assert len(ivp_out.t_events[0]) == 1
                 # The last column of the solution is the state at the collision
                 latest_y = self._collision_handle(latest_y)
                 # Redo the solve_ivp step
                 continue
+            elif latest_t >= requested_t:
+                # Finished the requested amount of integration, now return
+                break
 
         self.X, self.Y, self.DX, self.DY = latest_y
         self._template_physical_state.timestamp = latest_t
