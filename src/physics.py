@@ -33,130 +33,6 @@ log = logging.getLogger()
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
 
-
-def force(MM, X, Y):
-    G = 6.674e-11
-    D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
-    # This matrix will tell np.divide to not divide along the diagonal, i.e.
-    # don't calculate the force between an entity and itself.
-    where_matrix = np.full(D2.shape, True)
-    np.fill_diagonal(where_matrix, False)
-    force_matrix = np.divide(MM, D2, where=where_matrix)
-    return G * force_matrix
-
-
-def force_sum(force):
-    return np.sum(force, 0)
-
-
-def angle_matrix(X, Y):
-    Xd = X - X.transpose()
-    Yd = Y - Y.transpose()
-    return np.arctan2(Yd, Xd)
-
-
-def polar_to_cartesian(ang, hyp):
-    X = np.multiply(np.cos(ang), hyp)
-    Y = np.multiply(np.sin(ang), hyp)
-    return X.T, Y.T
-
-
-def f_to_a(f, M):
-    return np.divide(f, M)
-
-
-def get_acc(X, Y, M):
-    # Turn X, Y, M into column vectors, which is easier to do math with.
-    # (row vectors won't transpose)
-    X = X.reshape(1, -1)
-    Y = Y.reshape(1, -1)
-    M = M.reshape(1, -1)
-    MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
-    ang = angle_matrix(X, Y)
-    FORCE = force(MM, X, Y)
-    Xf, Yf = polar_to_cartesian(ang, FORCE)
-    Xf = force_sum(Xf)
-    Yf = force_sum(Yf)
-    Xa = f_to_a(Xf, M)
-    Ya = f_to_a(Yf, M)
-    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
-
-
-def extract_from_y_1d(y_1d):
-    # Split into 4 equal parts, [X, Y, DX, DY]
-    return np.hsplit(y_1d, 4)
-
-
-def event_altitude(x1, y1, vx1, vy1, r1, x2, y2, vx2, vy2, r2):
-    # Return a negative value if two entities are moving closer,
-    # Return zero if two entities are touching,
-    # Return a positive value if two entities are moving farther.
-    pos = [x1 - x2, y1 - y2]
-    v = [vx1 - vx2, vy1 - vy2]
-    altitude = linalg.norm(pos) - r1 - r2  # Should always be positive
-    relative_speed = linalg.norm(v)  # Negative when moving closer
-    if relative_speed == 0:
-        return altitude
-    else:
-        return altitude * np.sign(relative_speed)
-
-
-def smallest_altitude_pair(X, Y, DX, DY, R):
-    assert len(X) > 1
-    object_pairs = itertools.combinations(zip(X, Y, DX, DY, R), 2)
-    return min(object_pairs,
-               key=lambda pair: abs(event_altitude(*pair[0], *pair[1])))
-
-
-def smallest_altitude_event(t, y_1d):
-    """This function is passed in to solve_ivp to detect a collision.
-
-    To accomplish this, and also to stop solve_ivp when there is a collision,
-    this function has the attributes `terminal = True` and `radii = [...]`.
-    radii will be set by a PEngine when it's instantiated.
-    Unfortunately this can't be a PEngine method, since attributes of a method
-    can't be set.
-    Ctrl-F 'events' in
-    docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
-    for more info.
-    This should return a scalar, and specifically 0 to indicate a collision
-    """
-    #breakpoint()
-    X, Y, DX, DY = extract_from_y_1d(y_1d)
-    posns = np.column_stack((X, Y))  # An n*2 vector of (x, y) positions
-    # An n*n matrix of _altitudes_ between each entity
-    alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
-        (smallest_altitude_event.radii + smallest_altitude_event.radii.T)
-    # To simplify calculations, an entity's altitude from itself is inf
-    np.fill_diagonal(alt_matrix, np.inf)
-
-    # Calculate approaching_matrix, where the i,j entry is -1 if entities i,j
-    # are approaching each other.
-    vx_col_vec = DX.reshape(1, -1)
-    vy_col_vec = DY.reshape(1, -1)
-    vx_sign_matrix = np.sign(vx_col_vec - vx_col_vec.T)
-    vy_sign_matrix = np.sign(vy_col_vec - vy_col_vec.T)
-    approaching_matrix = np.minimum(vx_sign_matrix, vy_sign_matrix)
-    # To dodge inf*0=NaN errors, an entity's sign velocity from itself is 1
-    np.fill_diagonal(approaching_matrix, 1)
-
-    # n*n matrix of squared relative *altitudes*, each of which is negative if
-    # the respective entities are approaching each other. Velocities of 0 are
-    # not multiplied in.
-    event_matrix = np.where(
-        approaching_matrix,
-        alt_matrix * approaching_matrix,
-        alt_matrix  # If approaching_matrix[i][j] == 0, use this value.
-    )
-    # Return this 'signed altitude' of the two entities closest to colliding.
-    return event_matrix.flat[np.abs(event_matrix).argmin()]  # This is a scalar
-
-
-smallest_altitude_event.terminal = True  # Event stops integration
-smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
-smallest_altitude_event.radii = []
-
-
 class PhysicsEntity(object):
     def __init__(self, entity):
         assert isinstance(entity, protos.Entity)
@@ -209,7 +85,7 @@ class PEngine(object):
         self._time_acceleration = 1.0
         self._last_state_request_time = time.monotonic()
         if len(self._template_physical_state.entities) > 1:
-            self._events_function = smallest_altitude_event
+            self._events_function = _smallest_altitude_event
         else:
             # If there's only one entity, make a no-op events function
             self._events_function = lambda t, y: 1
@@ -278,7 +154,7 @@ class PEngine(object):
         self.Fuel = \
             np.array([entity.fuel for entity in physical_state.entities]
                      ).astype(np.float64)
-        smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
+        _smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store positions and velocities in the physical_state,
         # it should only be returned from get_state()
@@ -320,33 +196,26 @@ class PEngine(object):
         return e1, e2
 
     def _collision_handle(self, y):
-        pair = smallest_altitude_pair(*y, self.R)
-        # Find the indices of both objects, which are in the form (x, y, r)
-        X = y[0]
-        e1_index_list = np.where(X == pair[0][0])[0]
-        e2_index_list = np.where(X == pair[1][0])[0]
-        assert len(e1_index_list) == 1
-        assert len(e2_index_list) == 1
-        e1 = self._physics_entity_at(y, e1_index_list[0])
-        e2 = self._physics_entity_at(y, e2_index_list[0])
+        y = _extract_from_y_1d(y)
+        e1_index, e2_index = _smallest_altitude_event(0, y, return_pair=True)
+        e1 = self._physics_entity_at(y, e1_index)
+        e2 = self._physics_entity_at(y, e2_index)
         e1, e2 = self._resolve_collision(e1, e2)
         log.info(f'Collision between {e1.name} and {e2.name}')
-        y = self._merge_physics_entity_into(e1, y, e1_index_list[0])
-        y = self._merge_physics_entity_into(e2, y, e2_index_list[0])
+        y = self._merge_physics_entity_into(e1, y, e1_index)
+        y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
 
     def _derive(self, t, y_1d):
-        X, Y, DX, DY = extract_from_y_1d(y_1d)
-        Xa, Ya = get_acc(X, Y, self.M + self.Fuel)
+        X, Y, DX, DY = _extract_from_y_1d(y_1d)
+        Xa, Ya = _get_acc(X, Y, self.M + self.Fuel)
         DX = DX + Xa
         DY = DY + Ya
         # We got a 1d row vector, make sure to return a 1d row vector.
         return np.concatenate((DX, DY, Xa, Ya), axis=None)
 
     def _state_from_y(self, t, y):
-        if isinstance(y, np.ndarray) and len(y.shape) == 1:
-            # If y is a 1D ODE input
-            y = extract_from_y_1d(y)
+        y = _extract_from_y_1d(y)
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
@@ -396,7 +265,7 @@ class PEngine(object):
         latest_t = self._solutions[-1].t_max if \
             len(self._solutions) else \
             self._template_physical_state.timestamp
-        assert requested_t > latest_t  # requested_t must be in the future
+        assert requested_t >= latest_t  # requested_t must be in the future
 
         while True:
             # self._solutions contains ODE solutions for the interval
@@ -415,9 +284,9 @@ class PEngine(object):
                 max_step=MAX_STEP_SIZE,
                 dense_output=True
             )
-
+            
             self._solutions.append(ivp_out.sol)
-            latest_y = extract_from_y_1d(ivp_out.y[:, -1])
+            latest_y = _extract_from_y_1d(ivp_out.y[:, -1])
             latest_t = ivp_out.t[-1]
 
             if ivp_out.status < 0:
@@ -436,3 +305,118 @@ class PEngine(object):
 
         self.X, self.Y, self.DX, self.DY = latest_y
         self._template_physical_state.timestamp = latest_t
+
+
+## These _functions are internal helper functions.
+def _force(MM, X, Y):
+    G = 6.674e-11
+    D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
+    # Calculate G * m1*m2/d^2 for each object pair.
+    # In the diagonal case, i.e. an object paired with itself, force = 0.
+    force_matrix = np.divide(MM, np.where(D2 != 0, D2, 1))
+    np.fill_diagonal(force_matrix, 0)
+    return G * force_matrix
+
+
+def _force_sum(_force):
+    return np.sum(_force, 0)
+
+
+def _angle_matrix(X, Y):
+    Xd = X - X.transpose()
+    Yd = Y - Y.transpose()
+    return np.arctan2(Yd, Xd)
+
+
+def _polar_to_cartesian(ang, hyp):
+    X = np.multiply(np.cos(ang), hyp)
+    Y = np.multiply(np.sin(ang), hyp)
+    return X.T, Y.T
+
+
+def _f_to_a(f, M):
+    return np.divide(f, M)
+
+
+def _get_acc(X, Y, M):
+    # Turn X, Y, M into column vectors, which is easier to do math with.
+    # (row vectors won't transpose)
+    X = X.reshape(1, -1)
+    Y = Y.reshape(1, -1)
+    M = M.reshape(1, -1)
+    MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
+    ang = _angle_matrix(X, Y)
+    FORCE = _force(MM, X, Y)
+    Xf, Yf = _polar_to_cartesian(ang, FORCE)
+    Xf = _force_sum(Xf)
+    Yf = _force_sum(Yf)
+    Xa = _f_to_a(Xf, M)
+    Ya = _f_to_a(Yf, M)
+    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
+
+def _extract_from_y_1d(y_1d):
+    # Split into 4 equal parts, [X, Y, DX, DY]
+    if isinstance(y_1d, np.ndarray) and len(y_1d.shape) == 1:
+        # If y is a 1D ODE input
+        return np.hsplit(y_1d, 4)
+    else:
+        # If y is already 4 columns
+        return y_1d
+
+def _smallest_altitude_event(_, y_1d, return_pair=False):
+    """This function is passed in to solve_ivp to detect a collision.
+
+    To accomplish this, and also to stop solve_ivp when there is a collision,
+    this function has the attributes `terminal = True` and `radii = [...]`.
+    radii will be set by a PEngine when it's instantiated.
+    Unfortunately this can't be a PEngine method, since attributes of a method
+    can't be set.
+    Ctrl-F 'events' in
+    docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
+    for more info.
+    This should return a scalar, and specifically 0 to indicate a collision
+    """
+    X, Y, DX, DY = _extract_from_y_1d(y_1d)
+    n = len(X)
+    posns = np.column_stack((X, Y))  # An n*2 vector of (x, y) positions
+    # An n*n matrix of _altitudes_ between each entity
+    alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
+        (_smallest_altitude_event.radii + _smallest_altitude_event.radii.T)
+    # To simplify calculations, an entity's altitude from itself is inf
+    np.fill_diagonal(alt_matrix, np.inf)
+
+    # Calculate approaching_matrix, where the i,j entry is -1 if entities i,j
+    # are approaching each other.
+    vx_col_vec = DX.reshape(1, -1)
+    vy_col_vec = DY.reshape(1, -1)
+    vx_sign_matrix = np.sign(vx_col_vec - vx_col_vec.T)
+    vy_sign_matrix = np.sign(vy_col_vec - vy_col_vec.T)
+    approaching_matrix = np.minimum(vx_sign_matrix, vy_sign_matrix)
+    # To dodge inf*0=NaN errors, an entity's sign velocity from itself is 1
+    np.fill_diagonal(approaching_matrix, 1)
+
+    # n*n matrix of squared relative *altitudes*, each of which is negative if
+    # the respective entities are approaching each other. Velocities of 0 are
+    # not multiplied in.
+    event_matrix = np.where(
+        approaching_matrix,
+        alt_matrix * approaching_matrix,
+        alt_matrix  # If approaching_matrix[i][j] == 0, use this value.
+    )
+    # Return this 'signed altitude' of the two entities closest to colliding.
+    if return_pair:
+        # If we want to find out which entities collided, set return_pair=True.
+        flattened_index = np.abs(event_matrix).argmin()
+        # flattened_index is a value in the interval [1, n*n]-1. Turn it into a
+        # 2D index.
+        object_i = flattened_index // n
+        object_j = flattened_index % n
+        return object_i, object_j
+    else:
+        # This is how solve_ivp will invoke this function. Return a scalar.
+        return event_matrix.flat[np.abs(event_matrix).argmin()]
+
+
+_smallest_altitude_event.terminal = True  # Event stops integration
+_smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
+_smallest_altitude_event.radii = []
