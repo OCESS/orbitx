@@ -195,13 +195,13 @@ class PEngine(object):
 
         return e1, e2
 
-    def _collision_handle(self, y):
+    def _collision_handle(self, t, y):
         y = _extract_from_y_1d(y)
-        e1_index, e2_index = _smallest_altitude_event(0, y, return_pair=True)
+        e1_index, e2_index = _smallest_altitude_event(t, y, return_pair=True)
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
         e1, e2 = self._resolve_collision(e1, e2)
-        log.info(f'Collision between {e1.name} and {e2.name}')
+        log.info(f'Collision between {e1.name} and {e2.name} at t={t}')
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
@@ -291,12 +291,20 @@ class PEngine(object):
 
             if ivp_out.status < 0:
                 # Integration error
+                log.error(ivp_out.message)
                 breakpoint()
             if ivp_out.status > 0:
                 # We got a collision, simulation ends with the first collision.
                 assert len(ivp_out.t_events[0]) == 1
+                assert len(ivp_out.t) >= 2, ivp_out.t
+                if requested_t <= ivp_out.t[-2]:
+                    # The collision is farther in the future than requested_t,
+                    # ignore it and return the last non-collision solution.
+                    latest_y = _extract_from_y_1d(ivp_out.y[..., -2])
+                    latest_t = ivp_out.t[-2]
+                    break
                 # The last column of the solution is the state at the collision
-                latest_y = self._collision_handle(latest_y)
+                latest_y = self._collision_handle(latest_t, latest_y)
                 # Redo the solve_ivp step
                 continue
             elif latest_t >= requested_t:
@@ -385,28 +393,9 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
     # To simplify calculations, an entity's altitude from itself is inf
     np.fill_diagonal(alt_matrix, np.inf)
 
-    # Calculate approaching_matrix, where the i,j entry is -1 if entities i,j
-    # are approaching each other.
-    vx_col_vec = DX.reshape(1, -1)
-    vy_col_vec = DY.reshape(1, -1)
-    vx_sign_matrix = np.sign(vx_col_vec - vx_col_vec.T)
-    vy_sign_matrix = np.sign(vy_col_vec - vy_col_vec.T)
-    approaching_matrix = np.minimum(vx_sign_matrix, vy_sign_matrix)
-    # To dodge inf*0=NaN errors, an entity's sign velocity from itself is 1
-    np.fill_diagonal(approaching_matrix, 1)
-
-    # n*n matrix of squared relative *altitudes*, each of which is negative if
-    # the respective entities are approaching each other. Velocities of 0 are
-    # not multiplied in.
-    event_matrix = np.where(
-        approaching_matrix,
-        alt_matrix * approaching_matrix,
-        alt_matrix  # If approaching_matrix[i][j] == 0, use this value.
-    )
-    # Return this 'signed altitude' of the two entities closest to colliding.
     if return_pair:
         # If we want to find out which entities collided, set return_pair=True.
-        flattened_index = np.abs(event_matrix).argmin()
+        flattened_index = alt_matrix.argmin()
         # flattened_index is a value in the interval [1, n*n]-1. Turn it into a
         # 2D index.
         object_i = flattened_index // n
@@ -414,7 +403,7 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
         return object_i, object_j
     else:
         # This is how solve_ivp will invoke this function. Return a scalar.
-        return event_matrix.flat[np.abs(event_matrix).argmin()]
+        return np.min(alt_matrix)
 
 
 _smallest_altitude_event.terminal = True  # Event stops integration

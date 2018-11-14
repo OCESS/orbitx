@@ -75,6 +75,9 @@ def parse_args():
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to stdout.')
 
+    parser.add_argument('--time-acceleration', default=common.DEFAULT_TIME_ACC,
+                        type=float, help='Starting time acceleration')
+
     args, unknown = parser.parse_known_args()
     if unknown:
         log.warning(f'Got unrecognized args: {unknown}')
@@ -140,12 +143,10 @@ def lead_server_loop(args):
     # the GRPC server runs in a separate thread than this thread!
     state_server = network.StateServer()
 
-    log.info('Starting up physics engine (thanks ye qin)')
     log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
-    physics_engine.set_time_acceleration(common.DEFAULT_TIME_ACC)
+    physics_engine.set_time_acceleration(args.time_acceleration)
 
-    log.info('Starting up lead server networking...')
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
@@ -156,11 +157,10 @@ def lead_server_loop(args):
 
         cmd_queue = queue.Queue()
         input_thread = threading.Thread(
-            target=hacky_input_thread, args=(cmd_queue,)
+            target=hacky_input_thread, args=(cmd_queue,), daemon=True
         )
         input_thread.start()
         if args.gui:
-            log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(physics_engine.get_state())
 
         while True:
