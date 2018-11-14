@@ -99,5 +99,7 @@ data/saves/tests/: Save files for testing, used by src/test.py
 ## Controls
 
 Simulation Controls:
+```
 'p' : pause and continue the simulation
 'l' : show and hide the labels of the planets
+```
