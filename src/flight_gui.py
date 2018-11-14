@@ -23,10 +23,13 @@ class FlightGui:
             autoscale=True
         )
 
+        self.show_label = True
+        self.pause = False
+        self.pause_label = vpython.label(text="Simulation Paused.", visible=False)
+
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
         self._set_caption()
-        #self._create_menus()
 
         self._spheres = {}
         self._labels = {}
@@ -35,8 +38,8 @@ class FlightGui:
         if texture_path is None:
             # If we're in src/ look for src/../textures/
             self._texture_path = 'textures'
-        stars = os.path.join(self._texture_path, 'Stars.jpg')
-        vpython.sphere(radius=30000000000, texture=stars)
+        #stars = os.path.join(self._texture_path, 'Stars.jpg')
+        #vpython.sphere(radius=9999999999999, texture='textures/Stars.jpg')
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
@@ -50,14 +53,24 @@ class FlightGui:
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
 
+    def _show_hide_label(self):
+        if self.show_label:
+            for key, label in self._labels.items():
+                label.visible=True
+        else:
+            for key, label in self._labels.items():
+                label.visible=False
+
     def _handle_keydown(self, evt):
         """Input key handler"""
-        global show_label, pause
+        #global show_label, pause
         k = evt.key
         if (k == 'l'):
-            show_label = not show_label
+            self.show_label = not self.show_label
+            self._show_hide_label()
         elif (k == 'p'):
-            pause = not pause
+            self.pause = not self.pause
+
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -117,7 +130,7 @@ class FlightGui:
         self._scene.append_to_caption(
             "<b>Center: </b>")
         center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune','Pluto'],
-                                    pos=self._scene.caption_anchor,bind=self._update_center, selected='Sun')
+                                    pos=self._scene.caption_anchor,bind=self.recentre_camera, selected='Sun')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Target: </b>")
@@ -143,15 +156,18 @@ class FlightGui:
 
 
     def draw(self, physical_state_to_draw):
+        if self.pause:
+            self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
-            self._update_label(planet)
+            if self.show_label:
+                self._update_label(planet)
 
     def rate(self, framerate):
         self._vpython.rate(framerate)
 
     def _draw_labels(self, planet):
-        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=50, hiehgt=16,
+        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=10, hiehgt=16,
                                    border=4, font='sans')
 
     def _draw_sphere(self, planet):
@@ -181,8 +197,11 @@ class FlightGui:
         self._labels[planet.name].pos = self._vpython.vector(
             planet.x, planet.y, 0)
 
-    def recentre_camera(self, planet_name):
+    def recentre_camera(self, planet):
+        planet_name = planet.selected
+
         try:
+            self._scene.center = self._spheres[planet_name].pos
             self._scene.camera.follow(self._spheres[planet_name])
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
