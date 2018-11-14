@@ -56,7 +56,7 @@ make format   # run this to automatically format code
 help on running the program. The sparknotes version is, run:
 
 ```
-src/flight.py --flight-gui
+src/flight.py --gui
 ``` 
 
 If you get errors, make sure you have the pip packages in `requirements.txt`
