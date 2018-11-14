@@ -94,6 +94,7 @@ doc/\*-prototypes/: Prototypes for various components
 
 data/: Data that does not fit in src/, e.g. save files
 data/saves/tests/: Save files for testing, used by src/test.py
+```
 
 ## Controls
 
