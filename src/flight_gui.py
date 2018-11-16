@@ -40,7 +40,7 @@ class FlightGui:
             # If we're in src/ look for src/../textures/
             self._texture_path = 'textures'
         #stars = os.path.join(self._texture_path, 'Stars.jpg')
-        #vpython.sphere(radius=9999999999999, texture='textures/Stars.jpg')
+        #vpython.sphere(radius=9999999999999, texture='textures/Sta.jpg')
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
@@ -54,7 +54,7 @@ class FlightGui:
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
         self._scene.autoscale = False
-
+        
     def _show_hide_label(self):
         if self.show_label:
             for key, label in self._labels.items():
@@ -95,7 +95,7 @@ class FlightGui:
             pass
         # clicked = True
 
-    def get_objname(self, obj):
+    def _get_objname(self, obj):
         """Given object it finds the name of the planet"""
 
         for k, v in self._spheres.items():
@@ -198,16 +198,15 @@ class FlightGui:
 
     def recentre_camera(self, planet):
         planet_name = planet.selected
-        radius = self._spheres[planet_name].radius
 
         try:
-            #self._scene.center = self._spheres[planet_name].pos
-            #self._scene.camera.pos(self._spheres[planet_name].pos.x + radius, self._spheres[planet_name].pos.y + radius, 0)
+            if planet_name == "Sun":
+                self._scene.range = self._spheres["Sun"].radius * 15000
+            else:
+                self._scene.range = self._spheres[planet_name].radius * 10
 
-            #self._scene.camera.pos = self._vpython.vector(self._spheres[planet_name].pos.x, self._spheres[planet_name].pos.y, 0)
             self._scene.camera.follow(self._spheres[planet_name])
-            #self._scene.camera.pos = self._vpython.vector(0, 0, 0)
-            self._scene.range = self._spheres[planet_name].radius*10
+
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
