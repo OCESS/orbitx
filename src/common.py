@@ -8,6 +8,7 @@ DEFAULT_LEAD_SERVER_PORT = 28430
 
 DEFAULT_TIME_ACC = 1
 
+CHEAT_FUEL = 0
 
 # Set up a logger.
 # Log DEBUG and higher to stderr,
