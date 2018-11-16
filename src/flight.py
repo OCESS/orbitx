@@ -223,7 +223,7 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
-    except:
+    except Exception:
         log.exception('Exception in main loop! Execution halted.')
 
 
