@@ -12,8 +12,8 @@ import copy
 import logging
 import os
 import queue
-import sys
 import threading
+import warnings
 import concurrent.futures
 import urllib.parse
 
@@ -118,11 +118,7 @@ def parse_args():
             ))
 
     if args.verbose:
-        # Instead of having DEBUG go to stderr and WARNING go to stdout,
-        # have everything go to only stdout.
-        common.important_handler.setLevel(logging.DEBUG)
-        log.handlers = []
-        log.addHandler(common.important_handler)
+        common.enable_verbose_logging()
 
     return args
 
@@ -180,7 +176,6 @@ def lead_server_loop(args):
 
             if args.gui:
                 gui.draw(state)
-                gui.rate(common.TICK_RATE)
 
 
 def mirroring_loop(args):
@@ -207,7 +202,6 @@ def mirroring_loop(args):
 
                 if args.gui:
                     gui.draw(state)
-                    gui.rate(common.TICK_RATE)
             except KeyboardInterrupt:
                 # TODO: hacky solution to turn off mirroring right now is a ^C
                 if currently_mirroring:
@@ -229,9 +223,13 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
-    except:
+    except Exception:
         log.exception('Exception in main loop! Execution halted.')
 
 
 if __name__ == '__main__':
+    # vpython uses deprecated python features, but we shouldn't get a fatal
+    # exception if we try to use vpython. DeprecationWarnings are normally
+    # enabled when __name__ == __main__
+    warnings.filterwarnings('once', category=DeprecationWarning)
     main()

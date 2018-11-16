@@ -12,7 +12,8 @@ log = logging.getLogger()
 class FlightGui:
 
     def __init__(self, physical_state_to_draw, texture_path=None):
-        import vpython  # Note that this might actually start an HTTP server!
+        # Note that this might actually start an HTTP server!
+        import vpython
         self._vpython = vpython
         self._scene = vpython.canvas(
             title='<b>OrbitX\n</b>',
@@ -162,9 +163,6 @@ class FlightGui:
             self._update_sphere(planet)
             if self.show_label:
                 self._update_label(planet)
-
-    def rate(self, framerate):
-        self._vpython.rate(framerate)
 
     def _draw_labels(self, planet):
         return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=10, hiehgt=16,
