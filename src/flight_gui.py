@@ -53,6 +53,7 @@ class FlightGui:
                 self._lights = [self._vpython.local_light(
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
+        self._scene.autoscale = False
 
     def _show_hide_label(self):
         if self.show_label:
@@ -197,9 +198,16 @@ class FlightGui:
 
     def recentre_camera(self, planet):
         planet_name = planet.selected
+        radius = self._spheres[planet_name].radius
 
         try:
-            self._scene.center = self._spheres[planet_name].pos
+            #self._scene.center = self._spheres[planet_name].pos
+            #self._scene.camera.pos(self._spheres[planet_name].pos.x + radius, self._spheres[planet_name].pos.y + radius, 0)
+
+            #self._scene.camera.pos = self._vpython.vector(self._spheres[planet_name].pos.x, self._spheres[planet_name].pos.y, 0)
             self._scene.camera.follow(self._spheres[planet_name])
+            #self._scene.camera.pos = self._vpython.vector(0, 0, 0)
+            self._scene.range = self._spheres[planet_name].radius*10
+
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
