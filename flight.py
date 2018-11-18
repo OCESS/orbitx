@@ -11,6 +11,8 @@ import argparse
 import copy
 import logging
 import os
+import pdb
+import sys
 import queue
 import threading
 import warnings
@@ -19,11 +21,11 @@ import urllib.parse
 
 import grpc
 
-import orbitx_pb2_grpc as grpc_stubs
-import common
-import flight_gui
-import network
-import physics
+import orbitx.orbitx_pb2_grpc as grpc_stubs
+import orbitx.common as common
+import orbitx.flight_gui as flight_gui
+import orbitx.network as network
+import orbitx.physics as physics
 
 log = logging.getLogger()
 
@@ -51,7 +53,7 @@ def parse_args():
         ))
 
     parser.add_argument('data_location', type=str, nargs='?',
-                        default=('file:' + common.SOLAR_SYSTEM_SAVEFILE),
+                        default=('file:' + str(common.SOLAR_SYSTEM_SAVEFILE)),
                         help=(
                             'Where flight data is located. Accepts arguments'
                             ' of the form '
@@ -69,8 +71,8 @@ def parse_args():
                             ' an error.'
                         ))
 
-    parser.add_argument('--gui', action='store_true', default=False,
-                        help='Launches a flight GUI.')
+    parser.add_argument('--no-gui', action='store_true', default=False,
+                        help='Don\'t launch the flight GUI.')
 
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to stdout.')
@@ -156,7 +158,7 @@ def lead_server_loop(args):
             target=hacky_input_thread, args=(cmd_queue,), daemon=True
         )
         input_thread.start()
-        if args.gui:
+        if not args.no_gui:
             gui = flight_gui.FlightGui(physics_engine.get_state())
 
         while True:
@@ -174,7 +176,7 @@ def lead_server_loop(args):
             except queue.Empty:
                 pass
 
-            if args.gui:
+            if not args.no_gui:
                 gui.draw(state)
 
 
@@ -189,7 +191,7 @@ def mirroring_loop(args):
         log.info(f'Querying lead server {args.data_location.geturl()}')
         physics_engine = physics.PEngine(mirror_state=mirror_state)
 
-        if args.gui:
+        if not args.no_gui:
             log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(mirror_state())
 
@@ -200,7 +202,7 @@ def mirroring_loop(args):
                 else:
                     state = physics_engine.get_state()
 
-                if args.gui:
+                if not args.no_gui:
                     gui.draw(state)
             except KeyboardInterrupt:
                 # TODO: hacky solution to turn off mirroring right now is a ^C
@@ -224,7 +226,10 @@ def main():
         # the user.
         pass
     except Exception:
-        log.exception('Exception in main loop! Execution halted.')
+        log.exception('Exception in main loop! "exit()" stops debugger.')
+        # Start a PDB post mortem, https://stackoverflow.com/a/242514/1333978
+        extype, value, tb = sys.exc_info()
+        pdb.post_mortem(tb)
 
 
 if __name__ == '__main__':
@@ -232,4 +237,5 @@ if __name__ == '__main__':
     # exception if we try to use vpython. DeprecationWarnings are normally
     # enabled when __name__ == __main__
     warnings.filterwarnings('once', category=DeprecationWarning)
+    warnings.filterwarnings('once', category=ResourceWarning)
     main()

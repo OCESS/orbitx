@@ -1,7 +1,7 @@
 """Common code and class interfaces."""
 import logging
 import sys
-import os.path
+from pathlib import Path
 
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
 DEFAULT_LEAD_SERVER_PORT = 28430
@@ -36,10 +36,16 @@ def enable_verbose_logging():
 
 
 def savefile(name):
-    return os.path.join(DATA_DIRECTORY, 'saves', name)
+    return PROGRAM_PATH / 'data' / 'saves' / name
 
 
-DATA_DIRECTORY = os.path.join(os.path.dirname(__file__), '..', 'data')
+if getattr(sys, 'frozen', False):
+    # We're running from a PyInstaller exe
+    PROGRAM_PATH = Path(sys.executable).resolve().parent
+else:
+    import __main__
+    PROGRAM_PATH = Path(__main__.__file__).resolve().parent
+
 AUTOSAVE_SAVEFILE = savefile('autosave.json')
 SOLAR_SYSTEM_SAVEFILE = savefile('OCESS.json')
 

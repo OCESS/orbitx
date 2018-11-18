@@ -1,5 +1,4 @@
 import collections
-import itertools
 import logging
 import time
 import warnings
@@ -11,8 +10,8 @@ import scipy.spatial
 import scipy.special
 from scipy.integrate import *
 
-import orbitx_pb2 as protos
-import common
+from . import orbitx_pb2 as protos
+from . import common
 
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
@@ -284,7 +283,7 @@ class PEngine(object):
                 max_step=MAX_STEP_SIZE,
                 dense_output=True
             )
-            
+
             self._solutions.append(ivp_out.sol)
             latest_y = _extract_from_y_1d(ivp_out.y[:, -1])
             latest_t = ivp_out.t[-1]
@@ -315,7 +314,7 @@ class PEngine(object):
         self._template_physical_state.timestamp = latest_t
 
 
-## These _functions are internal helper functions.
+# These _functions are internal helper functions.
 def _force(MM, X, Y):
     G = 6.674e-11
     D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
@@ -362,6 +361,7 @@ def _get_acc(X, Y, M):
     Ya = _f_to_a(Yf, M)
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
+
 def _extract_from_y_1d(y_1d):
     # Split into 4 equal parts, [X, Y, DX, DY]
     if isinstance(y_1d, np.ndarray) and len(y_1d.shape) == 1:
@@ -370,6 +370,7 @@ def _extract_from_y_1d(y_1d):
     else:
         # If y is already 4 columns
         return y_1d
+
 
 def _smallest_altitude_event(_, y_1d, return_pair=False):
     """This function is passed in to solve_ivp to detect a collision.

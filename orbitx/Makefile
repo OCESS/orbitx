@@ -6,13 +6,13 @@ install:
 	jupyter nbextension enable --py --sys-prefix appmode
 	jupyter serverextension enable --py --sys-prefix appmode
 
-
 test:
 	python test.py
 
 .PHONY: clean
 clean:
 	rm -f *_pb2.py *_pb2_grpc.py
+	rm -rf dist build
 
 .PHONY: format
 format:

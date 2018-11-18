@@ -2,8 +2,8 @@
 import logging
 import unittest
 
-import common
-import physics
+from . import common
+from . import physics
 
 log = logging.getLogger()
 

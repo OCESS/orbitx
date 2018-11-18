@@ -4,7 +4,7 @@ Class that provides a main loop for flight.
 The main loop drawsa GUI and collects input.
 """
 import logging
-import os
+from pathlib import Path
 
 log = logging.getLogger()
 
@@ -26,7 +26,8 @@ class FlightGui:
 
         self.show_label = True
         self.pause = False
-        self.pause_label = vpython.label(text="Simulation Paused.", visible=False)
+        self.pause_label = vpython.label(
+            text="Simulation Paused.", visible=False)
 
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
@@ -38,9 +39,9 @@ class FlightGui:
         self._texture_path = texture_path
         if texture_path is None:
             # If we're in src/ look for src/../textures/
-            self._texture_path = 'textures'
-        #stars = os.path.join(self._texture_path, 'Stars.jpg')
-        #vpython.sphere(radius=9999999999999, texture='textures/Sta.jpg')
+            self._texture_path = Path('data', 'textures')
+        #stars = str(self._texture_path / 'Stars.jpg')
+        #vpython.sphere(radius=9999999999999, texture=stars)
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
@@ -54,14 +55,14 @@ class FlightGui:
                     pos=self._vpython.vector(planet.x, planet.y, 0)
                 )]
         self._scene.autoscale = False
-        
+
     def _show_hide_label(self):
         if self.show_label:
             for key, label in self._labels.items():
-                label.visible=True
+                label.visible = True
         else:
             for key, label in self._labels.items():
-                label.visible=False
+                label.visible = False
 
     def _handle_keydown(self, evt):
         """Input key handler"""
@@ -72,7 +73,6 @@ class FlightGui:
             self._show_hide_label()
         elif (k == 'p'):
             self.pause = not self.pause
-
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -109,7 +109,7 @@ class FlightGui:
         print(value)
         self._scene.center = self._spheres[value].pos
 
-    #TODO: 1)Update with correct physics values
+    # TODO: 1)Update with correct physics values
     def _set_caption(self):
         """Set and update the captions"""
 
@@ -125,20 +125,20 @@ class FlightGui:
         self._scene.append_to_caption("\n")
         self._set_menus()
 
-    #TODO: create bind functions for target, ref, and NAV MODE
+    # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self):
         """This creates dropped down menu which is used when set_caption"""
 
         self._scene.append_to_caption(
             "<b>Center: </b>")
-        center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune','Pluto'],
-                                    pos=self._scene.caption_anchor,bind=self.recentre_camera, selected='Sun')
+        center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'],
+                                    pos=self._scene.caption_anchor, bind=self.recentre_camera, selected='Sun')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Target: </b>")
         target = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
-                     'Neptune', 'Pluto','AYSE'],
+                     'Neptune', 'Pluto', 'AYSE'],
             pos=self._scene.caption_anchor, bind=self._update_center, selected='AYSE')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
@@ -152,10 +152,9 @@ class FlightGui:
             "<b>Nav:     </b>")
         NAVmode = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
-                     'Neptune', 'Pluto', 'deprt ref' ],
+                     'Neptune', 'Pluto', 'deprt ref'],
             pos=self._scene.caption_anchor, bind=self._update_center, selected='deprt ref')
         self._scene.append_to_caption("\n")
-
 
     def draw(self, physical_state_to_draw):
         if self.pause:
@@ -170,14 +169,14 @@ class FlightGui:
                                    border=4, font='sans')
 
     def _draw_sphere(self, planet):
-        texture = os.path.join(self._texture_path, planet.name + '.jpg')
-        if os.path.isfile(texture):
+        texture = self._texture_path / (planet.name + '.jpg')
+        if texture.is_file():
             return self._vpython.sphere(
                 pos=self._vpython.vector(planet.x, planet.y, 0),
                 radius=planet.r,
                 make_trail=True,
                 shininess=0.1,
-                texture=texture
+                texture=str(texture)
             )
         else:
             log.debug(f'Could not find texture {texture}')

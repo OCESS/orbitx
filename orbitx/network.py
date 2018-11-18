@@ -5,8 +5,8 @@ import threading
 
 import grpc
 
-import orbitx_pb2 as protos
-import orbitx_pb2_grpc as grpc_stubs
+from . import orbitx_pb2 as protos
+from . import orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
