@@ -3,6 +3,11 @@ import logging
 import sys
 from pathlib import Path
 
+import google.protobuf.json_format
+
+from . import orbitx_pb2 as protos
+
+
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
 DEFAULT_LEAD_SERVER_PORT = 28430
 
@@ -61,3 +66,16 @@ class GrpcServerContext:
 
     def __exit__(self, *args):
         self._server.stop(0)
+
+
+def load_savefile(file):
+    with open(file, 'r') as f:
+        data = f.read()
+    read_state = protos.PhysicalState()
+    google.protobuf.json_format.Parse(data, read_state)
+    return read_state
+
+
+def write_savefile(physical_state, file=AUTOSAVE_SAVEFILE):
+    with open(file, 'w') as outfile:
+        outfile.write(google.protobuf.json_format.MessageToJson(physical_state))

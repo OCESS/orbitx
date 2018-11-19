@@ -142,7 +142,9 @@ def lead_server_loop(args):
     state_server = network.StateServer()
 
     log.info(f'Loading save at {args.data_location.path}')
-    physics_engine = physics.PEngine(flight_savefile=args.data_location.path)
+    physics_engine = physics.PEngine(
+        common.load_savefile(args.data_location.path)
+    )
     physics_engine.set_time_acceleration(args.time_acceleration)
 
     server = grpc.server(
@@ -189,16 +191,18 @@ def mirroring_loop(args):
         args.data_location.hostname, args.data_location.port
     ) as mirror_state:
         log.info(f'Querying lead server {args.data_location.geturl()}')
-        physics_engine = physics.PEngine(mirror_state=mirror_state)
+        state = mirror_state()
+        physics_engine = physics.PEngine(state)
 
         if not args.no_gui:
             log.info('Initializing graphics (thanks sean)...')
-            gui = flight_gui.FlightGui(mirror_state())
+            gui = flight_gui.FlightGui(state)
 
         while True:
             try:
                 if currently_mirroring:
-                    physics_engine.set_state(mirror_state())
+                    state = mirror_state()
+                    physics_engine.set_state(state)
                 else:
                     state = physics_engine.get_state()
 

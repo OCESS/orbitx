@@ -1,9 +1,9 @@
 import collections
 import logging
+import threading
 import time
 import warnings
 
-import google.protobuf.json_format
 import numpy as np
 import numpy.linalg as linalg
 import scipy.spatial
@@ -16,7 +16,8 @@ from . import common
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
 MAX_STEP_SIZE = 1.0
-FUTURE_WORK_SIZE = 10.0
+WORK_SIZE = 10.0
+SOLUTION_CACHE_SIZE = 100
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 log = logging.getLogger()
 
@@ -31,6 +32,7 @@ log = logging.getLogger()
 # https://stackoverflow.com/a/52103839/1333978
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
+
 
 class PhysicsEntity(object):
     def __init__(self, entity):
@@ -68,45 +70,84 @@ class PEngine(object):
     pe.set_time_acceleration(20)
     # Simulates 20 * [amount of time elapsed since last get_state() call]:
     state = pe.get_state()
+
+    This class will start a background thread to simulate physics when __init__
+    is called. This background thread may restart at arbitrary times.
+    This class is designed to be access from the main thread by methods that
+    don't begin with an underscore, so thread synchronization between the main
+    thread and the background solutions thread is done with this assumption in
+    mind. If this assumption changes, change thread synchronization code very
+    deliberately and carefully! Specifically, if you're in spacesim, feel free
+    to hit me (Patrick) up, and I can help.
     """
 
-    def __init__(self, flight_savefile=None, mirror_state=None):
+    def __init__(
+            self,
+            physical_state,
+            time_acceleration=common.DEFAULT_TIME_ACC
+    ):
         # A PhysicalState, but no x, y, vx, or vy. That's handled by get_state.
         self._template_physical_state = protos.PhysicalState()
-        # TODO: get rid of this check by only taking in a PhysicalState as arg.
-        if flight_savefile:
-            self.Load_json(flight_savefile)
-        elif mirror_state:
-            self.set_state(mirror_state())
-        else:
-            raise ValueError('need either a file or a lead server')
-        self._reset_solutions()
-        self._time_acceleration = 1.0
-        self._last_state_request_time = time.monotonic()
-        if len(self._template_physical_state.entities) > 1:
-            self._events_function = _smallest_altitude_event
-        else:
-            # If there's only one entity, make a no-op events function
-            self._events_function = lambda t, y: 1
 
-    def set_time_acceleration(self, time_acceleration):
+        # Controls access to self._solutions. If anything changes that is
+        # related to self._solutions, this condition variable should be
+        # notified. Currently, that's just if self._solutions or
+        # self._simtime_of_last_request changes.
+        self._solutions_cond = threading.Condition()
+        self._time_of_last_request = time.monotonic()
+        self._time_acceleration = time_acceleration
+        self._simthread_exception = None
+
+        self.set_state(physical_state)
+
+    def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
         if time_acceleration <= 0:
             log.error(f'Time acceleration {time_acceleration} must be > 0')
             return
+
+        if requested_t is None:
+            requested_t = \
+                self._simtime_of_last_request + self._simtime_elapsed()
+
+        y = _y_from_state(self.get_state(requested_t))
         self._time_acceleration = time_acceleration
-        self._reset_solutions()
 
-    def _time_elapsed(self):
-        time_elapsed = time.monotonic() - self._last_state_request_time
-        self._last_state_request_time = time.monotonic()
-        return max(time_elapsed, 0.001)
+        self._restart_simulation(requested_t, y)
 
-    def _reset_solutions(self):
-        # self._solutions is effectively a cache of ODE solutions, which
-        # can be evaluated continuously for any value of t.
-        # If something happens to invalidate this cache, clear the cache.
-        self._solutions = collections.deque(maxlen=100)
+    def _simtime_elapsed(self):
+        time_elapsed = max(
+            time.monotonic() - self._time_of_last_request,
+            0.0001
+        )
+
+        with self._solutions_cond:
+            self._time_of_last_request = time.monotonic()
+            self._solutions_cond.notify_all()
+
+        return time_elapsed * self._time_acceleration
+
+    def _restart_simulation(self, t, y):
+        if hasattr(self, '_simthread'):
+            self._stopping_simthread = True
+            self._simthread.join()
+
+        self._simthread = threading.Thread(
+            target=self._simthread_target,
+            args=(t, y)
+        )
+        self._stopping_simthread = False
+
+        # We don't need to synchronize self._simetime_of_last_request or
+        # self._solutions here, because we just stopped the background
+        # simulation thread only a few lines ago.
+        self._simtime_of_last_request = t
+
+        # Essentially just a cache of ODE solutions.
+        self._solutions = collections.deque(maxlen=SOLUTION_CACHE_SIZE)
+
+        # Fork self._simthread into the background.
+        self._simthread.start()
 
     def _physics_entity_at(self, y, i):
         """Returns a PhysicsEntity constructed from the i'th entity."""
@@ -122,30 +163,8 @@ class PEngine(object):
         y[2][i], y[3][i] = physics_entity.v
         return y
 
-    def Load_json(self, file):
-        with open(file) as f:
-            data = f.read()
-        read_state = protos.PhysicalState()
-        google.protobuf.json_format.Parse(data, read_state)
-        self.set_state(read_state)
-
-    def Save_json(self, file=common.AUTOSAVE_SAVEFILE):
-        with open(file, 'w') as outfile:
-            outfile.write(google.protobuf.json_format.MessageToJson(
-                self._state_from_y(
-                    self._template_physical_state.timestamp,
-                    [self.X, self.Y, self.DX, self.DY]),
-                including_default_value_fields=False))
-
     def set_state(self, physical_state):
-        self.X = np.array([entity.x for entity in physical_state.entities]
-                          ).astype(np.float64)
-        self.Y = np.array([entity.y for entity in physical_state.entities]
-                          ).astype(np.float64)
-        self.DX = np.array([entity.vx for entity in physical_state.entities]
-                           ).astype(np.float64)
-        self.DY = np.array([entity.vy for entity in physical_state.entities]
-                           ).astype(np.float64)
+        X, Y, DX, DY = _y_from_state(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(np.float64)
         self.M = np.array([entity.mass for entity in physical_state.entities]
@@ -164,7 +183,13 @@ class PEngine(object):
             entity.ClearField('vx')
             entity.ClearField('vy')
 
-        self._reset_solutions()
+        if len(self._template_physical_state.entities) > 1:
+            self._events_function = _smallest_altitude_event
+        else:
+            # If there's only one entity, make a no-op events function
+            self._events_function = lambda t, y: 1
+
+        self._restart_simulation(physical_state.timestamp, (X, Y, DX, DY))
 
     def _resolve_collision(self, e1, e2):
         # Resolve a collision by:
@@ -228,20 +253,33 @@ class PEngine(object):
 
     def get_state(self, requested_t=None):
         """Return the latest physical state of the simulation."""
+        if self._simthread_exception is not None:
+            # Check if the simthread crashed
+            raise self._simthread_exception
+
         if requested_t is None:
-            # Always update the current timestamp of our physical state.
-            time_elapsed = self._time_elapsed()
-            requested_t = self._template_physical_state.timestamp + \
-                time_elapsed * self._time_acceleration
+            requested_t = \
+                self._simtime_of_last_request + self._simtime_elapsed()
 
-        while len(self._solutions) == 0 or \
-                self._solutions[-1].t_max < requested_t:
-            self._generate_new_ode_solutions(requested_t)
+        # Wait until there is a solution for our requested_t. The .wait_for()
+        # call will block until a new ODE solution is created.
+        with self._solutions_cond:
+            self._simtime_of_last_request = requested_t
 
-        for soln in self._solutions:
-            if soln.t_min <= requested_t and requested_t <= soln.t_max:
-                return self._state_from_y(
-                    requested_t, soln(requested_t))
+            if len(self._solutions):
+                # We can't integrate backwards, so if integration has gone
+                # beyond what we need, fail early.
+                assert requested_t >= self._solutions[0].t_min
+
+            self._solutions_cond.wait_for(
+                lambda: len(self._solutions) != 0 and
+                self._solutions[-1].t_max >= requested_t
+            )
+
+            for soln in self._solutions:
+                if soln.t_min <= requested_t and requested_t <= soln.t_max:
+                    return self._state_from_y(
+                        requested_t, soln(requested_t))
         log.error((
             'AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!'
             f'{self._solutions[0].t_min}, {self._solutions[-1].t_max}, '
@@ -249,24 +287,27 @@ class PEngine(object):
         ))
         breakpoint()
 
-    def _generate_new_ode_solutions(self, requested_t):
+    def _simthread_target(self, t, y):
+        try:
+            self._generate_new_ode_solutions(t, y)
+        except Exception as e:
+            self._simthread_exception = e
+
+    def _generate_new_ode_solutions(self, t, y):
         # An overview of how time is managed:
-        # self._template_physical_state.timestamp is the current time in the
-        # simulation. Every call to get_state(), it is incremented by the
+        # self._simtime_of_last_request is the main thread's latest idea of
+        # what the current time is in the simulation. Every call to
+        # get_state(), self._timetime_of_last_request is incremented by the
         # amount of time that passed since the last call to get_state(),
-        # factoring in time_acceleration.
+        # factoring in self._time_acceleration.
         # self._solutions is a fixed-size queue of ODE solutions.
         # Each element has an attribute, t_max, which describes the largest
         # time that the solution can be evaluated at and still be accurate.
         # The highest such t_max should always be larger than the current
-        # simulation time, i.e. self._template_physical_state.timestamp.
-        latest_y = (self.X, self.Y, self.DX, self.DY)
-        latest_t = self._solutions[-1].t_max if \
-            len(self._solutions) else \
-            self._template_physical_state.timestamp
-        assert requested_t >= latest_t  # requested_t must be in the future
+        # simulation time, i.e. self._simtime_of_last_request.
+        y = np.concatenate(y, axis=None)
 
-        while True:
+        while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
             # [self._solutions[0].t_min, self._solutions[-1].t_max]
             # If we're in this function, requested_t is not in this interval!
@@ -275,18 +316,30 @@ class PEngine(object):
             # and hopefully a bit farther past the end of that interval.
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
-                [latest_t,
-                 requested_t + FUTURE_WORK_SIZE * self._time_acceleration],
+                [t,
+                 t + WORK_SIZE * self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
-                np.concatenate(latest_y, axis=None),
+                y,
                 events=self._events_function,
                 max_step=MAX_STEP_SIZE,
                 dense_output=True
             )
 
-            self._solutions.append(ivp_out.sol)
-            latest_y = _extract_from_y_1d(ivp_out.y[:, -1])
-            latest_t = ivp_out.t[-1]
+            # When we create a new solution, let other people know.
+            with self._solutions_cond:
+                # If adding another solution to our max-sized deque would drop
+                # our oldest solution, and the main thread is still asking for
+                # state in the t interval of our oldest solution, take a break
+                # until the main thread has caught up.
+                self._solutions_cond.wait_for(
+                    lambda: len(self._solutions) < SOLUTION_CACHE_SIZE or
+                    self._simtime_of_last_request > self._solutions[0].t_max
+                )
+                self._solutions.append(ivp_out.sol)
+                self._solutions_cond.notify_all()
+
+            y = ivp_out.y[:, -1]
+            t = ivp_out.t[-1]
 
             if ivp_out.status < 0:
                 # Integration error
@@ -295,26 +348,25 @@ class PEngine(object):
             if ivp_out.status > 0:
                 # We got a collision, simulation ends with the first collision.
                 assert len(ivp_out.t_events[0]) == 1
-                assert len(ivp_out.t) >= 2, ivp_out.t
-                if requested_t <= ivp_out.t[-2]:
-                    # The collision is farther in the future than requested_t,
-                    # ignore it and return the last non-collision solution.
-                    latest_y = _extract_from_y_1d(ivp_out.y[..., -2])
-                    latest_t = ivp_out.t[-2]
-                    break
+                assert len(ivp_out.t) >= 2
                 # The last column of the solution is the state at the collision
-                latest_y = self._collision_handle(latest_t, latest_y)
-                # Redo the solve_ivp step
-                continue
-            elif latest_t >= requested_t:
-                # Finished the requested amount of integration, now return
-                break
-
-        self.X, self.Y, self.DX, self.DY = latest_y
-        self._template_physical_state.timestamp = latest_t
+                y = np.concatenate(
+                    self._collision_handle(latest_t, latest_y),
+                    axis=None)
 
 
 # These _functions are internal helper functions.
+def _y_from_state(physical_state):
+    X = np.array([entity.x for entity in physical_state.entities]
+                 ).astype(np.float64)
+    Y = np.array([entity.y for entity in physical_state.entities]
+                 ).astype(np.float64)
+    DX = np.array([entity.vx for entity in physical_state.entities]
+                  ).astype(np.float64)
+    DY = np.array([entity.vy for entity in physical_state.entities]
+                  ).astype(np.float64)
+    return (X, Y, DX, DY)
+
 def _force(MM, X, Y):
     G = 6.674e-11
     D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
@@ -409,4 +461,4 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
 
 _smallest_altitude_event.terminal = True  # Event stops integration
 _smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
-_smallest_altitude_event.radii = []
+_smallest_altitude_event.radii = np.array([])

@@ -132,7 +132,7 @@ class FlightGui:
         self._scene.append_to_caption(
             "<b>Center: </b>")
         center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'],
-                                    pos=self._scene.caption_anchor, bind=self.recentre_camera, selected='Sun')
+                                    pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='Sun')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Target: </b>")
@@ -195,9 +195,10 @@ class FlightGui:
         self._labels[planet.name].pos = self._vpython.vector(
             planet.x, planet.y, 0)
 
-    def recentre_camera(self, planet):
-        planet_name = planet.selected
+    def _recentre_dropdown_hook(self, selection):
+        self.recentre_camera(selection.selected)
 
+    def recentre_camera(self, planet_name):
         try:
             if planet_name == "Sun":
                 self._scene.range = self._spheres["Sun"].radius * 15000
@@ -205,7 +206,6 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 10
 
             self._scene.camera.follow(self._spheres[planet_name])
-
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
