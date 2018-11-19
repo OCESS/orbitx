@@ -15,9 +15,11 @@ import pdb
 import sys
 import queue
 import threading
+import time
 import warnings
 import concurrent.futures
 import urllib.parse
+from pathlib import Path
 
 import grpc
 
@@ -28,6 +30,7 @@ import orbitx.network as network
 import orbitx.physics as physics
 
 log = logging.getLogger()
+#common.set_program_path(__file__)
 
 
 def parse_args():
@@ -53,7 +56,7 @@ def parse_args():
         ))
 
     parser.add_argument('data_location', type=str, nargs='?',
-                        default=('file:' + str(common.SOLAR_SYSTEM_SAVEFILE)),
+                        default=('file:' + str(common.savefile('OCESS.json'))),
                         help=(
                             'Where flight data is located. Accepts arguments'
                             ' of the form '
@@ -143,9 +146,9 @@ def lead_server_loop(args):
 
     log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(
-        common.load_savefile(args.data_location.path)
+        common.load_savefile(args.data_location.path),
+        common.DEFAULT_TIME_ACC
     )
-    physics_engine.set_time_acceleration(args.time_acceleration)
 
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
@@ -180,6 +183,9 @@ def lead_server_loop(args):
 
             if not args.no_gui:
                 gui.draw(state)
+                gui.rate(common.FRAMERATE)
+            else:
+                time.sleep(common.TICK_TIME)
 
 
 def mirroring_loop(args):
@@ -208,6 +214,9 @@ def mirroring_loop(args):
 
                 if not args.no_gui:
                     gui.draw(state)
+                    gui.rate(FRAMERATE)
+                else:
+                    time.sleep(common.TICK_TIME)
             except KeyboardInterrupt:
                 # TODO: hacky solution to turn off mirroring right now is a ^C
                 if currently_mirroring:
@@ -230,11 +239,8 @@ def main():
         # the user.
         pass
     except Exception:
-        log.exception('Exception in main loop! "exit()" stops debugger.')
-        # Start a PDB post mortem, https://stackoverflow.com/a/242514/1333978
-        extype, value, tb = sys.exc_info()
-        pdb.post_mortem(tb)
-
+        log.exception('Exception in main loop! Stopping execution.')
+        raise
 
 if __name__ == '__main__':
     # vpython uses deprecated python features, but we shouldn't get a fatal
@@ -242,4 +248,5 @@ if __name__ == '__main__':
     # enabled when __name__ == __main__
     warnings.filterwarnings('once', category=DeprecationWarning)
     warnings.filterwarnings('once', category=ResourceWarning)
+    common.PROGRAM_PATH = Path(__file__).resolve().parent
     main()

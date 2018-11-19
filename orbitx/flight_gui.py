@@ -209,3 +209,6 @@ class FlightGui:
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
+
+    def rate(self, framerate):
+        self._vpython.rate(framerate)

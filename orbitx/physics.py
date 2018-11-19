@@ -15,9 +15,9 @@ from . import common
 
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
-MAX_STEP_SIZE = 1.0
-WORK_SIZE = 10.0
+STEP_SIZE_MULT = 1.0
 SOLUTION_CACHE_SIZE = 100
+
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 log = logging.getLogger()
 
@@ -81,11 +81,7 @@ class PEngine(object):
     to hit me (Patrick) up, and I can help.
     """
 
-    def __init__(
-            self,
-            physical_state,
-            time_acceleration=common.DEFAULT_TIME_ACC
-    ):
+    def __init__(self, physical_state, time_acceleration):
         # A PhysicalState, but no x, y, vx, or vy. That's handled by get_state.
         self._template_physical_state = protos.PhysicalState()
 
@@ -113,6 +109,12 @@ class PEngine(object):
         y = _y_from_state(self.get_state(requested_t))
         self._time_acceleration = time_acceleration
 
+        # TODO: stability hack, ignore collisions over a certain time acc.
+        if time_acceleration > 1000:
+            self._events_function = lambda t, y: 1
+        else:
+            self._events_function = _smallest_altitude_event
+
         self._restart_simulation(requested_t, y)
 
     def _simtime_elapsed(self):
@@ -129,12 +131,15 @@ class PEngine(object):
 
     def _restart_simulation(self, t, y):
         if hasattr(self, '_simthread'):
-            self._stopping_simthread = True
+            with self._solutions_cond:
+                self._stopping_simthread = True
+                self._solutions_cond.notify_all()
             self._simthread.join()
 
         self._simthread = threading.Thread(
             target=self._simthread_target,
-            args=(t, y)
+            args=(t, y),
+            daemon=True
         )
         self._stopping_simthread = False
 
@@ -273,13 +278,16 @@ class PEngine(object):
 
             self._solutions_cond.wait_for(
                 lambda: len(self._solutions) != 0 and
-                self._solutions[-1].t_max >= requested_t
+                self._solutions[-1].t_max >= requested_t or
+                self._simthread_exception is not None
             )
 
             for soln in self._solutions:
                 if soln.t_min <= requested_t and requested_t <= soln.t_max:
-                    return self._state_from_y(
-                        requested_t, soln(requested_t))
+                    solution = soln
+
+        return self._state_from_y(requested_t, solution(requested_t))
+
         log.error((
             'AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!'
             f'{self._solutions[0].t_min}, {self._solutions[-1].t_max}, '
@@ -288,10 +296,13 @@ class PEngine(object):
         breakpoint()
 
     def _simthread_target(self, t, y):
+        log.debug('simthread started')
         try:
             self._generate_new_ode_solutions(t, y)
         except Exception as e:
+            log.debug('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
+        log.debug('simthread exited')
 
     def _generate_new_ode_solutions(self, t, y):
         # An overview of how time is managed:
@@ -305,6 +316,8 @@ class PEngine(object):
         # time that the solution can be evaluated at and still be accurate.
         # The highest such t_max should always be larger than the current
         # simulation time, i.e. self._simtime_of_last_request.
+
+        # solve_ivp requires a 1D y0 array
         y = np.concatenate(y, axis=None)
 
         while not self._stopping_simthread:
@@ -316,12 +329,14 @@ class PEngine(object):
             # and hopefully a bit farther past the end of that interval.
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
-                [t,
-                 t + WORK_SIZE * self._time_acceleration],
-                # solve_ivp requires a 1D y0 array
+                [t, t + self._time_acceleration],
                 y,
+                #method='LSODA',
                 events=self._events_function,
-                max_step=MAX_STEP_SIZE,
+                max_step=STEP_SIZE_MULT * self._time_acceleration,
+                #min_step=1e-10,
+                #rtol=max(np.log(self._time_acceleration) / 100, 1e-3),
+                #atol=max(np.log(self._time_acceleration) / 100, 1e-6),
                 dense_output=True
             )
 
@@ -333,8 +348,12 @@ class PEngine(object):
                 # until the main thread has caught up.
                 self._solutions_cond.wait_for(
                     lambda: len(self._solutions) < SOLUTION_CACHE_SIZE or
-                    self._simtime_of_last_request > self._solutions[0].t_max
+                    self._simtime_of_last_request > self._solutions[0].t_max or
+                    self._stopping_simthread
                 )
+                if self._stopping_simthread:
+                    break
+
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
@@ -350,9 +369,7 @@ class PEngine(object):
                 assert len(ivp_out.t_events[0]) == 1
                 assert len(ivp_out.t) >= 2
                 # The last column of the solution is the state at the collision
-                y = np.concatenate(
-                    self._collision_handle(latest_t, latest_y),
-                    axis=None)
+                y = np.concatenate(self._collision_handle(t, y), axis=None)
 
 
 # These _functions are internal helper functions.
@@ -366,6 +383,7 @@ def _y_from_state(physical_state):
     DY = np.array([entity.vy for entity in physical_state.entities]
                   ).astype(np.float64)
     return (X, Y, DX, DY)
+
 
 def _force(MM, X, Y):
     G = 6.674e-11

@@ -11,6 +11,9 @@ from . import orbitx_pb2 as protos
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
 DEFAULT_LEAD_SERVER_PORT = 28430
 
+FRAMERATE = 100
+TICK_TIME = 1/FRAMERATE
+
 DEFAULT_TIME_ACC = 1
 
 CHEAT_FUEL = 0
@@ -51,9 +54,6 @@ else:
     import __main__
     PROGRAM_PATH = Path(__main__.__file__).resolve().parent
 
-AUTOSAVE_SAVEFILE = savefile('autosave.json')
-SOLAR_SYSTEM_SAVEFILE = savefile('OCESS.json')
-
 
 class GrpcServerContext:
     """Context manager for a GRPC server."""
@@ -76,6 +76,7 @@ def load_savefile(file):
     return read_state
 
 
-def write_savefile(physical_state, file=AUTOSAVE_SAVEFILE):
+def write_savefile(physical_state, file):
     with open(file, 'w') as outfile:
-        outfile.write(google.protobuf.json_format.MessageToJson(physical_state))
+        outfile.write(
+            google.protobuf.json_format.MessageToJson(physical_state))
