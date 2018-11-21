@@ -13,6 +13,9 @@ from scipy.integrate import *
 from . import orbitx_pb2 as protos
 from . import common
 
+from Entity import * # not really implemented
+
+
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
 STEP_SIZE_MULT = 1.0
@@ -32,32 +35,6 @@ log = logging.getLogger()
 # https://stackoverflow.com/a/52103839/1333978
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
-
-
-class PhysicsEntity(object):
-    def __init__(self, entity):
-        assert isinstance(entity, protos.Entity)
-        self.name = entity.name
-        self.pos = np.asarray([entity.x, entity.y])
-        self.R = entity.r
-        self.v = np.asarray([entity.vx, entity.vy])
-        self.m = entity.mass
-        self.spin = entity.spin
-        self.heading = entity.heading
-
-    def as_proto(self):
-        return protos.Entity(
-            name=self.name,
-            x=self.pos[0],
-            y=self.pos[1],
-            vx=self.v[0],
-            vy=self.v[1],
-            r=self.R,
-            mass=self.m,
-            spin=self.spin,
-            heading=self.heading
-        )
-
 
 class PEngine(object):
     """Physics Engine class. Encapsulates simulating physical state.
@@ -170,6 +147,8 @@ class PEngine(object):
 
     def set_state(self, physical_state):
         X, Y, DX, DY = _y_from_state(physical_state)
+        self.S = np.array([entity.spin for entity in physical_state.entities]
+                          ).astype(np.float64)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(np.float64)
         self.M = np.array([entity.mass for entity in physical_state.entities]
