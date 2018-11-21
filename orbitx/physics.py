@@ -146,6 +146,15 @@ class PEngine(object):
         return y
 
     def set_state(self, physical_state):
+        #Temporary solution to find Habitat
+        self.HabIndex=-1
+        index=-1
+        for entity in physical_state.entities:
+            index+=1
+            if entity.name=="Habitat":
+                self.HabIndex=index
+                #self.Habitat=Habitat(physical_state.entities[index]) #keep this potentially needed later
+        #Temporary solution end
         X, Y, DX, DY = _y_from_state(physical_state)
         self.S = np.array([entity.spin for entity in physical_state.entities]
                           ).astype(np.float64)
