@@ -90,4 +90,7 @@ class Habitat(PhysicsEntity):
             t_acc=self.Engine._calc_acc(throttle)
             spin_acc=self.RW._calc_acc(spin)
             return t_acc,spin_acc 
+    def XY_acc(self,acc,spin): #use for throttle acceleration probably can be removed later
+        pass
+        #return cos(spin_angle)*acc,sin(spin_angle)*acc
 
