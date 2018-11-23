@@ -1,5 +1,7 @@
 # OrbitX
 
+![solar-system](https://user-images.githubusercontent.com/1498589/48948260-e1f90800-ef01-11e8-9835-f5f472604720.PNG)
+
 This project re-implements the central server and astronaut flight software for
 Dr. Magwood's
 ['Orbit' suite of software](http://www.wiki.spacesim.org/index.php/Orbit)
@@ -84,8 +86,9 @@ So if you have some code that roughly fits this, feel free to drop me a line!
 ## Project Structure
 
 ```
-src/: All python source files. Most of these are self-contained modules.
-src/flight.py: Flight server or mirroring client. Run with ./flight.py
+orbitx/: All python source files. These are self-contained modules.
+flight.py: Flight server or mirroring client. Run with ./flight.py
+test.py: Script that tests the physics engine
 src/orbitx-demo.ipynb: Jupyter notebook that can be run and viewed remotely
 
 doc/: Any documentation for this project
@@ -95,6 +98,16 @@ doc/\*-prototypes/: Prototypes for various components
 data/: Data that does not fit in src/, e.g. save files
 data/saves/tests/: Save files for testing, used by src/test.py
 ```
+
+## Screens
+
+![The entire solar system, with circle segments showing the paths of planets](https://user-images.githubusercontent.com/1498589/48948260-e1f90800-ef01-11e8-9835-f5f472604720.PNG)
+
+![The Jupiter system, with sinusoidal paths of Jovian moons around Jupiter](https://user-images.githubusercontent.com/1498589/48948270-ea514300-ef01-11e8-8f23-4010e6fb7bd3.PNG)
+
+![The Jupiter system again](https://user-images.githubusercontent.com/1498589/48948274-ec1b0680-ef01-11e8-9074-aef5748d60f5.PNG)
+
+![The Earth system, showing the Habitat in Low Earth Orbit and the Moon in the background](https://user-images.githubusercontent.com/1498589/48948279-ee7d6080-ef01-11e8-9522-4f81012c74a8.PNG)
 
 ## Controls
 
