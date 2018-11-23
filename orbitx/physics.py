@@ -44,7 +44,12 @@ log = logging.getLogger()
 
 class Y():
     """Wraps a y0 input/output to solve_ivp.
-    y0 = [X, Y, VX, VY, Fuel, Heading, Spin, Throttle]"""
+    y0 = [X, Y, VX, VY, Fuel, Heading, Spin, Throttle]. Example usage:
+
+    y = Y(physical_state, or y_1d)
+    y.X[5] = 32.2
+    print(y.Fuel[4])
+    """
 
     def __init__(self, data):
         """Takes either an np.ndarray or a PhysicalState."""
