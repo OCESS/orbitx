@@ -18,6 +18,7 @@ class PhysicsEngine:
     def __init__(self, savefile):
         self.physics_engine = physics.PEngine(
             common.load_savefile(common.savefile(savefile)))
+        self.physics_engine.set_time_acceleration(1, requested_t=0)
 
     def __enter__(self):
         return self.physics_engine
@@ -70,24 +71,24 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
             # Test the internal math that the internal derive function is doing
             # the right calculations. Break out your SPH4U physics equations!!
-            X, Y, DX, DY = physics._y_from_state(initial)
-            y_1d = np.concatenate((X, Y, DX, DY), axis=None)
-            Vx, Vy, Ax, Ay = \
-                physics._extract_from_y_1d(physics_engine._derive(0, y_1d))
-            self.assertTrue(len(Vx) == len(Vy) == len(Ax) == len(Ay) == 2)
-            self.assertAlmostEqual(Vx[0], DX[0])
-            self.assertAlmostEqual(Vy[0], DY[0])
-            self.assertEqual(round(abs(Ax[0])),
+            y0 = physics.Y(initial)
+            # Note that dy.X is actually the velocity at 0,
+            # and dy.VX is acceleration.
+            dy = physics.Y(physics_engine._derive(0, y0._y_1d))
+            self.assertEqual(dy._n, 2)
+            self.assertAlmostEqual(dy.X[0], y0.VX[0])
+            self.assertAlmostEqual(dy.Y[0], y0.VY[0])
+            self.assertEqual(round(abs(dy.VX[0])),
                              round(G * initial.entities[1].mass /
-                                   (X[0] - X[1])**2))
-            self.assertAlmostEqual(Ay[0], 0)
+                                   (y0.X[0] - y0.X[1])**2))
+            self.assertAlmostEqual(dy.VY[0], 0)
 
-            self.assertAlmostEqual(Vx[1], DX[1])
-            self.assertAlmostEqual(Vy[1], DY[1])
-            self.assertEqual(round(abs(Ax[1])),
+            self.assertAlmostEqual(dy.X[1], y0.VX[1])
+            self.assertAlmostEqual(dy.Y[1], y0.VY[1])
+            self.assertEqual(round(abs(dy.VX[1])),
                              round(G * initial.entities[0].mass /
-                                   (X[0] - X[1])**2))
-            self.assertAlmostEqual(Ay[1], 0)
+                                   (y0.X[1] - y0.X[0])**2))
+            self.assertAlmostEqual(dy.VY[1], 0)
 
     def test_three_body(self):
         with PhysicsEngine('tests/three-body.json') as physics_engine:
@@ -98,47 +99,44 @@ class PhysicsEngineTestCase(unittest.TestCase):
             state = physics_engine.get_state(0)
 
             # Test that every single entity has the correct accelerations.
-            X, Y, DX, DY = physics._y_from_state(state)
-            y_1d = np.concatenate((X, Y, DX, DY), axis=None)
-            Vx, Vy, Ax, Ay = \
-                physics._extract_from_y_1d(physics_engine._derive(0, y_1d))
-            self.assertTrue(len(Vx) == len(Vy) == len(Ax) == len(Ay) == 3)
+            y0 = physics.Y(state)
+            dy = physics.Y(physics_engine._derive(0, y0._y_1d))
+            self.assertEqual(dy._n, 3)
 
-            self.assertAlmostEqual(Vx[0], DX[0])
-            self.assertAlmostEqual(Vy[0], DY[0])
-            self.assertEqual(round(abs(Ax[0])),
+            self.assertAlmostEqual(dy.X[0], y0.VX[0])
+            self.assertAlmostEqual(dy.Y[0], y0.VY[0])
+            self.assertEqual(round(abs(dy.VX[0])),
                              round(G * state.entities[1].mass /
-                                   (X[0] - X[1])**2))
-            self.assertEqual(round(abs(Ay[0])),
+                                   (y0.X[0] - y0.X[1])**2))
+            self.assertEqual(round(abs(dy.VY[0])),
                              round(G * state.entities[2].mass /
-                                   (Y[0] - Y[2])**2))
+                                   (y0.Y[0] - y0.Y[2])**2))
 
-            self.assertAlmostEqual(Vx[1], DX[1])
-            self.assertAlmostEqual(Vy[1], DY[1])
-            self.assertEqual(round(abs(Ax[1])),
+            self.assertAlmostEqual(dy.X[1], y0.VX[1])
+            self.assertAlmostEqual(dy.Y[1], y0.VY[1])
+            self.assertEqual(round(abs(dy.VX[1])),
+                             round(G * state.entities[0].mass /
+                                   (y0.X[1] - y0.X[0])**2 +
+
+                                   np.sqrt(2) * G * state.entities[2].mass /
+                                   (y0.X[1] - y0.X[2])**2
+                                   ))
+            self.assertEqual(round(abs(dy.VY[1])),
+                             round(np.sqrt(2) * G * state.entities[2].mass /
+                                   (y0.X[1] - y0.X[2])**2))
+
+            self.assertAlmostEqual(dy.X[2], y0.VX[2])
+            self.assertAlmostEqual(dy.Y[2], y0.VY[2])
+            self.assertEqual(round(abs(dy.VX[2])),
+                             round(np.sqrt(2) * G * state.entities[2].mass /
+                                   (y0.X[1] - y0.X[2])**2))
+            self.assertEqual(round(abs(dy.VY[2])),
                              round(
                              G * state.entities[0].mass /
-                             (X[1] - X[0])**2 +
-
-                             np.sqrt(2) * G * state.entities[2].mass /
-                             (X[1] - X[2])**2
-                             ))
-            self.assertEqual(round(abs(Ay[1])),
-                             round(np.sqrt(2) * G * state.entities[2].mass /
-                                   (X[1] - X[2])**2))
-
-            self.assertAlmostEqual(Vx[2], DX[2])
-            self.assertAlmostEqual(Vy[2], DY[2])
-            self.assertEqual(round(abs(Ay[1])),
-                             round(np.sqrt(2) * G * state.entities[2].mass /
-                                   (X[1] - X[2])**2))
-            self.assertEqual(round(abs(Ay[2])),
-                             round(
-                             G * state.entities[0].mass /
-                             (Y[2] - Y[0])**2 +
+                             (y0.Y[2] - y0.Y[0])**2 +
 
                              np.sqrt(2) * G * state.entities[1].mass /
-                             (Y[2] - Y[1])**2
+                             (y0.Y[2] - y0.Y[1])**2
                              ))
 
 

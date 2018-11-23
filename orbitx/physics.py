@@ -42,6 +42,73 @@ log = logging.getLogger()
 # np.array() is copying something, or changing the dtype, etc.
 
 
+class Y():
+    """Wraps a y0 input/output to solve_ivp.
+    y0 = [X, Y, VX, VY, Fuel, Heading, Spin, Throttle]"""
+
+    def __init__(self, data):
+        """Takes either an np.ndarray or a PhysicalState."""
+        if isinstance(data, np.ndarray):
+            assert len(data.shape) == 1
+            self._y_1d = data
+        else:
+            assert isinstance(data, protos.PhysicalState)
+            X = np.array([entity.x for entity in data.entities]
+                         ).astype(default_dtype)
+            Y = np.array([entity.y for entity in data.entities]
+                         ).astype(default_dtype)
+            VX = np.array([entity.vx for entity in data.entities]
+                          ).astype(default_dtype)
+            VY = np.array([entity.vy for entity in data.entities]
+                          ).astype(default_dtype)
+            Fuel = np.array([entity.fuel for entity in data.entities]
+                            ).astype(default_dtype)
+            Heading = np.array([entity.heading for entity in data.entities]
+                               ).astype(default_dtype)
+            Spin = np.array([entity.spin for entity in data.entities]
+                            ).astype(default_dtype)
+            Throttle = np.array([entity.throttle for entity in data.entities]
+                                ).astype(default_dtype)
+
+            self._y_1d = np.concatenate(
+                (X, Y, VX, VY, Fuel, Heading, Spin, Throttle), axis=None)
+
+        # y_1d has 8 components
+        self._n = len(self._y_1d) // 8
+
+    @property
+    def X(self):
+        return self._y_1d[0 * self._n:1 * self._n]
+
+    @property
+    def Y(self):
+        return self._y_1d[1 * self._n:2 * self._n]
+
+    @property
+    def VX(self):
+        return self._y_1d[2 * self._n:3 * self._n]
+
+    @property
+    def VY(self):
+        return self._y_1d[3 * self._n:4 * self._n]
+
+    @property
+    def Fuel(self):
+        return self._y_1d[4 * self._n:5 * self._n]
+
+    @property
+    def Heading(self):
+        return self._y_1d[5 * self._n:6 * self._n]
+
+    @property
+    def Spin(self):
+        return self._y_1d[6 * self._n:7 * self._n]
+
+    @property
+    def Throttle(self):
+        return self._y_1d[7 * self._n:8 * self._n]
+
+
 class PEngine(object):
     """Physics Engine class. Encapsulates simulating physical state.
 
@@ -89,7 +156,7 @@ class PEngine(object):
         if time_acceleration is None:
             return
 
-        y = _y_from_state(self.get_state(requested_t))
+        y0 = Y(self.get_state(requested_t))
         self._time_acceleration = time_acceleration
 
         if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
@@ -97,7 +164,7 @@ class PEngine(object):
         else:
             self._events_function = _smallest_altitude_event
 
-        self._restart_simulation(requested_t, y)
+        self._restart_simulation(requested_t, y0)
 
     def _bound_time_acceleration(self, time_acceleration):
         if time_acceleration <= 0:
@@ -136,12 +203,12 @@ class PEngine(object):
                 self._solutions_cond.notify_all()
             self._simthread.join()
 
-    def _restart_simulation(self, t, y):
+    def _restart_simulation(self, t0, y0):
         self._stop_simthread()
 
         self._simthread = threading.Thread(
             target=self._simthread_target,
-            args=(t, y),
+            args=(t0, y0),
             daemon=True
         )
         self._stopping_simthread = False
@@ -149,7 +216,7 @@ class PEngine(object):
         # We don't need to synchronize self._simtime_of_last_request or
         # self._solutions here, because we just stopped the background
         # simulation thread only a few lines ago.
-        self._simtime_of_last_request = t
+        self._simtime_of_last_request = t0
 
         # Essentially just a cache of ODE solutions.
         self._solutions = collections.deque(maxlen=SOLUTION_CACHE_SIZE)
@@ -161,14 +228,14 @@ class PEngine(object):
         """Returns a PhysicsEntity constructed from the i'th entity."""
         physics_entity = PhysicsEntity(
             self._template_physical_state.entities[i])
-        physics_entity.pos = np.array([y[0][i], y[1][i]])
-        physics_entity.v = np.array([y[2][i], y[3][i]])
+        physics_entity.pos = np.array([y.X[i], y.Y[i]])
+        physics_entity.v = np.array([y.VX[i], y.VY[i]])
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
         """Inverse of _physics_entity_at, merges a physics_entity into y."""
-        y[0][i], y[1][i] = physics_entity.pos
-        y[2][i], y[3][i] = physics_entity.v
+        y.X[i], y.Y[i] = physics_entity.pos
+        y.VX[i], y.VY[i] = physics_entity.v
         return y
 
     def set_state(self, physical_state):
@@ -181,19 +248,14 @@ class PEngine(object):
                 self.HabIndex=index
                 #self.Habitat=Habitat(physical_state.entities[index]) #keep this potentially needed later
         #Temporary solution end
-        X, Y, DX, DY = _y_from_state(physical_state)
-        self.S = np.array([entity.spin for entity in physical_state.entities]
-                          ).astype(default_dtype)
+        y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
         self.M = np.array([entity.mass for entity in physical_state.entities]
                           ).astype(default_dtype)
-        self.Fuel = \
-            np.array([entity.fuel for entity in physical_state.entities]
-                     ).astype(default_dtype)
         _smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
-        # Don't store positions and velocities in the physical_state,
+        # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
         self._template_physical_state.CopyFrom(physical_state)
         for entity in self._template_physical_state.entities:
@@ -201,6 +263,10 @@ class PEngine(object):
             entity.ClearField('y')
             entity.ClearField('vx')
             entity.ClearField('vy')
+            entity.ClearField('fuel')
+            entity.ClearField('heading')
+            entity.ClearField('spin')
+            entity.ClearField('throttle')
 
         if len(self._template_physical_state.entities) > 1 and \
            self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
@@ -209,7 +275,7 @@ class PEngine(object):
             # If there's only one entity, make a no-op events function
             self._events_function = lambda t, y: 1
 
-        self._restart_simulation(physical_state.timestamp, (X, Y, DX, DY))
+        self._restart_simulation(physical_state.timestamp, y0)
 
     def _resolve_collision(self, e1, e2):
         # Resolve a collision by:
@@ -240,8 +306,8 @@ class PEngine(object):
         return e1, e2
 
     def _collision_handle(self, t, y):
-        y = _extract_from_y_1d(y)
-        e1_index, e2_index = _smallest_altitude_event(t, y, return_pair=True)
+        e1_index, e2_index = _smallest_altitude_event(
+            t, y._y_1d, return_pair=True)
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
         e1, e2 = self._resolve_collision(e1, e2)
@@ -251,22 +317,30 @@ class PEngine(object):
         return y
 
     def _derive(self, t, y_1d):
-        X, Y, DX, DY = _extract_from_y_1d(y_1d)
-        Xa, Ya = _get_acc(X, Y, self.M + self.Fuel)
+        y = Y(y_1d)
+        Xa, Ya = _get_acc(y.X, y.Y, self.M + y.Fuel)
+        zeros = np.zeros(len(Xa))
         # We got a 1d row vector, make sure to return a 1d row vector.
-        return np.concatenate((DX, DY, Xa, Ya), axis=None)
+        return np.concatenate(
+            (y.VX, y.VY, Xa, Ya, zeros, zeros, zeros, zeros),
+            axis=None)
 
-    def _state_from_y(self, t, y):
-        y = _extract_from_y_1d(y)
+    def _state_from_y_1d(self, t, y):
+        y = Y(y)
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
-        for x, y, vx, vy, entity in zip(
-                y[0], y[1], y[2], y[3], state.entities):
+        for x, y, vx, vy, fuel, heading, spin, throttle, entity in zip(
+                y.X, y.Y, y.VX, y.VY, y.Fuel, y.Heading, y.Spin, y.Throttle,
+                state.entities):
             entity.x = x
             entity.y = y
             entity.vx = vx
             entity.vy = vy
+            entity.fuel = fuel
+            entity.heading = heading
+            entity.spin = spin
+            entity.throttle = throttle
         return state
 
     def get_state(self, requested_t=None):
@@ -298,7 +372,7 @@ class PEngine(object):
                 if soln.t_min <= requested_t and requested_t <= soln.t_max:
                     solution = soln
 
-        return self._state_from_y(requested_t, solution(requested_t))
+        return self._state_from_y_1d(requested_t, solution(requested_t))
 
     def _simthread_target(self, t, y):
         log.debug('simthread started')
@@ -323,7 +397,7 @@ class PEngine(object):
         # simulation time, i.e. self._simtime_of_last_request.
 
         # solve_ivp requires a 1D y0 array
-        y = np.concatenate(y, axis=None)
+        y_1d = y._y_1d
 
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
@@ -335,22 +409,18 @@ class PEngine(object):
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [t, t + self._time_acceleration],
-                y,
-                #method='LSODA',
+                y_1d,
                 events=self._events_function,
                 # np.sqrt is here to give a slower-than-linear step size growth
                 max_step=STEP_SIZE_MULT * np.sqrt(self._time_acceleration),
-                #min_step=1e-10,
-                #rtol=0.1,
-                #atol=1,
                 dense_output=True
             )
 
             if ivp_out.status < 0:
                 # Integration error
-                log.error(ivp_out.message)
-                log.error(('Retrying with decreased time acceleration = '
-                           f'{self._time_acceleration / 10}'))
+                log.warning(ivp_out.message)
+                log.warning(('Retrying with decreased time acceleration = '
+                             f'{self._time_acceleration / 10}'))
                 self._time_acceleration = self._bound_time_acceleration(
                     self._time_acceleration / 10)
                 if self._time_acceleration < 1:
@@ -376,7 +446,7 @@ class PEngine(object):
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
-            y = ivp_out.y[:, -1]
+            y_1d = ivp_out.y[:, -1]
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
@@ -384,22 +454,10 @@ class PEngine(object):
                 assert len(ivp_out.t_events[0]) == 1
                 assert len(ivp_out.t) >= 2
                 # The last column of the solution is the state at the collision
-                y = np.concatenate(self._collision_handle(t, y), axis=None)
+                y_1d = self._collision_handle(t, Y(y_1d))._y_1d
 
 
 # These _functions are internal helper functions.
-def _y_from_state(physical_state):
-    X = np.array([entity.x for entity in physical_state.entities]
-                 ).astype(default_dtype)
-    Y = np.array([entity.y for entity in physical_state.entities]
-                 ).astype(default_dtype)
-    DX = np.array([entity.vx for entity in physical_state.entities]
-                  ).astype(default_dtype)
-    DY = np.array([entity.vy for entity in physical_state.entities]
-                  ).astype(default_dtype)
-    return (X, Y, DX, DY)
-
-
 def _force(MM, X, Y):
     G = 6.674e-11
     D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
@@ -447,16 +505,6 @@ def _get_acc(X, Y, M):
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 
-def _extract_from_y_1d(y_1d):
-    # Split into 4 equal parts, [X, Y, DX, DY]
-    if isinstance(y_1d, np.ndarray) and len(y_1d.shape) == 1:
-        # If y is a 1D ODE input
-        return np.hsplit(y_1d, 4)
-    else:
-        # If y is already 4 columns
-        return y_1d
-
-
 def _smallest_altitude_event(_, y_1d, return_pair=False):
     """This function is passed in to solve_ivp to detect a collision.
 
@@ -470,9 +518,9 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
     for more info.
     This should return a scalar, and specifically 0 to indicate a collision
     """
-    X, Y, DX, DY = _extract_from_y_1d(y_1d)
-    n = len(X)
-    posns = np.column_stack((X, Y))  # An n*2 vector of (x, y) positions
+    y = Y(y_1d)
+    n = y._n
+    posns = np.column_stack((y.X, y.Y))  # An n*2 vector of (x, y) positions
     # An n*n matrix of _altitudes_ between each entity
     alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
         (_smallest_altitude_event.radii + _smallest_altitude_event.radii.T)
