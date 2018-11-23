@@ -22,6 +22,8 @@ default_dtype = np.longdouble
 # a collision. Units of this are in seconds.
 STEP_SIZE_MULT = 1.0
 SOLUTION_CACHE_SIZE = 100
+COLLISIONS_TIME_ACC_BOUNDARY = 1000
+MAX_TIME_ACCELERATION = 100000
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
@@ -79,24 +81,41 @@ class PEngine(object):
 
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
-        if time_acceleration <= 0:
-            log.error(f'Time acceleration {time_acceleration} must be > 0')
-            return
-
         if requested_t is None:
             requested_t = \
                 self._simtime_of_last_request + self._simtime_elapsed()
 
+        time_acceleration = self._bound_time_acceleration(time_acceleration)
+        if time_acceleration is None:
+            return
+
         y = _y_from_state(self.get_state(requested_t))
         self._time_acceleration = time_acceleration
 
-        # TODO: stability hack, ignore collisions over a certain time acc.
-        if time_acceleration > 1000:
+        if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = lambda t, y: 1
         else:
             self._events_function = _smallest_altitude_event
 
         self._restart_simulation(requested_t, y)
+
+    def _bound_time_acceleration(self, time_acceleration):
+        if time_acceleration <= 0:
+            log.error(f'Time acceleration {time_acceleration} must be > 0')
+            return None
+        elif time_acceleration > MAX_TIME_ACCELERATION:
+            log.warning(f'Requested time acceleration {time_acceleration} '
+                        f'Greater than max {MAX_TIME_ACCELERATION}. '
+                        'Using max time acceleration.')
+            time_acceleration = MAX_TIME_ACCELERATION
+
+        # TODO: stability hack, ignore collisions over a certain time acc.
+        if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
+            self._events_function = lambda t, y: 1
+        else:
+            self._events_function = _smallest_altitude_event
+
+        return time_acceleration
 
     def _simtime_elapsed(self):
         time_elapsed = max(
@@ -183,7 +202,8 @@ class PEngine(object):
             entity.ClearField('vx')
             entity.ClearField('vy')
 
-        if len(self._template_physical_state.entities) > 1:
+        if len(self._template_physical_state.entities) > 1 and \
+           self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = _smallest_altitude_event
         else:
             # If there's only one entity, make a no-op events function
@@ -318,10 +338,11 @@ class PEngine(object):
                 y,
                 #method='LSODA',
                 events=self._events_function,
-                max_step=STEP_SIZE_MULT * self._time_acceleration,
+                # np.sqrt is here to give a slower-than-linear step size growth
+                max_step=STEP_SIZE_MULT * np.sqrt(self._time_acceleration),
                 #min_step=1e-10,
-                #rtol=max(np.log(self._time_acceleration) / 100, 1e-3),
-                #atol=max(np.log(self._time_acceleration) / 100, 1e-6),
+                #rtol=0.1,
+                #atol=1,
                 dense_output=True
             )
 
@@ -330,7 +351,8 @@ class PEngine(object):
                 log.error(ivp_out.message)
                 log.error(('Retrying with decreased time acceleration = '
                            f'{self._time_acceleration / 10}'))
-                self._time_acceleration /= 10
+                self._time_acceleration = self._bound_time_acceleration(
+                    self._time_acceleration / 10)
                 if self._time_acceleration < 1:
                     # We can't lower the time acceleration anymore
                     breakpoint()
