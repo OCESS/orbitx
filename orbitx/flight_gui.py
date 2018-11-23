@@ -15,6 +15,14 @@ class FlightGui:
         # Note that this might actually start an HTTP server!
         import vpython
         self._vpython = vpython
+        assert len(physical_state_to_draw.entities) >= 1
+        try:
+            self._origin = [entity
+                            for entity in physical_state_to_draw.entities
+                            if entity.name == 'Habitat'][0]
+        except IndexError:
+            # Couldn't find the Habitat, default to the first entity
+            self._origin = physical_state_to_draw.entities[0]
         self._scene = vpython.canvas(
             title='<b>OrbitX\n</b>',
             align='right',
@@ -24,7 +32,7 @@ class FlightGui:
             autoscale=True
         )
 
-        self.show_label = True
+        self._show_label = True
         self.pause = False
         self.pause_label = vpython.label(
             text="Simulation Paused.", visible=False)
@@ -40,24 +48,28 @@ class FlightGui:
         if texture_path is None:
             # If we're in src/ look for src/../textures/
             self._texture_path = Path('data', 'textures')
-        #stars = str(self._texture_path / 'Stars.jpg')
-        #vpython.sphere(radius=9999999999999, texture=stars)
+        # stars = str(self._texture_path / 'Stars.jpg')
+        # vpython.sphere(radius=9999999999999, texture=stars)
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
-            if planet.name == 'Sun':  # The sun is special!
+            if planet.name == 'Habitat':
+                self._habitat_arrow = self._draw_habitat_arrow(planet)
                 self._scene.camera.follow(
-                    self._spheres[planet.name])  # thanks Copernicus
-                self._spheres[planet.name].emissive = True  # The sun glows!
-                self._scene.lights = []
-                self._lights = [self._vpython.local_light(
-                    pos=self._vpython.vector(planet.x, planet.y, 0)
-                )]
+                    self._spheres[planet.name])
         self._scene.autoscale = False
 
+        self.recentre_camera("Habitat")
+
+    def _posn(self, entity):
+        return self._vpython.vector(
+            entity.x - self._origin.x,
+            entity.y - self._origin.y,
+            0)
+
     def _show_hide_label(self):
-        if self.show_label:
+        if self._show_label:
             for key, label in self._labels.items():
                 label.visible = True
         else:
@@ -66,10 +78,10 @@ class FlightGui:
 
     def _handle_keydown(self, evt):
         """Input key handler"""
-        #global show_label, pause
+        # global _show_label, pause
         k = evt.key
         if (k == 'l'):
-            self.show_label = not self.show_label
+            self._show_label = not self._show_label
             self._show_hide_label()
         elif (k == 'p'):
             self.pause = not self.pause
@@ -88,7 +100,7 @@ class FlightGui:
         # global obj, clicked
         try:
             obj = self._scene.mouse.pick
-            if obj != None:
+            if obj is not None:
                 self.update_caption(obj)
 
         except AttributeError:
@@ -102,12 +114,6 @@ class FlightGui:
             if v == obj:
                 obj_name = k
         return obj_name
-
-    def _update_center(self, m):
-        """Change camera to focus on different object"""
-        value = m.selected
-        print(value)
-        self._scene.center = self._spheres[value].pos
 
     # TODO: 1)Update with correct physics values
     def _set_caption(self):
@@ -131,7 +137,7 @@ class FlightGui:
 
         self._scene.append_to_caption(
             "<b>Center: </b>")
-        center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'],
+        center = self._vpython.menu(choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Habitat', 'Moon'],
                                     pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='Sun')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
@@ -139,21 +145,21 @@ class FlightGui:
         target = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
                      'Neptune', 'Pluto', 'AYSE'],
-            pos=self._scene.caption_anchor, bind=self._update_center, selected='AYSE')
+            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='AYSE')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Ref:      </b>")
         ref = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
                      'Neptune', 'Pluto', 'AYSE'],
-            pos=self._scene.caption_anchor, bind=self._update_center, selected='AYSE')
+            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='AYSE')
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Nav:     </b>")
         NAVmode = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
                      'Neptune', 'Pluto', 'deprt ref'],
-            pos=self._scene.caption_anchor, bind=self._update_center, selected='deprt ref')
+            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='deprt ref')
         self._scene.append_to_caption("\n")
 
     def draw(self, physical_state_to_draw):
@@ -161,44 +167,91 @@ class FlightGui:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
-            if self.show_label:
+            if self._show_label:
                 self._update_label(planet)
+            if planet.name == "Habitat":
+                self._update_habitat_arrow(planet)
+
+    def _draw_habitat_arrow(self, planet):
+        """Create an arrow that restore the habitat direction information"""
+        return self._vpython.arrow(
+            pos=(
+                self._posn(planet) +
+                self._vpython.vector(0, 0, -2 * planet.r)
+            ),
+            axis=self._vpython.vector(planet.vx, planet.vy, 0).norm(),
+            length=100)
+
+    def _update_habitat_arrow(self, planet):
+        """Update the position of the arrow """
+
+        self._habitat_arrow.pos = (
+            self._posn(planet) +
+            self._vpython.vector(0, 0, -2 * planet.r)
+        )
+        self._habitat_arrow.axis = self._vpython.vector(
+            planet.vx, planet.vy, 0).norm()
 
     def _draw_labels(self, planet):
-        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=10, height=16,
-                                   border=4, font='sans')
+        label = self._vpython.label(
+            visible=True, pos=self._posn(planet),
+            text=planet.name, xoffset=0, yoffset=10, height=16,
+            border=4, font='sans')
+
+        if planet.name == 'Habitat':
+            label.text += f'\nFuel: {planet.fuel}'
+
+        return label
 
     def _draw_sphere(self, planet):
         texture = self._texture_path / (planet.name + '.jpg')
-        if texture.is_file():
-            return self._vpython.sphere(
-                pos=self._vpython.vector(planet.x, planet.y, 0),
+
+        if planet.name == "Habitat":
+            # Todo: habitat object should be seperately defined from planets
+            obj = self._vpython.cone(
+                pos=self._posn(planet),
+                axis=self._vpython.vector(
+                    planet.vx, planet.vy, 0),
                 radius=planet.r,
+                length=2 * planet.r,
                 make_trail=True,
-                shininess=0.1,
-                texture=str(texture)
+                shininess=0.1
             )
         else:
-            log.debug(f'Could not find texture {texture}')
-            return self._vpython.sphere(
-                pos=self._vpython.vector(planet.x, planet.y, 0),
+            obj = self._vpython.sphere(
+                pos=self._posn(planet),
                 radius=planet.r,
-                shininess=0.1,
-                make_trail=True
+                make_trail=True,
+                shininess=0.1
             )
 
+        if planet.name == 'Sun':  # The sun is special!
+            obj.emissive = True  # The sun glows!
+            self._scene.lights = []
+            self._lights = [self._vpython.local_light(pos=obj.pos)]
+
+        if texture.is_file():
+            obj.texture = str(texture)
+        else:
+            log.debug(f'Could not find texture {texture}')
+
+        return obj
+
     def _update_sphere(self, planet):
-        self._spheres[planet.name].pos = self._vpython.vector(
-            planet.x, planet.y, 0)
+        self._spheres[planet.name].pos = self._posn(planet)
 
     def _update_label(self, planet):
-        self._labels[planet.name].pos = self._vpython.vector(
-            planet.x, planet.y, 0)
+        if planet.name == "Habitat":
+            self._labels["Habitat"].text = "Habitat\n" + \
+                "Fuel: " + str(planet.fuel)
+        self._labels[planet.name].pos = self._posn(planet)
 
     def _recentre_dropdown_hook(self, selection):
         self.recentre_camera(selection.selected)
 
     def recentre_camera(self, planet_name):
+        """Change camera to focus on different object"""
+
         try:
             if planet_name == "Sun":
                 self._scene.range = self._spheres["Sun"].radius * 15000
