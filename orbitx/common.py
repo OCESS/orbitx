@@ -48,11 +48,15 @@ def savefile(name):
 
 
 if getattr(sys, 'frozen', False):
-    # We're running from a PyInstaller exe
-    PROGRAM_PATH = Path(sys.executable).resolve().parent
+    # We're running from a PyInstaller exe, use the path of the exe
+    PROGRAM_PATH = Path(sys.executable).parent
+elif sys.path[0] == '':
+    # We're running from a Python REPL. For information on what sys.path[0]
+    # means, read https://docs.python.org/3/library/sys.html#sys.path
+    # note path[0] == '' means Python is running as an interpreter.
+    PROGRAM_PATH = Path.cwd()
 else:
-    import __main__
-    PROGRAM_PATH = Path(__main__.__file__).resolve().parent
+    Path(sys.path[0]).parent
 
 
 class GrpcServerContext:
