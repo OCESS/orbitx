@@ -7,6 +7,8 @@ from . import physics
 
 log = logging.getLogger()
 
+G = 6.67408e-11
+
 
 class PhysicsEngineTestCase(unittest.TestCase):
     def test_simple_collision(self):
@@ -52,6 +54,25 @@ class PhysicsEngineTestCase(unittest.TestCase):
         # 7000 m/s after one second.
         self.assertTrue(moved.entities[1].vx > 5000,
                         msg=f'vx is actually {moved.entities[1].vx}')
+
+        # Test the internal math that the internal derive function is doing
+        # the right calculations. Break out your SPH4U physics equations!!
+        X, Y, DX, DY = physics._y_from_state(initial)
+        y_1d = np.concatenate((DX, DY, Xa, Ya), axis=None)
+        Vx, Vy, Ax, Ay = \
+            physics._extract_from_y1d(physics_engine._derive(0, y_1d))
+        self.assertTrue(len(Vx) == len(Vy) == len(Ax) == len(Ay) == 2)
+        self.assertAlmostEqual(Vx[0], 0)
+        self.assertAlmostEqual(Vy[0], 0)
+        self.assertAlmostEqual(abs(Ax[0]),
+                               G * initial.entities[1].mass / (X[0] - X[1])**2)
+        self.assertAlmostEqual(Ay[0], 0)
+
+        self.assertAlmostEqual(Vx[1], 0)
+        self.assertAlmostEqual(Vy[1], 0)
+        self.assertAlmostEqual(abs(Ax[1]),
+                               G * initial.entities[0].mass / (X[0] - X[1])**2)
+        self.assertAlmostEqual(Ay[1], 0)
 
 
 if __name__ == '__main__':
