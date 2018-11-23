@@ -13,6 +13,7 @@ class PhysicsEntity(object):
         self.m = entity.mass
         self.spin = entity.spin
         self.heading = entity.heading
+        self.throttle = entity.throttle
 
     def as_proto(self):
         return protos.Entity(
@@ -25,6 +26,7 @@ class PhysicsEntity(object):
             mass=self.m,
             spin=self.spin,
             heading=self.heading
+            throttle=self.throttle
         )
 
 
