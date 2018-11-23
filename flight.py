@@ -80,9 +80,6 @@ def parse_args():
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to stdout.')
 
-    parser.add_argument('--time-acceleration', default=common.DEFAULT_TIME_ACC,
-                        type=float, help='Starting time acceleration')
-
     args, unknown = parser.parse_known_args()
     if unknown:
         log.warning(f'Got unrecognized args: {unknown}')
@@ -130,12 +127,16 @@ def parse_args():
 
 def hacky_input_thread(cmd_queue):
     """This is hacky but works with jupyter notebook for the demo. Hi Colin!"""
-    while True:
-        cmd_queue.put(input((
-            f'Time acceleration [default={common.DEFAULT_TIME_ACC}], '
-            f'or planet centre [default=Sun]'
-            ':'
-        )))
+    try:
+        while True:
+            cmd_queue.put(input((
+                f'Time acceleration [default={common.DEFAULT_TIME_ACC}], '
+                f'or planet centre [default=Sun]'
+                ':'
+            )))
+    except EOFError:
+        # Program ending, let's pack it up.
+        return
 
 
 def lead_server_loop(args):
@@ -146,8 +147,7 @@ def lead_server_loop(args):
 
     log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(
-        common.load_savefile(args.data_location.path),
-        common.DEFAULT_TIME_ACC
+        common.load_savefile(args.data_location.path)
     )
 
     server = grpc.server(
@@ -214,7 +214,7 @@ def mirroring_loop(args):
 
                 if not args.no_gui:
                     gui.draw(state)
-                    gui.rate(FRAMERATE)
+                    gui.rate(common.FRAMERATE)
                 else:
                     time.sleep(common.TICK_TIME)
             except KeyboardInterrupt:
@@ -242,11 +242,11 @@ def main():
         log.exception('Exception in main loop! Stopping execution.')
         raise
 
+
 if __name__ == '__main__':
     # vpython uses deprecated python features, but we shouldn't get a fatal
     # exception if we try to use vpython. DeprecationWarnings are normally
     # enabled when __name__ == __main__
     warnings.filterwarnings('once', category=DeprecationWarning)
     warnings.filterwarnings('once', category=ResourceWarning)
-    common.PROGRAM_PATH = Path(__file__).resolve().parent
     main()

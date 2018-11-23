@@ -7,7 +7,7 @@ install:
 	jupyter serverextension enable --py --sys-prefix appmode
 
 test:
-	python test.py
+	python ../test.py
 
 .PHONY: clean
 clean:

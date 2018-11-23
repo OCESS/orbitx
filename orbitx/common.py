@@ -14,7 +14,7 @@ DEFAULT_LEAD_SERVER_PORT = 28430
 FRAMERATE = 100
 TICK_TIME = 1/FRAMERATE
 
-DEFAULT_TIME_ACC = 1
+DEFAULT_TIME_ACC = 10000
 
 CHEAT_FUEL = 0
 
@@ -56,7 +56,7 @@ elif sys.path[0] == '':
     # note path[0] == '' means Python is running as an interpreter.
     PROGRAM_PATH = Path.cwd()
 else:
-    Path(sys.path[0]).parent
+    PROGRAM_PATH = Path(sys.path[0])
 
 
 class GrpcServerContext:

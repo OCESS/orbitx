@@ -4,24 +4,35 @@
         {
             "x": 0.0,
             "y": 0.0,
-            "name": "gravity_a",
+            "name": "3body_a",
             "r": 50.0,
             "spin": 0.0,
             "vx": 0.0,
             "vy": 0.0,
             "heading": 0.0,
-            "mass": 1.0e+30
+            "mass": 1e30
         },
         {
-            "x": -1.0e8,
+            "x": -1e8,
             "y": 0.0,
-            "name": "gravity_b",
+            "name": "3body_b",
             "r": 10.0,
             "spin": 0.0,
             "vx": 100.0,
             "vy": 0.0,
             "heading": 0.0,
-            "mass": 100.0
+            "mass": 1e+10
+        },
+        {
+            "x": 0.0,
+            "y": -1e8,
+            "name": "3body_c",
+            "r": 10.0,
+            "spin": 0.0,
+            "vx": 100.0,
+            "vy": 0.0,
+            "heading": 0.0,
+            "mass": 1e+11
         }
     ]
 }

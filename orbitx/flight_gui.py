@@ -165,7 +165,7 @@ class FlightGui:
                 self._update_label(planet)
 
     def _draw_labels(self, planet):
-        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=10, hiehgt=16,
+        return self._vpython.label(visible=True, pos=self._vpython.vector(planet.x, planet.y, 0), text=planet.name, xoffset=0, yoffset=10, height=16,
                                    border=4, font='sans')
 
     def _draw_sphere(self, planet):

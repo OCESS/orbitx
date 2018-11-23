@@ -13,8 +13,10 @@ from scipy.integrate import *
 from . import orbitx_pb2 as protos
 from . import common
 
-from Entity import * # not really implemented
+#from Entity import * # not really implemented
 
+
+default_dtype = np.longdouble
 
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
@@ -22,6 +24,7 @@ STEP_SIZE_MULT = 1.0
 SOLUTION_CACHE_SIZE = 100
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
+scipy.special.seterr(all='raise')
 log = logging.getLogger()
 
 # Note on variable naming:
@@ -35,6 +38,7 @@ log = logging.getLogger()
 # https://stackoverflow.com/a/52103839/1333978
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
+
 
 class PEngine(object):
     """Physics Engine class. Encapsulates simulating physical state.
@@ -58,7 +62,7 @@ class PEngine(object):
     to hit me (Patrick) up, and I can help.
     """
 
-    def __init__(self, physical_state, time_acceleration):
+    def __init__(self, physical_state):
         # A PhysicalState, but no x, y, vx, or vy. That's handled by get_state.
         self._template_physical_state = protos.PhysicalState()
 
@@ -68,7 +72,7 @@ class PEngine(object):
         # self._simtime_of_last_request changes.
         self._solutions_cond = threading.Condition()
         self._time_of_last_request = time.monotonic()
-        self._time_acceleration = time_acceleration
+        self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
 
         self.set_state(physical_state)
@@ -106,12 +110,15 @@ class PEngine(object):
 
         return time_elapsed * self._time_acceleration
 
-    def _restart_simulation(self, t, y):
+    def _stop_simthread(self):
         if hasattr(self, '_simthread'):
             with self._solutions_cond:
                 self._stopping_simthread = True
                 self._solutions_cond.notify_all()
             self._simthread.join()
+
+    def _restart_simulation(self, t, y):
+        self._stop_simthread()
 
         self._simthread = threading.Thread(
             target=self._simthread_target,
@@ -120,7 +127,7 @@ class PEngine(object):
         )
         self._stopping_simthread = False
 
-        # We don't need to synchronize self._simetime_of_last_request or
+        # We don't need to synchronize self._simtime_of_last_request or
         # self._solutions here, because we just stopped the background
         # simulation thread only a few lines ago.
         self._simtime_of_last_request = t
@@ -157,14 +164,14 @@ class PEngine(object):
         #Temporary solution end
         X, Y, DX, DY = _y_from_state(physical_state)
         self.S = np.array([entity.spin for entity in physical_state.entities]
-                          ).astype(np.float64)
+                          ).astype(default_dtype)
         self.R = np.array([entity.r for entity in physical_state.entities]
-                          ).astype(np.float64)
+                          ).astype(default_dtype)
         self.M = np.array([entity.mass for entity in physical_state.entities]
-                          ).astype(np.float64)
+                          ).astype(default_dtype)
         self.Fuel = \
             np.array([entity.fuel for entity in physical_state.entities]
-                     ).astype(np.float64)
+                     ).astype(default_dtype)
         _smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store positions and velocities in the physical_state,
@@ -226,8 +233,6 @@ class PEngine(object):
     def _derive(self, t, y_1d):
         X, Y, DX, DY = _extract_from_y_1d(y_1d)
         Xa, Ya = _get_acc(X, Y, self.M + self.Fuel)
-        DX = DX + Xa
-        DY = DY + Ya
         # We got a 1d row vector, make sure to return a 1d row vector.
         return np.concatenate((DX, DY, Xa, Ya), axis=None)
 
@@ -246,10 +251,6 @@ class PEngine(object):
 
     def get_state(self, requested_t=None):
         """Return the latest physical state of the simulation."""
-        if self._simthread_exception is not None:
-            # Check if the simthread crashed
-            raise self._simthread_exception
-
         if requested_t is None:
             requested_t = \
                 self._simtime_of_last_request + self._simtime_elapsed()
@@ -259,29 +260,25 @@ class PEngine(object):
         with self._solutions_cond:
             self._simtime_of_last_request = requested_t
 
-            if len(self._solutions):
-                # We can't integrate backwards, so if integration has gone
-                # beyond what we need, fail early.
-                assert requested_t >= self._solutions[0].t_min
-
             self._solutions_cond.wait_for(
                 lambda: len(self._solutions) != 0 and
                 self._solutions[-1].t_max >= requested_t or
                 self._simthread_exception is not None
             )
 
+            # Check if the simthread crashed
+            if self._simthread_exception is not None:
+                raise self._simthread_exception
+
+            # We can't integrate backwards, so if integration has gone
+            # beyond what we need, fail early.
+            assert requested_t >= self._solutions[0].t_min
+
             for soln in self._solutions:
                 if soln.t_min <= requested_t and requested_t <= soln.t_max:
                     solution = soln
 
         return self._state_from_y(requested_t, solution(requested_t))
-
-        log.error((
-            'AAAAAAAAAAAAAAAAAH got an oopsy-woopsy! Tell your code monkey!'
-            f'{self._solutions[0].t_min}, {self._solutions[-1].t_max}, '
-            f'{requested_t}'
-        ))
-        breakpoint()
 
     def _simthread_target(self, t, y):
         log.debug('simthread started')
@@ -328,6 +325,18 @@ class PEngine(object):
                 dense_output=True
             )
 
+            if ivp_out.status < 0:
+                # Integration error
+                log.error(ivp_out.message)
+                log.error(('Retrying with decreased time acceleration = '
+                           f'{self._time_acceleration / 10}'))
+                self._time_acceleration /= 10
+                if self._time_acceleration < 1:
+                    # We can't lower the time acceleration anymore
+                    breakpoint()
+                    raise Exception(ivp_out.message)
+                continue
+
             # When we create a new solution, let other people know.
             with self._solutions_cond:
                 # If adding another solution to our max-sized deque would drop
@@ -348,10 +357,6 @@ class PEngine(object):
             y = ivp_out.y[:, -1]
             t = ivp_out.t[-1]
 
-            if ivp_out.status < 0:
-                # Integration error
-                log.error(ivp_out.message)
-                breakpoint()
             if ivp_out.status > 0:
                 # We got a collision, simulation ends with the first collision.
                 assert len(ivp_out.t_events[0]) == 1
@@ -363,13 +368,13 @@ class PEngine(object):
 # These _functions are internal helper functions.
 def _y_from_state(physical_state):
     X = np.array([entity.x for entity in physical_state.entities]
-                 ).astype(np.float64)
+                 ).astype(default_dtype)
     Y = np.array([entity.y for entity in physical_state.entities]
-                 ).astype(np.float64)
+                 ).astype(default_dtype)
     DX = np.array([entity.vx for entity in physical_state.entities]
-                  ).astype(np.float64)
+                  ).astype(default_dtype)
     DY = np.array([entity.vy for entity in physical_state.entities]
-                  ).astype(np.float64)
+                  ).astype(default_dtype)
     return (X, Y, DX, DY)
 
 
