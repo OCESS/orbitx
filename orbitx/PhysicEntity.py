@@ -25,7 +25,7 @@ class PhysicsEntity(object):
             r=self.R,
             mass=self.m,
             spin=self.spin,
-            heading=self.heading
+            heading=self.heading,
             throttle=self.throttle
         )
 
