@@ -14,8 +14,7 @@ from . import orbitx_pb2 as protos
 from . import common
 from .PhysicEntity import PhysicsEntity
 
-#from Entity import * # not really implemented
-
+from . import PhysicEntity
 
 default_dtype = np.longdouble
 
@@ -149,6 +148,7 @@ class PEngine(object):
         self._time_of_last_request = time.monotonic()
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
+        self.actions={}#last actions
 
         self.set_state(physical_state)
 
@@ -263,13 +263,17 @@ class PEngine(object):
             index+=1
             if entity.name=="Habitat":
                 self.HabIndex=index
-                #self.Habitat=Habitat(physical_state.entities[index]) #keep this potentially needed later
+                self.Habitat=PhysicEntity.Habitat(physical_state.entities[index]) #keep this potentially needed later
         #Temporary solution end
         y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
         self.M = np.array([entity.mass for entity in physical_state.entities]
                           ).astype(default_dtype)
+        
+        self.actions={"throttle":np.zeros(len(physical_state.entities)),"spin":np.zeros(len(physical_state.entities))}
+        #set actions need change
+        
         _smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store variables that belong in y0 in the physical_state,
@@ -338,8 +342,26 @@ class PEngine(object):
         Xa, Ya = _get_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(len(Xa))
         # We got a 1d row vector, make sure to return a 1d row vector.
+        if self.HabIndex!=-1 and self.actions!=None:
+            T_A,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in furtur
+            T_V,S_V=self.Habitat.max_check(y.Throttle+T_A,y.Spin+S_A,self.HabIndex)
+            Spin=y.Spin+S_A
+            ship_xa,ship_ya=self.Habitat.XY_acc(T_V[self.HabIndex],S_V[self.HabIndex])
+            Xa[self.HabIndex]+=ship_xa
+            Ya[self.HabIndex]+=ship_ya
+            fuel_cons=np.zeros(len(y.Fuel))
+            fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(T_V[self.HabIndex]>0,S_A[self.HabIndex]>0)
+            #test run remove when it's release (change)
+            self.actions["throttle"][self.HabIndex]+=1
+            if y.Heading[self.HabIndex]%(6.2831) > (3.2) or y.Heading[self.HabIndex]%(6.2831) < (3.5):
+                self.actions["spin"][self.HabIndex]+=1
+        else:
+            fuel_cons=zeros
+            S_A=zeros
+            T_V=zeros
+            SV=y.Spin
         return np.concatenate(
-            (y.VX, y.VY, Xa, Ya, zeros, zeros, zeros, zeros),
+            (y.VX, y.VY, Xa, Ya, -fuel_cons,Spin,S_A,T_V),
             axis=None)
 
     def _state_from_y_1d(self, t, y):
