@@ -343,18 +343,24 @@ class PEngine(object):
         zeros = np.zeros(len(Xa))
         # We got a 1d row vector, make sure to return a 1d row vector.
         if self.HabIndex!=-1 and self.actions!=None:
-            T_A,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in furtur
+            T_A,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in futur
             T_V,S_V=self.Habitat.max_check(y.Throttle+T_A,y.Spin+S_A,self.HabIndex)
             Spin=y.Spin+S_A
             ship_xa,ship_ya=self.Habitat.XY_acc(T_V[self.HabIndex],S_V[self.HabIndex])
             Xa[self.HabIndex]+=ship_xa
             Ya[self.HabIndex]+=ship_ya
             fuel_cons=np.zeros(len(y.Fuel))
+            T_V[self.HabIndex]=T_V[self.HabIndex]-y.Throttle[self.HabIndex]
+            S_A[self.HabIndex]=S_V[self.HabIndex]-y.Spin[self.HabIndex]
+            #print("............")
+            #print(y.Spin[self.HabIndex])
+            #print(S_V[self.HabIndex])
+            #print(S_A[self.HabIndex])
             fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(T_V[self.HabIndex]>0,S_A[self.HabIndex]>0)
             #test run remove when it's release (change)
-            self.actions["throttle"][self.HabIndex]+=1
-            if y.Heading[self.HabIndex]%(6.2831) > (3.2) or y.Heading[self.HabIndex]%(6.2831) < (3.5):
-                self.actions["spin"][self.HabIndex]+=1
+            #self.actions["throttle"][self.HabIndex]+=1
+            #if y.Heading[self.HabIndex]%(6.2831) > (3.2) or y.Heading[self.HabIndex]%(6.2831) < (3.5):
+            #    self.actions["spin"][self.HabIndex]+=1
         else:
             fuel_cons=zeros
             S_A=zeros
