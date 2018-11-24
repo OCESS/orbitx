@@ -352,10 +352,6 @@ class PEngine(object):
             fuel_cons=np.zeros(len(y.Fuel))
             T_V[self.HabIndex]=T_V[self.HabIndex]-y.Throttle[self.HabIndex]
             S_A[self.HabIndex]=S_V[self.HabIndex]-y.Spin[self.HabIndex]
-            #print("............")
-            #print(y.Spin[self.HabIndex])
-            #print(S_V[self.HabIndex])
-            #print(S_A[self.HabIndex])
             fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(T_V[self.HabIndex]>0,S_A[self.HabIndex]>0)
             #test run remove when it's release (change)
             #self.actions["throttle"][self.HabIndex]+=1
