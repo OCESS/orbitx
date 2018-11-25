@@ -48,7 +48,8 @@ class BasicEngine(object):
             throttle=-self.max_throttle_increase
         return throttle
     def _calc_acc(self,throttle):
-        return min(max(0,self.max_acc*throttle),self.max_acc)
+        real_t=min(max(0,self.max_acc*throttle),self.max_acc)
+        return real_t, real_t==throttle
 class BasicReactionWheel(object):
     def __init__(self,fuel_cons=0.1,max_spin_increase=0.01,max_spin_acc=1): #spin acc in rad
         self.fuel_consumption=fuel_cons #fuel consumed per sec at max throttle
@@ -61,7 +62,9 @@ class BasicReactionWheel(object):
             spin=-self.max_spin_increase
         return spin
     def _calc_acc(self,spin):
-        return min(max(-self.max_spin_acc,self.max_spin_acc*spin),self.max_spin_acc)
+        print(spin)
+        real_s=min(max(-self.max_spin_acc,self.max_spin_acc*spin),self.max_spin_acc)
+        return real_s, real_s==spin
 class Habitat(PhysicsEntity):
     def __init__(self, entity):
         super().__init__(entity)
@@ -115,8 +118,8 @@ class Habitat(PhysicsEntity):
         spin_acc=np.zeros(len(spin))
         return t_acc,spin_acc
     def max_check(self,throttle,spin,index):
-        throttle[index]=self.Engine._calc_acc(throttle[index])
-        spin[index]=self.RW._calc_acc(spin[index])
-        return throttle,spin
+        throttle[index],t_change=self.Engine._calc_acc(throttle[index])
+        spin[index],s_change=self.RW._calc_acc(spin[index])
+        return throttle,spin,t_change,s_change
     def XY_acc(self,acc,spin_angle): #use for throttle acceleration probably can be removed later
         return np.cos(spin_angle)*acc,np.sin(spin_angle)*acc
