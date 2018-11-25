@@ -12,6 +12,7 @@ from scipy.integrate import *
 
 from . import orbitx_pb2 as protos
 from . import common
+from .PhysicEntity import PhysicsEntity
 
 #from Entity import * # not really implemented
 
@@ -66,17 +67,17 @@ class Y():
                           ).astype(default_dtype)
             VY = np.array([entity.vy for entity in data.entities]
                           ).astype(default_dtype)
-            Fuel = np.array([entity.fuel for entity in data.entities]
-                            ).astype(default_dtype)
             Heading = np.array([entity.heading for entity in data.entities]
                                ).astype(default_dtype)
             Spin = np.array([entity.spin for entity in data.entities]
+                            ).astype(default_dtype)
+            Fuel = np.array([entity.fuel for entity in data.entities]
                             ).astype(default_dtype)
             Throttle = np.array([entity.throttle for entity in data.entities]
                                 ).astype(default_dtype)
 
             self._y_1d = np.concatenate(
-                (X, Y, VX, VY, Fuel, Heading, Spin, Throttle), axis=None)
+                (X, Y, VX, VY, Heading, Spin, Fuel, Throttle), axis=None)
 
         # y_1d has 8 components
         self._n = len(self._y_1d) // 8
@@ -98,15 +99,15 @@ class Y():
         return self._y_1d[3 * self._n:4 * self._n]
 
     @property
-    def Fuel(self):
+    def Heading(self):
         return self._y_1d[4 * self._n:5 * self._n]
 
     @property
-    def Heading(self):
+    def Spin(self):
         return self._y_1d[5 * self._n:6 * self._n]
 
     @property
-    def Spin(self):
+    def Fuel(self):
         return self._y_1d[6 * self._n:7 * self._n]
 
     @property
@@ -231,16 +232,27 @@ class PEngine(object):
 
     def _physics_entity_at(self, y, i):
         """Returns a PhysicsEntity constructed from the i'th entity."""
-        physics_entity = PhysicsEntity(
-            self._template_physical_state.entities[i])
-        physics_entity.pos = np.array([y.X[i], y.Y[i]])
-        physics_entity.v = np.array([y.VX[i], y.VY[i]])
+        protobuf_entity = self._template_physical_state.entities[i]
+        protobuf_entity.x = y.X[i]
+        protobuf_entity.y = y.Y[i]
+        protobuf_entity.vx = y.VX[i]
+        protobuf_entity.vy = y.VY[i]
+        protobuf_entity.fuel = y.Fuel[i]
+        protobuf_entity.heading = y.Heading[i]
+        protobuf_entity.spin = y.Spin[i]
+        protobuf_entity.throttle = y.Throttle[i]
+        physics_entity = PhysicsEntity(protobuf_entity)
+
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
         """Inverse of _physics_entity_at, merges a physics_entity into y."""
         y.X[i], y.Y[i] = physics_entity.pos
         y.VX[i], y.VY[i] = physics_entity.v
+        y.Fuel[i] = physics_entity.fuel
+        y.Heading[i] = physics_entity.heading
+        y.Spin[i] = physics_entity.spin
+        y.Throttle[i] = physics_entity.throttle
         return y
 
     def set_state(self, physical_state):

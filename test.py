@@ -28,7 +28,6 @@ class PhysicsEngine:
 
 
 class PhysicsEngineTestCase(unittest.TestCase):
-    @unittest.skip('Need Ye Qin to reimplement PhysicsEntity')
     def test_simple_collision(self):
         with PhysicsEngine('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second

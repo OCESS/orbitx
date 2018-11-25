@@ -1,6 +1,6 @@
-
-import orbitx_pb2 as protos
 import numpy as np
+
+from . import orbitx_pb2 as protos
 
 
 class PhysicsEntity(object):
@@ -13,6 +13,7 @@ class PhysicsEntity(object):
         self.m = entity.mass
         self.spin = entity.spin
         self.heading = entity.heading
+        self.fuel = entity.fuel
         self.throttle = entity.throttle
 
     def as_proto(self):
@@ -26,6 +27,7 @@ class PhysicsEntity(object):
             mass=self.m,
             spin=self.spin,
             heading=self.heading,
+            fuel=self.fuel,
             throttle=self.throttle
         )
 
