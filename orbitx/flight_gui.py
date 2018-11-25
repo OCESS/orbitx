@@ -81,6 +81,7 @@ class FlightGui:
         for k, v in self._spheres.items():
             v.clear_trail()
 
+
     def _show_hide_label(self):
         if self._show_label:
             for key, label in self._labels.items():
@@ -186,21 +187,24 @@ class FlightGui:
         """Create an arrow that restore the habitat direction information"""
         return self._vpython.arrow(
             pos=(
-                self._posn(planet) +
-                self._vpython.vector(0, 0, -2 * planet.r)
+                self._posn(planet)
             ),
-            axis=self._vpython.vector(planet.vx, planet.vy, 0).norm(),
-            length=100)
+            axis=self._vpython.vector(planet.vx/240, planet.vy/240, 0),
+            shaftwidth= planet.r,
+            headwidth= planet.r,
+            color = self._vpython.color.green
+        )
 
     def _update_habitat_arrow(self, planet):
         """Update the position of the arrow """
+        pos_vector = self._posn(planet)
+        self._habitat_arrow.pos = self._vpython.vector(pos_vector.x-planet.vx/400, pos_vector.y-planet.vy/400, 0)
 
-        self._habitat_arrow.pos = (
-            self._posn(planet) +
-            self._vpython.vector(0, 0, -2 * planet.r)
-        )
+        #self._habitat_arrow.pos = (
+        #    self._posn(planet)
+        #)
         self._habitat_arrow.axis = self._vpython.vector(
-            planet.vx, planet.vy, 0).norm()
+            planet.vx/180, planet.vy/180, 0)
 
     def _draw_labels(self, planet):
         label = self._vpython.label(
@@ -225,7 +229,8 @@ class FlightGui:
                 radius=planet.r,
                 length=2 * planet.r,
                 make_trail=True,
-                shininess=0.1
+                shininess=0.1,
+                opacity =0
             )
         else:
             obj = self._vpython.sphere(
