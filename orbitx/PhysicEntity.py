@@ -32,93 +32,70 @@ class PhysicsEntity(object):
         )
 
 
+class Engine(object):
+    def __init__(self, *, max_fuel_cons=None, max_acc=None):
+        """
+        max_fuel_cons: kg/s consumption of fuel at max throttle
+        max_acc: m/s/s acceleration from engine at max throttle
+        """
+        assert max_fuel_cons is not None
+        assert max_acc is not None
+        self._max_fuel_cons = max_fuel_cons
+        self._max_acc = max_acc  # max acceleration
 
-class BasicFuelComp(object):
-    def __init__(self):
-        self.maxfuel=1000
-class BasicEngine(object):
-    def __init__(self,fuel_cons=0.1,max_t=0.01,max_acc=100):
-        self.fuel_consumption=fuel_cons #fuel consumed per sec at max throttle
-        self.max_throttle_increase=max_t # max throttle increase every second 
-        self.max_acc=max_acc #max acceleration
-    def action_check(self,throttle): #set throttle into possible range in 1 action
-        if throttle>self.max_throttle_increase:
-            throttle=self.max_throttle_increase
-        elif throttle<(-self.max_throttle_increase):
-            throttle=-self.max_throttle_increase
-        return throttle
-    def _calc_acc(self,throttle):
-        real_t=min(max(0,self.max_acc*throttle),self.max_acc)
-        return real_t, real_t==throttle
-class BasicReactionWheel(object):
-    def __init__(self,fuel_cons=0.1,max_spin_increase=0.01,max_spin_acc=1): #spin acc in rad
-        self.fuel_consumption=fuel_cons #fuel consumed per sec at max throttle
-        self.max_spin_increase=max_spin_increase # max spin increase every second
-        self.max_spin_acc=max_spin_acc #max spin acceleration
-    def action_check(self,spin): #set spin into possible range in 1 action
-        if spin>self.max_spin_increase:
-            spin=self.max_spin_increase
-        elif spin<(-self.max_spin_increase):
-            spin=-self.max_spin_increase
-        return spin
-    def _calc_acc(self,spin):
-        real_s=min(max(-self.max_spin_acc,self.max_spin_acc*spin),self.max_spin_acc)
-        return real_s, real_s==spin
-class Habitat(PhysicsEntity):
-    def __init__(self, entity):
-        super().__init__(entity)
-        self.components={} #framework for system
-        self.connection={} #framework for relation between system
-        self.Engine=BasicEngine()
-        self.RW=BasicReactionWheel()
-        self.fuel=1000
-        self.throttle=0.0 #current throttle between 0 and 1,(need loading)
-    def _cal_fuel(self):
-        pass
-        #for possible future modular fuel tanks
-        #for name,com in self.components.items():
-        #    if type(com) is FuelComp:
-        #        self.fuel+=com.maxfuel
-    def update(self,spin,throttle,fuel):
-        self.spin=spin
-        self.throttle=throttle
-        self.fuel=fuel
-    def get_fuel_cons(self,Engine,RW):
-        #if CHEAT_FUEL:
-        #    return 0
-        fuel=0
-        if Engine:
-            fuel+=self.Engine.fuel_consumption
-        if RW:
-            fuel+=self.RW.fuel_consumption
-        return fuel
-    def step(self,actions=None,index=None): # need major rewrite
-        '''
-        for now actions is a dict {"throttle":x,"spin":x}
-        return additional vector acceleration and spin acceleration 
-        '''
-        if actions is not None:
-            #if fuel<0 and not CHEAT_FUEL:
-            #    t_acc=np.zeros(len(throttle))
-            #    spin_acc=np.zeros(len(spin))
-            #    return t_acc,spin_acc
-            throttle=actions["throttle"]
-            spin=actions["spin"]
-            throttle[index]=self.Engine.action_check(throttle[index])
-            spin[index]=self.RW.action_check(spin[index])
-            #t_acc=np.zeros(len(throttle))
-            #spin_acc=np.zeros(len(spin))
-            #t_acc[index]=self.Engine._calc_acc(last[throttle][index]+throttle[index])
-            #spin_acc[index]=self.RW._calc_acc(last[spin][index]+spin[index])
-            #print(throttle[index])
-            #print(spin[index])
-            return throttle,spin 
-        t_acc=np.zeros(len(throttle))
-        spin_acc=np.zeros(len(spin))
-        return t_acc,spin_acc
-    def max_check(self,throttle,spin,index):
-        throttle[index],t_change=self.Engine._calc_acc(throttle[index])
-        spin[index],s_change=self.RW._calc_acc(spin[index])
-        return throttle,spin,t_change,s_change
-    def XY_acc(self,acc,spin_angle): #use for throttle acceleration probably can be removed later
-        return np.cos(spin_angle)*acc,np.sin(spin_angle)*acc
+    def fuel_cons(self, *, throttle=None, fuel=None):
+        assert throttle is not None
+        assert fuel is not None
+        return min(throttle * self._max_fuel_cons, fuel)
+
+    def acceleration(self, *, throttle=None, fuel=None):
+        """
+        throttle: unitless float, nominally in the range [0, 1]
+        fuel: kg of fuel available for engine to burn
+        returns the amount of linear acceleration generated by the engine.
+        """
+        assert throttle is not None
+        assert fuel is not None
+        fuel_cons = self.fuel_cons(throttle=throttle, fuel=fuel)
+        return self._max_acc * (fuel_cons / self._max_fuel_cons)
+
+
+class ReactionWheel(object):
+    def __init__(self, *, max_spin_change=None):
+        """
+        max_spin_change: radians/s/s, maximum angular acceleration
+        """
+        assert max_spin_change is not None
+        self._max_spin_change = max_spin_change
+
+    def spin_change(self, *, requested_spin_change=None):
+        """
+        requested_spin_change: radians/s/s
+        returns the requested spin change, bounded by max_spin_change
+        """
+        assert requested_spin_change is not None
+        if requested_spin_change < -self._max_spin_change:
+            return -self._max_spin_change
+        elif requested_spin_change > self._max_spin_change:
+            return self._max_spin_change
+        else:
+            return requested_spin_change
+
+
+class Habitat():
+    def __init__(self, *, throttle=None, spin_change=None):
+        assert throttle is not None
+        assert spin_change is not None
+        self._engine = Engine(max_fuel_cons=10, max_acc=100)
+        self._rw = ReactionWheel(max_spin_change=1)
+        self.throttle = throttle
+        self.spin_change = self._rw.spin_change(
+            requested_spin_change=spin_change)
+
+    def fuel_cons(self, *, fuel=None):
+        assert fuel is not None
+        return self._engine.fuel_cons(throttle=self.throttle, fuel=fuel)
+
+    def acceleration(self, *, fuel=None, heading=None):
+        acc = self._engine.acceleration(throttle=self.throttle, fuel=fuel)
+        return np.cos(heading) * acc, np.sin(heading) * acc

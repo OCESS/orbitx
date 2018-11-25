@@ -5,16 +5,13 @@ import time
 import warnings
 
 import numpy as np
-import numpy.linalg as linalg
+import scipy.integrate
 import scipy.spatial
 import scipy.special
-from scipy.integrate import *
 
 from . import orbitx_pb2 as protos
 from . import common
-from .PhysicEntity import PhysicsEntity
-
-from . import PhysicEntity
+from .PhysicEntity import PhysicsEntity, Habitat
 
 default_dtype = np.longdouble
 
@@ -44,7 +41,7 @@ log = logging.getLogger()
 
 class Y():
     """Wraps a y0 input/output to solve_ivp.
-    y0 = [X, Y, VX, VY, Fuel, Heading, Spin, Throttle]. Example usage:
+    y0 = [X, Y, VX, VY, Heading, Spin, Fuel]. Example usage:
 
     y = Y(physical_state, or y_1d)
     y.X[5] = 32.2
@@ -72,16 +69,12 @@ class Y():
                             ).astype(default_dtype)
             Fuel = np.array([entity.fuel for entity in data.entities]
                             ).astype(default_dtype)
-            Throttle = np.array([entity.throttle for entity in data.entities]
-                                ).astype(default_dtype)
 
             self._y_1d = np.concatenate(
-                (X, Y, VX, VY, Heading, Spin, Fuel, Throttle), axis=None)
+                (X, Y, VX, VY, Heading, Spin, Fuel), axis=None)
 
         # y_1d has 8 components
-        self._n = len(self._y_1d) // 8
-    def HeadingModulo(self):
-        self._y_1d[5 * self._n:6 * self._n]=self._y_1d[5 * self._n:6 * self._n]%(2*np.pi)
+        self._n = len(self._y_1d) // 7
 
     @property
     def X(self):
@@ -103,6 +96,10 @@ class Y():
     def Heading(self):
         return self._y_1d[4 * self._n:5 * self._n]
 
+    def BoundHeading(self):
+        """Coerce internal heading values to [0, 2pi)."""
+        self._y_1d[4 * self._n:5 * self._n] %= (2 * np.pi)
+
     @property
     def Spin(self):
         return self._y_1d[5 * self._n:6 * self._n]
@@ -110,10 +107,6 @@ class Y():
     @property
     def Fuel(self):
         return self._y_1d[6 * self._n:7 * self._n]
-
-    @property
-    def Throttle(self):
-        return self._y_1d[7 * self._n:8 * self._n]
 
 
 class PEngine(object):
@@ -150,7 +143,7 @@ class PEngine(object):
         self._time_of_last_request = time.monotonic()
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
-        self.actions={}#last actions
+        self.actions = {}  # last actions
 
         self.set_state(physical_state)
 
@@ -170,7 +163,7 @@ class PEngine(object):
         if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = lambda t, y: 1
         else:
-            self._events_function = _smallesT_Vltitude_event
+            self._events_function = _altitude_event
 
         self._restart_simulation(requested_t, y0)
 
@@ -188,7 +181,7 @@ class PEngine(object):
         if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = lambda t, y: 1
         else:
-            self._events_function = _smallesT_Vltitude_event
+            self._events_function = _altitude_event
 
         return time_acceleration
 
@@ -242,7 +235,6 @@ class PEngine(object):
         protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.heading = y.Heading[i]
         protobuf_entity.spin = y.Spin[i]
-        protobuf_entity.throttle = y.Throttle[i]
         physics_entity = PhysicsEntity(protobuf_entity)
         return physics_entity
 
@@ -253,29 +245,38 @@ class PEngine(object):
         y.Fuel[i] = physics_entity.fuel
         y.Heading[i] = physics_entity.heading
         y.Spin[i] = physics_entity.spin
-        y.Throttle[i] = physics_entity.throttle
         return y
 
+    def set_actions(self, *, requested_t=None,
+                     throttle=None, spin_change=None):
+        """Interface to set habitat controls."""
+        if throttle is None and spin_change is None:
+            # If no controls are changed, just leave early
+            return
+
+        y0 = Y(self.get_state(requested_t))
+
+        if throttle is None:
+            throttle = self._habitat.throttle
+        if spin_change is None:
+            spin_change = self._habitat.spin_change
+        self._habitat = Habitat(throttle=throttle, spin_change=spin_change)
+
+        # Have to restart simulation when any controls are changed
+        self._restart_simulation(requested_t, y0)
+
     def set_state(self, physical_state):
-        #Temporary solution to find Habitat
-        self.HabIndex=-1
-        index=-1
-        for entity in physical_state.entities:
-            index+=1
-            if entity.name=="Habitat":
-                self.HabIndex=index
-                self.Habitat=PhysicEntity.Habitat(physical_state.entities[index]) #keep this potentially needed later
-        #Temporary solution end
+        self._hab_index = ([entity.name for entity in physical_state.entities
+                            ].index('Habitat') or
+                           0)
+        self._habitat = Habitat(throttle=0, spin_change=0)
         y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
         self.M = np.array([entity.mass for entity in physical_state.entities]
                           ).astype(default_dtype)
-        
-        self.actions={"throttle":np.zeros(len(physical_state.entities)),"spin":np.zeros(len(physical_state.entities))}
-        #set actions need change
-        
-        _smallesT_Vltitude_event.radii = self.R.reshape(1, -1)  # Column vector
+
+        _altitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
@@ -285,14 +286,13 @@ class PEngine(object):
             entity.ClearField('y')
             entity.ClearField('vx')
             entity.ClearField('vy')
-            entity.ClearField('fuel')
             entity.ClearField('heading')
             entity.ClearField('spin')
-            entity.ClearField('throttle')
+            entity.ClearField('fuel')
 
         if len(self._template_physical_state.entities) > 1 and \
            self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
-            self._events_function = _smallesT_Vltitude_event
+            self._events_function = _altitude_event
         else:
             # If there's only one entity, make a no-op events function
             self._events_function = lambda t, y: 1
@@ -328,7 +328,7 @@ class PEngine(object):
         return e1, e2
 
     def _collision_handle(self, t, y):
-        e1_index, e2_index = _smallesT_Vltitude_event(
+        e1_index, e2_index = _altitude_event(
             t, y._y_1d, return_pair=True)
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
@@ -339,30 +339,26 @@ class PEngine(object):
         return y
 
     def _derive(self, t, y_1d):
+        """
+        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel]
+        returns the derivative of y_1d, i.e.
+        [VX, VY, AX, AY, Spin, Spin Change, Fuel Consumption]
+        """
         y = Y(y_1d)
-        Xa, Ya = _geT_Vcc(y.X, y.Y, self.M + y.Fuel)
-        zeros = np.zeros(len(Xa))
-        # We got a 1d row vector, make sure to return a 1d row vector.
-        if self.HabIndex!=-1 and self.actions!=None:
-            T_V,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in futur
-            Engine_speed,S_V,throttle_change,spin_change=self.Habitat.max_check(y.Throttle+T_V,y.Spin+S_A,self.HabIndex)
-            Spin=S_A
-            if not spin_change:
-                Spin[self.HabIndex]=0
-            if not throttle_change:
-                T_V[self.HabIndex]=0
-            ship_xa,ship_ya=self.Habitat.XY_acc(Engine_speed[self.HabIndex],y.Heading[self.HabIndex])
-            Xa[self.HabIndex]+=ship_xa
-            Ya[self.HabIndex]+=ship_ya
-            fuel_cons=np.zeros(len(y.Fuel))
-            fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(Engine_speed[self.HabIndex]>0,S_A[self.HabIndex]>0)
-        else:
-            fuel_cons=zeros
-            S_A=zeros
-            Engine_speed=zeros
-            SV=y.Spin
+        Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
+        spin_change = np.zeros(y._n)
+        fuel_cons = np.zeros(y._n)
+
+        spin_change[self._hab_index] = self._habitat.spin_change
+        fuel_cons[self._hab_index] = -self._habitat.fuel_cons(
+            fuel=y.Fuel[self._hab_index])
+        hab_eng_acc_x, hab_eng_acc_y = self._habitat.acceleration(
+            fuel=y.Fuel[self._hab_index], heading=y.Heading[self._hab_index])
+        Xa[self._hab_index] += hab_eng_acc_x
+        Ya[self._hab_index] += hab_eng_acc_y
+
         return np.concatenate(
-            (y.VX, y.VY, Xa, Ya, -fuel_cons,y.Spin,Spin,T_V),
+            (y.VX, y.VY, Xa, Ya, y.Spin, spin_change, fuel_cons),
             axis=None)
 
     def _state_from_y_1d(self, t, y):
@@ -370,8 +366,8 @@ class PEngine(object):
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
-        for x, y, vx, vy, fuel, heading, spin, throttle, entity in zip(
-                y.X, y.Y, y.VX, y.VY, y.Fuel, y.Heading, y.Spin, y.Throttle,
+        for x, y, vx, vy, fuel, heading, spin, entity in zip(
+                y.X, y.Y, y.VX, y.VY, y.Fuel, y.Heading, y.Spin,
                 state.entities):
             entity.x = x
             entity.y = y
@@ -380,7 +376,6 @@ class PEngine(object):
             entity.fuel = fuel
             entity.heading = heading
             entity.spin = spin
-            entity.throttle = throttle
         return state
 
     def get_state(self, requested_t=None):
@@ -436,9 +431,6 @@ class PEngine(object):
         # The highest such t_max should always be larger than the current
         # simulation time, i.e. self._simtime_of_last_request.
 
-        # solve_ivp requires a 1D y0 array
-        y_1d = y._y_1d
-        _n=len(y_1d)//8
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
             # [self._solutions[0].t_min, self._solutions[-1].t_max]
@@ -446,11 +438,12 @@ class PEngine(object):
             # Then we should integrate the interval of
             # [self._solutions[-1].t_max, requested_t]
             # and hopefully a bit farther past the end of that interval.
-            y_1d[5 * _n:6 * _n]=y_1d[5 * _n:6 * _n]%(2*np.pi)
+            y.BoundHeading()
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [t, t + self._time_acceleration],
-                y_1d,
+                # solve_ivp requires a 1D y0 array
+                y._y_1d,
                 events=self._events_function,
                 # np.sqrt is here to give a slower-than-linear step size growth
                 max_step=STEP_SIZE_MULT * np.sqrt(self._time_acceleration),
@@ -487,7 +480,7 @@ class PEngine(object):
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
-            y_1d = ivp_out.y[:, -1]
+            y = Y(ivp_out.y[:, -1])
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
@@ -495,7 +488,7 @@ class PEngine(object):
                 assert len(ivp_out.t_events[0]) == 1
                 assert len(ivp_out.t) >= 2
                 # The last column of the solution is the state at the collision
-                y_1d = self._collision_handle(t, Y(y_1d))._y_1d
+                y = self._collision_handle(t, y)
 
 
 # These _functions are internal helper functions.
@@ -529,7 +522,7 @@ def _f_to_a(f, M):
     return np.divide(f, M)
 
 
-def _geT_Vcc(X, Y, M):
+def _grav_acc(X, Y, M):
     # Turn X, Y, M into column vectors, which is easier to do math with.
     # (row vectors won't transpose)
     X = X.reshape(1, -1)
@@ -546,7 +539,7 @@ def _geT_Vcc(X, Y, M):
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 
-def _smallesT_Vltitude_event(_, y_1d, return_pair=False):
+def _altitude_event(_, y_1d, return_pair=False):
     """This function is passed in to solve_ivp to detect a collision.
 
     To accomplish this, and also to stop solve_ivp when there is a collision,
@@ -564,7 +557,7 @@ def _smallesT_Vltitude_event(_, y_1d, return_pair=False):
     posns = np.column_stack((y.X, y.Y))  # An n*2 vector of (x, y) positions
     # An n*n matrix of _altitudes_ between each entity
     alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
-        (_smallesT_Vltitude_event.radii + _smallesT_Vltitude_event.radii.T)
+        (_altitude_event.radii + _altitude_event.radii.T)
     # To simplify calculations, an entity's altitude from itself is inf
     np.fill_diagonal(alt_matrix, np.inf)
 
@@ -581,6 +574,6 @@ def _smallesT_Vltitude_event(_, y_1d, return_pair=False):
         return np.min(alt_matrix)
 
 
-_smallesT_Vltitude_event.terminal = True  # Event stops integration
-_smallesT_Vltitude_event.direction = -1  # Event matters when going pos -> neg
-_smallesT_Vltitude_event.radii = np.array([])
+_altitude_event.terminal = True  # Event stops integration
+_altitude_event.direction = -1  # Event matters when going pos -> neg
+_altitude_event.radii = np.array([])

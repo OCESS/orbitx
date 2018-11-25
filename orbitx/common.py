@@ -84,3 +84,8 @@ def write_savefile(physical_state, file):
     with open(file, 'w') as outfile:
         outfile.write(
             google.protobuf.json_format.MessageToJson(physical_state))
+
+
+def find_entity(name, physical_state):
+    return [entity for entity in physical_state.entities
+            if entity.name == name][0]

@@ -6,6 +6,10 @@ The main loop drawsa GUI and collects input.
 import logging
 from pathlib import Path
 
+import numpy as np
+
+from . import common
+
 log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
@@ -76,7 +80,7 @@ class FlightGui:
         when making a scene.center update.
         """
         try:
-            self._origin = _find_entity(
+            self._origin = common.find_entity(
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
@@ -218,8 +222,13 @@ class FlightGui:
             text=planet.name, xoffset=0, yoffset=10, height=16,
             border=4, font='sans')
 
+        label.text_function = lambda entity: entity.name
         if planet.name == 'Habitat':
-            label.text += f'\nFuel: {planet.fuel}'
+            label.text_function = lambda entity: (
+                f'{entity.name}\n'
+                f'Fuel: {entity.fuel:.5} kg\n'
+                f'Heading: {_rad_to_deg(entity.heading)}\xb0'
+            )
 
         return label
 
@@ -236,7 +245,7 @@ class FlightGui:
                 length=2 * planet.r,
                 make_trail=True,
                 shininess=0.1,
-                opacity =0
+                opacity=0
             )
         else:
             obj = self._vpython.sphere(
@@ -264,10 +273,9 @@ class FlightGui:
         self._spheres[planet.name].pos = self._posn(planet)
 
     def _update_label(self, planet):
-        if planet.name == "Habitat":
-            self._labels["Habitat"].text = "Habitat\n" + \
-                "Fuel: " + str(planet.fuel)
-        self._labels[planet.name].pos = self._posn(planet)
+        label = self._labels[planet.name]
+        label.text = label.text_function(planet)
+        label.pos = self._posn(planet)
 
     def _recentre_dropdown_hook(self, selection):
         self.recentre_camera(selection.selected)
@@ -293,6 +301,6 @@ class FlightGui:
         self._vpython.rate(framerate)
 
 
-def _find_entity(name, physical_state):
-    return [entity for entity in physical_state.entities
-            if entity.name == name][0]
+def _rad_to_deg(radians):
+    radians %= 2 * np.pi
+    return round(180 * radians / np.pi)
