@@ -62,7 +62,6 @@ class BasicReactionWheel(object):
             spin=-self.max_spin_increase
         return spin
     def _calc_acc(self,spin):
-        print(spin)
         real_s=min(max(-self.max_spin_acc,self.max_spin_acc*spin),self.max_spin_acc)
         return real_s, real_s==spin
 class Habitat(PhysicsEntity):
