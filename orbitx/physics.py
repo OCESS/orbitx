@@ -80,6 +80,8 @@ class Y():
 
         # y_1d has 8 components
         self._n = len(self._y_1d) // 8
+    def HeadingModulo(self):
+        self._y_1d[5 * self._n:6 * self._n]=self._y_1d[5 * self._n:6 * self._n]%(2*np.pi)
 
     @property
     def X(self):
@@ -354,9 +356,6 @@ class PEngine(object):
             Ya[self.HabIndex]+=ship_ya
             fuel_cons=np.zeros(len(y.Fuel))
             fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(Engine_speed[self.HabIndex]>0,S_A[self.HabIndex]>0)
-            #test run remove when it's release (change)
-            #self.actions["throttle"][self.HabIndex]+=1
-            #self.actions["spin"][self.HabIndex]+=1
         else:
             fuel_cons=zeros
             S_A=zeros
@@ -439,7 +438,7 @@ class PEngine(object):
 
         # solve_ivp requires a 1D y0 array
         y_1d = y._y_1d
-
+        _n=len(y_1d)//8
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
             # [self._solutions[0].t_min, self._solutions[-1].t_max]
@@ -447,6 +446,7 @@ class PEngine(object):
             # Then we should integrate the interval of
             # [self._solutions[-1].t_max, requested_t]
             # and hopefully a bit farther past the end of that interval.
+            y_1d[5 * _n:6 * _n]=y_1d[5 * _n:6 * _n]%(2*np.pi)
             ivp_out = scipy.integrate.solve_ivp(
                 self._derive,
                 [t, t + self._time_acceleration],
