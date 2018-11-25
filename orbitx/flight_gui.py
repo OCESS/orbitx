@@ -8,6 +8,9 @@ from pathlib import Path
 
 log = logging.getLogger()
 
+DEFAULT_CENTRE = 'Habitat'
+DEFAULT_REFERENCE = 'Earth'
+
 
 class FlightGui:
 
@@ -44,24 +47,26 @@ class FlightGui:
         # vpython.sphere(radius=9999999999999, texture=stars)
 
         assert len(physical_state_to_draw.entities) >= 1
-        self._physical_state_to_draw = physical_state_to_draw
-        self._set_origin("Habitat")  # Initial origin value would be Habitat
+        self._last_physical_state = physical_state_to_draw
+        self._origin = physical_state_to_draw.entities[0]
+        self._set_origin(DEFAULT_REFERENCE)
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == 'Habitat':
                 self._habitat_arrow = self._draw_habitat_arrow(planet)
-                self.recentre_camera("Habitat")  # Original view is set to the habitat object
+            if planet.name == DEFAULT_CENTRE:
+                self.recentre_camera(DEFAULT_CENTRE)
         self._scene.autoscale = False
         self._set_caption()
 
     def _posn(self, entity):
         """Provides the vector of the entity position with regard to the origin planet position."""
-
         return self._vpython.vector(
-                entity.x - self._origin.x,
-                entity.y - self._origin.y,0)
+            entity.x - self._origin.x,
+            entity.y - self._origin.y,
+            0)
 
     def _set_origin(self, entity_name):
         """Set origin position for rendering universe and reset the trails.
@@ -71,15 +76,14 @@ class FlightGui:
         when making a scene.center update.
         """
         try:
-            self._origin = [entity
-                            for entity in self._physical_state_to_draw.entities
-                            if entity.name == entity_name][0]
+            self._origin = _find_entity(
+                entity_name, self._last_physical_state)
         except IndexError:
-            # Couldn't find the Habitat, default to the first entity
-            self._origin = self._physical_state_to_draw.entities[0]
+            log.error(f'Tried to set non-existent origin "{entity_name}"')
 
-        for k, v in self._spheres.items():
-            v.clear_trail()
+    def _clear_trails(self):
+        for sphere in self._spheres.values():
+            sphere.clear_trail()
 
 
     def _show_hide_label(self):
@@ -121,13 +125,6 @@ class FlightGui:
             pass
         # clicked = True
 
-    def _get_objname(self, obj):
-        """Given object it finds the name of the planet"""
-        for k, v in self._spheres.items():
-            if v == obj:
-                obj_name = k
-        return obj_name
-
     # TODO: 1)Update with correct physics values
     def _set_caption(self):
         """Set and update the captions."""
@@ -148,8 +145,12 @@ class FlightGui:
         """This creates dropped down menu which is used when set_caption."""
         self._scene.append_to_caption(
             "<b>Center: </b>")
-        center = self._vpython.menu(choices=list(self._spheres),
-                                    pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='Sun')
+        center = self._vpython.menu(
+            choices=list(self._spheres),
+            pos=self._scene.caption_anchor,
+            bind=self._recentre_dropdown_hook,
+            selected=DEFAULT_CENTRE
+        )
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Target: </b>")
@@ -161,9 +162,11 @@ class FlightGui:
         self._scene.append_to_caption(
             "<b>Ref:      </b>")
         ref = self._vpython.menu(
-            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
-                     'Neptune', 'Pluto', 'AYSE'],
-            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='AYSE')
+            choices=list(self._spheres),
+            pos=self._scene.caption_anchor,
+            bind=self._reference_dropdown_hook,
+            selected=DEFAULT_REFERENCE
+        )
         self._scene.append_to_caption("\n")
         self._scene.append_to_caption(
             "<b>Nav:     </b>")
@@ -174,6 +177,9 @@ class FlightGui:
         self._scene.append_to_caption("\n")
 
     def draw(self, physical_state_to_draw):
+        self._last_physical_state = physical_state_to_draw
+        # Have to reset origin every update
+        self._set_origin(self._origin.name)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
@@ -222,7 +228,7 @@ class FlightGui:
 
         if planet.name == "Habitat":
             # Todo: habitat object should be seperately defined from planets
-            obj = self._vpython.sphere(
+            obj = self._vpython.cone(
                 pos=self._posn(planet),
                 axis=self._vpython.vector(
                     planet.vx, planet.vy, 0),
@@ -250,6 +256,8 @@ class FlightGui:
         else:
             log.debug(f'Could not find texture {texture}')
 
+        obj.name = planet.name  # For convenient accessing later
+
         return obj
 
     def _update_sphere(self, planet):
@@ -262,8 +270,11 @@ class FlightGui:
         self._labels[planet.name].pos = self._posn(planet)
 
     def _recentre_dropdown_hook(self, selection):
-        self._set_origin(selection.selected)
         self.recentre_camera(selection.selected)
+
+    def _reference_dropdown_hook(self, selection):
+        self._set_origin(selection.selected)
+        self._clear_trails()
 
     def recentre_camera(self, planet_name):
         """Change camera to focus on different object"""
@@ -280,3 +291,8 @@ class FlightGui:
 
     def rate(self, framerate):
         self._vpython.rate(framerate)
+
+
+def _find_entity(name, physical_state):
+    return [entity for entity in physical_state.entities
+            if entity.name == name][0]

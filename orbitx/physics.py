@@ -21,7 +21,7 @@ default_dtype = np.longdouble
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
 STEP_SIZE_MULT = 1.0
-SOLUTION_CACHE_SIZE = 100
+SOLUTION_CACHE_SIZE = 10
 COLLISIONS_TIME_ACC_BOUNDARY = 1000
 MAX_TIME_ACCELERATION = 100000
 

@@ -11,15 +11,12 @@ import argparse
 import copy
 import logging
 import os
-import pdb
-import sys
 import queue
 import threading
 import time
 import warnings
 import concurrent.futures
 import urllib.parse
-from pathlib import Path
 
 import grpc
 
@@ -30,7 +27,6 @@ import orbitx.network as network
 import orbitx.physics as physics
 
 log = logging.getLogger()
-#common.set_program_path(__file__)
 
 
 def parse_args():
@@ -131,7 +127,7 @@ def hacky_input_thread(cmd_queue):
         while True:
             cmd_queue.put(input((
                 f'Time acceleration [default={common.DEFAULT_TIME_ACC}], '
-                f'or planet centre [default=Sun]'
+                f'or planet centre [default=Habitat]'
                 ':'
             )))
     except EOFError:
@@ -227,6 +223,12 @@ def mirroring_loop(args):
 
 def main():
     """Delegate work to either lead_server_loop or mirroring_loop."""
+    # vpython uses deprecated python features, but we shouldn't get a fatal
+    # exception if we try to use vpython. DeprecationWarnings are normally
+    # enabled when __name__ == __main__
+    warnings.filterwarnings('once', category=DeprecationWarning)
+    warnings.filterwarnings('once', category=ResourceWarning)
+
     args = parse_args()
     try:
         if args.data_location.scheme == 'file':
@@ -244,9 +246,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # vpython uses deprecated python features, but we shouldn't get a fatal
-    # exception if we try to use vpython. DeprecationWarnings are normally
-    # enabled when __name__ == __main__
-    warnings.filterwarnings('once', category=DeprecationWarning)
-    warnings.filterwarnings('once', category=ResourceWarning)
     main()
