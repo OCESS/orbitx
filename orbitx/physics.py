@@ -168,7 +168,7 @@ class PEngine(object):
         if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = lambda t, y: 1
         else:
-            self._events_function = _smallest_altitude_event
+            self._events_function = _smallesT_Vltitude_event
 
         self._restart_simulation(requested_t, y0)
 
@@ -186,7 +186,7 @@ class PEngine(object):
         if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
             self._events_function = lambda t, y: 1
         else:
-            self._events_function = _smallest_altitude_event
+            self._events_function = _smallesT_Vltitude_event
 
         return time_acceleration
 
@@ -242,7 +242,6 @@ class PEngine(object):
         protobuf_entity.spin = y.Spin[i]
         protobuf_entity.throttle = y.Throttle[i]
         physics_entity = PhysicsEntity(protobuf_entity)
-
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -274,7 +273,7 @@ class PEngine(object):
         self.actions={"throttle":np.zeros(len(physical_state.entities)),"spin":np.zeros(len(physical_state.entities))}
         #set actions need change
         
-        _smallest_altitude_event.radii = self.R.reshape(1, -1)  # Column vector
+        _smallesT_Vltitude_event.radii = self.R.reshape(1, -1)  # Column vector
 
         # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
@@ -291,7 +290,7 @@ class PEngine(object):
 
         if len(self._template_physical_state.entities) > 1 and \
            self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
-            self._events_function = _smallest_altitude_event
+            self._events_function = _smallesT_Vltitude_event
         else:
             # If there's only one entity, make a no-op events function
             self._events_function = lambda t, y: 1
@@ -327,7 +326,7 @@ class PEngine(object):
         return e1, e2
 
     def _collision_handle(self, t, y):
-        e1_index, e2_index = _smallest_altitude_event(
+        e1_index, e2_index = _smallesT_Vltitude_event(
             t, y._y_1d, return_pair=True)
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
@@ -339,31 +338,32 @@ class PEngine(object):
 
     def _derive(self, t, y_1d):
         y = Y(y_1d)
-        Xa, Ya = _get_acc(y.X, y.Y, self.M + y.Fuel)
+        Xa, Ya = _geT_Vcc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(len(Xa))
         # We got a 1d row vector, make sure to return a 1d row vector.
         if self.HabIndex!=-1 and self.actions!=None:
-            T_A,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in futur
-            T_V,S_V=self.Habitat.max_check(y.Throttle+T_A,y.Spin+S_A,self.HabIndex)
-            Spin=y.Spin+S_A
-            ship_xa,ship_ya=self.Habitat.XY_acc(T_V[self.HabIndex],S_V[self.HabIndex])
+            T_V,S_A=self.Habitat.step(self.actions,self.HabIndex) # action handle: to change in futur
+            Engine_speed,S_V,throttle_change,spin_change=self.Habitat.max_check(y.Throttle+T_V,y.Spin+S_A,self.HabIndex)
+            Spin=S_A
+            if not spin_change:
+                Spin[self.HabIndex]=0
+            if not throttle_change:
+                T_V[self.HabIndex]=0
+            ship_xa,ship_ya=self.Habitat.XY_acc(Engine_speed[self.HabIndex],y.Heading[self.HabIndex])
             Xa[self.HabIndex]+=ship_xa
             Ya[self.HabIndex]+=ship_ya
             fuel_cons=np.zeros(len(y.Fuel))
-            T_V[self.HabIndex]=T_V[self.HabIndex]-y.Throttle[self.HabIndex]
-            S_A[self.HabIndex]=S_V[self.HabIndex]-y.Spin[self.HabIndex]
-            fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(T_V[self.HabIndex]>0,S_A[self.HabIndex]>0)
+            fuel_cons[self.HabIndex]=self.Habitat.get_fuel_cons(Engine_speed[self.HabIndex]>0,S_A[self.HabIndex]>0)
             #test run remove when it's release (change)
             #self.actions["throttle"][self.HabIndex]+=1
-            #if y.Heading[self.HabIndex]%(6.2831) > (3.2) or y.Heading[self.HabIndex]%(6.2831) < (3.5):
-            #    self.actions["spin"][self.HabIndex]+=1
+            #self.actions["spin"][self.HabIndex]+=1
         else:
             fuel_cons=zeros
             S_A=zeros
-            T_V=zeros
+            Engine_speed=zeros
             SV=y.Spin
         return np.concatenate(
-            (y.VX, y.VY, Xa, Ya, -fuel_cons,Spin,S_A,T_V),
+            (y.VX, y.VY, Xa, Ya, -fuel_cons,y.Spin,Spin,T_V),
             axis=None)
 
     def _state_from_y_1d(self, t, y):
@@ -529,7 +529,7 @@ def _f_to_a(f, M):
     return np.divide(f, M)
 
 
-def _get_acc(X, Y, M):
+def _geT_Vcc(X, Y, M):
     # Turn X, Y, M into column vectors, which is easier to do math with.
     # (row vectors won't transpose)
     X = X.reshape(1, -1)
@@ -546,7 +546,7 @@ def _get_acc(X, Y, M):
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 
-def _smallest_altitude_event(_, y_1d, return_pair=False):
+def _smallesT_Vltitude_event(_, y_1d, return_pair=False):
     """This function is passed in to solve_ivp to detect a collision.
 
     To accomplish this, and also to stop solve_ivp when there is a collision,
@@ -564,7 +564,7 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
     posns = np.column_stack((y.X, y.Y))  # An n*2 vector of (x, y) positions
     # An n*n matrix of _altitudes_ between each entity
     alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
-        (_smallest_altitude_event.radii + _smallest_altitude_event.radii.T)
+        (_smallesT_Vltitude_event.radii + _smallesT_Vltitude_event.radii.T)
     # To simplify calculations, an entity's altitude from itself is inf
     np.fill_diagonal(alt_matrix, np.inf)
 
@@ -581,6 +581,6 @@ def _smallest_altitude_event(_, y_1d, return_pair=False):
         return np.min(alt_matrix)
 
 
-_smallest_altitude_event.terminal = True  # Event stops integration
-_smallest_altitude_event.direction = -1  # Event matters when going pos -> neg
-_smallest_altitude_event.radii = np.array([])
+_smallesT_Vltitude_event.terminal = True  # Event stops integration
+_smallesT_Vltitude_event.direction = -1  # Event matters when going pos -> neg
+_smallesT_Vltitude_event.radii = np.array([])
