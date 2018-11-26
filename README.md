@@ -109,6 +109,8 @@ data/saves/tests/: Save files for testing, used by src/test.py
 
 ![The Earth system, showing the Habitat in Low Earth Orbit and the Moon in the background](https://user-images.githubusercontent.com/1498589/48948279-ee7d6080-ef01-11e8-9522-4f81012c74a8.PNG)
 
+![The Habitat, braking from a circular orbit and falling to Earth and bouncing a couple times](https://user-images.githubusercontent.com/1498589/48987874-5d201100-f0f0-11e8-868c-40ce756b6548.png)
+
 ## Controls
 
 Simulation Controls:
