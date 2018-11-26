@@ -111,6 +111,8 @@ data/saves/tests/: Save files for testing, used by src/test.py
 
 ![The Habitat, braking from a circular orbit and falling to Earth and bouncing a couple times](https://user-images.githubusercontent.com/1498589/48987874-5d201100-f0f0-11e8-868c-40ce756b6548.png)
 
+![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](imagehttps://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
+
 ## Controls
 
 Simulation Controls:
