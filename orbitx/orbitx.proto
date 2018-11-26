@@ -47,6 +47,7 @@ message Entity {
     double heading = 8; // the 'angular position'
     double spin = 9; // the 'angular velocity'
     double fuel = 10; // only spaceships have fuel
+    double throttle = 11;
 }
 
 // To use this in python code, think of `entities` as a list, except to add an

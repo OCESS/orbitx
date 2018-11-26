@@ -41,7 +41,7 @@ log = logging.getLogger()
 
 class Y():
     """Wraps a y0 input/output to solve_ivp.
-    y0 = [X, Y, VX, VY, Heading, Spin, Fuel]. Example usage:
+    y0 = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]. Example usage:
 
     y = Y(physical_state, or y_1d)
     y.X[5] = 32.2
@@ -54,6 +54,7 @@ class Y():
             assert len(data.shape) == 1
             self._y_1d = data
         else:
+            # PROTO: if you're changing protobufs remember to change here
             assert isinstance(data, protos.PhysicalState)
             X = np.array([entity.x for entity in data.entities]
                          ).astype(default_dtype)
@@ -69,12 +70,14 @@ class Y():
                             ).astype(default_dtype)
             Fuel = np.array([entity.fuel for entity in data.entities]
                             ).astype(default_dtype)
+            Throttle = np.array([entity.throttle for entity in data.entities]
+                                ).astype(default_dtype)
 
             self._y_1d = np.concatenate(
-                (X, Y, VX, VY, Heading, Spin, Fuel), axis=None)
+                (X, Y, VX, VY, Heading, Spin, Fuel, Throttle), axis=None)
 
         # y_1d has 8 components
-        self._n = len(self._y_1d) // 7
+        self._n = len(self._y_1d) // 8
 
     @property
     def X(self):
@@ -107,6 +110,10 @@ class Y():
     @property
     def Fuel(self):
         return self._y_1d[6 * self._n:7 * self._n]
+
+    @property
+    def Throttle(self):
+        return self._y_1d[7 * self._n:8 * self._n]
 
 
 class PEngine(object):
@@ -227,14 +234,16 @@ class PEngine(object):
 
     def _physics_entity_at(self, y, i):
         """Returns a PhysicsEntity constructed from the i'th entity."""
+        # PROTO: if you're changing protobufs remember to change here
         protobuf_entity = self._template_physical_state.entities[i]
         protobuf_entity.x = y.X[i]
         protobuf_entity.y = y.Y[i]
         protobuf_entity.vx = y.VX[i]
         protobuf_entity.vy = y.VY[i]
-        protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.heading = y.Heading[i]
         protobuf_entity.spin = y.Spin[i]
+        protobuf_entity.fuel = y.Fuel[i]
+        protobuf_entity.throttle = y.Throttle[i]
         physics_entity = PhysicsEntity(protobuf_entity)
         return physics_entity
 
@@ -242,9 +251,10 @@ class PEngine(object):
         """Inverse of _physics_entity_at, merges a physics_entity into y."""
         y.X[i], y.Y[i] = physics_entity.pos
         y.VX[i], y.VY[i] = physics_entity.v
-        y.Fuel[i] = physics_entity.fuel
         y.Heading[i] = physics_entity.heading
         y.Spin[i] = physics_entity.spin
+        y.Fuel[i] = physics_entity.fuel
+        y.Throttle[i] = physics_entity.throttle
         return y
 
     def set_action(self, *, requested_t=None,
@@ -262,24 +272,27 @@ class PEngine(object):
 
         y0 = Y(self.get_state(requested_t))
 
-        self._habitat = Habitat(
-            throttle=self._habitat.throttle + throttle_change,
-            spin_change=spin_change)
-        y0.Spin[self._hab_index] += self._habitat.spin_change
-        log.info(
-            f'Changed throttle to {self._habitat.throttle}, '
-            f'spin to {y0.Spin[self._hab_index]}')
+        y0.Spin[self._hab_index] += Habitat.spin_change(
+            requested_spin_change=spin_change)
+        y0.Throttle[self._hab_index] += throttle_change
 
+        log.info(f'New spin={y0.Spin[self._hab_index]}, '
+                 f'new throttle={y0.Throttle[self._hab_index]}')
+
+        # Make sure we've slowed down, stuff is about to happen.
         self._time_acceleration = common.DEFAULT_TIME_ACC
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
 
     def set_state(self, physical_state):
-        self._hab_index = ([entity.name for entity in physical_state.entities
-                            ].index('Habitat') or
-                           0)
-        self._habitat = Habitat(throttle=0, spin_change=0)
+        try:
+            self._hab_index = [
+                entity.name for entity in physical_state.entities
+            ].index('Habitat')
+        except ValueError:
+            self._hab_index = 0
+
         y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
@@ -292,6 +305,7 @@ class PEngine(object):
         # it should only be returned from get_state()
         self._template_physical_state.CopyFrom(physical_state)
         for entity in self._template_physical_state.entities:
+            # PROTO: if you're changing protobufs remember to change here
             entity.ClearField('x')
             entity.ClearField('y')
             entity.ClearField('vx')
@@ -299,6 +313,7 @@ class PEngine(object):
             entity.ClearField('heading')
             entity.ClearField('spin')
             entity.ClearField('fuel')
+            entity.ClearField('throttle')
 
         if len(self._template_physical_state.entities) > 1 and \
            self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
@@ -350,25 +365,29 @@ class PEngine(object):
 
     def _derive(self, t, y_1d):
         """
-        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel]
+        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]
         returns the derivative of y_1d, i.e.
-        [VX, VY, AX, AY, Spin, Spin Change, Fuel Consumption]
+        [VX, VY, AX, AY, Spin, Spin change, Fuel consumption, Throttle change]
         """
+        # PROTO: if you're changing protobufs remember to change here
         y = Y(y_1d)
         Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
         spin_change = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
+        throttle_change = np.zeros(y._n)
 
         if not np.isclose(y.Fuel[self._hab_index], 0):
             # We have fuel remaining, calculate thrust
-            fuel_cons[self._hab_index] = -self._habitat.fuel_cons()
-            hab_eng_acc_x, hab_eng_acc_y = self._habitat.acceleration(
-                heading=y.Heading[self._hab_index])
+            throttle = y.Throttle[self._hab_index]
+            fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
+            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+                throttle=throttle, heading=y.Heading[self._hab_index])
             Xa[self._hab_index] += hab_eng_acc_x
             Ya[self._hab_index] += hab_eng_acc_y
 
         return np.concatenate(
-            (y.VX, y.VY, Xa, Ya, y.Spin, spin_change, fuel_cons),
+            (y.VX, y.VY, Xa, Ya,
+                y.Spin, spin_change, fuel_cons, throttle_change),
             axis=None)
 
     def _state_from_y_1d(self, t, y):
@@ -376,16 +395,18 @@ class PEngine(object):
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
-        for x, y, vx, vy, fuel, heading, spin, entity in zip(
-                y.X, y.Y, y.VX, y.VY, y.Fuel, y.Heading, y.Spin,
+        # PROTO: if you're changing protobufs remember to change here
+        for x, y, vx, vy, heading, spin, fuel, throttle, entity in zip(
+                y.X, y.Y, y.VX, y.VY, y.Heading, y.Spin, y.Fuel, y.Throttle,
                 state.entities):
             entity.x = x
             entity.y = y
             entity.vx = vx
             entity.vy = vy
-            entity.fuel = fuel
             entity.heading = heading
             entity.spin = spin
+            entity.fuel = fuel
+            entity.throttle = throttle
         return state
 
     def get_state(self, requested_t=None):
@@ -505,8 +526,9 @@ class PEngine(object):
                     y = self._collision_handle(t, y)
                 elif ivp_out.t_events[1]:
                     # Habitat's out of fuel, the next iteration won't consume
-                    # any fuel.
-                    pass
+                    # any fuel. Set throttle to zero anyway.
+                    y.Fuel[self._hab_index] = 0
+                    y.Throttle[self._hab_index] = 0
 
 
 # These _functions are internal helper functions.

@@ -14,6 +14,7 @@ class PhysicsEntity(object):
         self.spin = entity.spin
         self.heading = entity.heading
         self.fuel = entity.fuel
+        self.throttle = entity.throttle
 
     def as_proto(self):
         return protos.Entity(
@@ -26,7 +27,8 @@ class PhysicsEntity(object):
             mass=self.m,
             spin=self.spin,
             heading=self.heading,
-            fuel=self.fuel
+            fuel=self.fuel,
+            throttle=self.throttle
         )
 
 
@@ -87,19 +89,24 @@ class ReactionWheel(object):
 
 
 class Habitat():
-    def __init__(self, *, throttle=None, spin_change=None):
+    """Static class implementing hab engine and reaction wheel constraints."""
+    engine = Engine(max_fuel_cons=10, max_acc=100)
+    rw = ReactionWheel(max_spin_change=1)
+
+    @classmethod
+    def spin_change(cls, *, requested_spin_change=None):
+        assert requested_spin_change is not None
+        return cls.rw.spin_change(
+            requested_spin_change=requested_spin_change)
+
+    @classmethod
+    def fuel_cons(cls, *, throttle=None):
         assert throttle is not None
-        assert spin_change is not None
-        self._engine = Engine(max_fuel_cons=10, max_acc=100)
-        self._rw = ReactionWheel(max_spin_change=1)
-        self.throttle = throttle
-        self.spin_change = self._rw.spin_change(
-            requested_spin_change=spin_change)
+        return abs(cls.engine.fuel_cons(throttle=throttle))
 
-    def fuel_cons(self):
-        return abs(self._engine.fuel_cons(throttle=self.throttle))
-
-    def acceleration(self, *, heading=None):
+    @classmethod
+    def acceleration(cls, *, throttle=None, heading=None):
+        assert throttle is not None
         assert heading is not None
-        acc = self._engine.acceleration(throttle=self.throttle)
+        acc = cls.engine.acceleration(throttle=throttle)
         return np.cos(heading) * acc, np.sin(heading) * acc
