@@ -63,7 +63,6 @@ class FlightGui:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
-                #self._throttle = planet.throttle
                 self.recentre_camera(DEFAULT_CENTRE)
             if planet.name == DEFAULT_REFERENCE:
                 self._hab_ref = self._calc_distance(DEFAULT_REFERENCE)
@@ -185,10 +184,12 @@ class FlightGui:
         self._scene.caption = "\n"
         self._scene.append_to_caption("<b>ref Vo: </b>")
         self._rv = self._vpython.wtext(text='{0:.2f}\n'.format(self._orbital_speed))
-        self._scene.append_to_caption("<b>V hab-ref</b>: ")
+        self._scene.append_to_caption("<b>V hab-ref: </b>")
         self._hr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
-        self._scene.append_to_caption("<b>V tar-ref</b>:  ")
+        self._scene.append_to_caption("<b>V tar-ref: </b>")
         self._tr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
+        self._scene.append_to_caption("<b>Throttle: </b>")
+        self._thr = self._vpython.wtext(text='{0:.2f}\n'.format(self._habitat.throttle))
         self._scene.append_to_caption("\n")
         #self._scene.append_to_caption("Acc: XXX" + "\n")
         #self._scene.append_to_caption("Vcen: XXX" + "\n")
@@ -248,6 +249,8 @@ class FlightGui:
                 self._orbital_speed = self._calc_orb_speed(planet)
                 self._rv.text = '{0:.2f}\n'.format(self._orbital_speed)
 
+        self._thr.text='{0:.2f}\n'.format(self._habitat.throttle)
+
     def _draw_labels(self, planet):
         label = self._vpython.label(
             visible=True, pos=self._posn(planet),
@@ -279,6 +282,7 @@ class FlightGui:
             )
             obj.length = planet.r
             obj.arrow = self._unit_velocity(planet)
+            self._habitat = planet
             self._vpython.attach_arrow(obj, 'arrow', scale=planet.r * 1.5)
         else:
             obj = self._vpython.sphere(
@@ -311,7 +315,7 @@ class FlightGui:
         if planet.name == 'Habitat':
             sphere.length = planet.r
             sphere.arrow = self._unit_velocity(planet)
-            #self._throttle = planet.throttle
+            self._habitat = planet
 
     def _update_label(self, planet):
         label = self._labels[planet.name]
