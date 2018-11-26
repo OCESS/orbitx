@@ -20,9 +20,10 @@ import urllib.parse
 
 import grpc
 
-import orbitx.orbitx_pb2_grpc as grpc_stubs
 import orbitx.common as common
 import orbitx.flight_gui as flight_gui
+import orbitx.orbitx_pb2 as protos
+import orbitx.orbitx_pb2_grpc as grpc_stubs
 import orbitx.network as network
 import orbitx.physics as physics
 
@@ -163,6 +164,7 @@ def lead_server_loop(args):
             gui = flight_gui.FlightGui(physics_engine.get_state())
 
         while True:
+            user_commands = []
             state = physics_engine.get_state()
             state_server.notify_state_change(
                 copy.deepcopy(state))
@@ -176,6 +178,17 @@ def lead_server_loop(args):
                     gui.recentre_camera(cmd)
             except queue.Empty:
                 pass
+
+            if not args.no_gui:
+                user_commands += gui.pop_commands()
+
+            # If we have any commands, process them so the simthread has as
+            # much time as possible to regenerate solutions before next update
+            for command in user_commands:
+                if command.ident == protos.Command.HAB_SPIN_CHANGE:
+                    physics_engine.set_action(spin_change=command.arg)
+                elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
+                    physics_engine.set_action(throttle_change=command.arg)
 
             if not args.no_gui:
                 gui.draw(state)

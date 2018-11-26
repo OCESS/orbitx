@@ -13,16 +13,18 @@ service StateServer {
     // Sync physical entities
     // There needs to be an input, but there currently isn't any reason to have
     // an input. So for now, we just put something in here (ClientId).
-    rpc get_physical_state (ClientId) returns (PhysicalState) {}
+    rpc get_physical_state (Command) returns (PhysicalState) {}
 }
 
 
-message ClientId {
-    enum Client {
-        LEAD_SERVER = 0;
-        MIRRORING_CLIENT = 1;
+message Command {
+    enum Ident {
+        NOOP = 0;
+        HAB_SPIN_CHANGE = 1;
+        HAB_THROTTLE_CHANGE = 2;
     }
-    Client ident = 1;
+    Ident ident = 1;
+    double arg = 2;
 }
 
 // To use this object in python code, you can do things like:

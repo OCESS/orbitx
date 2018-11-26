@@ -247,20 +247,30 @@ class PEngine(object):
         y.Spin[i] = physics_entity.spin
         return y
 
-    def set_actions(self, *, requested_t=None,
-                     throttle=None, spin_change=None):
-        """Interface to set habitat controls."""
-        if throttle is None and spin_change is None:
+    def set_action(self, *, requested_t=None,
+                   throttle_change=0, spin_change=0):
+        """Interface to set habitat controls.
+
+        Use an argument to change habitat throttle or spinning, and simulation
+        will restart with this new information."""
+        if throttle_change == 0 and spin_change == 0:
             # If no controls are changed, just leave early
             return
+        if requested_t is None:
+            requested_t = \
+                self._simtime_of_last_request + self._simtime_elapsed()
 
         y0 = Y(self.get_state(requested_t))
 
-        if throttle is None:
-            throttle = self._habitat.throttle
-        if spin_change is None:
-            spin_change = self._habitat.spin_change
-        self._habitat = Habitat(throttle=throttle, spin_change=spin_change)
+        self._habitat = Habitat(
+            throttle=self._habitat.throttle + throttle_change,
+            spin_change=spin_change)
+        y0.Spin[self._hab_index] += self._habitat.spin_change
+        log.info(
+            f'Changed throttle to {self._habitat.throttle}, '
+            f'spin to {y0.Spin[self._hab_index]}')
+
+        self._time_acceleration = common.DEFAULT_TIME_ACC
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -349,13 +359,13 @@ class PEngine(object):
         spin_change = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
-        spin_change[self._hab_index] = self._habitat.spin_change
-        fuel_cons[self._hab_index] = -self._habitat.fuel_cons(
-            fuel=y.Fuel[self._hab_index])
-        hab_eng_acc_x, hab_eng_acc_y = self._habitat.acceleration(
-            fuel=y.Fuel[self._hab_index], heading=y.Heading[self._hab_index])
-        Xa[self._hab_index] += hab_eng_acc_x
-        Ya[self._hab_index] += hab_eng_acc_y
+        if not np.isclose(y.Fuel[self._hab_index], 0):
+            # We have fuel remaining, calculate thrust
+            fuel_cons[self._hab_index] = -self._habitat.fuel_cons()
+            hab_eng_acc_x, hab_eng_acc_y = self._habitat.acceleration(
+                heading=y.Heading[self._hab_index])
+            Xa[self._hab_index] += hab_eng_acc_x
+            Ya[self._hab_index] += hab_eng_acc_y
 
         return np.concatenate(
             (y.VX, y.VY, Xa, Ya, y.Spin, spin_change, fuel_cons),
@@ -430,6 +440,10 @@ class PEngine(object):
         # time that the solution can be evaluated at and still be accurate.
         # The highest such t_max should always be larger than the current
         # simulation time, i.e. self._simtime_of_last_request.
+        def hab_fuel(t, y_1d):
+            return Y(y_1d).Fuel[self._hab_index]
+        hab_fuel.terminal = True
+        hab_fuel.direction = -1
 
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
@@ -444,7 +458,7 @@ class PEngine(object):
                 [t, t + self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
                 y._y_1d,
-                events=self._events_function,
+                events=[self._events_function, hab_fuel],
                 # np.sqrt is here to give a slower-than-linear step size growth
                 max_step=STEP_SIZE_MULT * np.sqrt(self._time_acceleration),
                 dense_output=True
@@ -484,11 +498,15 @@ class PEngine(object):
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
-                # We got a collision, simulation ends with the first collision.
-                assert len(ivp_out.t_events[0]) == 1
-                assert len(ivp_out.t) >= 2
-                # The last column of the solution is the state at the collision
-                y = self._collision_handle(t, y)
+                if ivp_out.t_events[0]:
+                    # Collision, simulation ended. Handled it and continue.
+                    assert len(ivp_out.t_events[0]) == 1
+                    assert len(ivp_out.t) >= 2
+                    y = self._collision_handle(t, y)
+                elif ivp_out.t_events[1]:
+                    # Habitat's out of fuel, the next iteration won't consume
+                    # any fuel.
+                    pass
 
 
 # These _functions are internal helper functions.

@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from . import common
+from . import orbitx_pb2 as protos
 
 log = logging.getLogger()
 
@@ -31,6 +32,8 @@ class FlightGui:
             center=vpython.vector(0, 0, 0),
             autoscale=True
         )
+
+        self._commands = []
 
         self._show_label = True
         self._pause = False
@@ -58,8 +61,6 @@ class FlightGui:
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
-            if planet.name == 'Habitat':
-                self._habitat_arrow = self._draw_habitat_arrow(planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
         self._scene.autoscale = False
@@ -71,6 +72,13 @@ class FlightGui:
             entity.x - self._origin.x,
             entity.y - self._origin.y,
             0)
+
+    def _unit_velocity(self, entity):
+        """Provides entity velocity relative to origin."""
+        return self._vpython.vector(
+            entity.vx - self._origin.vx,
+            entity.vy - self._origin.vy,
+            0).norm()
 
     def _set_origin(self, entity_name):
         """Set origin position for rendering universe and reset the trails.
@@ -89,7 +97,6 @@ class FlightGui:
         for sphere in self._spheres.values():
             sphere.clear_trail()
 
-
     def _show_hide_label(self):
         if self._show_label:
             for key, label in self._labels.items():
@@ -98,15 +105,37 @@ class FlightGui:
             for key, label in self._labels.items():
                 label.visible = False
 
+    def pop_commands(self):
+        """Take gathered user input and send it off."""
+        old_commands = self._commands
+        self._commands = []
+        return old_commands
+
     def _handle_keydown(self, evt):
         """Input key handler"""
-        # global _show_label, _pause
+
         k = evt.key
-        if (k == 'l'):
+        if k == 'l':
             self._show_label = not self._show_label
             self._show_hide_label()
-        elif (k == 'p'):
+        elif k == 'p':
             self._pause = not self._pause
+        elif k == 'q':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_SPIN_CHANGE,
+                arg=np.radians(10)))
+        elif k == 'e':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_SPIN_CHANGE,
+                arg=-np.radians(10)))
+        elif k == 'w':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_CHANGE,
+                arg=1))
+        elif k == 's':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_CHANGE,
+                arg=-1))
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -190,45 +219,21 @@ class FlightGui:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
-            if planet.name == "Habitat":
-                self._update_habitat_arrow(planet)
-
-    def _draw_habitat_arrow(self, planet):
-        """Create an arrow that restore the habitat direction information"""
-        return self._vpython.arrow(
-            pos=(
-                self._posn(planet)
-            ),
-            axis=self._vpython.vector(planet.vx/240, planet.vy/240, 0),
-            shaftwidth= planet.r,
-            headwidth= planet.r,
-            color = self._vpython.color.green
-        )
-
-    def _update_habitat_arrow(self, planet):
-        """Update the position of the arrow """
-        pos_vector = self._posn(planet)
-        self._habitat_arrow.pos = self._vpython.vector(pos_vector.x-planet.vx/400, pos_vector.y-planet.vy/400, 0)
-
-        #self._habitat_arrow.pos = (
-        #    self._posn(planet)
-        #)
-        self._habitat_arrow.axis = self._vpython.vector(
-            planet.vx/180, planet.vy/180, 0)
 
     def _draw_labels(self, planet):
         label = self._vpython.label(
             visible=True, pos=self._posn(planet),
-            text=planet.name, xoffset=0, yoffset=10, height=16,
+            xoffset=0, yoffset=10, height=16,
             border=4, font='sans')
 
         label.text_function = lambda entity: entity.name
         if planet.name == 'Habitat':
             label.text_function = lambda entity: (
                 f'{entity.name}\n'
-                f'Fuel: {entity.fuel:.5} kg\n'
-                f'Heading: {_rad_to_deg(entity.heading)}\xb0'
+                f'Fuel: {abs(round(entity.fuel, 1)):.4} kg\n'
+                f'Heading: {round(np.degrees(entity.heading))}\xb0'
             )
+        label.text = label.text_function(planet)
 
         return label
 
@@ -239,17 +244,19 @@ class FlightGui:
             # Todo: habitat object should be seperately defined from planets
             obj = self._vpython.cone(
                 pos=self._posn(planet),
-                axis=self._vpython.vector(
-                    planet.vx, planet.vy, 0),
-                radius=planet.r,
-                length=2 * planet.r,
+                axis=self._ang_pos(planet.heading),
+                radius=planet.r / 2,
                 make_trail=True,
-                shininess=0.1,
-                opacity=0
+                shininess=0.1
             )
+            obj.length = planet.r
+            obj.arrow = self._unit_velocity(planet)
+            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r * 1.5)
         else:
             obj = self._vpython.sphere(
                 pos=self._posn(planet),
+                axis=self._ang_pos(planet.heading),
+                up=self._vpython.vector(0, 0, 1),
                 radius=planet.r,
                 make_trail=True,
                 shininess=0.1
@@ -270,7 +277,12 @@ class FlightGui:
         return obj
 
     def _update_sphere(self, planet):
-        self._spheres[planet.name].pos = self._posn(planet)
+        sphere = self._spheres[planet.name]
+        sphere.pos = self._posn(planet)
+        sphere.axis = self._ang_pos(planet.heading)
+        if planet.name == 'Habitat':
+            sphere.length = planet.r
+            sphere.arrow = self._unit_velocity(planet)
 
     def _update_label(self, planet):
         label = self._labels[planet.name]
@@ -297,10 +309,8 @@ class FlightGui:
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
 
+    def _ang_pos(self, angle):
+        return self._vpython.vector(np.cos(angle), np.sin(angle), 0)
+
     def rate(self, framerate):
         self._vpython.rate(framerate)
-
-
-def _rad_to_deg(radians):
-    radians %= 2 * np.pi
-    return round(180 * radians / np.pi)

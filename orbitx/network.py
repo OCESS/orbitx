@@ -69,7 +69,7 @@ class StateClient:
 
     def _get_physical_state(self):
         return self.stub.get_physical_state(
-            protos.ClientId(ident=protos.ClientId.MIRRORING_CLIENT))
+            protos.UpdateRequest(ident=protos.Command.NOOP))
 
     def __enter__(self):
         self.channel = grpc.insecure_channel(self.cnc_location)
