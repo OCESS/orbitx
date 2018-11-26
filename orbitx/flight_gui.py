@@ -15,7 +15,7 @@ log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
-
+G = 6.674e-11
 
 class FlightGui:
 
@@ -30,7 +30,8 @@ class FlightGui:
             width=1000,
             height=600,
             center=vpython.vector(0, 0, 0),
-            autoscale=True
+            autoscale=True,
+            caption = "\n"
         )
 
         self._commands = []
@@ -62,9 +63,29 @@ class FlightGui:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
+                #self._throttle = planet.throttle
                 self.recentre_camera(DEFAULT_CENTRE)
+            if planet.name == DEFAULT_REFERENCE:
+                self._hab_ref = self._calc_distance(DEFAULT_REFERENCE)
+                self._orbital_speed = self._calc_orb_speed(planet)
         self._scene.autoscale = False
         self._set_caption()
+
+    def _calc_orb_speed(self, ref_entity):
+        """The orbital speed of an astronomical body or object.
+
+        The Equation referred from https://en.wikipedia.org/wiki/Orbital_speed"""
+        return self._vpython.sqrt((G*ref_entity.mass)/ref_entity.r)
+
+    def _calc_distance(self, planet_name, planet_name2='Habitat'):
+        """Caculate distance between ref_planet and Habitat"""
+
+        planet = self._spheres[planet_name]
+        planet2 = self._spheres[planet_name2]
+        x = planet.pos.x - planet2.pos.x
+        y = planet.pos.y - planet2.pos.y
+        z = np.math.sqrt(((x*x) + (y*y)))
+        return z
 
     def _posn(self, entity):
         """Provides the vector of the entity position with regard to the origin planet position."""
@@ -162,15 +183,17 @@ class FlightGui:
     def _set_caption(self):
         """Set and update the captions."""
         self._scene.caption = "\n"
-        self._scene.append_to_caption("ref Vo: XXX" + "\n")
-        self._scene.append_to_caption("V hab-ref: XXX" + "\n")
-        self._scene.append_to_caption("Vtarg-ref: XXX" + "\n")
-        self._scene.append_to_caption("Engine: XXX" + "\n")
+        self._scene.append_to_caption("<b>ref Vo: </b>")
+        self._rv = self._vpython.wtext(text='{0:.2f}\n'.format(self._orbital_speed))
+        self._scene.append_to_caption("<b>V hab-ref</b>: ")
+        self._hr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
+        self._scene.append_to_caption("<b>V tar-ref</b>:  ")
+        self._tr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
         self._scene.append_to_caption("\n")
-        self._scene.append_to_caption("Acc: XXX" + "\n")
-        self._scene.append_to_caption("Vcen: XXX" + "\n")
-        self._scene.append_to_caption("Vtan: XXX" + "\n")
-        self._scene.append_to_caption("\n")
+        #self._scene.append_to_caption("Acc: XXX" + "\n")
+        #self._scene.append_to_caption("Vcen: XXX" + "\n")
+        #self._scene.append_to_caption("Vtan: XXX" + "\n")
+        #self._scene.append_to_caption("\n")
         self._set_menus()
 
     # TODO: create bind functions for target, ref, and NAV MODE
@@ -219,6 +242,11 @@ class FlightGui:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
+            if self._origin.name == planet.name: #Caption Updates
+                self._hab_ref = self._calc_distance(self._origin.name)
+                self._hr.text = '{0:.2f}\n'.format(self._hab_ref)
+                self._orbital_speed = self._calc_orb_speed(planet)
+                self._rv.text = '{0:.2f}\n'.format(self._orbital_speed)
 
     def _draw_labels(self, planet):
         label = self._vpython.label(
@@ -283,6 +311,7 @@ class FlightGui:
         if planet.name == 'Habitat':
             sphere.length = planet.r
             sphere.arrow = self._unit_velocity(planet)
+            #self._throttle = planet.throttle
 
     def _update_label(self, planet):
         label = self._labels[planet.name]
