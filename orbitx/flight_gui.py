@@ -17,6 +17,7 @@ DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
 G = 6.674e-11
 
+
 class FlightGui:
 
     def __init__(self, physical_state_to_draw, texture_path=None):
@@ -31,7 +32,7 @@ class FlightGui:
             height=600,
             center=vpython.vector(0, 0, 0),
             autoscale=True,
-            caption = "\n"
+            caption="\n"
         )
 
         self._commands = []
@@ -74,7 +75,7 @@ class FlightGui:
         """The orbital speed of an astronomical body or object.
 
         The Equation referred from https://en.wikipedia.org/wiki/Orbital_speed"""
-        return self._vpython.sqrt((G*ref_entity.mass)/ref_entity.r)
+        return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
 
     def _calc_distance(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat"""
@@ -83,7 +84,7 @@ class FlightGui:
         planet2 = self._spheres[planet_name2]
         x = planet.pos.x - planet2.pos.x
         y = planet.pos.y - planet2.pos.y
-        z = np.math.sqrt(((x*x) + (y*y)))
+        z = np.math.sqrt(((x * x) + (y * y)))
         return z
 
     def _posn(self, entity):
@@ -182,20 +183,24 @@ class FlightGui:
     def _set_caption(self):
         """Set and update the captions."""
         self._scene.caption = "\n"
+        self._scene.append_to_caption(VPYTHON_CSS)
         self._scene.append_to_caption("<b>ref Vo: </b>")
-        self._rv = self._vpython.wtext(text='{0:.2f}\n'.format(self._orbital_speed))
-        self._scene.append_to_caption("<b>V hab-ref: </b>")
+        self._rv = self._vpython.wtext(
+            text='{0:.2f}\n'.format(self._orbital_speed))
+        self._scene.append_to_caption("<b>Ref distance: </b>")
         self._hr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
-        self._scene.append_to_caption("<b>V tar-ref: </b>")
+        self._scene.append_to_caption("<b>Targ distance: </b>")
         self._tr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
         self._scene.append_to_caption("<b>Throttle: </b>")
-        self._thr = self._vpython.wtext(text='{0:.2f}\n'.format(self._habitat.throttle))
+        self._thr = self._vpython.wtext(
+            text='{0:.2f}\n'.format(self._habitat.throttle))
         self._scene.append_to_caption("\n")
         #self._scene.append_to_caption("Acc: XXX" + "\n")
         #self._scene.append_to_caption("Vcen: XXX" + "\n")
         #self._scene.append_to_caption("Vtan: XXX" + "\n")
-        #self._scene.append_to_caption("\n")
+        # self._scene.append_to_caption("\n")
         self._set_menus()
+        self._scene.append_to_caption(INPUT_CHEATSHEET)
 
     # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self):
@@ -243,13 +248,13 @@ class FlightGui:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
-            if self._origin.name == planet.name: #Caption Updates
+            if self._origin.name == planet.name:  # Caption Updates
                 self._hab_ref = self._calc_distance(self._origin.name)
                 self._hr.text = '{0:.2f}\n'.format(self._hab_ref)
                 self._orbital_speed = self._calc_orb_speed(planet)
                 self._rv.text = '{0:.2f}\n'.format(self._orbital_speed)
 
-        self._thr.text='{0:.2f}\n'.format(self._habitat.throttle)
+        self._thr.text = '{0:.2f}\n'.format(self._habitat.throttle)
 
     def _draw_labels(self, planet):
         label = self._vpython.label(
@@ -261,7 +266,7 @@ class FlightGui:
         if planet.name == 'Habitat':
             label.text_function = lambda entity: (
                 f'{entity.name}\n'
-                f'Fuel: {abs(round(entity.fuel, 1)):.4} kg\n'
+                f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
                 f'Heading: {round(np.degrees(entity.heading))}\xb0'
             )
         label.text = label.text_function(planet)
@@ -347,3 +352,50 @@ class FlightGui:
 
     def rate(self, framerate):
         self._vpython.rate(framerate)
+
+
+VPYTHON_CSS = """
+<style>
+table {
+    width: 250px;
+}
+th {
+    text-align: left;
+}
+</style>
+"""
+
+INPUT_CHEATSHEET = """
+<table>
+    <caption>Input Cheatsheet</caption>
+    <tr>
+        <th>Input</th>
+        <th>Action</th>
+    </tr>
+    <tr>
+        <td>Scroll</td>
+        <td>Zoom View</td>
+    </tr>
+    <tr>
+        <td>RMB</td>
+        <td>Rotate View</td>
+    </tr>
+    <tr>
+        <td>W/S</td>
+        <td>Throttle Up/Down</td>
+    </tr>
+    <tr>
+        <td>Q/E</td>
+        <td>Rotate Habitat</td>
+    </tr>
+    <tr>
+        <td>L</td>
+        <td>Toggle labels</td>
+    </tr>
+    <!-- re-enable this when we've fixed pausing
+    <tr>
+        <td>P</td>
+        <td>Pause simulation</td>
+    </tr>-->
+</table>
+"""
