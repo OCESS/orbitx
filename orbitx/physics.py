@@ -17,7 +17,6 @@ default_dtype = np.longdouble
 
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
-STEP_SIZE_MULT = 1.0
 SOLUTION_CACHE_SIZE = 10
 COLLISIONS_TIME_ACC_BOUNDARY = 1000
 MAX_TIME_ACCELERATION = 100000
@@ -145,9 +144,9 @@ class PEngine(object):
         # Controls access to self._solutions. If anything changes that is
         # related to self._solutions, this condition variable should be
         # notified. Currently, that's just if self._solutions or
-        # self._simtime_of_last_request changes.
+        # self._last_simtime changes.
         self._solutions_cond = threading.Condition()
-        self._time_of_last_request = time.monotonic()
+        self._last_monotime = time.monotonic()
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
         self.actions = {}  # last actions
@@ -156,9 +155,7 @@ class PEngine(object):
 
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
-        if requested_t is None:
-            requested_t = \
-                self._simtime_of_last_request + self._simtime_elapsed()
+        requested_t = self._simtime(requested_t)
 
         time_acceleration = self._bound_time_acceleration(time_acceleration)
         if time_acceleration is None:
@@ -166,11 +163,6 @@ class PEngine(object):
 
         y0 = Y(self.get_state(requested_t))
         self._time_acceleration = time_acceleration
-
-        if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
-            self._events_function = lambda t, y: 1
-        else:
-            self._events_function = _altitude_event
 
         self._restart_simulation(requested_t, y0)
 
@@ -184,25 +176,26 @@ class PEngine(object):
                         'Using max time acceleration.')
             time_acceleration = MAX_TIME_ACCELERATION
 
-        # TODO: stability hack, ignore collisions over a certain time acc.
-        if time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
-            self._events_function = lambda t, y: 1
-        else:
-            self._events_function = _altitude_event
-
         return time_acceleration
 
-    def _simtime_elapsed(self):
-        time_elapsed = max(
-            time.monotonic() - self._time_of_last_request,
-            0.0001
-        )
+    def _simtime(self, requested_t=None):
+        # During runtime, strange things will happen if you mix calling
+        # this with None (like in flight.py) or with values (like in test.py)
+
+        if requested_t is None:
+            time_elapsed = max(
+                time.monotonic() - self._last_monotime,
+                0.0001
+            )
+            self._last_monotime = time.monotonic()
+            requested_t = (
+                self._last_simtime + time_elapsed * self._time_acceleration)
 
         with self._solutions_cond:
-            self._time_of_last_request = time.monotonic()
+            self._last_simtime = requested_t
             self._solutions_cond.notify_all()
 
-        return time_elapsed * self._time_acceleration
+        return requested_t
 
     def _stop_simthread(self):
         if hasattr(self, '_simthread'):
@@ -221,10 +214,10 @@ class PEngine(object):
         )
         self._stopping_simthread = False
 
-        # We don't need to synchronize self._simtime_of_last_request or
+        # We don't need to synchronize self._last_simtime or
         # self._solutions here, because we just stopped the background
         # simulation thread only a few lines ago.
-        self._simtime_of_last_request = t0
+        self._last_simtime = t0
 
         # Essentially just a cache of ODE solutions.
         self._solutions = collections.deque(maxlen=SOLUTION_CACHE_SIZE)
@@ -266,9 +259,7 @@ class PEngine(object):
         if throttle_change == 0 and spin_change == 0:
             # If no controls are changed, just leave early
             return
-        if requested_t is None:
-            requested_t = \
-                self._simtime_of_last_request + self._simtime_elapsed()
+        requested_t = self._simtime(requested_t)
 
         y0 = Y(self.get_state(requested_t))
 
@@ -299,8 +290,6 @@ class PEngine(object):
         self.M = np.array([entity.mass for entity in physical_state.entities]
                           ).astype(default_dtype)
 
-        _altitude_event.radii = self.R.reshape(1, -1)  # Column vector
-
         # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
         self._template_physical_state.CopyFrom(physical_state)
@@ -314,13 +303,6 @@ class PEngine(object):
             entity.ClearField('spin')
             entity.ClearField('fuel')
             entity.ClearField('throttle')
-
-        if len(self._template_physical_state.entities) > 1 and \
-           self._time_acceleration < COLLISIONS_TIME_ACC_BOUNDARY:
-            self._events_function = _altitude_event
-        else:
-            # If there's only one entity, make a no-op events function
-            self._events_function = lambda t, y: 1
 
         self._restart_simulation(physical_state.timestamp, y0)
 
@@ -352,8 +334,8 @@ class PEngine(object):
 
         return e1, e2
 
-    def _collision_handle(self, t, y):
-        e1_index, e2_index = _altitude_event(
+    def _collision_handle(self, t, y, altitude_event):
+        e1_index, e2_index = altitude_event(
             t, y._y_1d, return_pair=True)
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
@@ -362,33 +344,6 @@ class PEngine(object):
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
-
-    def _derive(self, t, y_1d):
-        """
-        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]
-        returns the derivative of y_1d, i.e.
-        [VX, VY, AX, AY, Spin, Spin change, Fuel consumption, Throttle change]
-        """
-        # PROTO: if you're changing protobufs remember to change here
-        y = Y(y_1d)
-        Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
-        spin_change = np.zeros(y._n)
-        fuel_cons = np.zeros(y._n)
-        throttle_change = np.zeros(y._n)
-
-        if not np.isclose(y.Fuel[self._hab_index], 0):
-            # We have fuel remaining, calculate thrust
-            throttle = y.Throttle[self._hab_index]
-            fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
-            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                throttle=throttle, heading=y.Heading[self._hab_index])
-            Xa[self._hab_index] += hab_eng_acc_x
-            Ya[self._hab_index] += hab_eng_acc_y
-
-        return np.concatenate(
-            (y.VX, y.VY, Xa, Ya,
-                y.Spin, spin_change, fuel_cons, throttle_change),
-            axis=None)
 
     def _state_from_y_1d(self, t, y):
         y = Y(y)
@@ -411,17 +366,15 @@ class PEngine(object):
 
     def get_state(self, requested_t=None):
         """Return the latest physical state of the simulation."""
-        if requested_t is None:
-            requested_t = \
-                self._simtime_of_last_request + self._simtime_elapsed()
+        requested_t = self._simtime(requested_t)
 
         # Wait until there is a solution for our requested_t. The .wait_for()
         # call will block until a new ODE solution is created.
         with self._solutions_cond:
-            self._simtime_of_last_request = requested_t
-
+            self._last_simtime = requested_t
             self._solutions_cond.wait_for(
-                lambda: len(self._solutions) != 0 and
+                lambda:
+                len(self._solutions) != 0 and
                 self._solutions[-1].t_max >= requested_t or
                 self._simthread_exception is not None
             )
@@ -449,9 +402,36 @@ class PEngine(object):
             self._simthread_exception = e
         log.debug('simthread exited')
 
+    def _derive(self, t, y_1d):
+        """
+        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]
+        returns the derivative of y_1d, i.e.
+        [VX, VY, AX, AY, Spin, Spin change, Fuel consumption, Throttle change]
+        """
+        # PROTO: if you're changing protobufs remember to change here
+        y = Y(y_1d)
+        Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
+        spin_change = np.zeros(y._n)
+        fuel_cons = np.zeros(y._n)
+        throttle_change = np.zeros(y._n)
+
+        if y.Fuel[self._hab_index] > 0:
+            # We have fuel remaining, calculate thrust
+            throttle = y.Throttle[self._hab_index]
+            fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
+            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+                throttle=throttle, heading=y.Heading[self._hab_index])
+            Xa[self._hab_index] += hab_eng_acc_x
+            Ya[self._hab_index] += hab_eng_acc_y
+
+        return np.concatenate(
+            (y.VX, y.VY, Xa, Ya,
+                y.Spin, spin_change, fuel_cons, throttle_change),
+            axis=None)
+
     def _generate_new_ode_solutions(self, t, y):
         # An overview of how time is managed:
-        # self._simtime_of_last_request is the main thread's latest idea of
+        # self._last_simtime is the main thread's latest idea of
         # what the current time is in the simulation. Every call to
         # get_state(), self._timetime_of_last_request is incremented by the
         # amount of time that passed since the last call to get_state(),
@@ -460,11 +440,50 @@ class PEngine(object):
         # Each element has an attribute, t_max, which describes the largest
         # time that the solution can be evaluated at and still be accurate.
         # The highest such t_max should always be larger than the current
-        # simulation time, i.e. self._simtime_of_last_request.
-        def hab_fuel(t, y_1d):
-            return Y(y_1d).Fuel[self._hab_index]
-        hab_fuel.terminal = True
-        hab_fuel.direction = -1
+        # simulation time, i.e. self._last_simtime
+
+        def hab_fuel_event(t, y_1d):
+            """Return a 0 only when throttle is nonzero."""
+            y = Y(y_1d)
+            if y.Throttle[self._hab_index] != 0:
+                return Y(y_1d).Fuel[self._hab_index]
+            else:
+                return 1
+        hab_fuel_event.terminal = True
+        hab_fuel_event.direction = -1
+
+        def altitude_event(_, y_1d, return_pair=False):
+            """This should return a scalar, and specifically 0 to indicate a collision
+            """
+            y = Y(y_1d)
+            n = y._n
+            posns = np.column_stack((y.X, y.Y))  # 2xN of (x, y) positions
+            # An n*n matrix of _altitudes_ between each entity
+            alt_matrix = (
+                scipy.spatial.distance.cdist(posns, posns) -
+                (self.R + self.R.T))
+            # To simplify calculations, an entity's altitude from itself is inf
+            np.fill_diagonal(alt_matrix, np.inf)
+
+            if return_pair:
+                # Returns the actual pair of indicies instead of a scalar.
+                flattened_index = alt_matrix.argmin()
+                # flattened_index is a value in the interval [1, n*n]-1.
+                # Turn it into a  2D index.
+                object_i = flattened_index // n
+                object_j = flattened_index % n
+                return object_i, object_j
+            else:
+                # solve_ivp invocation, return scalar
+                return np.min(alt_matrix)
+
+        # TODO: stability hack, ignore collisions over a certain time acc.
+        if self._time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
+            def altitude_event():
+                return 1
+
+        altitude_event.terminal = True  # Event stops integration
+        altitude_event.direction = -1  # Event matters when going pos -> neg
 
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
@@ -479,9 +498,9 @@ class PEngine(object):
                 [t, t + self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
                 y._y_1d,
-                events=[self._events_function, hab_fuel],
+                events=[altitude_event, hab_fuel_event],
                 # np.sqrt is here to give a slower-than-linear step size growth
-                max_step=STEP_SIZE_MULT * np.sqrt(self._time_acceleration),
+                max_step=np.sqrt(self._time_acceleration),
                 dense_output=True
             )
 
@@ -504,9 +523,11 @@ class PEngine(object):
                 # our oldest solution, and the main thread is still asking for
                 # state in the t interval of our oldest solution, take a break
                 # until the main thread has caught up.
+                # breakpoint()
                 self._solutions_cond.wait_for(
-                    lambda: len(self._solutions) < SOLUTION_CACHE_SIZE or
-                    self._simtime_of_last_request > self._solutions[0].t_max or
+                    lambda:
+                    len(self._solutions) < SOLUTION_CACHE_SIZE or
+                    self._last_simtime > self._solutions[0].t_max or
                     self._stopping_simthread
                 )
                 if self._stopping_simthread:
@@ -519,16 +540,21 @@ class PEngine(object):
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
-                if ivp_out.t_events[0]:
+                log.debug(f'Got event: {ivp_out.t_events}')
+                if len(ivp_out.t_events[0]):
+                    log.debug(f'Got collision at {t}')
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
-                    y = self._collision_handle(t, y)
-                elif ivp_out.t_events[1]:
+                    y = self._collision_handle(t, y, altitude_event)
+                elif len(ivp_out.t_events[1]):
+                    log.debug(f'Got fuel empty at {t}')
                     # Habitat's out of fuel, the next iteration won't consume
                     # any fuel. Set throttle to zero anyway.
-                    y.Fuel[self._hab_index] = 0
                     y.Throttle[self._hab_index] = 0
+                    # Set fuel to a negative value, so it doesn't trigger
+                    # the event function
+                    y.Fuel[self._hab_index] = 0
 
 
 # These _functions are internal helper functions.
@@ -577,43 +603,3 @@ def _grav_acc(X, Y, M):
     Xa = _f_to_a(Xf, M)
     Ya = _f_to_a(Yf, M)
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
-
-
-def _altitude_event(_, y_1d, return_pair=False):
-    """This function is passed in to solve_ivp to detect a collision.
-
-    To accomplish this, and also to stop solve_ivp when there is a collision,
-    this function has the attributes `terminal = True` and `radii = [...]`.
-    radii will be set by a PEngine when it's instantiated.
-    Unfortunately this can't be a PEngine method, since attributes of a method
-    can't be set.
-    Ctrl-F 'events' in
-    docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
-    for more info.
-    This should return a scalar, and specifically 0 to indicate a collision
-    """
-    y = Y(y_1d)
-    n = y._n
-    posns = np.column_stack((y.X, y.Y))  # An n*2 vector of (x, y) positions
-    # An n*n matrix of _altitudes_ between each entity
-    alt_matrix = scipy.spatial.distance.cdist(posns, posns) - \
-        (_altitude_event.radii + _altitude_event.radii.T)
-    # To simplify calculations, an entity's altitude from itself is inf
-    np.fill_diagonal(alt_matrix, np.inf)
-
-    if return_pair:
-        # If we want to find out which entities collided, set return_pair=True.
-        flattened_index = alt_matrix.argmin()
-        # flattened_index is a value in the interval [1, n*n]-1. Turn it into a
-        # 2D index.
-        object_i = flattened_index // n
-        object_j = flattened_index % n
-        return object_i, object_j
-    else:
-        # This is how solve_ivp will invoke this function. Return a scalar.
-        return np.min(alt_matrix)
-
-
-_altitude_event.terminal = True  # Event stops integration
-_altitude_event.direction = -1  # Event matters when going pos -> neg
-_altitude_event.radii = np.array([])

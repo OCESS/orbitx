@@ -1,0 +1,11 @@
+{
+    "timestamp": 0.0,
+    "entities": [
+        {
+            "name": "habitat",
+            "r": 50.0,
+            "mass": 300.0,
+            "fuel": 100.0
+        }
+    ]
+}

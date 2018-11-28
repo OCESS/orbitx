@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import logging
+import sys
 import unittest
 
 import numpy as np
 
 import orbitx.common as common
 import orbitx.physics as physics
+from orbitx.PhysicEntity import Habitat
 
 log = logging.getLogger()
 
@@ -28,6 +30,10 @@ class PhysicsEngine:
 
 
 class PhysicsEngineTestCase(unittest.TestCase):
+    def setUp(self):
+        if '-v' in sys.argv:
+            common.enable_verbose_logging()
+
     def test_simple_collision(self):
         with PhysicsEngine('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second
@@ -88,6 +94,36 @@ class PhysicsEngineTestCase(unittest.TestCase):
                              round(G * initial.entities[0].mass /
                                    (y0.X[1] - y0.X[0])**2))
             self.assertAlmostEqual(dy.VY[1], 0)
+
+    def test_engines(self):
+        with PhysicsEngine('tests/habitat.json') as physics_engine:
+            # In this test case, there is a single entity that has 300 kg fuel.
+            # heading, velocity, and position are all 0.
+            physics_engine.set_action(requested_t=0, throttle_change=1)
+            throttle = 1
+            t_delta = 5
+            initial = physics_engine.get_state(0)
+            moved = physics_engine.get_state(t_delta)
+
+            self.assertAlmostEqual(initial.entities[0].heading, 0)
+
+            self.assertAlmostEqual(
+                moved.entities[0].fuel,
+                (initial.entities[0].fuel -
+                 t_delta * Habitat.fuel_cons(throttle=throttle)))
+            self.assertAlmostEqual(
+                moved.entities[0].vx,
+                t_delta * Habitat.acceleration(
+                    throttle=throttle, heading=initial.entities[0].heading)[0])
+
+            t_no_fuel = (initial.entities[0].fuel /
+                         Habitat.fuel_cons(throttle=throttle))
+            empty_fuel = physics_engine.get_state(t_no_fuel)
+            after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
+
+            self.assertEqual(round(empty_fuel.entities[0].fuel), 0)
+            self.assertEqual(round(after_empty_fuel.entities[0].vx),
+                             round(empty_fuel.entities[0].vx))
 
     def test_three_body(self):
         with PhysicsEngine('tests/three-body.json') as physics_engine:
