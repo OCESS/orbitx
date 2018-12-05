@@ -38,12 +38,19 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second
             # on a collision course going left to right. The two should bounce.
-            approach = physics_engine.get_state(40)
-            bounced = physics_engine.get_state(60)
-            self.assertTrue(approach.entities[0].x > approach.entities[1].x)
-            self.assertTrue(approach.entities[1].vx > 0)
-            self.assertTrue(bounced.entities[0].x > bounced.entities[1].x)
-            self.assertTrue(bounced.entities[1].vx < 0)
+            # Entity 0 has r=50 and everything else 0.
+            # Entity 2 has r=10, x=-500, vx=10, and everything else 0.
+            # There's also entity 1, which is far away and shouldn't interact.
+            # Let's do some math oh hey, they should collide at t=44.
+            approach = physics_engine.get_state(43)
+            bounced = physics_engine.get_state(45)
+            self.assertTrue(approach.entities[0].x > approach.entities[2].x)
+            self.assertTrue(approach.entities[2].vx > 0)
+            self.assertTrue(bounced.entities[0].x > bounced.entities[2].x)
+            self.assertTrue(bounced.entities[2].vx < 0)
+            self.assertEqual(
+                round(approach.entities[1].vy),
+                round(bounced.entities[1].vy))
 
     def test_basic_movement(self):
         with PhysicsEngine('tests/only-sun.json') as physics_engine:

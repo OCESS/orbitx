@@ -17,6 +17,8 @@ DEFAULT_TIME_ACC = 1
 
 CHEAT_FUEL = 0
 
+DEBUG_LOGFILE = 'debug-log.txt'
+
 # Set up a logger.
 # Log DEBUG and higher to stderr,
 # Log WARNING and higher to stdout.
@@ -24,7 +26,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 logging.captureWarnings(True)
 
 formatter = logging.Formatter(
-    '{asctime} {levelname} {module}.{funcName}: {message}',
+    '{asctime} {levelname}\t{module}.{funcName}: {message}',
     datefmt='%X',  # Just the time
     style='{')
 
@@ -33,8 +35,12 @@ formatter = logging.Formatter(
 handler = logging.StreamHandler(stream=sys.stdout)
 handler.setLevel(logging.ERROR)
 handler.setFormatter(formatter)
+logfile_handler = logging.FileHandler(DEBUG_LOGFILE, mode='w', delay=True)
+logfile_handler.setLevel(logging.DEBUG)
+logfile_handler.setFormatter(formatter)
 logging.getLogger().handlers = []
 logging.getLogger().addHandler(handler)
+logging.getLogger().addHandler(logfile_handler)
 
 
 def enable_verbose_logging():

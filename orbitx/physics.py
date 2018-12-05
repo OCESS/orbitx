@@ -18,7 +18,6 @@ default_dtype = np.longdouble
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
 SOLUTION_CACHE_SIZE = 10
-COLLISIONS_TIME_ACC_BOUNDARY = 1000
 MAX_TIME_ACCELERATION = 100000
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
@@ -171,9 +170,9 @@ class PEngine(object):
             log.error(f'Time acceleration {time_acceleration} must be > 0')
             return None
         elif time_acceleration > MAX_TIME_ACCELERATION:
-            log.warning(f'Requested time acceleration {time_acceleration} '
-                        f'Greater than max {MAX_TIME_ACCELERATION}. '
-                        'Using max time acceleration.')
+            log.error(f'Requested time acceleration {time_acceleration} '
+                      f'Greater than max {MAX_TIME_ACCELERATION}. '
+                      'Using max time acceleration.')
             time_acceleration = MAX_TIME_ACCELERATION
 
         return time_acceleration
@@ -340,7 +339,7 @@ class PEngine(object):
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
         e1, e2 = self._resolve_collision(e1, e2)
-        log.info(f'Collision between {e1.name} and {e2.name} at t={t}')
+        log.info(f'Collision: t={t}, {e1.as_proto()} and {e2.as_proto()}')
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
@@ -460,8 +459,7 @@ class PEngine(object):
             posns = np.column_stack((y.X, y.Y))  # 2xN of (x, y) positions
             # An n*n matrix of _altitudes_ between each entity
             alt_matrix = (
-                scipy.spatial.distance.cdist(posns, posns) -
-                (self.R + self.R.T))
+                scipy.spatial.distance.cdist(posns, posns) - self.R)
             # To simplify calculations, an entity's altitude from itself is inf
             np.fill_diagonal(alt_matrix, np.inf)
 
@@ -476,11 +474,6 @@ class PEngine(object):
             else:
                 # solve_ivp invocation, return scalar
                 return np.min(alt_matrix)
-
-        # TODO: stability hack, ignore collisions over a certain time acc.
-        if self._time_acceleration > COLLISIONS_TIME_ACC_BOUNDARY:
-            def altitude_event():
-                return 1
 
         altitude_event.terminal = True  # Event stops integration
         altitude_event.direction = -1  # Event matters when going pos -> neg
@@ -542,7 +535,6 @@ class PEngine(object):
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
-                    log.debug(f'Got collision at {t}')
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
