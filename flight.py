@@ -12,6 +12,7 @@ import copy
 import logging
 import os
 import queue
+import sys
 import threading
 import time
 import warnings
@@ -127,9 +128,7 @@ def hacky_input_thread(cmd_queue):
     try:
         while True:
             cmd_queue.put(input((
-                f'Time acceleration [default={common.DEFAULT_TIME_ACC}], '
-                f'or planet centre [default=Habitat]'
-                ':'
+                f'Time acceleration [default={common.DEFAULT_TIME_ACC}]:'
             )))
     except EOFError:
         # Program ending, let's pack it up.
@@ -137,7 +136,9 @@ def hacky_input_thread(cmd_queue):
 
 
 def lead_server_loop(args):
-    """Main, 'while True'-style loop for a lead server. Blocking."""
+    """Main, 'while True'-style loop for a lead server. Blocking.
+    See help text for command line arguments for what a lead server is."""
+
     # Before you make changes to the lead server architecture, consider that
     # the GRPC server runs in a separate thread than this thread!
     state_server = network.StateServer()
@@ -147,35 +148,35 @@ def lead_server_loop(args):
         common.load_savefile(args.data_location.path)
     )
 
+    cmd_queue = queue.Queue()
+    input_thread = threading.Thread(
+        target=hacky_input_thread, args=(cmd_queue,), daemon=True
+    )
+    input_thread.start()
+    if not args.no_gui:
+        gui = flight_gui.FlightGui(physics_engine.get_state())
+
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{args.serve_on_port}')
-    server.start()  # This doesn't block! We need a context manager from now on
+    server.start()  # This doesn't block!
+    # Need a context manager from now on, to make sure the server always stops.
     with common.GrpcServerContext(server):
         log.info(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
-
-        cmd_queue = queue.Queue()
-        input_thread = threading.Thread(
-            target=hacky_input_thread, args=(cmd_queue,), daemon=True
-        )
-        input_thread.start()
-        if not args.no_gui:
-            gui = flight_gui.FlightGui(physics_engine.get_state())
 
         while True:
             user_commands = []
             state = physics_engine.get_state()
             state_server.notify_state_change(
                 copy.deepcopy(state))
-            # physics_engine.Save_json(common.AUTOSAVE_SAVEFILE)
 
             try:
                 cmd = cmd_queue.get_nowait()
                 if cmd.isdigit():
                     physics_engine.set_time_acceleration(float(cmd))
                 else:
-                    gui.recentre_camera(cmd)
+                    log.error('Got unrecognized CLI input: {cmd}')
             except queue.Empty:
                 pass
 
@@ -194,11 +195,13 @@ def lead_server_loop(args):
                 gui.draw(state)
                 gui.rate(common.FRAMERATE)
             else:
-                time.sleep(common.TICK_TIME)
+                time.sleep(1 / common.FRAMERATE)
 
 
 def mirroring_loop(args):
-    """Main, 'while True'-style loop for a mirroring client. Blocking."""
+    """Main, 'while True'-style loop for a mirroring client. Blocking.
+    See help text for CLI arguments for the difference between mirroring and
+    serving."""
     currently_mirroring = True
 
     log.info('Connecting to CnC server...')
@@ -225,7 +228,7 @@ def mirroring_loop(args):
                     gui.draw(state)
                     gui.rate(common.FRAMERATE)
                 else:
-                    time.sleep(common.TICK_TIME)
+                    time.sleep(1 / common.FRAMERATE)
             except KeyboardInterrupt:
                 # TODO: hacky solution to turn off mirroring right now is a ^C
                 if currently_mirroring:

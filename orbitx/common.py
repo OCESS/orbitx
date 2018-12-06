@@ -25,27 +25,36 @@ DEBUG_LOGFILE = 'debug-log.txt'
 logging.getLogger().setLevel(logging.DEBUG)
 logging.captureWarnings(True)
 
-formatter = logging.Formatter(
+debug_formatter = logging.Formatter(
     '{asctime} {levelname}\t{module}.{funcName}: {message}',
-    datefmt='%X',  # Just the time
-    style='{')
+    datefmt='%X',  # The timestamp is just the time of day
+    style='{'
+)
+
+print_formatter = logging.Formatter(
+    '{levelname}:\t{message}',  # Less information clutter, for stdout/stderr
+    datefmt='%X',  # The timestamp is just the time of day
+    style='{'
+)
 
 # When changing output streams, consider that jupyter appmode, which is an easy
 # way to give demos, will only show the stdout and not the stderr of a process.
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setLevel(logging.ERROR)
-handler.setFormatter(formatter)
+print_handler = logging.StreamHandler(stream=sys.stdout)
+print_handler.setLevel(logging.ERROR)
+print_handler.setFormatter(print_formatter)
+
 logfile_handler = logging.FileHandler(DEBUG_LOGFILE, mode='w', delay=True)
 logfile_handler.setLevel(logging.DEBUG)
-logfile_handler.setFormatter(formatter)
+logfile_handler.setFormatter(debug_formatter)
+
 logging.getLogger().handlers = []
-logging.getLogger().addHandler(handler)
+logging.getLogger().addHandler(print_handler)
 logging.getLogger().addHandler(logfile_handler)
 
 
 def enable_verbose_logging():
     """Enables logging of all messages, from DEBUG upwards"""
-    handler.setLevel(logging.DEBUG)
+    print_handler.setLevel(logging.DEBUG)
 
 
 def savefile(name):
