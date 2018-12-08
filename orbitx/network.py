@@ -60,7 +60,6 @@ class StateClient:
     Usage:
         with StateClient('localhost', 28430) as physical_state_getter:
             while True:
-                sleep(1)
                 physical_state = physical_state_getter()
     """
 

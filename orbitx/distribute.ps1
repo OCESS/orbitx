@@ -22,8 +22,7 @@ pyinstaller `
 	../flight.py `
 	-n orbitx `
 	'--add-data' '../data;data' `
-	'--add-data' "$VPY_DIR;vpython" `
-	'--add-data' "$VPY_DIR/vpython_data;vpython/vpython_data"
+	'--add-data' "$VPY_DIR;vpython"
 
 # Fix up some pyinstaller hijinks
 cd dist\orbitx\vpython

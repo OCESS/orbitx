@@ -11,9 +11,6 @@ import argparse
 import copy
 import logging
 import os
-import queue
-import sys
-import threading
 import time
 import warnings
 import concurrent.futures
@@ -29,6 +26,7 @@ import orbitx.network as network
 import orbitx.physics as physics
 
 log = logging.getLogger()
+cleanup_function = None
 
 
 def parse_args():
@@ -76,7 +74,10 @@ def parse_args():
                         help='Don\'t launch the flight GUI.')
 
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
-                        help='Logs everything to stdout.')
+                        help='Logs everything to both logfile and output.')
+
+    parser.add_argument('--profile', action='store_true', default=False,
+                        help='Generating profiling reports, for a flamegraph.')
 
     args, unknown = parser.parse_known_args()
     if unknown:
@@ -123,18 +124,6 @@ def parse_args():
     return args
 
 
-def hacky_input_thread(cmd_queue):
-    """This is hacky but works with jupyter notebook for the demo. Hi Colin!"""
-    try:
-        while True:
-            cmd_queue.put(input((
-                f'Time acceleration [default={common.DEFAULT_TIME_ACC}]:'
-            )))
-    except EOFError:
-        # Program ending, let's pack it up.
-        return
-
-
 def lead_server_loop(args):
     """Main, 'while True'-style loop for a lead server. Blocking.
     See help text for command line arguments for what a lead server is."""
@@ -148,13 +137,10 @@ def lead_server_loop(args):
         common.load_savefile(args.data_location.path)
     )
 
-    cmd_queue = queue.Queue()
-    input_thread = threading.Thread(
-        target=hacky_input_thread, args=(cmd_queue,), daemon=True
-    )
-    input_thread.start()
     if not args.no_gui:
+        global cleanup_function
         gui = flight_gui.FlightGui(physics_engine.get_state())
+        cleanup_function = gui.shutdown
 
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
@@ -165,20 +151,13 @@ def lead_server_loop(args):
     with common.GrpcServerContext(server):
         log.info(f'Server running on port {args.serve_on_port}. Ctrl-C exits.')
 
+        if args.profile:
+            common.start_profiling()
         while True:
             user_commands = []
             state = physics_engine.get_state()
             state_server.notify_state_change(
                 copy.deepcopy(state))
-
-            try:
-                cmd = cmd_queue.get_nowait()
-                if cmd.isdigit():
-                    physics_engine.set_time_acceleration(float(cmd))
-                else:
-                    log.error('Got unrecognized CLI input: {cmd}')
-            except queue.Empty:
-                pass
 
             if not args.no_gui:
                 user_commands += gui.pop_commands()
@@ -190,10 +169,14 @@ def lead_server_loop(args):
                     physics_engine.set_action(spin_change=command.arg)
                 elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
                     physics_engine.set_action(throttle_change=command.arg)
+                elif command.ident == protos.Command.TIME_ACC_CHANGE:
+                    physics_engine.set_time_acceleration(command.arg)
 
             if not args.no_gui:
                 gui.draw(state)
                 gui.rate(common.FRAMERATE)
+                if gui.closed:
+                    break
             else:
                 time.sleep(1 / common.FRAMERATE)
 
@@ -215,6 +198,8 @@ def mirroring_loop(args):
         if not args.no_gui:
             log.info('Initializing graphics (thanks sean)...')
             gui = flight_gui.FlightGui(state)
+            global cleanup_function
+            cleanup_function = gui.shutdown
 
         while True:
             try:
@@ -227,6 +212,8 @@ def mirroring_loop(args):
                 if not args.no_gui:
                     gui.draw(state)
                     gui.rate(common.FRAMERATE)
+                    if gui.closed:
+                        break
                 else:
                     time.sleep(1 / common.FRAMERATE)
             except KeyboardInterrupt:
@@ -259,6 +246,11 @@ def main():
     except Exception:
         log.exception('Exception in main loop! Stopping execution.')
         raise
+    finally:
+        if cleanup_function is not None:
+            cleanup_function()
+        if args.profile:
+            common.stop_profiling()
 
 
 if __name__ == '__main__':

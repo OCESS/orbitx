@@ -1,4 +1,5 @@
 """Common code and class interfaces."""
+
 import logging
 import sys
 from pathlib import Path
@@ -17,7 +18,8 @@ DEFAULT_TIME_ACC = 1
 
 CHEAT_FUEL = 0
 
-DEBUG_LOGFILE = 'debug-log.txt'
+DEBUG_LOGFILE = 'debug.log'
+PERF_FILE = 'flamegraph-data.log'
 
 # Set up a logger.
 # Log DEBUG and higher to stderr,
@@ -103,3 +105,17 @@ def write_savefile(physical_state, file):
 def find_entity(name, physical_state):
     return [entity for entity in physical_state.entities
             if entity.name == name][0]
+
+
+_profile_thread = None
+
+
+def start_profiling():
+    import flamegraph
+    global _profile_thread
+    _profile_thread = flamegraph.start_profile_thread(
+        fd=open(PERF_FILE, 'w'))
+
+
+def stop_profiling():
+    _profile_thread.stop()

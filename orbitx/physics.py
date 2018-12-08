@@ -209,6 +209,7 @@ class PEngine(object):
         self._simthread = threading.Thread(
             target=self._simthread_target,
             args=(t0, y0),
+            name='simthread',
             daemon=True
         )
         self._stopping_simthread = False

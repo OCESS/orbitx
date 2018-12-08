@@ -22,6 +22,7 @@ message Command {
         NOOP = 0;
         HAB_SPIN_CHANGE = 1;
         HAB_THROTTLE_CHANGE = 2;
+        TIME_ACC_CHANGE = 3;
     }
     Ident ident = 1;
     double arg = 2;

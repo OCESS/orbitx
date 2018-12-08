@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
 """
-Class that provides a main loop for flight.
+Defines FlightGui, a class that provides a main loop for flight.
 
-The main loop drawsa GUI and collects input.
+Call FlightGui.draw() in the main loop to update positions in the GUI.
+Call FlightGui.pop_commands() to collect user input.
 """
+
 import logging
+import signal
 from pathlib import Path
 
 import numpy as np
@@ -21,10 +25,28 @@ G = 6.674e-11
 class FlightGui:
 
     def __init__(self, physical_state_to_draw, texture_path=None):
+        ctrl_c_handler = signal.getsignal(signal.SIGINT)
         # Note that this might actually start an HTTP server!
         import vpython
         self._vpython = vpython
 
+        # vpython installs "os._exit(0)" signal handlers. Very not good for us.
+        # Reset the signal handler to default behaviour.
+        signal.signal(signal.SIGINT, ctrl_c_handler)
+
+        # os._exit(0) is in one other place, let's take that out too.
+        # Unfortunately, now that vpython isn't calling os._exit, we have to
+        # notify someone when the GUI closed.
+        # Note to access vpython double underscore variables, we have to
+        # bypass normal name mangling by using getattr.
+        def callback(*_):
+            getattr(self._vpython.no_notebook, '__interact_loop').stop()
+            self.closed = True
+        self.closed = False
+        getattr(self._vpython.no_notebook, '__factory').protocol.onClose = \
+            callback
+
+        # Set up our vpython canvas and other internal variables
         self._scene = vpython.canvas(
             title='<b>OrbitX\n</b>',
             align='right',
@@ -71,10 +93,26 @@ class FlightGui:
         self._scene.autoscale = False
         self._set_caption()
 
+    def shutdown(self):
+        """Stops any threads vpython has started. Call on exit."""
+        if not self._vpython._isnotebook:
+            # We're not running in a jupyter notebook environment. As of
+            # vpython 7.4.7, that means an HTTPServer and a WebSocketServer
+            # are running, each in their own thread. From comments in
+            # vpython.py at about line 370:
+            # "The situation with non-notebook use is similar, but the http
+            # server is threaded, in order to serve glowcomm.html, jpg texture
+            # files, and font files, and the  websocket is also threaded."
+
+            # Again, double underscore names will get name mangled unless we
+            # bypass name mangling with getattr.
+            getattr(self._vpython.no_notebook, '__server').shutdown()
+            getattr(self._vpython.no_notebook, '__interact_loop').stop()
+
     def _calc_orb_speed(self, ref_entity):
         """The orbital speed of an astronomical body or object.
 
-        The Equation referred from https://en.wikipedia.org/wiki/Orbital_speed"""
+        Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
         return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
 
     def _calc_distance(self, planet_name, planet_name2='Habitat'):
@@ -230,12 +268,18 @@ class FlightGui:
             selected=DEFAULT_REFERENCE
         )
         self._scene.append_to_caption("\n")
-        self._scene.append_to_caption(
-            "<b>Nav:     </b>")
+        self._scene.append_to_caption("<b>Nav:     </b>")
         NAVmode = self._vpython.menu(
             choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
                      'Neptune', 'Pluto', 'deprt ref'],
             pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='deprt ref')
+        self._scene.append_to_caption("\n")
+
+        self._scene.append_to_caption("<b>Warp:  </b>")
+        time_acc = self._vpython.menu(
+            choices=[f'{n:,}×' for n in
+                     [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
+            pos=self._scene.caption_anchor, bind=self._time_acc_dropdown_hook)
         self._scene.append_to_caption("\n")
 
     def draw(self, physical_state_to_draw):
@@ -334,6 +378,12 @@ class FlightGui:
         self._set_origin(selection.selected)
         self._clear_trails()
 
+    def _time_acc_dropdown_hook(self, selection):
+        time_acc = int(selection.selected.replace(',', '').replace('×', ''))
+        self._commands.append(protos.Command(
+            ident=protos.Command.TIME_ACC_CHANGE,
+            arg=time_acc))
+
     def recentre_camera(self, planet_name):
         """Change camera to focus on different object"""
         try:
@@ -351,6 +401,7 @@ class FlightGui:
         return self._vpython.vector(np.cos(angle), np.sin(angle), 0)
 
     def rate(self, framerate):
+        """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         self._vpython.rate(framerate)
 
 
@@ -365,6 +416,7 @@ th {
 </style>
 """
 
+# TODO: there's room for automating tables here.
 INPUT_CHEATSHEET = """
 <table>
     <caption>Input Cheatsheet</caption>
@@ -377,7 +429,7 @@ INPUT_CHEATSHEET = """
         <td>Zoom View</td>
     </tr>
     <tr>
-        <td>RMB</td>
+        <td>Ctrl-Click</td>
         <td>Rotate View</td>
     </tr>
     <tr>
