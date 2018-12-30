@@ -249,8 +249,6 @@ def main():
     finally:
         if cleanup_function is not None:
             cleanup_function()
-        if args.profile:
-            common.stop_profiling()
 
 
 if __name__ == '__main__':

@@ -48,7 +48,7 @@ class FlightGui:
 
         # Set up our vpython canvas and other internal variables
         self._scene = vpython.canvas(
-            title='<b>OrbitX\n</b>',
+            title='<b>OrbitX</b>',
             align='right',
             width=1000,
             height=600,
@@ -87,9 +87,6 @@ class FlightGui:
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
-            if planet.name == DEFAULT_REFERENCE:
-                self._hab_ref = self._calc_distance(DEFAULT_REFERENCE)
-                self._orbital_speed = self._calc_orb_speed(planet)
         self._scene.autoscale = False
         self._set_caption()
 
@@ -220,67 +217,129 @@ class FlightGui:
     # TODO: 1)Update with correct physics values
     def _set_caption(self):
         """Set and update the captions."""
-        self._scene.caption = "\n"
+
+        # There's a bit of magic here. Normally, vpython.wtext will make a
+        # <div> in the HTML and automaticall update it when the .text field is
+        # updated in this python code. But if you want to insert a wtext in the
+        # middle of a field, the following first attempt won't work:
+        #     scene.append_to_caption('<table>')
+        #     vpython.wtext(text='widget text')
+        #     scene.append_to_caption('</table>')
+        # because adding the wtext will also close the <table> tag.
+        # But you can't make a wtext that contains HTML DOM tags either,
+        # because every time the text changes several times a second, any open
+        # dropdown menus will be closed.
+        # So we have to insert a <div> where vpython expects it, manually.
+        # We take advantage of the fact that manually modifying scene.caption
+        # will remove the <div> that represents a wtext. Then we add the <div>
+        # back, along with the id="x" that identifies the div, used by vpython.
+        #
+        # TL;DR the div_id variable is a bit magic, if you make a new wtext
+        # before this, increment div_id by one..
+        self._scene.caption += "<table>\n"
+        self._wtexts = []
+        div_id = 1
+        for caption, text_gen_func, helptext in [
+            ("Orbit speed",
+             lambda: f"{self._calc_orb_speed(self._origin):.5e} m/s",
+             "Speed required for circular orbit at current altitude"),
+            ("Ref distance",
+             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
+             "Distance between centres of reference and habitat"),
+            ("Targ distance",
+             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
+             "Distance between centres of target and habitat"),
+            ("Throttle",
+             lambda: f"{self._habitat.throttle}%",
+             "Percentage of habitat's maximum rated engines")
+        ]:
+            self._wtexts.append(self._vpython.wtext(text=text_gen_func()))
+            self._wtexts[-1].text_func = text_gen_func
+            self._scene.caption += f"""<tr>
+                <td>{caption}</td>
+                <td><div id="{div_id}">{self._wtexts[-1].text}</div></td>
+                <td class="helptext">{helptext}</td>
+                </tr>\n"""
+            div_id += 1
+        self._scene.caption += "</table>"
+
         self._scene.append_to_caption(VPYTHON_CSS)
-        self._scene.append_to_caption("<b>ref Vo: </b>")
-        self._rv = self._vpython.wtext(
-            text='{0:.2f}\n'.format(self._orbital_speed))
-        self._scene.append_to_caption("<b>Ref distance: </b>")
-        self._hr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
-        self._scene.append_to_caption("<b>Targ distance: </b>")
-        self._tr = self._vpython.wtext(text='{0:.2f}\n'.format(self._hab_ref))
-        self._scene.append_to_caption("<b>Throttle: </b>")
-        self._thr = self._vpython.wtext(
-            text='{0:.2f}\n'.format(self._habitat.throttle))
-        self._scene.append_to_caption("\n")
+        self._scene.append_to_caption(VPYTHON_JS)
+
         #self._scene.append_to_caption("Acc: XXX" + "\n")
         #self._scene.append_to_caption("Vcen: XXX" + "\n")
         #self._scene.append_to_caption("Vtan: XXX" + "\n")
         # self._scene.append_to_caption("\n")
         self._set_menus()
+        self._scene.append_to_caption(HELP_CHECKBOX)
+        self._scene.append_to_caption(" Help text")
         self._scene.append_to_caption(INPUT_CHEATSHEET)
+
 
     # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self):
         """This creates dropped down menu which is used when set_caption."""
-        self._scene.append_to_caption(
-            "<b>Center: </b>")
-        center = self._vpython.menu(
-            choices=list(self._spheres),
-            pos=self._scene.caption_anchor,
-            bind=self._recentre_dropdown_hook,
-            selected=DEFAULT_CENTRE
-        )
-        self._scene.append_to_caption("\n")
-        self._scene.append_to_caption(
-            "<b>Target: </b>")
-        target = self._vpython.menu(
-            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
-                     'Neptune', 'Pluto', 'AYSE'],
-            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='AYSE')
-        self._scene.append_to_caption("\n")
-        self._scene.append_to_caption(
-            "<b>Ref:      </b>")
-        ref = self._vpython.menu(
-            choices=list(self._spheres),
-            pos=self._scene.caption_anchor,
-            bind=self._reference_dropdown_hook,
-            selected=DEFAULT_REFERENCE
-        )
-        self._scene.append_to_caption("\n")
-        self._scene.append_to_caption("<b>Nav:     </b>")
-        NAVmode = self._vpython.menu(
-            choices=['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus',
-                     'Neptune', 'Pluto', 'deprt ref'],
-            pos=self._scene.caption_anchor, bind=self._recentre_dropdown_hook, selected='deprt ref')
-        self._scene.append_to_caption("\n")
 
-        self._scene.append_to_caption("<b>Warp:  </b>")
-        time_acc = self._vpython.menu(
+        def build_menu(*, choices=None, bind=None,
+                       selected=None, caption=None, helptext=None):
+            self._vpython.menu(
+                choices=choices,
+                pos=self._scene.caption_anchor,
+                bind=bind,
+                selected=selected)
+            self._scene.append_to_caption(f"&nbsp;<b>{caption}</b>&nbsp;")
+            self._scene.append_to_caption(
+                f"<span class='helptext'>{helptext}</span>")
+            self._scene.append_to_caption("\n")
+
+        build_menu(
+            choices=list(self._spheres),
+            bind=self._recentre_dropdown_hook,
+            selected=DEFAULT_CENTRE,
+            caption="Centre",
+            helptext="Focus of camera"
+        )
+
+        build_menu(
+            choices=list(self._spheres),
+            bind=self._recentre_dropdown_hook,
+            selected='AYSE',
+            caption="Target",
+            helptext="For use by NAV mode"
+        )
+
+        build_menu(
+            choices=list(self._spheres),
+            bind=self._reference_dropdown_hook,
+            selected=DEFAULT_REFERENCE,
+            caption="Reference",
+            helptext=(
+                "Take position, velocity relative to this. "
+                "Visual glitches when far from centre.")
+        )
+
+        build_menu(
+            choices=['deprt ref'],
+            bind=self._recentre_dropdown_hook,
+            selected='deprt ref',
+            caption="NAV mode",
+            helptext="Automatically points habitat"
+        )
+
+        build_menu(
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
-            pos=self._scene.caption_anchor, bind=self._time_acc_dropdown_hook)
+            bind=self._time_acc_dropdown_hook,
+            selected=1,
+            caption="Warp",
+            helptext="Speed of simulation"
+        )
+
         self._scene.append_to_caption("\n")
+        self._vpython.checkbox(
+            bind=self._trail_checkbox_hook, checked=True, text='Trails')
+        self._scene.append_to_caption(
+            " <span class='helptext'>Graphically intensive</span>")
 
     def draw(self, physical_state_to_draw):
         self._last_physical_state = physical_state_to_draw
@@ -292,13 +351,10 @@ class FlightGui:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
-            if self._origin.name == planet.name:  # Caption Updates
-                self._hab_ref = self._calc_distance(self._origin.name)
-                self._hr.text = '{0:.2f}\n'.format(self._hab_ref)
-                self._orbital_speed = self._calc_orb_speed(planet)
-                self._rv.text = '{0:.2f}\n'.format(self._orbital_speed)
 
-        self._thr.text = '{0:.2f}\n'.format(self._habitat.throttle)
+        for wtext in self._wtexts:
+            # Update text of all text widgets.
+            wtext.text = wtext.text_func()
 
     def _draw_labels(self, planet):
         label = self._vpython.label(
@@ -343,6 +399,8 @@ class FlightGui:
                 shininess=0.1
             )
 
+        obj.name = planet.name  # For convenient accessing later
+
         if planet.name == 'Sun':  # The sun is special!
             obj.emissive = True  # The sun glows!
             self._scene.lights = []
@@ -352,8 +410,6 @@ class FlightGui:
             obj.texture = str(texture)
         else:
             log.debug(f'Could not find texture {texture}')
-
-        obj.name = planet.name  # For convenient accessing later
 
         return obj
 
@@ -384,6 +440,12 @@ class FlightGui:
             ident=protos.Command.TIME_ACC_CHANGE,
             arg=time_acc))
 
+    def _trail_checkbox_hook(self, selection):
+        for sphere in self._spheres.values():
+            sphere.make_trail = selection.checked
+            if not selection.checked:
+                sphere.clear_trail()
+
     def recentre_camera(self, planet_name):
         """Change camera to focus on different object"""
         try:
@@ -405,20 +467,47 @@ class FlightGui:
         self._vpython.rate(framerate)
 
 
-VPYTHON_CSS = """
-<style>
-table {
-    width: 250px;
-}
+VPYTHON_CSS = """<style>
 th {
     text-align: left;
 }
+select {
+    width: 100px;
+}
+input {
+    width: 100px !important;
+    height: unset !important;
+}
+.helptext {
+    font-size: 75%;
+}
 </style>
-"""
+<style title="disable_helptext">
+.helptext {
+    display: none;
+}
+</style>"""
+
+VPYTHON_JS = """<script>
+function show_hide_help() {
+    // If helptext is enabled, we have to "disable disabling it."
+    styleSheets = document.styleSheets;
+    for (i = 0; i < styleSheets.length; ++i) {
+        console.log(styleSheets[i].title)
+        if (styleSheets[i].title == "disable_helptext") {
+            styleSheets[i].disabled =
+                document.getElementById("helptext_checkbox").checked
+        }
+    }
+}
+</script>"""
+
+HELP_CHECKBOX = """
+<input type="checkbox" id="helptext_checkbox" onClick="show_hide_help()">"""
 
 # TODO: there's room for automating tables here.
 INPUT_CHEATSHEET = """
-<table>
+<table class="helptext">
     <caption>Input Cheatsheet</caption>
     <tr>
         <th>Input</th>

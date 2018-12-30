@@ -115,7 +115,3 @@ def start_profiling():
     global _profile_thread
     _profile_thread = flamegraph.start_profile_thread(
         fd=open(PERF_FILE, 'w'))
-
-
-def stop_profiling():
-    _profile_thread.stop()
