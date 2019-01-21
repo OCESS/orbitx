@@ -22,9 +22,9 @@ It's recommended you develop and run in a virtualenv. Setup is as follows:
 git clone https://github.com/OCESS/orbitx
 cd orbitx
 python3 -m venv venv # or however you can create a python3 virtualenv
-source ven/bin/activate
+source venv/bin/activate
 pip install --upgrade pip # not required, but a good idea
-cd src
+cd orbitx
 make install # installs packages in requirements.txt, make sure you've activated your venv!
 ```
 
@@ -43,8 +43,8 @@ source venv/bin/activate
 
 This project is mostly python, which does not require you to build a new binary
 after making changes to `.py` files. However, making changes to the
-`orbitx.proto` file requires building your changes. The file `src/Makefile` will
-let you do the following commands in `src/`:
+`orbitx.proto` file requires building your changes. The file `orbitx/Makefile` will
+let you do the following commands in `orbitx/`:
 
 ```
 make build    # run this when you make a change to orbitx.proto
@@ -54,11 +54,11 @@ make format   # run this to automatically format code
 
 ## Running
 
-`src/flight.py` Is an executable python scripts. Run `src/flight.py --help` for
+`orbitx/flight.py` Is an executable python scripts. Run `orbitx/flight.py --help` for
 help on running the program. The sparknotes version is, run:
 
 ```
-src/flight.py --gui
+orbitx/flight.py --gui
 ``` 
 
 If you get errors, make sure you have the pip packages in `requirements.txt`
@@ -89,14 +89,14 @@ So if you have some code that roughly fits this, feel free to drop me a line!
 orbitx/: All python source files. These are self-contained modules.
 flight.py: Flight server or mirroring client. Run with ./flight.py
 test.py: Script that tests the physics engine
-src/orbitx-demo.ipynb: Jupyter notebook that can be run and viewed remotely
+orbitx/orbitx-demo.ipynb: Jupyter notebook that can be run and viewed remotely
 
 doc/: Any documentation for this project
 doc/orbitsource: Source code for relevant components of legacy Orbit
 doc/\*-prototypes/: Prototypes for various components
 
-data/: Data that does not fit in src/, e.g. save files
-data/saves/tests/: Save files for testing, used by src/test.py
+data/: Data that does not fit in orbitx/, e.g. save files
+data/saves/tests/: Save files for testing, used by orbitx/test.py
 ```
 
 ## Screens
