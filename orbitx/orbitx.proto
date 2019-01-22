@@ -49,6 +49,8 @@ message Entity {
     double spin = 9; // the 'angular velocity'
     double fuel = 10; // only spaceships have fuel
     double throttle = 11;
+    bool crashed = 12;
+    bool artificial = 13;
 }
 
 // To use this in python code, think of `entities` as a list, except to add an

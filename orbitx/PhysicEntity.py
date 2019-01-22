@@ -15,6 +15,8 @@ class PhysicsEntity(object):
         self.heading = entity.heading
         self.fuel = entity.fuel
         self.throttle = entity.throttle
+        self.crashed = entity.crashed
+        self.artificial = entity.artificial
 
     def as_proto(self):
         return protos.Entity(
@@ -28,7 +30,9 @@ class PhysicsEntity(object):
             spin=self.spin,
             heading=self.heading,
             fuel=self.fuel,
-            throttle=self.throttle
+            throttle=self.throttle,
+            crashed=self.crashed,
+            artificial=self.artificial
         )
 
 

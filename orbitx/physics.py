@@ -398,7 +398,7 @@ class PEngine(object):
         try:
             self._generate_new_ode_solutions(t, y)
         except Exception as e:
-            log.debug('simthread got exception, forwarding to main thread')
+            log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
         log.debug('simthread exited')
 
