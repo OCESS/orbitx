@@ -50,7 +50,7 @@ class FlightGui:
         self._scene = vpython.canvas(
             title='<b>OrbitX</b>',
             align='right',
-            width=1000,
+            width=800,
             height=600,
             center=vpython.vector(0, 0, 0),
             autoscale=True
@@ -81,6 +81,7 @@ class FlightGui:
         self._last_physical_state = physical_state_to_draw
         self._origin = physical_state_to_draw.entities[0]
         self._set_origin(DEFAULT_REFERENCE)
+        self.draw_sphere_segments = False
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
@@ -418,6 +419,10 @@ class FlightGui:
         return obj
 
     def _draw_sphere_segment(self, planet):
+        if not self.draw_sphere_segments:
+            # DEBUG
+            return
+
         if planet.name == 'Habitat':
             return None
         tri_coords = _build_sphere_segment_vertices(
@@ -437,8 +442,6 @@ class FlightGui:
                        for coord in tri]
             tris.append(self._vpython.triangle(vs=vec_tri))
 
-        import time
-        time.sleep(0.1)
         return self._vpython.compound(
             tris, pos=self._posn(planet))
 
@@ -452,6 +455,9 @@ class FlightGui:
             self._habitat = planet
 
     def _update_sphere_segment(self, planet):
+        if not self.draw_sphere_segments:
+            # DEBUG
+            return
         if planet.name == 'Habitat':
             return
         sphere_segment = self._sphere_parts[planet.name]
