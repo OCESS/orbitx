@@ -30,21 +30,23 @@ class FlightGui:
         import vpython
         self._vpython = vpython
 
-        # vpython installs "os._exit(0)" signal handlers. Very not good for us.
-        # Reset the signal handler to default behaviour.
-        signal.signal(signal.SIGINT, ctrl_c_handler)
+        if self._vpython.__version__ == '7.4.7':
+            # vpython installs "os._exit(0)" signal handlers in 7.4.7.
+            # Very not good for us.
+            # Reset the signal handler to default behaviour.
+            signal.signal(signal.SIGINT, ctrl_c_handler)
 
-        # os._exit(0) is in one other place, let's take that out too.
-        # Unfortunately, now that vpython isn't calling os._exit, we have to
-        # notify someone when the GUI closed.
-        # Note to access vpython double underscore variables, we have to
-        # bypass normal name mangling by using getattr.
-        def callback(*_):
-            getattr(self._vpython.no_notebook, '__interact_loop').stop()
-            self.closed = True
-        self.closed = False
-        getattr(self._vpython.no_notebook, '__factory').protocol.onClose = \
-            callback
+            # os._exit(0) is in one other place, let's take that out too.
+            # Unfortunately, now that vpython isn't calling os._exit, we have
+            # to notify someone when the GUI closed.
+            # Note to access vpython double underscore variables, we have to
+            # bypass normal name mangling by using getattr.
+            def callback(*_):
+                getattr(self._vpython.no_notebook, '__interact_loop').stop()
+                self.closed = True
+            self.closed = False
+            getattr(self._vpython.no_notebook,
+                    '__factory').protocol.onClose = callback
 
         # Set up our vpython canvas and other internal variables
         self._scene = vpython.canvas(
@@ -88,7 +90,7 @@ class FlightGui:
             self._sphere_parts[planet.name] = self._draw_sphere_segment(planet)
             if planet.name == 'Habitat':
                 # Habitat isn't a sphere, and isn't big enough to need any LOD
-                    del self._sphere_parts[planet.name]
+                del self._sphere_parts[planet.name]
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
@@ -97,14 +99,16 @@ class FlightGui:
 
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
-        if not self._vpython._isnotebook:
-            # We're not running in a jupyter notebook environment. As of
+        if not self._vpython._isnotebook and \
+                self._vpython.__version__ == '7.4.7':
+            # We're not running in a jupyter notebook environment. In
             # vpython 7.4.7, that means an HTTPServer and a WebSocketServer
             # are running, each in their own thread. From comments in
             # vpython.py at about line 370:
             # "The situation with non-notebook use is similar, but the http
             # server is threaded, in order to serve glowcomm.html, jpg texture
             # files, and font files, and the  websocket is also threaded."
+            # This is fixed in the 2019 release of vpython, 7.5.0
 
             # Again, double underscore names will get name mangled unless we
             # bypass name mangling with getattr.

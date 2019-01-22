@@ -177,10 +177,10 @@ def lead_server_loop(args):
                     physics_engine.set_time_acceleration(command.arg)
 
             if not args.no_gui:
+                if gui._vpython.__version__ == '7.4.7' and gui.closed:
+                    break
                 gui.draw(state)
                 gui.rate(common.FRAMERATE)
-                if gui.closed:
-                    break
             else:
                 time.sleep(1 / common.FRAMERATE)
 

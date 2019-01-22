@@ -2,7 +2,7 @@ grpcio
 grpcio-tools
 protobuf
 six
-vpython
+vpython>=7.4.7
 appmode
 numpy
 scipy
