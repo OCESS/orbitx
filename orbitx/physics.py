@@ -20,6 +20,7 @@ default_dtype = np.longdouble
 SOLUTION_CACHE_SIZE = 10
 MAX_TIME_ACCELERATION = 100000
 
+NO_INDEX = -1
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
@@ -28,19 +29,39 @@ log = logging.getLogger()
 # a lowercase single letter, like `x`, is likely a scalar
 # an uppercase single letter, like `X`, is likely a 1D row vector of scalars
 # `y` is either the y position, or a vector of the form [X, Y, DX, DY]. i.e. 2D
-# `y_1d` is the 1D row vector flattened version of the above `y` 2D vector,
-#     which is required by `solve_ivp` inputs and outputs
+# `y_1d` specifically is the 1D row vector flattened version of the above `y`
+#     2D y vector, which is required by `solve_ivp` inputs and outputs
 
-# Note on the np.array family of functions
+# Note on the np.array family of functions:
 # https://stackoverflow.com/a/52103839/1333978
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
 
+# Note on where to add new variables to the simulation:
+#
+# If you're adding something that will never change over the course of the
+# simulation, you should add that variable to the .proto definition of an
+# entity (and it would be best to optionally add it to PhysicsEntity as well).
+# Examples of these kinds of variables are name and mass. Then, when a
+# physical_state is loaded by set_state, these immutable variables will be
+# stored in self._template_physical_state, no extra action needed.
+#
+# If you're adding something that will change over the course of a simulation,
+# you should add that variable to the Y class, which represents the state
+# of mutable variables in the simulation at a certain point in time. For
+# example, position, velocity, fuel, and throttle are all mutable variables
+# that go in the Y class. Look for the string "# PROTO:" for where these
+# kinds of variables should be inserted, since there's some bookkeeping needed
+# to translate these variables from the internal representation (a bunch of
+# continuously-evaluable functions of time that return a numpy.ndarray) to
+# a physical_state that our API users expect.
+
 
 class Y():
     """Wraps a y0 input/output to solve_ivp.
-    y0 = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]. Example usage:
+    y0 = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken].
 
+    Example usage:
     y = Y(physical_state, or y_1d)
     y.X[5] = 32.2
     print(y.Fuel[4])
@@ -53,29 +74,38 @@ class Y():
             self._y_1d = data
         else:
             # PROTO: if you're changing protobufs remember to change here
+            # and also make an accessor for your variable
             assert isinstance(data, protos.PhysicalState)
-            X = np.array([entity.x for entity in data.entities]
-                         ).astype(default_dtype)
-            Y = np.array([entity.y for entity in data.entities]
-                         ).astype(default_dtype)
-            VX = np.array([entity.vx for entity in data.entities]
-                          ).astype(default_dtype)
-            VY = np.array([entity.vy for entity in data.entities]
-                          ).astype(default_dtype)
-            Heading = np.array([entity.heading for entity in data.entities]
-                               ).astype(default_dtype)
-            Spin = np.array([entity.spin for entity in data.entities]
-                            ).astype(default_dtype)
-            Fuel = np.array([entity.fuel for entity in data.entities]
-                            ).astype(default_dtype)
-            Throttle = np.array([entity.throttle for entity in data.entities]
-                                ).astype(default_dtype)
+            X = np.array([entity.x for entity in data.entities])
+            Y = np.array([entity.y for entity in data.entities])
+            VX = np.array([entity.vx for entity in data.entities])
+            VY = np.array([entity.vy for entity in data.entities])
+            Heading = np.array([entity.heading for entity in data.entities])
+            Spin = np.array([entity.spin for entity in data.entities])
+            Fuel = np.array([entity.fuel for entity in data.entities])
+            Throttle = np.array([entity.throttle for entity in data.entities])
+
+            # Internally translate string names to indices, otherwise
+            # our entire y vector will turn into a string vector oh no.
+            # Note this will be converted to floats, not integer indices.
+            AttachedTo = np.array([
+                name_to_index(entity.attached_to, data.entities)
+                for entity in data.entities
+            ])
+
+            Broken = np.array([entity.broken for entity in data.entities])
 
             self._y_1d = np.concatenate(
-                (X, Y, VX, VY, Heading, Spin, Fuel, Throttle), axis=None)
+                (
+                    X, Y, VX, VY, Heading, Spin,
+                    Fuel, Throttle, AttachedTo, Broken
+                ), axis=None).astype(default_dtype)
 
-        # y_1d has 8 components
-        self._n = len(self._y_1d) // 8
+        # y_1d has 10 components
+        self._n = len(self._y_1d) // 10
+
+        assert min(self.AttachedTo) >= NO_INDEX, breakpoint()
+        assert max(self.AttachedTo) < self._n
 
     @property
     def X(self):
@@ -112,6 +142,14 @@ class Y():
     @property
     def Throttle(self):
         return self._y_1d[7 * self._n:8 * self._n]
+
+    @property
+    def AttachedTo(self):
+        return self._y_1d[8 * self._n:9 * self._n]
+
+    @property
+    def Broken(self):
+        return self._y_1d[9 * self._n:10 * self._n]
 
 
 class PEngine(object):
@@ -237,17 +275,24 @@ class PEngine(object):
         protobuf_entity.spin = y.Spin[i]
         protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.throttle = y.Throttle[i]
+        protobuf_entity.attached_to = index_to_name(
+            y.AttachedTo[i], self._template_physical_state.entities)
+        protobuf_entity.broken = bool(int(y.Broken[i]))
         physics_entity = PhysicsEntity(protobuf_entity)
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
         """Inverse of _physics_entity_at, merges a physics_entity into y."""
+        # PROTO: if you're changing protobufs remember to change here
         y.X[i], y.Y[i] = physics_entity.pos
         y.VX[i], y.VY[i] = physics_entity.v
         y.Heading[i] = physics_entity.heading
         y.Spin[i] = physics_entity.spin
         y.Fuel[i] = physics_entity.fuel
         y.Throttle[i] = physics_entity.throttle
+        y.AttachedTo[i] = name_to_index(
+            physics_entity.name, self._template_physical_state.entities)
+        y.Broken[i] = physics_entity.broken
         return y
 
     def set_action(self, *, requested_t=None,
@@ -303,6 +348,8 @@ class PEngine(object):
             entity.ClearField('spin')
             entity.ClearField('fuel')
             entity.ClearField('throttle')
+            entity.ClearField('attached_to')
+            entity.ClearField('broken')
 
         self._restart_simulation(physical_state.timestamp, y0)
 
@@ -350,9 +397,14 @@ class PEngine(object):
         state = protos.PhysicalState()
         state.MergeFrom(self._template_physical_state)
         state.timestamp = t
+        entity_names = [
+            entity.name for entity in self._template_physical_state.entities
+        ]
         # PROTO: if you're changing protobufs remember to change here
-        for x, y, vx, vy, heading, spin, fuel, throttle, entity in zip(
-                y.X, y.Y, y.VX, y.VY, y.Heading, y.Spin, y.Fuel, y.Throttle,
+        for x, y, vx, vy, heading, spin, fuel, throttle, \
+            attached_index, broken, entity in zip(
+                y.X, y.Y, y.VX, y.VY, y.Heading, y.Spin,
+                y.Fuel, y.Throttle, y.AttachedTo, y.Broken,
                 state.entities):
             entity.x = x
             entity.y = y
@@ -362,6 +414,12 @@ class PEngine(object):
             entity.spin = spin
             entity.fuel = fuel
             entity.throttle = throttle
+            # We don't use index_to_name because we're doing a whole list at
+            # once, not just a single translation. So we optimize for that.
+            attached_index = int(attached_index)
+            if attached_index != NO_INDEX:
+                entity.attached_to = entity_names[attached_index]
+            entity.broken = bool(int(broken))
         return state
 
     def get_state(self, requested_t=None):
@@ -404,16 +462,18 @@ class PEngine(object):
 
     def _derive(self, t, y_1d):
         """
-        y_1d = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle]
+        y_1d =
+         [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken]
         returns the derivative of y_1d, i.e.
-        [VX, VY, AX, AY, Spin, Spin change, Fuel consumption, Throttle change]
+        [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0]
+        (zeroed-out fields are changed elsewhere)
         """
         # PROTO: if you're changing protobufs remember to change here
+        # log.debug(f'derive step, {y_1d.shape}: {y_1d}')
         y = Y(y_1d)
         Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
-        spin_change = np.zeros(y._n)
+        zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
-        throttle_change = np.zeros(y._n)
 
         if y.Fuel[self._hab_index] > 0:
             # We have fuel remaining, calculate thrust
@@ -425,9 +485,10 @@ class PEngine(object):
             Ya[self._hab_index] += hab_eng_acc_y
 
         return np.concatenate(
-            (y.VX, y.VY, Xa, Ya,
-                y.Spin, spin_change, fuel_cons, throttle_change),
-            axis=None)
+            (
+                y.VX, y.VY, Xa, Ya, y.Spin, zeros,
+                fuel_cons, zeros, zeros, zeros
+            ), axis=None)
 
     def _generate_new_ode_solutions(self, t, y):
         # An overview of how time is managed:
@@ -463,6 +524,8 @@ class PEngine(object):
                 scipy.spatial.distance.cdist(posns, posns) - self.R)
             # To simplify calculations, an entity's altitude from itself is inf
             np.fill_diagonal(alt_matrix, np.inf)
+            # For each pair of objects that have collisions disabled between
+            # them, also set their altitude to be inf
 
             if return_pair:
                 # Returns the actual pair of indicies instead of a scalar.
@@ -507,7 +570,6 @@ class PEngine(object):
                     self._time_acceleration / 10)
                 if self._time_acceleration < 1:
                     # We can't lower the time acceleration anymore
-                    breakpoint()
                     raise Exception(ivp_out.message)
                 continue
 
@@ -517,7 +579,6 @@ class PEngine(object):
                 # our oldest solution, and the main thread is still asking for
                 # state in the t interval of our oldest solution, take a break
                 # until the main thread has caught up.
-                # breakpoint()
                 self._solutions_cond.wait_for(
                     lambda:
                     len(self._solutions) < SOLUTION_CACHE_SIZE or
@@ -596,3 +657,13 @@ def _grav_acc(X, Y, M):
     Xa = _f_to_a(Xf, M)
     Ya = _f_to_a(Yf, M)
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
+
+
+def name_to_index(name, entities):
+    names = [entity.name for entity in entities]
+    return names.index(name) if name else NO_INDEX
+
+
+def index_to_name(i, entities):
+    i = int(i)
+    return entities[i].name if i != NO_INDEX else ""

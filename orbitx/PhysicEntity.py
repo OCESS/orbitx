@@ -15,7 +15,8 @@ class PhysicsEntity(object):
         self.heading = entity.heading
         self.fuel = entity.fuel
         self.throttle = entity.throttle
-        self.crashed = entity.crashed
+        self.attached_to = entity.attached_to
+        self.broken = entity.broken
         self.artificial = entity.artificial
 
     def as_proto(self):
@@ -31,7 +32,8 @@ class PhysicsEntity(object):
             heading=self.heading,
             fuel=self.fuel,
             throttle=self.throttle,
-            crashed=self.crashed,
+            attached_to=self.attached_to,
+            broken=self.broken,
             artificial=self.artificial
         )
 
