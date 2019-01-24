@@ -89,24 +89,12 @@ class Y():
             # Internally translate string names to indices, otherwise
             # our entire y vector will turn into a string vector oh no.
             # Note this will be converted to floats, not integer indices.
-            #AttachedTo = np.array([
-            #    name_to_index(entity.attached_to, data.entities)
-            #    for entity in data.entities
-            #])
-            AttachedTo=[]
-            Broken=[]
-            for entity in data.entities:
-                if hasattr(entity,"attached_to"):
-                    AttachedTo+=[name_to_index(entity.attached_to)]
-                else:
-                    AttachedTo+=[-1]
-                if hasattr(entity,"broken"):
-                    Broken+=[entity.broken]
-                else:
-                    Broken+=[0]
+            AttachedTo = np.array([
+                name_to_index(entity.attached_to, data.entities)
+                for entity in data.entities
+            ])
 
-
-            #Broken = np.array([entity.broken for entity in data.entities])
+            Broken = np.array([entity.broken for entity in data.entities])
 
             self._y_1d = np.concatenate(
                 (
