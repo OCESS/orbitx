@@ -272,9 +272,6 @@ class FlightGui:
             div_id += 1
         self._scene.caption += "</table>"
 
-        self._scene.append_to_caption(VPYTHON_CSS)
-        self._scene.append_to_caption(VPYTHON_JS)
-
         #self._scene.append_to_caption("Acc: XXX" + "\n")
         #self._scene.append_to_caption("Vcen: XXX" + "\n")
         #self._scene.append_to_caption("Vtan: XXX" + "\n")
@@ -283,6 +280,9 @@ class FlightGui:
         self._scene.append_to_caption(HELP_CHECKBOX)
         self._scene.append_to_caption(" Help text")
         self._scene.append_to_caption(INPUT_CHEATSHEET)
+
+        self._scene.append_to_caption(VPYTHON_CSS)
+        self._scene.append_to_caption(VPYTHON_JS)
 
     # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self):
@@ -544,6 +544,11 @@ function show_hide_help() {
                 document.getElementById("helptext_checkbox").checked
         }
     }
+}
+
+// Keep inputs deselected, so that keyboard input doesn't interfere with them.
+for (var inp of document.querySelectorAll("input,select")) {
+    inp.onchange = function(){this.blur()};
 }
 </script>"""
 
