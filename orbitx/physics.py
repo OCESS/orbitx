@@ -21,6 +21,7 @@ SOLUTION_CACHE_SIZE = 10
 MAX_TIME_ACCELERATION = 100000
 
 NO_INDEX = -1
+NOT_BROKEN = 0
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
@@ -88,12 +89,24 @@ class Y():
             # Internally translate string names to indices, otherwise
             # our entire y vector will turn into a string vector oh no.
             # Note this will be converted to floats, not integer indices.
-            AttachedTo = np.array([
-                name_to_index(entity.attached_to, data.entities)
-                for entity in data.entities
-            ])
+            #AttachedTo = np.array([
+            #    name_to_index(entity.attached_to, data.entities)
+            #    for entity in data.entities
+            #])
+            AttachedTo=[]
+            Broken=[]
+            for entity in data.entities:
+                if hasattr(entity,"attached_to"):
+                    AttachedTo+=[name_to_index(entity.attached_to)]
+                else:
+                    AttachedTo+=[-1]
+                if hasattr(entity,"broken"):
+                    Broken+=[entity.broken]
+                else:
+                    Broken+=[0]
 
-            Broken = np.array([entity.broken for entity in data.entities])
+
+            #Broken = np.array([entity.broken for entity in data.entities])
 
             self._y_1d = np.concatenate(
                 (
@@ -329,6 +342,13 @@ class PEngine(object):
         except ValueError:
             self._hab_index = 0
 
+        try:
+            self._spacestation_index = [
+                entity.name for entity in physical_state.entities
+            ].index('SpaceStation')
+        except ValueError:
+            self._spacestation_index = 0
+        
         y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
@@ -348,8 +368,10 @@ class PEngine(object):
             entity.ClearField('spin')
             entity.ClearField('fuel')
             entity.ClearField('throttle')
-            entity.ClearField('attached_to')
-            entity.ClearField('broken')
+            if hasattr(entity,"attached_to"):
+                entity.ClearField('attached_to')
+            if hasattr(entity,"attached_to"):
+                entity.ClearField('broken')
 
         self._restart_simulation(physical_state.timestamp, y0)
 
@@ -417,9 +439,12 @@ class PEngine(object):
             # We don't use index_to_name because we're doing a whole list at
             # once, not just a single translation. So we optimize for that.
             attached_index = int(attached_index)
+            
+            #Problematic: Assignment not allowed (no field "broken" in protocol message object).
             if attached_index != NO_INDEX:
                 entity.attached_to = entity_names[attached_index]
-            entity.broken = bool(int(broken))
+            if broken != NOT_BROKEN:
+                entity.broken = bool(int(broken))
         return state
 
     def get_state(self, requested_t=None):
