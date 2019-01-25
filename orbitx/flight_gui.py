@@ -347,7 +347,7 @@ class FlightGui:
 
         self._scene.append_to_caption("\n")
         self._vpython.checkbox(
-            bind=self._trail_checkbox_hook, checked=True, text='Trails')
+            bind=self._trail_checkbox_hook, checked=False, text='Trails')
         self._scene.append_to_caption(
             " <span class='helptext'>Graphically intensive</span>")
 
@@ -393,7 +393,7 @@ class FlightGui:
                 pos=self._posn(planet),
                 axis=self._ang_pos(planet.heading),
                 radius=planet.r / 2,
-                make_trail=True,
+                make_trail=False,
                 shininess=0.1
             )
             obj.length = planet.r
@@ -406,7 +406,7 @@ class FlightGui:
                 axis=self._ang_pos(planet.heading),
                 up=self._vpython.vector(0, 0, 1),
                 radius=planet.r,
-                make_trail=True,
+                make_trail=False,
                 shininess=0.1
             )
 
