@@ -55,6 +55,8 @@ class FlightGui:
             width=800,
             height=600,
             center=vpython.vector(0, 0, 0),
+            up=vpython.vector(0, 0, 1),
+            forward=vpython.vector(0.1, 0.1, -1),
             autoscale=True
         )
 
@@ -564,7 +566,7 @@ INPUT_CHEATSHEET = """
         <th>Action</th>
     </tr>
     <tr>
-        <td>Scroll</td>
+        <td>Scroll, or ALT/OPTION-drag</td>
         <td>Zoom View</td>
     </tr>
     <tr>
