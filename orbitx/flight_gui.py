@@ -19,6 +19,7 @@ log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
+DEFAULT_TARGET = 'Moon'
 G = 6.674e-11
 
 
@@ -84,7 +85,11 @@ class FlightGui:
         assert len(physical_state_to_draw.entities) >= 1
         self._last_physical_state = physical_state_to_draw
         self._origin = physical_state_to_draw.entities[0]
-        self._set_origin(DEFAULT_REFERENCE)
+        self._reference = physical_state_to_draw.entities[0]
+        self._target = physical_state_to_draw.entities[0]
+        self._set_origin(DEFAULT_CENTRE)
+        self._set_reference(DEFAULT_REFERENCE)
+        self._set_target(DEFAULT_TARGET)
         self.draw_sphere_segments = False
 
         for planet in physical_state_to_draw.entities:
@@ -134,7 +139,7 @@ class FlightGui:
         return z
 
     def _posn(self, entity):
-        """Provides the vector of the entity position with regard to the origin planet position."""
+        """Translates into the frame."""
         return self._vpython.vector(
             entity.x - self._origin.x,
             entity.y - self._origin.y,
@@ -147,12 +152,26 @@ class FlightGui:
             entity.vy - self._origin.vy,
             0).norm()
 
+    def _set_reference(self, entity_name):
+        try:
+            self._reference = common.find_entity(
+                entity_name, self._last_physical_state)
+        except IndexError:
+            log.error(f'Tried to set non-existent reference "{entity_name}"')
+
+    def _set_target(self, entity_name):
+        try:
+            self._target = common.find_entity(
+                entity_name, self._last_physical_state)
+        except IndexError:
+            log.error(f'Tried to set non-existent target "{entity_name}"')
+
     def _set_origin(self, entity_name):
         """Set origin position for rendering universe and reset the trails.
 
-        Because GPU(Graphics Processing Unit) cannot deal with extreme case of scene center
-        being approximately 1e11 (planets position), origin entity should be reset every time
-        when making a scene.center update.
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
         """
         try:
             self._origin = common.find_entity(
@@ -252,13 +271,13 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext in [
             ("Orbit speed",
-             lambda: f"{self._calc_orb_speed(self._origin):.5e} m/s",
+             lambda: f"{self._calc_orb_speed(self._reference):.5e} m/s",
              "Speed required for circular orbit at current altitude"),
             ("Ref distance",
-             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
+             lambda: f"{self._calc_distance(self._reference.name):.5e} m",
              "Distance between centres of reference and habitat"),
             ("Targ distance",
-             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
+             lambda: f"{self._calc_distance(self._reference.name):.5e} m",
              "Distance between centres of target and habitat"),
             ("Throttle",
              lambda: f"{self._habitat.throttle}%",
@@ -312,7 +331,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=self._recentre_dropdown_hook,
+            bind=self._target_dropdown_hook,
             selected='AYSE',
             caption="Target",
             helptext="For use by NAV mode"
@@ -330,7 +349,7 @@ class FlightGui:
 
         build_menu(
             choices=['deprt ref'],
-            bind=self._recentre_dropdown_hook,
+            bind=self._navmode_dropdown_hook,
             selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
@@ -353,8 +372,10 @@ class FlightGui:
 
     def draw(self, physical_state_to_draw):
         self._last_physical_state = physical_state_to_draw
-        # Have to reset origin every update
+        # Have to reset origin, reference, and target with new positions
         self._set_origin(self._origin.name)
+        self._set_reference(self._reference.name)
+        self._set_target(self._target.name)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
@@ -476,10 +497,17 @@ class FlightGui:
 
     def _recentre_dropdown_hook(self, selection):
         self.recentre_camera(selection.selected)
-
-    def _reference_dropdown_hook(self, selection):
         self._set_origin(selection.selected)
         self._clear_trails()
+
+    def _reference_dropdown_hook(self, selection):
+        self._set_reference(selection.selected)
+
+    def _target_dropdown_hook(self, selection):
+        self._set_target(selection.selected)
+
+    def _navmode_dropdown_hook(self, selection):
+        self._set_navmode(selection.selected)
 
     def _time_acc_dropdown_hook(self, selection):
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
@@ -494,7 +522,12 @@ class FlightGui:
                 sphere.clear_trail()
 
     def recentre_camera(self, planet_name):
-        """Change camera to focus on different object"""
+        """Change camera to focus on different object
+
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
+        """
         try:
             if planet_name == "Sun":
                 self._scene.range = self._spheres["Sun"].radius * 15000
@@ -502,8 +535,12 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 10
 
             self._scene.camera.follow(self._spheres[planet_name])
+            self._origin = common.find_entity(
+                planet_name, self._last_physical_state)
 
         except KeyError:
+            log.error(f'Unrecognized planet to follow: "{planet_name}"')
+        except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
 
     def _ang_pos(self, angle):
