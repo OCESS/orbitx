@@ -276,10 +276,20 @@ class PEngine(object):
         protobuf_entity.spin = y.Spin[i]
         protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.throttle = y.Throttle[i]
-        protobuf_entity.attached_to = index_to_name(
-            y.AttachedTo[i], self._template_physical_state.entities)
-        protobuf_entity.broken = bool(int(y.Broken[i]))
+        
+        ###original code buggy
+        ### Temporary fix with new code
+        
+        #protobuf_entity.attached_to = index_to_name(
+        #    y.AttachedTo[i], self._template_physical_state.entities)
+        #protobuf_entity.broken = bool(int(y.Broken[i]))
         physics_entity = PhysicsEntity(protobuf_entity)
+        physics_entity.attached_to=index_to_name(
+            y.AttachedTo[i], self._template_physical_state.entities)
+        physics_entity.broken=bool(int(y.Broken[i]))
+        #physics_entity.artificial=False
+        if self._hab_index==i or self._spacestation_index==i:
+            physics_entity.artificial=True
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -379,15 +389,31 @@ class PEngine(object):
         v1t = scipy.dot(unit_tang, e1.v)
         v2n = scipy.dot(unit_norm, e2.v)
         v2t = scipy.dot(unit_tang, e2.v)
+        
 
         # Use https://en.wikipedia.org/wiki/Elastic_collision
         # to find the new normal velocities (a 1D collision)
         new_v1n = (v1n * (e1.m - e2.m) + 2 * e2.m * v2n) / (e1.m + e2.m)
         new_v2n = (v2n * (e2.m - e1.m) + 2 * e1.m * v1n) / (e1.m + e2.m)
+        
 
         # Calculate new velocities
         e1.v = new_v1n * unit_norm + v1t * unit_tang
         e2.v = new_v2n * unit_norm + v2t * unit_tang
+        
+        #artificial object landing handle
+        if e1.artificial:
+            self._landing_handle(e1,e2,v1n,v2n)
+            e1.v=np.zeros(e1.v.size)
+        elif e2.artificial:
+            self._landing_handle(e2,e1,v2n,v1n)
+            e2.v=np.zeros(e1.v.size)
+        elif e1.cannot_land:
+            self._landing_handle(e1,e2,v1n,v2n,1)
+        elif e2.cannot_land:
+            self._landing_handle(e2,e1,v2n,v1n,1)
+
+        
 
         return e1, e2
 
@@ -401,6 +427,22 @@ class PEngine(object):
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
+    
+    def _landing_handle(self,E1,E2,V1,V2,cannot_land=0):
+        #if 2 artificial object collide (habitat, spacespation)
+        # or small astroid collision (need deletion), handle later 
+        if E2.artificial:
+            return
+        if E2.cannot_land:
+            return
+        E1.attached_to=E2.name
+        #currently difficult to broke ship and breaking does nothing
+        E1.broken=(abs(V1-V2)>E1.habitat_hull_strength*10)
+        norm=E1.pos-E2.pos
+        #set right heading for furtur takeoff
+        E1.heading=np.arctan2(norm[1],norm[0])
+        # do actual attachment
+
 
     def _state_from_y_1d(self, t, y):
         y = Y(y)
