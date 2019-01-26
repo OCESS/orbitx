@@ -323,6 +323,10 @@ class PEngine(object):
             requested_spin_change=spin_change)
         y0.Throttle[self._hab_index] += throttle_change
 
+        # Bound throttle to [-20, 120] percent
+        y0.Throttle[self._hab_index] = max(-0.2, y0.Throttle[self._hab_index])
+        y0.Throttle[self._hab_index] = min(1.2, y0.Throttle[self._hab_index])
+
         log.info(f'New spin={y0.Spin[self._hab_index]}, '
                  f'new throttle={y0.Throttle[self._hab_index]}')
 

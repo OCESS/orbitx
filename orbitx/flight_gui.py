@@ -564,13 +564,10 @@ class FlightGui:
         new_acc_str = f'{new_acc:,}×'
         if new_acc_str == self._time_acc_menu.selected:
             return
-        log.error(new_acc)
-        log.error(new_acc_str)
         if new_acc_str not in self._time_acc_menu._choices:
             log.error(f'"{new_acc_str}" not a valid time acceleration')
             return
         self._time_acc_menu.selected = new_acc_str
-        log.error(self._time_acc_menu.__dict__)
 
     def recentre_camera(self, planet_name):
         """Change camera to focus on different object
