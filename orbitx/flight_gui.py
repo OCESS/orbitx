@@ -76,7 +76,7 @@ class FlightGui:
 
         self._texture_path = texture_path
         if texture_path is None:
-            # If we're in src/ look for src/../textures/
+            # Look for orbitx/data/textures
             self._texture_path = Path('data', 'textures')
         # stars = str(self._texture_path / 'Stars.jpg')
         # vpython.sphere(radius=9999999999999, texture=stars)
@@ -132,7 +132,8 @@ class FlightGui:
         return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
 
     def _altitude(self, planet_name, planet_name2='Habitat'):
-        """Caculate distance between ref_planet and Habitat"""
+        """Caculate distance between ref_planet and Habitat
+        returns: the number of metres"""
         planet = common.find_entity(planet_name, self._last_physical_state)
         planet2 = common.find_entity(planet_name2, self._last_physical_state)
         return self._vpython.mag(self._vpython.vector(
@@ -427,7 +428,6 @@ class FlightGui:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
-            self._update_sphere_segment(planet)
             if self._show_label:
                 self._update_label(planet)
 
@@ -494,33 +494,6 @@ class FlightGui:
 
         return obj
 
-    def _draw_sphere_segment(self, planet):
-        if not self.draw_sphere_segments:
-            # DEBUG
-            return
-
-        if planet.name == 'Habitat':
-            return None
-        tri_coords = _build_sphere_segment_vertices(
-            planet.r)
-
-        # Tris will be all the triangles in the sphere segment, but start with
-        # a triangle at 0, 0, 0. This will be the centre of the compound object
-        # so we can rotate the compound object around this centre.
-        tris = [self._vpython.triangle(vs=[
-            self._vpython.vertex(pos=self._vpython.vector(1, 0, 0)),
-            self._vpython.vertex(pos=self._vpython.vector(0.5, 0.5, 0)),
-            self._vpython.vertex(pos=self._vpython.vector(0, -0.5, 0))
-        ])]
-
-        for tri in tri_coords:
-            vec_tri = [self._vpython.vertex(pos=self._vpython.vector(*coord))
-                       for coord in tri]
-            tris.append(self._vpython.triangle(vs=vec_tri))
-
-        return self._vpython.compound(
-            tris, pos=self._posn(planet))
-
     def _update_sphere(self, planet):
         sphere = self._spheres[planet.name]
         sphere.pos = self._posn(planet)
@@ -529,15 +502,6 @@ class FlightGui:
             sphere.length = planet.r
             sphere.arrow = self._unit_velocity(planet)
             self._habitat = planet
-
-    def _update_sphere_segment(self, planet):
-        if not self.draw_sphere_segments:
-            # DEBUG
-            return
-        if planet.name == 'Habitat':
-            return
-        sphere_segment = self._sphere_parts[planet.name]
-        sphere_segment.pos = self._posn(planet)
 
     def _update_label(self, planet):
         label = self._labels[planet.name]
@@ -706,61 +670,3 @@ INPUT_CHEATSHEET = """
     </tr>-->
 </table>
 """
-
-
-def _build_sphere_segment_vertices(
-        radius, refine_steps=4, ang_size=np.deg2rad(30)):
-    """Returns a segment of a sphere, which has a specified radius.
-    The return is a list of xyz-tuples, each representing a vertex."""
-    # This code inspired by:
-    # http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
-    # Thanks, Andreas Kahler.
-    # TODO: limit the number of vertices generated to 65536 (the max in a
-    # vpython compound object).
-
-    # We set the 'middle' of the surface we're constructing to be (0, 0, r).
-    # Think of this as a point on the surface of the sphere centred on (0,0,0)
-    # with radius r.
-    # Then, we construct four equilateral triangles that will all meet at
-    # this point. Each triangle is ang_size degrees away from the 'middle'.
-
-    # The values of 100 are placeholders, and get replaced by cos(ang_size) * r
-    tris = np.array([
-        ((0, 1, 100), (1, 0, 100), (0, 0, 100)),
-        ((1, 0, 100), (0, -1, 100), (0, 0, 100)),
-        ((0, -1, 100), (-1, 0, 100), (0, 0, 100)),
-        ((-1, 0, 100), (0, 1, 100), (0, 0, 100))
-    ])
-
-    # Set the z of each xyz-tuple to be radius, and everything else to be
-    # the coordinates on the radius-sphere times -1, 0, or 1.
-    tris = np.where(
-        [True, True, False],
-        radius * np.sin(ang_size) * tris,
-        radius * np.cos(ang_size))
-
-    def middle_point(left, right):
-        # Find the midpoint between the xyz-tuples left and right, but also
-        # on the surface of a sphere (so not just a simple average).
-        midpoint = (left + right) / 2
-        midpoint_radial_dist = np.linalg.norm(midpoint)
-        return radius * midpoint / midpoint_radial_dist
-
-    for _ in range(0, refine_steps):
-        new_tris = np.ndarray(shape=(0, 3, 3))
-        for tri in tris:
-            # A tri is a 3-tuple of xyz-tuples.
-            a = middle_point(tri[0], tri[1])
-            b = middle_point(tri[1], tri[2])
-            c = middle_point(tri[2], tri[0])
-
-            # Turn one triangle into a triforce projected onto a sphere.
-            new_tris = np.append(new_tris, [
-                (tri[0], a, c),
-                (tri[1], b, a),
-                (tri[2], c, b),
-                (a, b, c)  # The centre triangle of the triforce
-            ], axis=0)
-        tris = new_tris
-
-    return tris
