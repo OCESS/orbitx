@@ -193,16 +193,8 @@ class PEngine(object):
 
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
-        requested_t = self._simtime(requested_t)
-
-        time_acceleration = self._bound_time_acceleration(time_acceleration)
-        if time_acceleration is None:
-            return
-
-        y0 = Y(self.get_state(requested_t))
-        self._time_acceleration = time_acceleration
-
-        self._restart_simulation(requested_t, y0)
+        self.handle_command(protos.Command(
+            ident=protos.Command.TIME_ACC_SET, arg=time_acceleration))
 
     def _bound_time_acceleration(self, time_acceleration):
         if time_acceleration <= 0:
@@ -306,32 +298,34 @@ class PEngine(object):
         y.Broken[i] = physics_entity.broken
         return y
 
-    def set_action(self, *, requested_t=None,
-                   throttle_change=0, spin_change=0):
+    def handle_command(self, command, requested_t=None):
         """Interface to set habitat controls.
 
         Use an argument to change habitat throttle or spinning, and simulation
         will restart with this new information."""
-        if throttle_change == 0 and spin_change == 0:
-            # If no controls are changed, just leave early
-            return
         requested_t = self._simtime(requested_t)
-
         y0 = Y(self.get_state(requested_t))
+        log.info(f'Got command: {command}')
 
-        y0.Spin[self._hab_index] += Habitat.spin_change(
-            requested_spin_change=spin_change)
-        y0.Throttle[self._hab_index] += throttle_change
+        # Make sure we've slowed down, stuff is about to happen.
+        self._time_acceleration = common.DEFAULT_TIME_ACC
+
+        if command.ident == protos.Command.HAB_SPIN_CHANGE:
+            y0.Spin[self._hab_index] += Habitat.spin_change(
+                requested_spin_change=command.arg)
+        elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
+            y0.Throttle[self._hab_index] += command.arg
+        elif command.ident == protos.Command.HAB_THROTTLE_SET:
+            y0.Throttle[self._hab_index] = command.arg
+        elif command.ident == protos.Command.TIME_ACC_SET:
+            time_acceleration = self._bound_time_acceleration(command.arg)
+            if time_acceleration is None:
+                return
+            self._time_acceleration = time_acceleration
 
         # Bound throttle to [-20, 120] percent
         y0.Throttle[self._hab_index] = max(-0.2, y0.Throttle[self._hab_index])
         y0.Throttle[self._hab_index] = min(1.2, y0.Throttle[self._hab_index])
-
-        log.info(f'New spin={y0.Spin[self._hab_index]}, '
-                 f'new throttle={y0.Throttle[self._hab_index]}')
-
-        # Make sure we've slowed down, stuff is about to happen.
-        self._time_acceleration = common.DEFAULT_TIME_ACC
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)

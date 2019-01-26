@@ -72,7 +72,6 @@ class FlightGui:
         self._scene.bind('click', self._handle_click)
 
         self._spheres = {}
-        self._sphere_parts = {}
         self._labels = {}
 
         self._texture_path = texture_path
@@ -90,14 +89,9 @@ class FlightGui:
         self._set_origin(DEFAULT_CENTRE)
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
-        self.draw_sphere_segments = False
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
-            self._sphere_parts[planet.name] = self._draw_sphere_segment(planet)
-            if planet.name == 'Habitat':
-                # Habitat isn't a sphere, and isn't big enough to need any LOD
-                del self._sphere_parts[planet.name]
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
@@ -241,6 +235,22 @@ class FlightGui:
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
                 arg=-0.01))
+        elif k == 'W':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_CHANGE,
+                arg=0.001))
+        elif k == 'S':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_CHANGE,
+                arg=-0.001))
+        elif k == '\n':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_SET,
+                arg=1.00))
+        elif k == 'backspace':
+            self._commands.append(protos.Command(
+                ident=protos.Command.HAB_THROTTLE_SET,
+                arg=0.00))
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -551,7 +561,7 @@ class FlightGui:
     def _time_acc_dropdown_hook(self, selection):
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
         self._commands.append(protos.Command(
-            ident=protos.Command.TIME_ACC_CHANGE,
+            ident=protos.Command.TIME_ACC_SET,
             arg=time_acc))
 
     def _trail_checkbox_hook(self, selection):
@@ -671,7 +681,15 @@ INPUT_CHEATSHEET = """
     </tr>
     <tr>
         <td>W/S</td>
-        <td>Throttle Up/Down</td>
+        <td>Throttle Up/Down (press shift for fine control)</td>
+    </tr>
+    <tr>
+        <td>Enter</td>
+        <td>Set engines to 100%</td>
+    </tr>
+    <tr>
+        <td>Backspace</td>
+        <td>Set engines to 0%</td>
     </tr>
     <tr>
         <td>A/D</td>

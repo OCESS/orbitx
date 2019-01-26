@@ -169,13 +169,10 @@ def lead_server_loop(args):
             # If we have any commands, process them so the simthread has as
             # much time as possible to regenerate solutions before next update
             for command in user_commands:
-                if command.ident == protos.Command.HAB_SPIN_CHANGE:
-                    physics_engine.set_action(spin_change=command.arg)
-                elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
-                    physics_engine.set_action(throttle_change=command.arg)
-                elif command.ident == protos.Command.TIME_ACC_CHANGE:
-                    physics_engine.set_time_acceleration(command.arg)
-            gui.notify_time_acc_change(physics_engine._time_acceleration)
+                if command.ident != protos.Command.NOOP:
+                    physics_engine.handle_command(command)
+                    gui.notify_time_acc_change(
+                        physics_engine._time_acceleration)
 
             if not args.no_gui:
                 if gui._vpython.__version__ == '7.4.7' and gui.closed:
