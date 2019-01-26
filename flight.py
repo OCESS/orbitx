@@ -175,6 +175,7 @@ def lead_server_loop(args):
                     physics_engine.set_action(throttle_change=command.arg)
                 elif command.ident == protos.Command.TIME_ACC_CHANGE:
                     physics_engine.set_time_acceleration(command.arg)
+            gui.notify_time_acc_change(physics_engine._time_acceleration)
 
             if not args.no_gui:
                 if gui._vpython.__version__ == '7.4.7' and gui.closed:

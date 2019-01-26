@@ -348,7 +348,7 @@ class FlightGui:
 
         def build_menu(*, choices=None, bind=None,
                        selected=None, caption=None, helptext=None):
-            self._vpython.menu(
+            menu = self._vpython.menu(
                 choices=choices,
                 pos=self._scene.caption_anchor,
                 bind=bind,
@@ -357,6 +357,7 @@ class FlightGui:
             self._scene.append_to_caption(
                 f"<span class='helptext'>{helptext}</span>")
             self._scene.append_to_caption("\n")
+            return menu
 
         build_menu(
             choices=list(self._spheres),
@@ -391,7 +392,7 @@ class FlightGui:
             helptext="Automatically points habitat"
         )
 
-        build_menu(
+        self._time_acc_menu = build_menu(
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
             bind=self._time_acc_dropdown_hook,
@@ -558,6 +559,18 @@ class FlightGui:
             sphere.make_trail = selection.checked
             if not selection.checked:
                 sphere.clear_trail()
+
+    def notify_time_acc_change(self, new_acc):
+        new_acc_str = f'{new_acc:,}×'
+        if new_acc_str == self._time_acc_menu.selected:
+            return
+        log.error(new_acc)
+        log.error(new_acc_str)
+        if new_acc_str not in self._time_acc_menu._choices:
+            log.error(f'"{new_acc_str}" not a valid time acceleration')
+            return
+        self._time_acc_menu.selected = new_acc_str
+        log.error(self._time_acc_menu.__dict__)
 
     def recentre_camera(self, planet_name):
         """Change camera to focus on different object
