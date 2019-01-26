@@ -43,8 +43,9 @@ class PhysicsEntity(object):
             fuel=self.fuel,
             throttle=self.throttle,
             attached_to=self.attached_to,
-            broken=self.broken,
-            artificial=self.artificial
+            # I don't know if adding bool() is the cleanest solution
+            broken=bool(self.broken),
+            artificial=bool(self.artificial)
         )
 
 

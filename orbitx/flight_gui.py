@@ -136,7 +136,7 @@ class FlightGui:
             planet.x - planet2.x,
             planet.y - planet2.y,
             0
-        ))
+        )) - planet.r - planet2.r
 
     def _speed(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat"""
