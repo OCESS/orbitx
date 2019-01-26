@@ -128,28 +128,38 @@ class FlightGui:
         Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
         return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
 
-    def _calc_distance(self, planet_name, planet_name2='Habitat'):
+    def _altitude(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat"""
+        planet = common.find_entity(planet_name, self._last_physical_state)
+        planet2 = common.find_entity(planet_name2, self._last_physical_state)
+        return self._vpython.mag(self._vpython.vector(
+            planet.x - planet2.x,
+            planet.y - planet2.y,
+            0
+        ))
 
-        planet = self._spheres[planet_name]
-        planet2 = self._spheres[planet_name2]
-        x = planet.pos.x - planet2.pos.x
-        y = planet.pos.y - planet2.pos.y
-        z = np.math.sqrt(((x * x) + (y * y)))
-        return z
+    def _speed(self, planet_name, planet_name2='Habitat'):
+        """Caculate distance between ref_planet and Habitat"""
+        planet = common.find_entity(planet_name, self._last_physical_state)
+        planet2 = common.find_entity(planet_name2, self._last_physical_state)
+        return self._vpython.mag(self._vpython.vector(
+            planet.vx - planet2.vx,
+            planet.vy - planet2.vy,
+            0
+        ))
 
     def _posn(self, entity):
-        """Translates into the frame."""
+        """Translates into the frame of reference of the origin."""
         return self._vpython.vector(
             entity.x - self._origin.x,
             entity.y - self._origin.y,
             0)
 
     def _unit_velocity(self, entity):
-        """Provides entity velocity relative to origin."""
+        """Provides entity velocity relative to reference."""
         return self._vpython.vector(
-            entity.vx - self._origin.vx,
-            entity.vy - self._origin.vy,
+            entity.vx - self._reference.vx,
+            entity.vy - self._reference.vy,
             0).norm()
 
     def _set_reference(self, entity_name):
@@ -206,22 +216,22 @@ class FlightGui:
             self._show_hide_label()
         elif k == 'p':
             self._pause = not self._pause
-        elif k == 'q':
+        elif k == 'a':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
                 arg=np.radians(10)))
-        elif k == 'e':
+        elif k == 'd':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
                 arg=-np.radians(10)))
         elif k == 'w':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=1))
+                arg=0.01))
         elif k == 's':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=-1))
+                arg=-0.01))
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -269,26 +279,44 @@ class FlightGui:
         self._scene.caption += "<table>\n"
         self._wtexts = []
         div_id = 1
-        for caption, text_gen_func, helptext in [
+        for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{self._calc_orb_speed(self._reference):.5e} m/s",
-             "Speed required for circular orbit at current altitude"),
-            ("Ref distance",
-             lambda: f"{self._calc_distance(self._reference.name):.5e} m",
-             "Distance between centres of reference and habitat"),
-            ("Targ distance",
-             lambda: f"{self._calc_distance(self._reference.name):.5e} m",
-             "Distance between centres of target and habitat"),
+             lambda: f"{self._calc_orb_speed(self._reference):,.7g} m/s",
+             "Speed required for circular orbit at current altitude",
+             False),
+            ("Ref alt",
+             lambda: f"{self._altitude(self._reference.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Ref speed",
+             lambda: f"{self._speed(self._reference.name):,.7g} m/s",
+             "Speed of habitat above reference surface",
+             False),
+            ("Targ alt",
+             lambda: f"{self._altitude(self._target.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Targ speed",
+             lambda: f"{self._speed(self._target.name):,.7g} m/s",
+             "Altitude of habitat above reference surface",
+             False),
             ("Throttle",
-             lambda: f"{self._habitat.throttle}%",
-             "Percentage of habitat's maximum rated engines")
+             lambda: f"{self._habitat.throttle:.1%}",
+             "Percentage of habitat's maximum rated engines",
+             True)
         ]:
             self._wtexts.append(self._vpython.wtext(text=text_gen_func()))
             self._wtexts[-1].text_func = text_gen_func
             self._scene.caption += f"""<tr>
-                <td>{caption}</td>
-                <td><div id="{div_id}">{self._wtexts[-1].text}</div></td>
-                <td class="helptext">{helptext}</td>
+                <td {"class='newsection'" if new_section else ""}>
+                    {caption}
+                </td>
+                <td class="num{" newsection" if new_section else ""}">
+                    <div id="{div_id}">{self._wtexts[-1].text}</div>
+                </td>
+                <td class="helptext{" newsection" if new_section else ""}">
+                    {helptext}
+                </td>
                 </tr>\n"""
             div_id += 1
         self._scene.caption += "</table>"
@@ -331,20 +359,19 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=self._target_dropdown_hook,
-            selected='AYSE',
-            caption="Target",
-            helptext="For use by NAV mode"
-        )
-
-        build_menu(
-            choices=list(self._spheres),
             bind=self._reference_dropdown_hook,
             selected=DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
-                "Take position, velocity relative to this. "
-                "Visual glitches when far from centre.")
+                "Take position, velocity relative to this.")
+        )
+
+        build_menu(
+            choices=list(self._spheres),
+            bind=self._target_dropdown_hook,
+            selected=DEFAULT_TARGET,
+            caption="Target",
+            helptext="For use by NAV mode"
         )
 
         build_menu(
@@ -552,8 +579,19 @@ class FlightGui:
 
 
 VPYTHON_CSS = """<style>
+table {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
 th {
     text-align: left;
+}
+.newsection {
+    padding-top: 1em;
+}
+.num {
+    font-family: monospace;
+    font-weight: bold;
 }
 select {
     width: 100px;
@@ -615,7 +653,7 @@ INPUT_CHEATSHEET = """
         <td>Throttle Up/Down</td>
     </tr>
     <tr>
-        <td>Q/E</td>
+        <td>A/D</td>
         <td>Rotate Habitat</td>
     </tr>
     <tr>
