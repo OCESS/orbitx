@@ -19,6 +19,7 @@ log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
+DEFAULT_TARGET = 'Moon'
 G = 6.674e-11
 
 
@@ -55,6 +56,8 @@ class FlightGui:
             width=800,
             height=600,
             center=vpython.vector(0, 0, 0),
+            up=vpython.vector(0, 0, 1),
+            forward=vpython.vector(0.1, 0.1, -1),
             autoscale=True
         )
 
@@ -82,7 +85,11 @@ class FlightGui:
         assert len(physical_state_to_draw.entities) >= 1
         self._last_physical_state = physical_state_to_draw
         self._origin = physical_state_to_draw.entities[0]
-        self._set_origin(DEFAULT_REFERENCE)
+        self._reference = physical_state_to_draw.entities[0]
+        self._target = physical_state_to_draw.entities[0]
+        self._set_origin(DEFAULT_CENTRE)
+        self._set_reference(DEFAULT_REFERENCE)
+        self._set_target(DEFAULT_TARGET)
         self.draw_sphere_segments = False
 
         for planet in physical_state_to_draw.entities:
@@ -130,36 +137,60 @@ class FlightGui:
         Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
         return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
 
-    def _calc_distance(self, planet_name, planet_name2='Habitat'):
+    def _altitude(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat"""
+        planet = common.find_entity(planet_name, self._last_physical_state)
+        planet2 = common.find_entity(planet_name2, self._last_physical_state)
+        return self._vpython.mag(self._vpython.vector(
+            planet.x - planet2.x,
+            planet.y - planet2.y,
+            0
+        ))
 
-        planet = self._spheres[planet_name]
-        planet2 = self._spheres[planet_name2]
-        x = planet.pos.x - planet2.pos.x
-        y = planet.pos.y - planet2.pos.y
-        z = np.math.sqrt(((x * x) + (y * y)))
-        return z
+    def _speed(self, planet_name, planet_name2='Habitat'):
+        """Caculate distance between ref_planet and Habitat"""
+        planet = common.find_entity(planet_name, self._last_physical_state)
+        planet2 = common.find_entity(planet_name2, self._last_physical_state)
+        return self._vpython.mag(self._vpython.vector(
+            planet.vx - planet2.vx,
+            planet.vy - planet2.vy,
+            0
+        ))
 
     def _posn(self, entity):
-        """Provides the vector of the entity position with regard to the origin planet position."""
+        """Translates into the frame of reference of the origin."""
         return self._vpython.vector(
             entity.x - self._origin.x,
             entity.y - self._origin.y,
             0)
 
     def _unit_velocity(self, entity):
-        """Provides entity velocity relative to origin."""
+        """Provides entity velocity relative to reference."""
         return self._vpython.vector(
-            entity.vx - self._origin.vx,
-            entity.vy - self._origin.vy,
+            entity.vx - self._reference.vx,
+            entity.vy - self._reference.vy,
             0).norm()
+
+    def _set_reference(self, entity_name):
+        try:
+            self._reference = common.find_entity(
+                entity_name, self._last_physical_state)
+        except IndexError:
+            log.error(f'Tried to set non-existent reference "{entity_name}"')
+
+    def _set_target(self, entity_name):
+        try:
+            self._target = common.find_entity(
+                entity_name, self._last_physical_state)
+        except IndexError:
+            log.error(f'Tried to set non-existent target "{entity_name}"')
 
     def _set_origin(self, entity_name):
         """Set origin position for rendering universe and reset the trails.
 
-        Because GPU(Graphics Processing Unit) cannot deal with extreme case of scene center
-        being approximately 1e11 (planets position), origin entity should be reset every time
-        when making a scene.center update.
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
         """
         try:
             self._origin = common.find_entity(
@@ -194,22 +225,22 @@ class FlightGui:
             self._show_hide_label()
         elif k == 'p':
             self._pause = not self._pause
-        elif k == 'q':
+        elif k == 'a':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
                 arg=np.radians(10)))
-        elif k == 'e':
+        elif k == 'd':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
                 arg=-np.radians(10)))
         elif k == 'w':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=1))
+                arg=0.01))
         elif k == 's':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=-1))
+                arg=-0.01))
 
         # elif (k == 'e'):
         #    self._scene.center = self._spheres['Earth'].pos
@@ -257,26 +288,44 @@ class FlightGui:
         self._scene.caption += "<table>\n"
         self._wtexts = []
         div_id = 1
-        for caption, text_gen_func, helptext in [
+        for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{self._calc_orb_speed(self._origin):.5e} m/s",
-             "Speed required for circular orbit at current altitude"),
-            ("Ref distance",
-             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
-             "Distance between centres of reference and habitat"),
-            ("Targ distance",
-             lambda: f"{self._calc_distance(self._origin.name):.5e} m",
-             "Distance between centres of target and habitat"),
+             lambda: f"{self._calc_orb_speed(self._reference):,.7g} m/s",
+             "Speed required for circular orbit at current altitude",
+             False),
+            ("Ref alt",
+             lambda: f"{self._altitude(self._reference.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Ref speed",
+             lambda: f"{self._speed(self._reference.name):,.7g} m/s",
+             "Speed of habitat above reference surface",
+             False),
+            ("Targ alt",
+             lambda: f"{self._altitude(self._target.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Targ speed",
+             lambda: f"{self._speed(self._target.name):,.7g} m/s",
+             "Altitude of habitat above reference surface",
+             False),
             ("Throttle",
-             lambda: f"{self._habitat.throttle}%",
-             "Percentage of habitat's maximum rated engines")
+             lambda: f"{self._habitat.throttle:.1%}",
+             "Percentage of habitat's maximum rated engines",
+             True)
         ]:
             self._wtexts.append(self._vpython.wtext(text=text_gen_func()))
             self._wtexts[-1].text_func = text_gen_func
             self._scene.caption += f"""<tr>
-                <td>{caption}</td>
-                <td><div id="{div_id}">{self._wtexts[-1].text}</div></td>
-                <td class="helptext">{helptext}</td>
+                <td {"class='newsection'" if new_section else ""}>
+                    {caption}
+                </td>
+                <td class="num{" newsection" if new_section else ""}">
+                    <div id="{div_id}">{self._wtexts[-1].text}</div>
+                </td>
+                <td class="helptext{" newsection" if new_section else ""}">
+                    {helptext}
+                </td>
                 </tr>\n"""
             div_id += 1
         self._scene.caption += "</table>"
@@ -319,25 +368,24 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=self._recentre_dropdown_hook,
-            selected='AYSE',
+            bind=self._reference_dropdown_hook,
+            selected=DEFAULT_REFERENCE,
+            caption="Reference",
+            helptext=(
+                "Take position, velocity relative to this.")
+        )
+
+        build_menu(
+            choices=list(self._spheres),
+            bind=self._target_dropdown_hook,
+            selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
         )
 
         build_menu(
-            choices=list(self._spheres),
-            bind=self._reference_dropdown_hook,
-            selected=DEFAULT_REFERENCE,
-            caption="Reference",
-            helptext=(
-                "Take position, velocity relative to this. "
-                "Visual glitches when far from centre.")
-        )
-
-        build_menu(
             choices=['deprt ref'],
-            bind=self._recentre_dropdown_hook,
+            bind=self._navmode_dropdown_hook,
             selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
@@ -360,8 +408,10 @@ class FlightGui:
 
     def draw(self, physical_state_to_draw):
         self._last_physical_state = physical_state_to_draw
-        # Have to reset origin every update
+        # Have to reset origin, reference, and target with new positions
         self._set_origin(self._origin.name)
+        self._set_reference(self._reference.name)
+        self._set_target(self._target.name)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
@@ -485,10 +535,17 @@ class FlightGui:
 
     def _recentre_dropdown_hook(self, selection):
         self.recentre_camera(selection.selected)
-
-    def _reference_dropdown_hook(self, selection):
         self._set_origin(selection.selected)
         self._clear_trails()
+
+    def _reference_dropdown_hook(self, selection):
+        self._set_reference(selection.selected)
+
+    def _target_dropdown_hook(self, selection):
+        self._set_target(selection.selected)
+
+    def _navmode_dropdown_hook(self, selection):
+        self._set_navmode(selection.selected)
 
     def _time_acc_dropdown_hook(self, selection):
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
@@ -503,7 +560,12 @@ class FlightGui:
                 sphere.clear_trail()
 
     def recentre_camera(self, planet_name):
-        """Change camera to focus on different object"""
+        """Change camera to focus on different object
+
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
+        """
         try:
             if planet_name == "Sun":
                 self._scene.range = self._spheres["Sun"].radius * 15000
@@ -511,8 +573,12 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 10
 
             self._scene.camera.follow(self._spheres[planet_name])
+            self._origin = common.find_entity(
+                planet_name, self._last_physical_state)
 
         except KeyError:
+            log.error(f'Unrecognized planet to follow: "{planet_name}"')
+        except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
 
     def _ang_pos(self, angle):
@@ -524,8 +590,19 @@ class FlightGui:
 
 
 VPYTHON_CSS = """<style>
+table {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
 th {
     text-align: left;
+}
+.newsection {
+    padding-top: 1em;
+}
+.num {
+    font-family: monospace;
+    font-weight: bold;
 }
 select {
     width: 100px;
@@ -575,7 +652,7 @@ INPUT_CHEATSHEET = """
         <th>Action</th>
     </tr>
     <tr>
-        <td>Scroll</td>
+        <td>Scroll, or ALT/OPTION-drag</td>
         <td>Zoom View</td>
     </tr>
     <tr>
@@ -587,7 +664,7 @@ INPUT_CHEATSHEET = """
         <td>Throttle Up/Down</td>
     </tr>
     <tr>
-        <td>Q/E</td>
+        <td>A/D</td>
         <td>Rotate Habitat</td>
     </tr>
     <tr>
