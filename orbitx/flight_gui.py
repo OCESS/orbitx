@@ -101,8 +101,17 @@ class FlightGui:
             self._labels[planet.name] = self._draw_labels(planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
+                self._scene.range = 696000000.0 * 15000
         self._scene.autoscale = False
         self._set_caption()
+
+        # Add an animation when launching the program
+        #   to describe the solar system and the current location
+        while self._scene.range > 600000:
+            self._vpython.rate(100)
+            self._scene.range = self._scene.range * 0.98
+        self.recentre_camera(DEFAULT_CENTRE)
+
 
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
@@ -442,6 +451,7 @@ class FlightGui:
                 axis=self._ang_pos(planet.heading),
                 radius=planet.r / 2,
                 make_trail=False,
+                retain=100,
                 shininess=0.1
             )
             obj.length = planet.r
@@ -455,6 +465,7 @@ class FlightGui:
                 up=self._vpython.vector(0, 0, 1),
                 radius=planet.r,
                 make_trail=False,
+                retain=100,
                 shininess=0.1
             )
 
