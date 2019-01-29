@@ -1,6 +1,6 @@
 # OrbitX
 
-![solar-system](https://user-images.githubusercontent.com/1498589/48948260-e1f90800-ef01-11e8-9835-f5f472604720.PNG)
+![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](https://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
 
 This project re-implements the central server and astronaut flight software for
 Dr. Magwood's
@@ -110,6 +110,8 @@ data/saves/tests/: Save files for testing, used by orbitx/test.py
 ![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](https://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
 
 ![The Habitat, braking from a circular orbit and falling to Earth and bouncing a couple times](https://user-images.githubusercontent.com/1498589/48987874-5d201100-f0f0-11e8-868c-40ce756b6548.png)
+
+![A representation of the new habitat design](https://user-images.githubusercontent.com/1498589/51934439-96674c80-23d1-11e9-98a0-9a0213eef2ea.png)
 
 ## Controls
 
