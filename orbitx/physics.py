@@ -188,6 +188,7 @@ class PEngine(object):
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
         self.actions = {}  # last actions
+        self.collision_heading = {} # collision heading angle at the collision moment
 
         self.set_state(physical_state)
 
@@ -293,8 +294,10 @@ class PEngine(object):
         y.Spin[i] = physics_entity.spin
         y.Fuel[i] = physics_entity.fuel
         y.Throttle[i] = physics_entity.throttle
+        #y.AttachedTo[i] = name_to_index(
+        #    physics_entity.name, self._template_physical_state.entities)
         y.AttachedTo[i] = name_to_index(
-            physics_entity.name, self._template_physical_state.entities)
+            physics_entity.attached_to, self._template_physical_state.entities)
         y.Broken[i] = physics_entity.broken
         return y
 
@@ -310,13 +313,30 @@ class PEngine(object):
         # Make sure we've slowed down, stuff is about to happen.
         self._time_acceleration = common.DEFAULT_TIME_ACC
 
+        #temp change before implementatin of spacestation
+        control_craft_index=self._hab_index
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
-            y0.Spin[self._hab_index] += Habitat.spin_change(
-                requested_spin_change=command.arg)
+            if y0.AttachedTo[control_craft_index]==-1:
+                y0.Spin[control_craft_index] += Habitat.spin_change(
+                    requested_spin_change=command.arg)
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
-            y0.Throttle[self._hab_index] += command.arg
+            #reset all attachment if ship leaves
+            if y0.AttachedTo[control_craft_index]!=-1:
+                if command.arg>0:
+                    y0.Throttle[control_craft_index] += command.arg
+                    y0.AttachedTo[control_craft_index]=-1
+            else:
+                y0.Throttle[control_craft_index] += command.arg
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
-            y0.Throttle[self._hab_index] = command.arg
+            #reset all attachment if ship leaves
+            if y0.AttachedTo[control_craft_index]!=-1:
+                if command.arg>0:
+                    y0.Throttle[control_craft_index] = command.arg
+                    y0.AttachedTo[control_craft_index]=-1
+            else:
+                y0.Throttle[control_craft_index] = command.arg
+            
+            
         elif command.ident == protos.Command.TIME_ACC_SET:
             time_acceleration = self._bound_time_acceleration(command.arg)
             if time_acceleration is None:
@@ -324,8 +344,8 @@ class PEngine(object):
             self._time_acceleration = time_acceleration
 
         # Bound throttle to [-20, 120] percent
-        y0.Throttle[self._hab_index] = max(-0.2, y0.Throttle[self._hab_index])
-        y0.Throttle[self._hab_index] = min(1.2, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = max(-0.2, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = min(1.2, y0.Throttle[self._hab_index])
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -439,6 +459,8 @@ class PEngine(object):
         norm=E1.pos-E2.pos
         #set right heading for furtur takeoff
         E1.heading=np.arctan2(norm[1],norm[0])
+        E1.throttle=0
+        self.collision_heading[E1.name]=E2.heading
         # do actual attachment
 
 
