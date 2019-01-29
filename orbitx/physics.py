@@ -282,7 +282,8 @@ class PEngine(object):
         physics_entity.broken=bool(int(y.Broken[i]))
         #physics_entity.artificial=False
         if self._hab_index==i or self._spacestation_index==i:
-            physics_entity.artificial=True
+            #physics_entity.artificial=True
+            pass
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
