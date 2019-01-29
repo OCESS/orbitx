@@ -55,7 +55,7 @@ class FlightGui:
             align='right',
             width=800,
             height=600,
-            center=vpython.vector(0, 0, 0),
+            center=vpython.vector(0, 500, 0),
             up=vpython.vector(0, 0, 1),
             forward=vpython.vector(0.1, 0.1, -1),
             autoscale=True
@@ -456,19 +456,43 @@ class FlightGui:
         texture = self._texture_path / (planet.name + '.jpg')
 
         if planet.name == "Habitat":
-            # Todo: habitat object should be seperately defined from planets
-            obj = self._vpython.cone(
-                pos=self._posn(planet),
-                axis=self._ang_pos(planet.heading),
-                radius=planet.r / 2,
-                make_trail=False,
-                retain=100,
-                shininess=0.1
-            )
+            # TODO: 1) the object show up when start up: SOLVED by change camera initial centre
+            # 2) make_trail breaks the program: either remove trail option for habitat or revert to cone
+
+            body = self._vpython.cylinder(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(-5, 0, 0), radius=7)
+            head = self._vpython.cone(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(3, 0, 0), radius=7)
+            wing = self._vpython.triangle(
+                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
+                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 30, 0)),
+                v2=self._vpython.vertex(pos=self._vpython.vector(-5, -30, 0)))
+            wing2 = self._vpython.triangle(
+                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
+                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
+                v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
+            obj = self._vpython.compound([body, head, wing, wing2])
+            obj.texture = self._vpython.textures.metal
+            obj.pos = self._posn(planet)
+            obj.axis=self._ang_pos(planet.heading)
+            obj.radius=planet.r/2
+            #obj.make_trail=True
+            #obj.retain=100
+            #obj.shininess=0.1
             obj.length = planet.r
+
+
+            #obj = self._vpython.cone(
+            #    pos=self._posn(planet),
+            #    axis=self._ang_pos(planet.heading),
+            #    radius=planet.r / 2,
+            #    make_trail=False,
+            #    retain=100,
+            #    shininess=0.1
+            #)
+            #obj.length = planet.r
+
             obj.arrow = self._unit_velocity(planet)
             self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r * 1.5)
+            self._vpython.attach_arrow(obj, 'arrow')#scale=planet.r * 1.5)
         else:
             obj = self._vpython.sphere(
                 pos=self._posn(planet),
@@ -499,7 +523,6 @@ class FlightGui:
         sphere.pos = self._posn(planet)
         sphere.axis = self._ang_pos(planet.heading)
         if planet.name == 'Habitat':
-            sphere.length = planet.r
             sphere.arrow = self._unit_velocity(planet)
             self._habitat = planet
 
@@ -554,7 +577,7 @@ class FlightGui:
             if planet_name == "Sun":
                 self._scene.range = self._spheres["Sun"].radius * 15000
             else:
-                self._scene.range = self._spheres[planet_name].radius * 10
+                self._scene.range = self._spheres[planet_name].radius * 2
 
             self._scene.camera.follow(self._spheres[planet_name])
             self._origin = common.find_entity(
