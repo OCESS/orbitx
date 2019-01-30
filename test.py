@@ -5,6 +5,8 @@ import unittest
 
 import numpy as np
 
+import orbitx.orbitx_pb2 as protos
+
 import orbitx.common as common
 import orbitx.physics as physics
 from orbitx.PhysicEntity import Habitat
@@ -20,7 +22,6 @@ class PhysicsEngine:
     def __init__(self, savefile):
         self.physics_engine = physics.PEngine(
             common.load_savefile(common.savefile(savefile)))
-        self.physics_engine.set_time_acceleration(1, requested_t=0)
 
     def __enter__(self):
         return self.physics_engine
@@ -106,9 +107,15 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('tests/habitat.json') as physics_engine:
             # In this test case, there is a single entity that has 300 kg fuel.
             # heading, velocity, and position are all 0.
-            physics_engine.set_action(requested_t=0, throttle_change=1)
             throttle = 1
             t_delta = 5
+
+            physics_engine.handle_command(
+                protos.Command(
+                    ident=protos.Command.HAB_THROTTLE_CHANGE,
+                    arg=throttle),
+                requested_t=0)
+
             initial = physics_engine.get_state(0)
             moved = physics_engine.get_state(t_delta)
 

@@ -309,7 +309,7 @@ class PEngine(object):
         will restart with this new information."""
         requested_t = self._simtime(requested_t)
         y0 = Y(self.get_state(requested_t))
-        log.info(f'Got command: {command}')
+        log.info(f'Got command at t={requested_t}: {command}')
 
         # Make sure we've slowed down, stuff is about to happen.
         self._time_acceleration = common.DEFAULT_TIME_ACC
