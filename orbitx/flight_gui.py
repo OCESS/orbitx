@@ -11,6 +11,7 @@ import signal
 from pathlib import Path
 
 import numpy as np
+import math
 
 from . import common
 from . import orbitx_pb2 as protos
@@ -73,6 +74,7 @@ class FlightGui:
 
         self._spheres = {}
         self._labels = {}
+        self._landing_graphic = {}
 
         self._texture_path = texture_path
         if texture_path is None:
@@ -93,6 +95,8 @@ class FlightGui:
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
+            self._landing_graphic[planet.name] = self._draw_landing_graphic(
+                planet)
             if planet.name == DEFAULT_CENTRE:
                 self.recentre_camera(DEFAULT_CENTRE)
                 self._scene.range = 696000000.0 * 15000
@@ -105,7 +109,6 @@ class FlightGui:
             self._vpython.rate(100)
             self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
-
 
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
@@ -136,11 +139,10 @@ class FlightGui:
         returns: the number of metres"""
         planet = common.find_entity(planet_name, self._last_physical_state)
         planet2 = common.find_entity(planet_name2, self._last_physical_state)
-        return self._vpython.mag(self._vpython.vector(
+        return math.hypot(
             planet.x - planet2.x,
-            planet.y - planet2.y,
-            0
-        )) - planet.r - planet2.r
+            planet.y - planet2.y
+        ) - planet.r - planet2.r
 
     def _speed(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat"""
@@ -430,27 +432,11 @@ class FlightGui:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
+            self._update_landing_graphic(planet)
 
         for wtext in self._wtexts:
             # Update text of all text widgets.
             wtext.text = wtext.text_func()
-
-    def _draw_labels(self, planet):
-        label = self._vpython.label(
-            visible=True, pos=self._posn(planet),
-            xoffset=0, yoffset=10, height=16,
-            border=4, font='sans')
-
-        label.text_function = lambda entity: entity.name
-        if planet.name == 'Habitat':
-            label.text_function = lambda entity: (
-                f'{entity.name}\n'
-                f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
-                f'Heading: {round(np.degrees(entity.heading))}\xb0'
-            )
-        label.text = label.text_function(planet)
-
-        return label
 
     def _draw_sphere(self, planet):
         texture = self._texture_path / (planet.name + '.jpg')
@@ -477,7 +463,7 @@ class FlightGui:
             #obj.make_trail=True
             #obj.retain=100
             #obj.shininess=0.1
-            obj.length = planet.r
+            obj.length = planet.r * 2
 
 
             #obj = self._vpython.cone(
@@ -518,6 +504,38 @@ class FlightGui:
 
         return obj
 
+    def _draw_labels(self, planet):
+        label = self._vpython.label(
+            visible=True, pos=self._posn(planet),
+            xoffset=0, yoffset=10, height=16,
+            border=4, font='sans')
+
+        label.text_function = lambda entity: entity.name
+        if planet.name == 'Habitat':
+            label.text_function = lambda entity: (
+                f'{entity.name}\n'
+                f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
+                f'Heading: {round(np.degrees(entity.heading))}\xb0'
+            )
+        label.text = label.text_function(planet)
+
+        return label
+
+    def _draw_landing_graphic(self, planet):
+        """Draw something that simulates a flat surface at near zoom levels."""
+        size = planet.r * 0.01
+        texture = self._texture_path / (planet.name + '.jpg')
+        return self._vpython.box(
+            up=self._vpython.vector(0, 0, 1),
+            axis=self._vpython.vector(1, 0, 0),
+            height=size,
+            length=size,
+            width=size,
+            pos=self._posn(planet) + self._vpython.vector(
+                planet.r + size / 2, 0, 0),
+            texture=str(texture) if texture.is_file() else None
+        )
+
     def _update_sphere(self, planet):
         sphere = self._spheres[planet.name]
         sphere.pos = self._posn(planet)
@@ -530,6 +548,23 @@ class FlightGui:
         label = self._labels[planet.name]
         label.text = label.text_function(planet)
         label.pos = self._posn(planet)
+
+    def _update_landing_graphic(self, planet):
+        """Rotate the landing graphic to always be facing the Habitat.
+
+        The landing graphic has to be on the surface of the planet,
+        but also the part of the planet closest to the habitat."""
+        axis = self._vpython.vector(
+            self._habitat.x - planet.x,
+            self._habitat.y - planet.y,
+            0
+        )
+        landing_graphic = self._landing_graphic[planet.name]
+
+        landing_graphic.axis = axis.norm()
+        landing_graphic.pos = (
+            self._posn(planet) + axis.norm() * planet.r
+        )
 
     def _recentre_dropdown_hook(self, selection):
         self.recentre_camera(selection.selected)
