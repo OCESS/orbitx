@@ -105,7 +105,7 @@ class Y():
         # y_1d has 10 components
         self._n = len(self._y_1d) // 10
 
-        assert min(self.AttachedTo) >= NO_INDEX, breakpoint()
+        assert min(self.AttachedTo) >= NO_INDEX
         assert max(self.AttachedTo) < self._n
 
     @property
@@ -597,7 +597,8 @@ class PEngine(object):
             posns = np.column_stack((y.X, y.Y))  # 2xN of (x, y) positions
             # An n*n matrix of _altitudes_ between each entity
             alt_matrix = (
-                scipy.spatial.distance.cdist(posns, posns) - self.R)
+                scipy.spatial.distance.cdist(posns, posns) -
+                np.array([self.R]) - np.array([self.R]).T)
             # To simplify calculations, an entity's altitude from itself is inf
             np.fill_diagonal(alt_matrix, np.inf)
             # For each pair of objects that have collisions disabled between

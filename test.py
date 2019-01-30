@@ -40,11 +40,11 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # In this case, the first entity is standing still and the second
             # on a collision course going left to right. The two should bounce.
             # Entity 0 has r=50 and everything else 0.
-            # Entity 2 has r=10, x=-500, vx=10, and everything else 0.
+            # Entity 2 has r=30, x=-500, vx=10, and everything else 0.
             # There's also entity 1, which is far away and shouldn't interact.
-            # Let's do some math oh hey, they should collide at t=44.
-            approach = physics_engine.get_state(43)
-            bounced = physics_engine.get_state(45)
+            # Let's do some math oh hey, they should collide at t=42.
+            approach = physics_engine.get_state(41)
+            bounced = physics_engine.get_state(43)
             self.assertTrue(approach.entities[0].x > approach.entities[2].x)
             self.assertTrue(approach.entities[2].vx > 0)
             self.assertTrue(bounced.entities[0].x > bounced.entities[2].x)
