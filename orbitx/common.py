@@ -18,6 +18,9 @@ DEFAULT_TIME_ACC = 1
 
 CHEAT_FUEL = 0
 
+MIN_THROTTLE = -0.2
+MAX_THROTTLE = 1.2
+
 DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'
 
