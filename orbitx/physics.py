@@ -282,8 +282,7 @@ class PEngine(object):
         physics_entity.broken=bool(int(y.Broken[i]))
         #physics_entity.artificial=False
         if self._hab_index==i or self._spacestation_index==i:
-            #physics_entity.artificial=True
-            pass
+            physics_entity.artificial=True
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -345,8 +344,8 @@ class PEngine(object):
             self._time_acceleration = time_acceleration
 
         # Bound throttle to [-20, 120] percent
-        y0.Throttle[control_craft_index] = max(-0.2, y0.Throttle[self._hab_index])
-        y0.Throttle[control_craft_index] = min(1.2, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = max(common.MIN_THROTTLE, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = min(common.MAX_THROTTLE, y0.Throttle[self._hab_index])
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -397,6 +396,9 @@ class PEngine(object):
         # 1. calculating positions and velocities of the two entities
         # 2. do a 1D collision calculation along the normal between the two
         # 3. recombine the velocity vectors
+
+        if (e2.attached_to is not "") or (e1.attached_to is not ""):
+            return e1,e2
 
         norm = e1.pos - e2.pos
         unit_norm = norm / np.linalg.norm(norm)
@@ -461,7 +463,7 @@ class PEngine(object):
         #set right heading for furtur takeoff
         E1.heading=np.arctan2(norm[1],norm[0])
         E1.throttle=0
-        self.collision_heading[E1.name]=E2.heading
+        self.collision_heading[E1.name]=E1.heading-E2.heading
         # do actual attachment
 
 
@@ -535,6 +537,15 @@ class PEngine(object):
             log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
         log.debug('simthread exited')
+        
+    def _artificial_heading_check(self,y):
+        for ind in [self._hab_index,self._spacestation_index]:
+            if ind>=0:
+                if y.AttachedTo[ind]>=0:
+                    target_ind=int(y.AttachedTo[ind])
+                    norm=[y.X[ind]-y.X[target_ind],y.Y[ind]-y.Y[target_ind]]
+                    y.Heading[ind]=np.arctan2(norm[1],norm[0])
+        return y
 
     def _derive(self, t, y_1d):
         """
@@ -550,15 +561,55 @@ class PEngine(object):
         Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
+        
+        if self._hab_index>=0:
+            if y.AttachedTo[self._hab_index]>=0:
+                target_ind=int(y.AttachedTo[self._hab_index])
+                #find x,y coordinate of attached part
+                root_X=y.X[target_ind]
+                root_Y=y.Y[target_ind]
+                root_heading=y.Heading[target_ind]
+                #E1.pos-E2.pos
+                #norm=[y.X[self._hab_index]-y.X[target_ind],y.Y[self._hab_index]-y.Y[target_ind]]
+                
+                new_pos=(root_heading+self.collision_heading["Habitat"])
+                new_X=root_X+(np.cos(new_pos)*
+                        (self._template_physical_state.entities[target_ind].r+
+                         self._template_physical_state.entities[self._hab_index].r))
+                new_Y=root_Y+(np.sin(new_pos)*
+                        (self._template_physical_state.entities[target_ind].r+
+                         self._template_physical_state.entities[self._hab_index].r))
+                
+                y.VX[self._hab_index]=new_X-y.X[self._hab_index]
+                y.VY[self._hab_index]=new_Y-y.Y[self._hab_index]
+                Xa[self._hab_index]=-y.VX[self._hab_index]
+                Ya[self._hab_index]=-y.VY[self._hab_index]
+                #print(y.Spin[self._hab_index])
+                #print(y.Heading[self._hab_index])
+                #print(norm)
+                #y.Spin[self._hab_index]=(y.Heading[self._hab_index]-np.arctan2(norm[1],norm[0]))%(2 * np.pi)-np.pi
+                #print(y.Heading[self._hab_index]-np.arctan2(norm[1],norm[0]))
+                #print(np.arctan2(norm[1],norm[0]))
+                #print("")
 
-        if y.Fuel[self._hab_index] > 0:
-            # We have fuel remaining, calculate thrust
-            throttle = y.Throttle[self._hab_index]
-            fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
-            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                throttle=throttle, heading=y.Heading[self._hab_index])
-            Xa[self._hab_index] += hab_eng_acc_x
-            Ya[self._hab_index] += hab_eng_acc_y
+            if y.Fuel[self._hab_index] > 0:
+                # We have fuel remaining, calculate thrust
+                throttle = y.Throttle[self._hab_index]
+                fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
+                hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+                    throttle=throttle, heading=y.Heading[self._hab_index])
+                Xa[self._hab_index] += hab_eng_acc_x
+                Ya[self._hab_index] += hab_eng_acc_y
+        
+        ##for futur spacestation code
+        #if y.Fuel[self._spacestation_index] > 0:
+        #    # We have fuel remaining, calculate thrust
+        #    throttle = y.Throttle[self._spacestation_index]
+        #    fuel_cons[self._spacestation_index] = -Habitat.fuel_cons(throttle=throttle)
+        #    hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+        #        throttle=throttle, heading=y.Heading[self._spacestation_index])
+        #    Xa[self._spacestation_index] += hab_eng_acc_x
+        #    Ya[self._spacestation_index] += hab_eng_acc_y
 
         return np.concatenate(
             (
@@ -603,7 +654,17 @@ class PEngine(object):
             np.fill_diagonal(alt_matrix, np.inf)
             # For each pair of objects that have collisions disabled between
             # them, also set their altitude to be inf
-
+            
+            # collision detection for already collided artifial turned off
+            place=np.where(y.AttachedTo>=0)
+            place=np.append(place[0],y.AttachedTo[place[0]])
+            if len(place):
+                #place[1]=int(place[1])
+                #print(place)
+                place=np.transpose([np.tile(place, len(place)), np.repeat(place, len(place))])
+                for i,j in place:
+                    alt_matrix[int(i),int(j)]=np.inf
+                
             if return_pair:
                 # Returns the actual pair of indicies instead of a scalar.
                 flattened_index = alt_matrix.argmin()
@@ -670,7 +731,8 @@ class PEngine(object):
 
             y = Y(ivp_out.y[:, -1])
             t = ivp_out.t[-1]
-
+            
+            y = self._artificial_heading_check(y)
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
