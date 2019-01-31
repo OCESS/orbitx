@@ -21,7 +21,10 @@ log = logging.getLogger()
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
 DEFAULT_TARGET = 'Moon'
+
 G = 6.674e-11
+
+PLANET_SHININIESS = 0.3
 
 
 class FlightGui:
@@ -487,7 +490,7 @@ class FlightGui:
                 radius=planet.r,
                 make_trail=False,
                 retain=100,
-                shininess=0.1
+                shininess=PLANET_SHININIESS
             )
 
         obj.name = planet.name  # For convenient accessing later
@@ -525,14 +528,12 @@ class FlightGui:
         """Draw something that simulates a flat surface at near zoom levels."""
         size = planet.r * 0.01
         texture = self._texture_path / (planet.name + '.jpg')
-        return self._vpython.box(
+        return self._vpython.cylinder(
             up=self._vpython.vector(0, 0, 1),
-            axis=self._vpython.vector(1, 0, 0),
-            height=size,
-            length=size,
-            width=size,
-            pos=self._posn(planet) + self._vpython.vector(
-                planet.r + size / 2, 0, 0),
+            axis=self._vpython.vector(-size, 0, 0),
+            radius=size,
+            pos=self._posn(planet),  # This will be filled in by the _update
+            shininess=PLANET_SHININIESS,
             texture=str(texture) if texture.is_file() else None
         )
 
@@ -558,12 +559,12 @@ class FlightGui:
             self._habitat.x - planet.x,
             self._habitat.y - planet.y,
             0
-        )
+        ).norm()
         landing_graphic = self._landing_graphic[planet.name]
 
-        landing_graphic.axis = axis.norm()
+        landing_graphic.axis = -axis * landing_graphic.length
         landing_graphic.pos = (
-            self._posn(planet) + axis.norm() * planet.r
+            self._posn(planet) + axis * planet.r
         )
 
     def _recentre_dropdown_hook(self, selection):
