@@ -323,6 +323,8 @@ class PEngine(object):
             #reset all attachment if ship leaves
             if y0.AttachedTo[control_craft_index]!=-1:
                 if command.arg>0:
+                    y0.VX[control_craft_index]=y0.VX[int(y0.AttachedTo[control_craft_index])]
+                    y0.VY[control_craft_index]=y0.VY[int(y0.AttachedTo[control_craft_index])]
                     y0.Throttle[control_craft_index] += command.arg
                     y0.AttachedTo[control_craft_index]=-1
             else:
@@ -331,6 +333,8 @@ class PEngine(object):
             #reset all attachment if ship leaves
             if y0.AttachedTo[control_craft_index]!=-1:
                 if command.arg>0:
+                    y0.VX[control_craft_index]=y0.VX[int(y0.AttachedTo[control_craft_index])]
+                    y0.VY[control_craft_index]=y0.VY[int(y0.AttachedTo[control_craft_index])]
                     y0.Throttle[control_craft_index] = command.arg
                     y0.AttachedTo[control_craft_index]=-1
             else:
@@ -566,8 +570,8 @@ class PEngine(object):
             if y.AttachedTo[self._hab_index]>=0:
                 target_ind=int(y.AttachedTo[self._hab_index])
                 #find x,y coordinate of attached part
-                root_X=y.X[target_ind]
-                root_Y=y.Y[target_ind]
+                root_X=y.X[target_ind]+y.VX[target_ind]
+                root_Y=y.Y[target_ind]+y.VY[target_ind]
                 root_heading=y.Heading[target_ind]
                 #E1.pos-E2.pos
                 #norm=[y.X[self._hab_index]-y.X[target_ind],y.Y[self._hab_index]-y.Y[target_ind]]
