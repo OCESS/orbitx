@@ -29,7 +29,7 @@ PLANET_SHININIESS = 0.3
 
 class FlightGui:
 
-    def __init__(self, physical_state_to_draw, texture_path=None):
+    def __init__(self, physical_state_to_draw, texture_path=None, no_intro=False):
         ctrl_c_handler = signal.getsignal(signal.SIGINT)
         # Note that this might actually start an HTTP server!
         import vpython
@@ -59,7 +59,7 @@ class FlightGui:
             align='right',
             width=800,
             height=600,
-            center=vpython.vector(0, 500, 0),
+            center=vpython.vector(0, 0, 0),
             up=vpython.vector(0, 0, 1),
             forward=vpython.vector(0.1, 0.1, -1),
             autoscale=True
@@ -88,9 +88,10 @@ class FlightGui:
 
         assert len(physical_state_to_draw.entities) >= 1
         self._last_physical_state = physical_state_to_draw
-        self._origin = physical_state_to_draw.entities[0]
-        self._reference = physical_state_to_draw.entities[0]
-        self._target = physical_state_to_draw.entities[0]
+        # Unessary code as these are reset through _set_X?
+        #self._origin = physical_state_to_draw.entities[0]
+        #self._reference = physical_state_to_draw.entities[0]
+        #self._target = physical_state_to_draw.entities[0]
         self._set_origin(DEFAULT_CENTRE)
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
@@ -101,16 +102,17 @@ class FlightGui:
             self._landing_graphic[planet.name] = self._draw_landing_graphic(
                 planet)
             if planet.name == DEFAULT_CENTRE:
-                self.recentre_camera(DEFAULT_CENTRE)
+                #self.recentre_camera(DEFAULT_CENTRE)
                 self._scene.range = 696000000.0 * 15000
         self._scene.autoscale = False
         self._set_caption()
 
         # Add an animation when launching the program
         #   to describe the solar system and the current location
-        while self._scene.range > 600000:
-            self._vpython.rate(100)
-            self._scene.range = self._scene.range * 0.98
+        if not no_intro:
+            while self._scene.range > 600000:
+                self._vpython.rate(100)
+                self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
 
     def shutdown(self):
@@ -458,6 +460,7 @@ class FlightGui:
                 v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
                 v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
                 v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
+            """
             obj = self._vpython.compound([body, head, wing, wing2])
             obj.texture = self._vpython.textures.metal
             obj.pos = self._posn(planet)
@@ -467,21 +470,22 @@ class FlightGui:
             #obj.retain=100
             #obj.shininess=0.1
             obj.length = planet.r * 2
+            """
 
 
-            #obj = self._vpython.cone(
-            #    pos=self._posn(planet),
-            #    axis=self._ang_pos(planet.heading),
-            #    radius=planet.r / 2,
-            #    make_trail=False,
-            #    retain=100,
-            #    shininess=0.1
-            #)
-            #obj.length = planet.r
+            obj = self._vpython.cone(
+                pos=self._posn(planet),
+                axis=self._ang_pos(planet.heading),
+                radius=planet.r / 2,
+                make_trail=False,
+                retain=100,
+                shininess=0.1
+            )
+            obj.length = planet.r
 
             obj.arrow = self._unit_velocity(planet)
             self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow')#scale=planet.r * 1.5)
+            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r * 1.5)
         else:
             obj = self._vpython.sphere(
                 pos=self._posn(planet),
@@ -616,8 +620,7 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 2
 
             self._scene.camera.follow(self._spheres[planet_name])
-            self._origin = common.find_entity(
-                planet_name, self._last_physical_state)
+            self._set_origin(planet_name)
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
