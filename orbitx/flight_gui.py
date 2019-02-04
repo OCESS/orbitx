@@ -457,8 +457,7 @@ class FlightGui:
         texture = self._texture_path / (planet.name + '.jpg')
 
         if planet.name == "Habitat":
-            # TODO: 1) the object show up when start up: SOLVED by change camera initial centre
-            # 2) make_trail breaks the program: either remove trail option for habitat or revert to cone
+            # TODO: 1) ARROW
 
             body = self._vpython.cylinder(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(-5, 0, 0),
                                           radius=7)
@@ -608,7 +607,6 @@ class FlightGui:
     def _trail_checkbox_hook(self, selection):
         for sphere in self._spheres.values():
             if sphere.name == 'Habitat':
-                print(sphere.name)
                 if selection.checked:
                     self._habitat_trail.start()
                 else:
