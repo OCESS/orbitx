@@ -74,6 +74,8 @@ class FlightGui:
 
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
+        # Show all planets in solar system
+        self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
         self._spheres = {}
         self._labels = {}
@@ -88,7 +90,7 @@ class FlightGui:
 
         assert len(physical_state_to_draw.entities) >= 1
         self._last_physical_state = physical_state_to_draw
-        # Unessary code as these are reset through _set_X?
+        # Unnecessary code as these are reset through _set_X?
         #self._origin = physical_state_to_draw.entities[0]
         #self._reference = physical_state_to_draw.entities[0]
         #self._target = physical_state_to_draw.entities[0]
@@ -101,9 +103,7 @@ class FlightGui:
             self._labels[planet.name] = self._draw_labels(planet)
             self._landing_graphic[planet.name] = self._draw_landing_graphic(
                 planet)
-            if planet.name == DEFAULT_CENTRE:
-                #self.recentre_camera(DEFAULT_CENTRE)
-                self._scene.range = 696000000.0 * 15000
+
         self._scene.autoscale = False
         self._set_caption()
 
@@ -202,7 +202,10 @@ class FlightGui:
 
     def _clear_trails(self):
         for sphere in self._spheres.values():
-            sphere.clear_trail()
+            if sphere.name == 'Habitat':
+                self._habitat_trail.clear()
+            else:
+                sphere.clear_trail()
 
     def _show_hide_label(self):
         if self._show_label:
@@ -428,7 +431,14 @@ class FlightGui:
     def draw(self, physical_state_to_draw):
         self._last_physical_state = physical_state_to_draw
         # Have to reset origin, reference, and target with new positions
-        self._set_origin(self._origin.name)
+        # TODO: Trails are reset when change the origin, can we delete it?
+        #  1) I can't find the reason we have to set origin every time
+        #  2) I think Patrick did this a long time ago to fix a drawing problem,
+        #     which is drawing weird shape of sphere, but which is fixed by,
+        #     seperate origin & reference and reset_origin once when re-centering
+        #  3) Therefore, I believe we can delete this (where the drawing problem occured)
+        #     is enough
+        # self._set_origin(self._origin.name)
         self._set_reference(self._reference.name)
         self._set_target(self._target.name)
         if self._pause:
@@ -450,7 +460,8 @@ class FlightGui:
             # TODO: 1) the object show up when start up: SOLVED by change camera initial centre
             # 2) make_trail breaks the program: either remove trail option for habitat or revert to cone
 
-            body = self._vpython.cylinder(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(-5, 0, 0), radius=7)
+            body = self._vpython.cylinder(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(-5, 0, 0),
+                                          radius=7)
             head = self._vpython.cone(pos=self._vpython.vector(0, 0, 0), axis=self._vpython.vector(3, 0, 0), radius=7)
             wing = self._vpython.triangle(
                 v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
@@ -460,19 +471,17 @@ class FlightGui:
                 v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
                 v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
                 v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
-            """
+
             obj = self._vpython.compound([body, head, wing, wing2])
             obj.texture = self._vpython.textures.metal
             obj.pos = self._posn(planet)
             obj.axis=self._ang_pos(planet.heading)
             obj.radius=planet.r/2
-            #obj.make_trail=True
-            #obj.retain=100
-            #obj.shininess=0.1
+            obj.shininess=0.1
             obj.length = planet.r * 2
+
+
             """
-
-
             obj = self._vpython.cone(
                 pos=self._posn(planet),
                 axis=self._ang_pos(planet.heading),
@@ -482,10 +491,15 @@ class FlightGui:
                 shininess=0.1
             )
             obj.length = planet.r
+            """
 
             obj.arrow = self._unit_velocity(planet)
             self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r * 1.5)
+            self._vpython.attach_arrow(obj, 'arrow')#scale=planet.r * 1.5)
+            self._habitat_trail = self._vpython.attach_trail(obj, retain=100)
+            self._habitat_trail.stop()
+            self._habitat_trail.clear()
+
         else:
             obj = self._vpython.sphere(
                 pos=self._posn(planet),
@@ -493,7 +507,7 @@ class FlightGui:
                 up=self._vpython.vector(0, 0, 1),
                 radius=planet.r,
                 make_trail=False,
-                retain=100,
+                retain=10000,
                 shininess=PLANET_SHININIESS
             )
 
@@ -572,8 +586,8 @@ class FlightGui:
         )
 
     def _recentre_dropdown_hook(self, selection):
-        self.recentre_camera(selection.selected)
         self._set_origin(selection.selected)
+        self.recentre_camera(selection.selected)
         self._clear_trails()
 
     def _reference_dropdown_hook(self, selection):
@@ -593,9 +607,17 @@ class FlightGui:
 
     def _trail_checkbox_hook(self, selection):
         for sphere in self._spheres.values():
-            sphere.make_trail = selection.checked
-            if not selection.checked:
-                sphere.clear_trail()
+            if sphere.name == 'Habitat':
+                print(sphere.name)
+                if selection.checked:
+                    self._habitat_trail.start()
+                else:
+                    self._habitat_trail.stop()
+                    self._habitat_trail.clear()
+            else:
+                sphere.make_trail = selection.checked
+                if not selection.checked:
+                     sphere.clear_trail()
 
     def notify_time_acc_change(self, new_acc):
         new_acc_str = f'{new_acc:,}×'
@@ -620,7 +642,7 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 2
 
             self._scene.camera.follow(self._spheres[planet_name])
-            self._set_origin(planet_name)
+            #self._set_origin(planet_name)
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
