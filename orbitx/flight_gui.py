@@ -53,6 +53,18 @@ class FlightGui:
             getattr(self._vpython.no_notebook,
                     '__factory').protocol.onClose = callback
 
+        # Set up the second vpython canvas for display the unit_velocity?
+        self._habitat_scene = vpython.canvas(width=200, height=150,
+                                           center=vpython.vector(0,0,0),
+                                           up=vpython.vector(0, 0, 1),
+                                           forward=vpython.vector(0.1, 0.1, -1),
+                                           autoscale=True,
+                                           userspin=False)
+        self._small_habitat = vpython.cone(canvas=self._habitat_scene, radius=0.1, color=vpython.color.cyan)
+        self._ref_arrow = vpython.arrow(canvas=self._habitat_scene, color=vpython.color.blue)
+        self._target_arrow = vpython.arrow(canvas=self._habitat_scene, color=vpython.color.red)
+        self._habitat_scene.range = 2
+
         # Set up our vpython canvas and other internal variables
         self._scene = vpython.canvas(
             title='<b>OrbitX</b>',
@@ -62,7 +74,8 @@ class FlightGui:
             center=vpython.vector(0, 0, 0),
             up=vpython.vector(0, 0, 1),
             forward=vpython.vector(0.1, 0.1, -1),
-            autoscale=True
+            autoscale=True,
+            userspin=False
         )
 
         self._commands = []
@@ -167,12 +180,20 @@ class FlightGui:
             entity.y - self._origin.y,
             0)
 
-    def _unit_velocity(self, entity):
+    def _unit_velocity_ref(self, entity):
         """Provides entity velocity relative to reference."""
         return self._vpython.vector(
             entity.vx - self._reference.vx,
             entity.vy - self._reference.vy,
             0).norm()
+
+    def _unit_velocity_target(self, entity):
+        """Provides entity velocity relative to target."""
+        return self._vpython.vector(
+            entity.vx - self._target.vx,
+            entity.vy - self._target.vy,
+            0).norm()
+
 
     def _set_reference(self, entity_name):
         try:
@@ -358,10 +379,6 @@ class FlightGui:
             div_id += 1
         self._scene.caption += "</table>"
 
-        #self._scene.append_to_caption("Acc: XXX" + "\n")
-        #self._scene.append_to_caption("Vcen: XXX" + "\n")
-        #self._scene.append_to_caption("Vtan: XXX" + "\n")
-        # self._scene.append_to_caption("\n")
         self._set_menus()
         self._scene.append_to_caption(HELP_CHECKBOX)
         self._scene.append_to_caption(" Help text")
@@ -481,10 +498,15 @@ class FlightGui:
             obj.radius = planet.r / 2
             obj.shininess = 0.1
             obj.length = planet.r * 2
+            obj.color= self._vpython.color.cyan
 
-            obj.arrow = self._unit_velocity(planet)
+            self._ref_arrow.axis = self._unit_velocity_ref(planet)
+            self._target_arrow.axis = self._unit_velocity_target(planet)
+            self._small_habitat.axis = obj.axis
+
+            obj.arrow = self._unit_velocity_ref(planet)
             self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow')  # scale=planet.r * 1.5)
+            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r)
             self._habitat_trail = self._vpython.attach_trail(obj, retain=100)
             if not self._show_trails:
                 self._habitat_trail.stop()
@@ -550,7 +572,10 @@ class FlightGui:
         sphere.pos = self._posn(planet)
         sphere.axis = self._ang_pos(planet.heading)
         if planet.name == 'Habitat':
-            sphere.arrow = self._unit_velocity(planet)
+            self._ref_arrow.axis = self._unit_velocity_ref(planet)
+            self._target_arrow.axis = self._unit_velocity_target(planet)
+            self._small_habitat.axis = sphere.axis
+            sphere.arrow = self._unit_velocity_ref(planet)
             self._habitat = planet
 
     def _update_label(self, planet):
