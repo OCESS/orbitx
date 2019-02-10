@@ -54,6 +54,10 @@ class FlightGui:
                     '__factory').protocol.onClose = callback
 
         # Set up the second vpython canvas for display the unit_velocity?
+        #TODO:
+        # 1) when started, the small_habitat axis is too long
+        # 2) Reference arrow doesn't change when habitat spin change?
+        # 3) "s" button should stop spin , and change current "s" to "x"
         self._habitat_scene = vpython.canvas(width=200, height=150,
                                            center=vpython.vector(0,0,0),
                                            up=vpython.vector(0, 0, 1),
