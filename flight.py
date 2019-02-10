@@ -73,6 +73,9 @@ def parse_args():
     parser.add_argument('--no-gui', action='store_true', default=False,
                         help='Don\'t launch the flight GUI.')
 
+    parser.add_argument('--no-intro', action='store_true', default=False,
+                        help='Skip intro animation for quick start.')
+
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to both logfile and output.')
 
@@ -81,6 +84,7 @@ def parse_args():
 
     parser.add_argument('--sseg', action='store_true', default=False,
                         help='Draw sphere segments. Might be slow at startup!')
+
 
     args, unknown = parser.parse_known_args()
     if unknown:
@@ -142,7 +146,7 @@ def lead_server_loop(args):
 
     if not args.no_gui:
         global cleanup_function
-        gui = flight_gui.FlightGui(physics_engine.get_state())
+        gui = flight_gui.FlightGui(physics_engine.get_state(), no_intro=args.no_intro)
         gui.draw_sphere_segments = args.sseg
         cleanup_function = gui.shutdown
 
