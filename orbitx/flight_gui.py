@@ -58,6 +58,7 @@ class FlightGui:
         # 1) when started, the small_habitat axis is too long
         # 2) Reference arrow doesn't change when habitat spin change?
         # 3) "s" button should stop spin , and change current "s" to "x"
+        # 4) Find right location for _habitat_scene : above menus
         self._habitat_scene = vpython.canvas(width=200, height=150,
                                            center=vpython.vector(0,0,0),
                                            up=vpython.vector(0, 0, 1),
