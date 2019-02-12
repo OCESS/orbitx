@@ -17,7 +17,7 @@ default_dtype = np.longdouble
 
 # Higher values of this result in faster simulation but more chance of missing
 # a collision. Units of this are in seconds.
-SOLUTION_CACHE_SIZE = 10
+SOLUTION_CACHE_SIZE = 3
 MAX_TIME_ACCELERATION = 100000
 
 NO_INDEX = -1
@@ -209,7 +209,12 @@ class PEngine(object):
 
         return time_acceleration
 
-    def _simtime(self, requested_t=None):
+    def _simtime(self, requested_t=None, *, peek_time=False):
+        """Gets simulation time, accounting for time acceleration and passage.
+
+        peek_time: if True, doesn't change any internal state. Use this as True
+                   for internal log messages, and False for external APIs.
+        """
         # During runtime, strange things will happen if you mix calling
         # this with None (like in flight.py) or with values (like in test.py)
 
@@ -218,13 +223,15 @@ class PEngine(object):
                 time.monotonic() - self._last_monotime,
                 0.0001
             )
-            self._last_monotime = time.monotonic()
+            if not peek_time:
+                self._last_monotime = time.monotonic()
             requested_t = (
                 self._last_simtime + time_elapsed * self._time_acceleration)
 
-        with self._solutions_cond:
-            self._last_simtime = requested_t
-            self._solutions_cond.notify_all()
+        if not peek_time:
+            with self._solutions_cond:
+                self._last_simtime = requested_t
+                self._solutions_cond.notify_all()
 
         return requested_t
 
@@ -308,7 +315,7 @@ class PEngine(object):
         will restart with this new information."""
         requested_t = self._simtime(requested_t)
         y0 = Y(self.get_state(requested_t))
-        log.info(f'Got command at t={requested_t}: {command}')
+        log.info(f'Got command for simtime t={requested_t}: {command}')
 
         # Make sure we've slowed down, stuff is about to happen.
         self._time_acceleration = common.DEFAULT_TIME_ACC
@@ -449,7 +456,8 @@ class PEngine(object):
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
         e1, e2 = self._resolve_collision(e1, e2)
-        log.info(f'Collision: t={t}, {e1.as_proto()} and {e2.as_proto()}')
+        log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in'
+                 f' the future, {e1.as_proto()} and {e2.as_proto()}')
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
@@ -558,45 +566,50 @@ class PEngine(object):
         returns the derivative of y_1d, i.e.
         [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0]
         (zeroed-out fields are changed elsewhere)
+
+        !!!!!!!!!!! IMPORTANT !!!!!!!!!!!
+        This function should return a DERIVATIVE. The numpy.solve_ivp function
+        will do the rest of the work of the simulation, this function just
+        describes how things _move_.
+        At its most basic level, this function takes in the _position_ of
+        everything (plus some random stuff), and returns the _velocity_ of
+        everything (plus some random stuff).
+        Essentially, numpy.solve_ivp does this calculation:
+        new_positions_of_system = t_delta * _derive(
+                                                current_t_of_system,
+                                                current_y_of_system)
         """
         # PROTO: if you're changing protobufs remember to change here
-        # log.debug(f'derive step, {y_1d.shape}: {y_1d}')
         y = Y(y_1d)
         Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
-        if self._hab_index >= 0:
-            if y.AttachedTo[self._hab_index] >= 0:
-                target_ind = int(y.AttachedTo[self._hab_index])
-                # find x,y coordinate of attached part
-                root_X = y.X[target_ind] + y.VX[target_ind]
-                root_Y = y.Y[target_ind] + y.VY[target_ind]
-                root_heading = y.Heading[target_ind]
-                # E1.pos-E2.pos
-                # norm=[y.X[self._hab_index]-y.X[target_ind],y.Y[self._hab_index]-y.Y[target_ind]]
+        if self._hab_index >= 0 and y.Fuel[self._hab_index] > 0:
+            # We have fuel remaining, calculate thrust
+            throttle = y.Throttle[self._hab_index]
+            fuel_cons[self._hab_index] = - \
+                Habitat.fuel_cons(throttle=throttle)
+            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+                throttle=throttle, heading=y.Heading[self._hab_index])
+            Xa[self._hab_index] += hab_eng_acc_x
+            Ya[self._hab_index] += hab_eng_acc_y
 
-                new_pos = (root_heading + self.collision_heading["Habitat"])
-                target_r = self._template_physical_state.entities[target_ind].r
-                hab_r = self._template_physical_state.entities[
-                    self._hab_index].r
-                new_X = root_X + (np.cos(new_pos) * (target_r + hab_r))
-                new_Y = root_Y + (np.sin(new_pos) * (target_r + hab_r))
+        # Keep attached entities glued together
+        for attached, attached_to in enumerate(y.AttachedTo):
+            # The entity at index 'attached' is attached to the entity at index
+            # 'attached_to'. For example, the habitat could be attached to the
+            # Earth, in which case 'attached' would reference the habitat and
+            # 'attached_to' would reference the Earth
+            attached_to = int(attached_to)
+            if attached_to == NO_INDEX:
+                continue
 
-                y.VX[self._hab_index] = new_X - y.X[self._hab_index]
-                y.VY[self._hab_index] = new_Y - y.Y[self._hab_index]
-                Xa[self._hab_index] = -y.VX[self._hab_index]
-                Ya[self._hab_index] = -y.VY[self._hab_index]
-
-            if y.Fuel[self._hab_index] > 0:
-                # We have fuel remaining, calculate thrust
-                throttle = y.Throttle[self._hab_index]
-                fuel_cons[self._hab_index] = - \
-                    Habitat.fuel_cons(throttle=throttle)
-                hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                    throttle=throttle, heading=y.Heading[self._hab_index])
-                Xa[self._hab_index] += hab_eng_acc_x
-                Ya[self._hab_index] += hab_eng_acc_y
+            # If we're attached to something, make sure we move in lockstep
+            y.VX[attached] = y.VX[attached_to]
+            y.VY[attached] = y.VY[attached_to]
+            Xa[attached] = Xa[attached_to]
+            Ya[attached] = Ya[attached_to]
 
         # for futur spacestation code
         # if y.Fuel[self._spacestation_index] > 0:
@@ -618,11 +631,13 @@ class PEngine(object):
 
     def _generate_new_ode_solutions(self, t, y):
         # An overview of how time is managed:
+        #
         # self._last_simtime is the main thread's latest idea of
         # what the current time is in the simulation. Every call to
         # get_state(), self._timetime_of_last_request is incremented by the
         # amount of time that passed since the last call to get_state(),
         # factoring in self._time_acceleration.
+        #
         # self._solutions is a fixed-size queue of ODE solutions.
         # Each element has an attribute, t_max, which describes the largest
         # time that the solution can be evaluated at and still be accurate.
