@@ -188,7 +188,7 @@ class PEngine(object):
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
         self.actions = {}  # last actions
-        self.collision_heading = {} # collision heading angle at the collision moment
+        self.collision_heading = {}  # collision heading at collision moment
 
         self.set_state(physical_state)
 
@@ -269,20 +269,20 @@ class PEngine(object):
         protobuf_entity.spin = y.Spin[i]
         protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.throttle = y.Throttle[i]
-        
-        ###original code buggy
-        ### Temporary fix with new code
-        
-        #protobuf_entity.attached_to = index_to_name(
+
+        # original code buggy
+        # Temporary fix with new code
+
+        # protobuf_entity.attached_to = index_to_name(
         #    y.AttachedTo[i], self._template_physical_state.entities)
         #protobuf_entity.broken = bool(int(y.Broken[i]))
         physics_entity = PhysicsEntity(protobuf_entity)
-        physics_entity.attached_to=index_to_name(
+        physics_entity.attached_to = index_to_name(
             y.AttachedTo[i], self._template_physical_state.entities)
-        physics_entity.broken=bool(int(y.Broken[i]))
-        #physics_entity.artificial=False
-        if self._hab_index==i or self._spacestation_index==i:
-            physics_entity.artificial=True
+        physics_entity.broken = bool(int(y.Broken[i]))
+        # physics_entity.artificial=False
+        if self._hab_index == i or self._spacestation_index == i:
+            physics_entity.artificial = True
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -294,7 +294,7 @@ class PEngine(object):
         y.Spin[i] = physics_entity.spin
         y.Fuel[i] = physics_entity.fuel
         y.Throttle[i] = physics_entity.throttle
-        #y.AttachedTo[i] = name_to_index(
+        # y.AttachedTo[i] = name_to_index(
         #    physics_entity.name, self._template_physical_state.entities)
         y.AttachedTo[i] = name_to_index(
             physics_entity.attached_to, self._template_physical_state.entities)
@@ -313,34 +313,37 @@ class PEngine(object):
         # Make sure we've slowed down, stuff is about to happen.
         self._time_acceleration = common.DEFAULT_TIME_ACC
 
-        #temp change before implementatin of spacestation
-        control_craft_index=self._hab_index
+        # temp change before implementatin of spacestation
+        control_craft_index = self._hab_index
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
-            if y0.AttachedTo[control_craft_index]==-1:
+            if y0.AttachedTo[control_craft_index] == -1:
                 y0.Spin[control_craft_index] += Habitat.spin_change(
                     requested_spin_change=command.arg)
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
-            #reset all attachment if ship leaves
-            if y0.AttachedTo[control_craft_index]!=-1:
-                if command.arg>0:
-                    y0.VX[control_craft_index]=y0.VX[int(y0.AttachedTo[control_craft_index])]
-                    y0.VY[control_craft_index]=y0.VY[int(y0.AttachedTo[control_craft_index])]
+            # reset all attachment if ship leaves
+            if y0.AttachedTo[control_craft_index] != -1:
+                if command.arg > 0:
+                    y0.VX[control_craft_index] = y0.VX[int(
+                        y0.AttachedTo[control_craft_index])]
+                    y0.VY[control_craft_index] = y0.VY[int(
+                        y0.AttachedTo[control_craft_index])]
                     y0.Throttle[control_craft_index] += command.arg
-                    y0.AttachedTo[control_craft_index]=-1
+                    y0.AttachedTo[control_craft_index] = -1
             else:
                 y0.Throttle[control_craft_index] += command.arg
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
-            #reset all attachment if ship leaves
-            if y0.AttachedTo[control_craft_index]!=-1:
-                if command.arg>0:
-                    y0.VX[control_craft_index]=y0.VX[int(y0.AttachedTo[control_craft_index])]
-                    y0.VY[control_craft_index]=y0.VY[int(y0.AttachedTo[control_craft_index])]
+            # reset all attachment if ship leaves
+            if y0.AttachedTo[control_craft_index] != -1:
+                if command.arg > 0:
+                    y0.VX[control_craft_index] = y0.VX[int(
+                        y0.AttachedTo[control_craft_index])]
+                    y0.VY[control_craft_index] = y0.VY[int(
+                        y0.AttachedTo[control_craft_index])]
                     y0.Throttle[control_craft_index] = command.arg
-                    y0.AttachedTo[control_craft_index]=-1
+                    y0.AttachedTo[control_craft_index] = -1
             else:
                 y0.Throttle[control_craft_index] = command.arg
-            
-            
+
         elif command.ident == protos.Command.TIME_ACC_SET:
             time_acceleration = self._bound_time_acceleration(command.arg)
             if time_acceleration is None:
@@ -348,8 +351,10 @@ class PEngine(object):
             self._time_acceleration = time_acceleration
 
         # Bound throttle to [-20, 120] percent
-        y0.Throttle[control_craft_index] = max(common.MIN_THROTTLE, y0.Throttle[self._hab_index])
-        y0.Throttle[control_craft_index] = min(common.MAX_THROTTLE, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = max(
+            common.MIN_THROTTLE, y0.Throttle[self._hab_index])
+        y0.Throttle[control_craft_index] = min(
+            common.MAX_THROTTLE, y0.Throttle[self._hab_index])
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -368,7 +373,7 @@ class PEngine(object):
             ].index('SpaceStation')
         except ValueError:
             self._spacestation_index = 0
-        
+
         y0 = Y(physical_state)
         self.R = np.array([entity.r for entity in physical_state.entities]
                           ).astype(default_dtype)
@@ -388,9 +393,9 @@ class PEngine(object):
             entity.ClearField('spin')
             entity.ClearField('fuel')
             entity.ClearField('throttle')
-            if hasattr(entity,"attached_to"):
+            if hasattr(entity, "attached_to"):
                 entity.ClearField('attached_to')
-            if hasattr(entity,"attached_to"):
+            if hasattr(entity, "attached_to"):
                 entity.ClearField('broken')
 
         self._restart_simulation(physical_state.timestamp, y0)
@@ -402,7 +407,7 @@ class PEngine(object):
         # 3. recombine the velocity vectors
 
         if (e2.attached_to is not "") or (e1.attached_to is not ""):
-            return e1,e2
+            return e1, e2
 
         norm = e1.pos - e2.pos
         unit_norm = norm / np.linalg.norm(norm)
@@ -414,31 +419,27 @@ class PEngine(object):
         v1t = scipy.dot(unit_tang, e1.v)
         v2n = scipy.dot(unit_norm, e2.v)
         v2t = scipy.dot(unit_tang, e2.v)
-        
 
         # Use https://en.wikipedia.org/wiki/Elastic_collision
         # to find the new normal velocities (a 1D collision)
         new_v1n = (v1n * (e1.m - e2.m) + 2 * e2.m * v2n) / (e1.m + e2.m)
         new_v2n = (v2n * (e2.m - e1.m) + 2 * e1.m * v1n) / (e1.m + e2.m)
-        
 
         # Calculate new velocities
         e1.v = new_v1n * unit_norm + v1t * unit_tang
         e2.v = new_v2n * unit_norm + v2t * unit_tang
-        
-        #artificial object landing handle
-        if e1.artificial:
-            self._landing_handle(e1,e2,v1n,v2n)
-            e1.v=np.zeros(e1.v.size)
-        elif e2.artificial:
-            self._landing_handle(e2,e1,v2n,v1n)
-            e2.v=np.zeros(e1.v.size)
-        elif e1.cannot_land:
-            self._landing_handle(e1,e2,v1n,v2n,1)
-        elif e2.cannot_land:
-            self._landing_handle(e2,e1,v2n,v1n,1)
 
-        
+        # artificial object landing handle
+        if e1.artificial:
+            self._landing_handle(e1, e2, v1n, v2n)
+            e1.v = np.zeros(e1.v.size)
+        elif e2.artificial:
+            self._landing_handle(e2, e1, v2n, v1n)
+            e2.v = np.zeros(e1.v.size)
+        elif e1.cannot_land:
+            self._landing_handle(e1, e2, v1n, v2n, 1)
+        elif e2.cannot_land:
+            self._landing_handle(e2, e1, v2n, v1n, 1)
 
         return e1, e2
 
@@ -452,24 +453,23 @@ class PEngine(object):
         y = self._merge_physics_entity_into(e1, y, e1_index)
         y = self._merge_physics_entity_into(e2, y, e2_index)
         return y
-    
-    def _landing_handle(self,E1,E2,V1,V2,cannot_land=0):
-        #if 2 artificial object collide (habitat, spacespation)
-        # or small astroid collision (need deletion), handle later 
+
+    def _landing_handle(self, E1, E2, V1, V2, cannot_land=0):
+        # if 2 artificial object collide (habitat, spacespation)
+        # or small astroid collision (need deletion), handle later
         if E2.artificial:
             return
         if E2.cannot_land:
             return
-        E1.attached_to=E2.name
-        #currently difficult to broke ship and breaking does nothing
-        E1.broken=(abs(V1-V2)>E1.habitat_hull_strength*10)
-        norm=E1.pos-E2.pos
-        #set right heading for furtur takeoff
-        E1.heading=np.arctan2(norm[1],norm[0])
-        E1.throttle=0
-        self.collision_heading[E1.name]=E1.heading-E2.heading
+        E1.attached_to = E2.name
+        # currently difficult to broke ship and breaking does nothing
+        E1.broken = (abs(V1-V2) > E1.habitat_hull_strength*10)
+        norm = E1.pos-E2.pos
+        # set right heading for furtur takeoff
+        E1.heading = np.arctan2(norm[1], norm[0])
+        E1.throttle = 0
+        self.collision_heading[E1.name] = E1.heading-E2.heading
         # do actual attachment
-
 
     def _state_from_y_1d(self, t, y):
         y = Y(y)
@@ -496,8 +496,8 @@ class PEngine(object):
             # We don't use index_to_name because we're doing a whole list at
             # once, not just a single translation. So we optimize for that.
             attached_index = int(attached_index)
-            
-            #Problematic: Assignment not allowed (no field "broken" in protocol message object).
+
+            # (no field "broken" in protocol message object).
             if attached_index != NO_INDEX:
                 entity.attached_to = entity_names[attached_index]
             if broken != NOT_BROKEN:
@@ -541,14 +541,14 @@ class PEngine(object):
             log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
         log.debug('simthread exited')
-        
-    def _artificial_heading_check(self,y):
-        for ind in [self._hab_index,self._spacestation_index]:
-            if ind>=0:
-                if y.AttachedTo[ind]>=0:
-                    target_ind=int(y.AttachedTo[ind])
-                    norm=[y.X[ind]-y.X[target_ind],y.Y[ind]-y.Y[target_ind]]
-                    y.Heading[ind]=np.arctan2(norm[1],norm[0])
+
+    def _artificial_heading_check(self, y):
+        for ind in [self._hab_index, self._spacestation_index]:
+            if ind >= 0:
+                if y.AttachedTo[ind] >= 0:
+                    target_ind = int(y.AttachedTo[ind])
+                    norm = [y.X[ind]-y.X[target_ind], y.Y[ind]-y.Y[target_ind]]
+                    y.Heading[ind] = np.arctan2(norm[1], norm[0])
         return y
 
     def _derive(self, t, y_1d):
@@ -565,53 +565,48 @@ class PEngine(object):
         Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
-        
-        if self._hab_index>=0:
-            if y.AttachedTo[self._hab_index]>=0:
-                target_ind=int(y.AttachedTo[self._hab_index])
-                #find x,y coordinate of attached part
-                root_X=y.X[target_ind]+y.VX[target_ind]
-                root_Y=y.Y[target_ind]+y.VY[target_ind]
-                root_heading=y.Heading[target_ind]
-                #E1.pos-E2.pos
-                #norm=[y.X[self._hab_index]-y.X[target_ind],y.Y[self._hab_index]-y.Y[target_ind]]
-                
-                new_pos=(root_heading+self.collision_heading["Habitat"])
-                new_X=root_X+(np.cos(new_pos)*
-                        (self._template_physical_state.entities[target_ind].r+
-                         self._template_physical_state.entities[self._hab_index].r))
-                new_Y=root_Y+(np.sin(new_pos)*
-                        (self._template_physical_state.entities[target_ind].r+
-                         self._template_physical_state.entities[self._hab_index].r))
-                
-                y.VX[self._hab_index]=new_X-y.X[self._hab_index]
-                y.VY[self._hab_index]=new_Y-y.Y[self._hab_index]
-                Xa[self._hab_index]=-y.VX[self._hab_index]
-                Ya[self._hab_index]=-y.VY[self._hab_index]
-                #print(y.Spin[self._hab_index])
-                #print(y.Heading[self._hab_index])
-                #print(norm)
-                #y.Spin[self._hab_index]=(y.Heading[self._hab_index]-np.arctan2(norm[1],norm[0]))%(2 * np.pi)-np.pi
-                #print(y.Heading[self._hab_index]-np.arctan2(norm[1],norm[0]))
-                #print(np.arctan2(norm[1],norm[0]))
-                #print("")
+
+        if self._hab_index >= 0:
+            if y.AttachedTo[self._hab_index] >= 0:
+                target_ind = int(y.AttachedTo[self._hab_index])
+                # find x,y coordinate of attached part
+                root_X = y.X[target_ind] + y.VX[target_ind]
+                root_Y = y.Y[target_ind] + y.VY[target_ind]
+                root_heading = y.Heading[target_ind]
+                # E1.pos-E2.pos
+                # norm=[y.X[self._hab_index]-y.X[target_ind],y.Y[self._hab_index]-y.Y[target_ind]]
+
+                new_pos = (root_heading + self.collision_heading["Habitat"])
+                target_r = self._template_physical_state.entities[target_ind].r
+                hab_r = self._template_physical_state.entities[
+                    self._hab_index].r
+                new_X = root_X + (np.cos(new_pos) * (target_r + hab_r))
+                new_Y = root_Y + (np.sin(new_pos) * (target_r + hab_r))
+
+                y.VX[self._hab_index] = new_X - y.X[self._hab_index]
+                y.VY[self._hab_index] = new_Y - y.Y[self._hab_index]
+                Xa[self._hab_index] = -y.VX[self._hab_index]
+                Ya[self._hab_index] = -y.VY[self._hab_index]
 
             if y.Fuel[self._hab_index] > 0:
                 # We have fuel remaining, calculate thrust
                 throttle = y.Throttle[self._hab_index]
-                fuel_cons[self._hab_index] = -Habitat.fuel_cons(throttle=throttle)
+                fuel_cons[self._hab_index] = - \
+                    Habitat.fuel_cons(throttle=throttle)
                 hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
                     throttle=throttle, heading=y.Heading[self._hab_index])
                 Xa[self._hab_index] += hab_eng_acc_x
                 Ya[self._hab_index] += hab_eng_acc_y
-        
-        ##for futur spacestation code
-        #if y.Fuel[self._spacestation_index] > 0:
+
+        # for futur spacestation code
+        # if y.Fuel[self._spacestation_index] > 0:
         #    # We have fuel remaining, calculate thrust
         #    throttle = y.Throttle[self._spacestation_index]
-        #    fuel_cons[self._spacestation_index] = -Habitat.fuel_cons(throttle=throttle)
+        #    fuel_cons[self._spacestation_index] = \
+        #        -Habitat.fuel_cons(throttle=throttle)
         #    hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-        #        throttle=throttle, heading=y.Heading[self._spacestation_index])
+        #        throttle=throttle,
+        #        heading=y.Heading[self._spacestation_index])
         #    Xa[self._spacestation_index] += hab_eng_acc_x
         #    Ya[self._spacestation_index] += hab_eng_acc_y
 
@@ -645,7 +640,10 @@ class PEngine(object):
         hab_fuel_event.direction = -1
 
         def altitude_event(_, y_1d, return_pair=False):
-            """This should return a scalar, and specifically 0 to indicate a collision
+            """An event function. See numpy documentation for solve_ivp.
+
+            @return a scalar, with 0 indicating a collision and a sign change
+                indicating a collision has happened.
             """
             y = Y(y_1d)
             n = y._n
@@ -658,17 +656,18 @@ class PEngine(object):
             np.fill_diagonal(alt_matrix, np.inf)
             # For each pair of objects that have collisions disabled between
             # them, also set their altitude to be inf
-            
+
             # collision detection for already collided artifial turned off
-            place=np.where(y.AttachedTo>=0)
-            place=np.append(place[0],y.AttachedTo[place[0]])
+            place = np.where(y.AttachedTo >= 0)
+            place = np.append(place[0], y.AttachedTo[place[0]])
             if len(place):
-                #place[1]=int(place[1])
-                #print(place)
-                place=np.transpose([np.tile(place, len(place)), np.repeat(place, len(place))])
-                for i,j in place:
-                    alt_matrix[int(i),int(j)]=np.inf
-                
+                # place[1]=int(place[1])
+                # print(place)
+                place = np.transpose(
+                    [np.tile(place, len(place)), np.repeat(place, len(place))])
+                for i, j in place:
+                    alt_matrix[int(i), int(j)] = np.inf
+
             if return_pair:
                 # Returns the actual pair of indicies instead of a scalar.
                 flattened_index = alt_matrix.argmin()
@@ -735,7 +734,7 @@ class PEngine(object):
 
             y = Y(ivp_out.y[:, -1])
             t = ivp_out.t[-1]
-            
+
             y = self._artificial_heading_check(y)
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
