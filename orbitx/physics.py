@@ -15,10 +15,7 @@ from .PhysicEntity import PhysicsEntity, Habitat
 
 default_dtype = np.longdouble
 
-# Higher values of this result in faster simulation but more chance of missing
-# a collision. Units of this are in seconds.
-SOLUTION_CACHE_SIZE = 3
-MAX_TIME_ACCELERATION = 100000
+SOLUTION_CACHE_SIZE = 5
 
 NO_INDEX = -1
 NOT_BROKEN = 0
@@ -195,18 +192,6 @@ class PEngine(object):
         self.handle_command(protos.Command(
             ident=protos.Command.TIME_ACC_SET, arg=time_acceleration))
 
-    def _bound_time_acceleration(self, time_acceleration):
-        if time_acceleration <= 0:
-            log.error(f'Time acceleration {time_acceleration} must be > 0')
-            return None
-        elif time_acceleration > MAX_TIME_ACCELERATION:
-            log.error(f'Requested time acceleration {time_acceleration} '
-                      f'Greater than max {MAX_TIME_ACCELERATION}. '
-                      'Using max time acceleration.')
-            time_acceleration = MAX_TIME_ACCELERATION
-
-        return time_acceleration
-
     def _simtime(self, requested_t=None, *, peek_time=False):
         """Gets simulation time, accounting for time acceleration and passage.
 
@@ -275,19 +260,10 @@ class PEngine(object):
         protobuf_entity.fuel = y.Fuel[i]
         protobuf_entity.throttle = y.Throttle[i]
 
-        # original code buggy
-        # Temporary fix with new code
-
-        # protobuf_entity.attached_to = index_to_name(
-        #    y.AttachedTo[i], self._template_physical_state.entities)
-        #protobuf_entity.broken = bool(int(y.Broken[i]))
         physics_entity = PhysicsEntity(protobuf_entity)
         physics_entity.attached_to = index_to_name(
             y.AttachedTo[i], self._template_physical_state.entities)
         physics_entity.broken = bool(int(y.Broken[i]))
-        # physics_entity.artificial=False
-        if self._hab_index == i or self._spacestation_index == i:
-            physics_entity.artificial = True
         return physics_entity
 
     def _merge_physics_entity_into(self, physics_entity, y, i):
@@ -299,8 +275,6 @@ class PEngine(object):
         y.Spin[i] = physics_entity.spin
         y.Fuel[i] = physics_entity.fuel
         y.Throttle[i] = physics_entity.throttle
-        # y.AttachedTo[i] = name_to_index(
-        #    physics_entity.name, self._template_physical_state.entities)
         y.AttachedTo[i] = name_to_index(
             physics_entity.attached_to, self._template_physical_state.entities)
         y.Broken[i] = physics_entity.broken
@@ -320,40 +294,41 @@ class PEngine(object):
 
         # temp change before implementatin of spacestation
         control_craft_index = self._hab_index
+
+        def launch():
+            nonlocal y0
+            # Make sure that we're slightly above the surface of an attachee
+            # before un-attaching two entities
+            attachee_index = int(y0.AttachedTo[control_craft_index])
+            if attachee_index != NO_INDEX:
+                ship = self._physics_entity_at(y0, control_craft_index)
+                attachee = self._physics_entity_at(y0, attachee_index)
+
+                norm = ship.pos - attachee.pos
+                unit_norm = norm / np.linalg.norm(norm)
+                # This magic number is anything that is small to make much of
+                # an effect, but positive so that a collision will be detected
+                ship.pos = attachee.pos + unit_norm * (
+                    common.LAUNCH_SEPARATION + attachee.r + ship.r)
+
+                y0 = self._merge_physics_entity_into(
+                    ship, y0, control_craft_index)
+                y0.AttachedTo[control_craft_index] = NO_INDEX
+
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
-            if y0.AttachedTo[control_craft_index] == -1:
+            if y0.AttachedTo[control_craft_index] == NO_INDEX:
                 y0.Spin[control_craft_index] += Habitat.spin_change(
                     requested_spin_change=command.arg)
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
-            # reset all attachment if ship leaves
-            if y0.AttachedTo[control_craft_index] != -1:
-                if command.arg > 0:
-                    y0.VX[control_craft_index] = y0.VX[int(
-                        y0.AttachedTo[control_craft_index])]
-                    y0.VY[control_craft_index] = y0.VY[int(
-                        y0.AttachedTo[control_craft_index])]
-                    y0.Throttle[control_craft_index] += command.arg
-                    y0.AttachedTo[control_craft_index] = -1
-            else:
-                y0.Throttle[control_craft_index] += command.arg
+            launch()
+            y0.Throttle[control_craft_index] += command.arg
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
-            # reset all attachment if ship leaves
-            if y0.AttachedTo[control_craft_index] != -1:
-                if command.arg > 0:
-                    y0.VX[control_craft_index] = y0.VX[int(
-                        y0.AttachedTo[control_craft_index])]
-                    y0.VY[control_craft_index] = y0.VY[int(
-                        y0.AttachedTo[control_craft_index])]
-                    y0.Throttle[control_craft_index] = command.arg
-                    y0.AttachedTo[control_craft_index] = -1
-            else:
-                y0.Throttle[control_craft_index] = command.arg
+            launch()
+            y0.Throttle[control_craft_index] = command.arg
 
         elif command.ident == protos.Command.TIME_ACC_SET:
-            time_acceleration = self._bound_time_acceleration(command.arg)
-            if time_acceleration is None:
-                return
-            self._time_acceleration = time_acceleration
+            assert command.arg > 0
+            self._time_acceleration = command.arg
 
         # Bound throttle to [-20, 120] percent
         y0.Throttle[control_craft_index] = max(
@@ -405,15 +380,36 @@ class PEngine(object):
 
         self._restart_simulation(physical_state.timestamp, y0)
 
-    def _resolve_collision(self, e1, e2):
+    def _collision_decision(self, t, y, altitude_event):
+        e1_index, e2_index = altitude_event(
+            t, y._y_1d, return_pair=True)
+        e1 = self._physics_entity_at(y, e1_index)
+        e2 = self._physics_entity_at(y, e2_index)
+
+        log.info(f'Collision {t - self._simtime(peek_time=True)} '
+                 f'seconds in the future, {e1.as_proto()} and {e2.as_proto()}')
+
+        if (e2.attached_to is not "") or (e1.attached_to is not ""):
+            log.info('Entities are attached, returning early')
+            return e1, e2
+
+        if e1.artificial:
+            self._land(e1, e2)
+        elif e2.artificial:
+            self._land(e2, e1)
+        else:
+            self._bounce(e1, e2)
+
+        y = self._merge_physics_entity_into(e1, y, e1_index)
+        y = self._merge_physics_entity_into(e2, y, e2_index)
+        return y
+
+    def _bounce(self, e1, e2):
         # Resolve a collision by:
         # 1. calculating positions and velocities of the two entities
         # 2. do a 1D collision calculation along the normal between the two
         # 3. recombine the velocity vectors
-
-        if (e2.attached_to is not "") or (e1.attached_to is not ""):
-            return e1, e2
-
+        log.info(f'Bouncing {e1.name} and {e2.name}')
         norm = e1.pos - e2.pos
         unit_norm = norm / np.linalg.norm(norm)
         # The unit tangent is perpendicular to the unit normal vector
@@ -434,47 +430,24 @@ class PEngine(object):
         e1.v = new_v1n * unit_norm + v1t * unit_tang
         e2.v = new_v2n * unit_norm + v2t * unit_tang
 
-        # artificial object landing handle
-        if e1.artificial:
-            self._landing_handle(e1, e2, v1n, v2n)
-            e1.v = np.zeros(e1.v.size)
-        elif e2.artificial:
-            self._landing_handle(e2, e1, v2n, v1n)
-            e2.v = np.zeros(e1.v.size)
-        elif e1.cannot_land:
-            self._landing_handle(e1, e2, v1n, v2n, 1)
-        elif e2.cannot_land:
-            self._landing_handle(e2, e1, v2n, v1n, 1)
-
-        return e1, e2
-
-    def _collision_handle(self, t, y, altitude_event):
-        e1_index, e2_index = altitude_event(
-            t, y._y_1d, return_pair=True)
-        e1 = self._physics_entity_at(y, e1_index)
-        e2 = self._physics_entity_at(y, e2_index)
-        e1, e2 = self._resolve_collision(e1, e2)
-        log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in'
-                 f' the future, {e1.as_proto()} and {e2.as_proto()}')
-        y = self._merge_physics_entity_into(e1, y, e1_index)
-        y = self._merge_physics_entity_into(e2, y, e2_index)
-        return y
-
-    def _landing_handle(self, E1, E2, V1, V2, cannot_land=0):
+    def _land(self, e1, e2):
+        # e1 is an artificial object
         # if 2 artificial object collide (habitat, spacespation)
         # or small astroid collision (need deletion), handle later
-        if E2.artificial:
-            return
-        if E2.cannot_land:
-            return
-        E1.attached_to = E2.name
-        # currently difficult to broke ship and breaking does nothing
-        E1.broken = (abs(V1-V2) > E1.habitat_hull_strength*10)
-        norm = E1.pos-E2.pos
-        # set right heading for furtur takeoff
-        E1.heading = np.arctan2(norm[1], norm[0])
-        E1.throttle = 0
-        # do actual attachment
+        log.info(f'Landing {e1.name} on {e2.name}')
+        assert not e2.artificial
+        assert not e2.cannot_land
+        e1.attached_to = e2.name
+
+        # Currently does nothing
+        e1.broken = np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength
+
+        # set right heading for future takeoff
+        norm = e1.pos - e2.pos
+        e1.heading = np.arctan2(norm[1], norm[0])
+        e1.throttle = 0
+        e1.spin = e2.spin
+        e1.v = e2.v
 
     def _state_from_y_1d(self, t, y):
         y = Y(y)
@@ -547,15 +520,6 @@ class PEngine(object):
             self._simthread_exception = e
         log.debug('simthread exited')
 
-    def _artificial_heading_check(self, y):
-        for ind in [self._hab_index, self._spacestation_index]:
-            if ind >= 0:
-                if y.AttachedTo[ind] >= 0:
-                    target_ind = int(y.AttachedTo[ind])
-                    norm = [y.X[ind]-y.X[target_ind], y.Y[ind]-y.Y[target_ind]]
-                    y.Heading[ind] = np.arctan2(norm[1], norm[0])
-        return y
-
     def _derive(self, t, y_1d):
         """
         y_1d =
@@ -593,20 +557,36 @@ class PEngine(object):
             Ya[self._hab_index] += hab_eng_acc_y
 
         # Keep attached entities glued together
-        for attached, attached_to in enumerate(y.AttachedTo):
+        for attached, attachee in enumerate(y.AttachedTo):
             # The entity at index 'attached' is attached to the entity at index
-            # 'attached_to'. For example, the habitat could be attached to the
+            # 'attachee'. For example, the habitat could be attached to the
             # Earth, in which case 'attached' would reference the habitat and
-            # 'attached_to' would reference the Earth
-            if attached_to == NO_INDEX:
+            # 'attachee' would reference the Earth
+            if attachee == NO_INDEX:
                 continue
-            attached_to = int(attached_to)
+            attachee = int(attachee)
 
-            # If we're attached to something, make sure we move in lockstep
-            y.VX[attached] = y.VX[attached_to]
-            y.VY[attached] = y.VY[attached_to]
-            Xa[attached] = Xa[attached_to]
-            Ya[attached] = Ya[attached_to]
+            # If we're attached to something, make sure we move in lockstep.
+            y.VX[attached] = y.VX[attachee]
+            y.VY[attached] = y.VY[attachee]
+            Xa[attached] = Xa[attachee]
+            Ya[attached] = Ya[attachee]
+
+            # We also add velocity and centripetal acceleration that comes
+            # from being attached to the surface of a spinning object.
+            e1 = self._physics_entity_at(y, attached)
+            e2 = self._physics_entity_at(y, attachee)
+            norm = e1.pos - e2.pos
+            unit_norm = norm / np.linalg.norm(norm)
+            # The unit tangent is perpendicular to the unit normal vector
+            unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
+            # These two lines courtesy of wikipedia "Circular motion"
+            circular_velocity = unit_tang * e2.spin * e2.r
+            centripetal_acc = unit_norm * e2.spin ** 2 * e2.r
+            y.VX[attached] += circular_velocity[0]
+            y.VY[attached] += circular_velocity[1]
+            Xa[attached] += centripetal_acc[0]
+            Ya[attached] += centripetal_acc[1]
 
         # for futur spacestation code
         # if y.Fuel[self._spacestation_index] > 0:
@@ -714,8 +694,7 @@ class PEngine(object):
                 log.warning(ivp_out.message)
                 log.warning(('Retrying with decreased time acceleration = '
                              f'{self._time_acceleration / 10}'))
-                self._time_acceleration = self._bound_time_acceleration(
-                    self._time_acceleration / 10)
+                self._time_acceleration = self._time_acceleration / 10
                 if self._time_acceleration < 1:
                     # We can't lower the time acceleration anymore
                     raise Exception(ivp_out.message)
@@ -742,14 +721,13 @@ class PEngine(object):
             y = Y(ivp_out.y[:, -1])
             t = ivp_out.t[-1]
 
-            y = self._artificial_heading_check(y)
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
-                    y = self._collision_handle(t, y, altitude_event)
+                    y = self._collision_decision(t, y, altitude_event)
                 elif len(ivp_out.t_events[1]):
                     log.debug(f'Got fuel empty at {t}')
                     # Habitat's out of fuel, the next iteration won't consume
