@@ -134,11 +134,26 @@ class FlightGui:
             getattr(self._vpython.no_notebook, '__server').shutdown()
             getattr(self._vpython.no_notebook, '__interact_loop').stop()
 
-    def _calc_orb_speed(self, ref_entity):
+    def _orb_speed(self, planet_name: str) -> float:
         """The orbital speed of an astronomical body or object.
 
         Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
-        return self._vpython.sqrt((G * ref_entity.mass) / ref_entity.r)
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        return self._vpython.sqrt((G * reference.mass) / reference.r)
+
+    def _periapsis(self, planet_name: str) -> float:
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        # calculate and return the periapsis
+        return 100
+
+    def _apoapsis(self, planet_name: str) -> float:
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        # calculate and return the apoapsis
+        return 100
 
     def _altitude(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat
@@ -151,7 +166,7 @@ class FlightGui:
         ) - planet.r - planet2.r
 
     def _speed(self, planet_name, planet_name2='Habitat'):
-        """Caculate distance between ref_planet and Habitat"""
+        """Caculate speed between ref_planet and Habitat"""
         planet = common.find_entity(planet_name, self._last_physical_state)
         planet2 = common.find_entity(planet_name2, self._last_physical_state)
         return self._vpython.mag(self._vpython.vector(
@@ -159,6 +174,26 @@ class FlightGui:
             planet.vy - planet2.vy,
             0
         ))
+
+    def _v_speed(self, planet_name: str) -> float:
+        """Centripetal velocity of the habitat relative to planet_name.
+
+        Returns a negative number of m/s when the habitat is falling,
+        and positive when the habitat is rising."""
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        return 100
+
+    def _h_speed(self, planet_name: str) -> float:
+        """Tangential velocity of the habitat relative to planet_name.
+
+        Always returns a positive number of m/s, of how fast the habitat is
+        moving side-to-side relative to the reference surface."""
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        return 100
 
     def _posn(self, entity):
         """Translates into the frame of reference of the origin."""
@@ -318,8 +353,16 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{self._calc_orb_speed(self._reference):,.7g} m/s",
+             lambda: f"{self._orb_speed(self._reference.name):,.7g} m/s",
              "Speed required for circular orbit at current altitude",
+             False),
+            ("Periapsis",
+             lambda: f"{self._periapsis(self._reference.name):,.7g} m",
+             "Lowest altitude in naïve orbit around reference",
+             False),
+            ("Apoapsis",
+             lambda: f"{self._apoapsis(self._reference.name):,.7g} m",
+             "Highest altitude in naïve orbit around reference",
              False),
             ("Ref alt",
              lambda: f"{self._altitude(self._reference.name):,.7g} m",
@@ -328,6 +371,14 @@ class FlightGui:
             ("Ref speed",
              lambda: f"{self._speed(self._reference.name):,.7g} m/s",
              "Speed of habitat above reference surface",
+             False),
+            ("Vertical speed",
+             lambda: f"{self._v_speed(self._reference.name):,.7g} m/s ",
+             "Vertical speed of habitat towards/away reference surface",
+             False),
+            ("Horizontal speed",
+             lambda: f"{self._h_speed(self._reference.name):,.7g} m/s ",
+             "Horizontal speed of habitat across reference surface",
              False),
             ("Targ alt",
              lambda: f"{self._altitude(self._target.name):,.7g} m",

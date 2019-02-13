@@ -106,8 +106,12 @@ def write_savefile(physical_state, file):
 
 
 def find_entity(name, physical_state):
-    return [entity for entity in physical_state.entities
-            if entity.name == name][0]
+    try:
+        return [entity for entity in physical_state.entities
+                if entity.name == name][0]
+    except IndexError:
+        logging.getLogger().error(f'{name} not found in entity list')
+        raise
 
 
 _profile_thread = None
