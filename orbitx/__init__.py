@@ -17,7 +17,7 @@ target_file = Path(__file__).resolve().parent / 'orbitx_pb2_grpc.py'
 if not hasattr(sys, 'frozen'):
     # Made sure we're not in a frozen binary, like a distributed .exe file.
     # If this file doesn't exist, we must be running as orbitx.exe.
-    assert target_file.is_file()
+    assert target_file.is_file(), '----- Remember to run "make build"!! -----'
     with open(target_file, 'r') as grpc_py:
         replaced_file = grpc_py.read().replace(
             '\nimport orbitx_pb2', '\nfrom . import orbitx_pb2')

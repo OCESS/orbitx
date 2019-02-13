@@ -249,9 +249,6 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
-    except Exception:
-        log.exception('Exception in main loop! Stopping execution.')
-        raise
     finally:
         if cleanup_function is not None:
             cleanup_function()
