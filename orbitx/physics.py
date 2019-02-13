@@ -187,8 +187,6 @@ class PEngine(object):
         self._last_monotime = time.monotonic()
         self._time_acceleration = common.DEFAULT_TIME_ACC
         self._simthread_exception = None
-        self.actions = {}  # last actions
-        self.collision_heading = {}  # collision heading at collision moment
 
         self.set_state(physical_state)
 
@@ -476,7 +474,6 @@ class PEngine(object):
         # set right heading for furtur takeoff
         E1.heading = np.arctan2(norm[1], norm[0])
         E1.throttle = 0
-        self.collision_heading[E1.name] = E1.heading-E2.heading
         # do actual attachment
 
     def _state_from_y_1d(self, t, y):
@@ -601,9 +598,9 @@ class PEngine(object):
             # 'attached_to'. For example, the habitat could be attached to the
             # Earth, in which case 'attached' would reference the habitat and
             # 'attached_to' would reference the Earth
-            attached_to = int(attached_to)
             if attached_to == NO_INDEX:
                 continue
+            attached_to = int(attached_to)
 
             # If we're attached to something, make sure we move in lockstep
             y.VX[attached] = y.VX[attached_to]
@@ -672,16 +669,11 @@ class PEngine(object):
             # For each pair of objects that have collisions disabled between
             # them, also set their altitude to be inf
 
-            # collision detection for already collided artifial turned off
-            place = np.where(y.AttachedTo >= 0)
-            place = np.append(place[0], y.AttachedTo[place[0]])
-            if len(place):
-                # place[1]=int(place[1])
-                # print(place)
-                place = np.transpose(
-                    [np.tile(place, len(place)), np.repeat(place, len(place))])
-                for i, j in place:
-                    alt_matrix[int(i), int(j)] = np.inf
+            # If there are any entities attached to any other entities, ignore
+            # both the attachee and the attached entity.
+            for index in np.where(y.AttachedTo >= 0)[0]:
+                alt_matrix[index, int(y.AttachedTo[index])] = np.inf
+                alt_matrix[int(y.AttachedTo[index]), index] = np.inf
 
             if return_pair:
                 # Returns the actual pair of indicies instead of a scalar.
