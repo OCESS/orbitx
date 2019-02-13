@@ -1,0 +1,23 @@
+{
+    "entities": [
+        {
+            "name": "artificial",
+            "r": 50.0,
+            "mass": 300.0,
+            "artificial": true
+        },
+        {
+            "y": 10000000.0,
+            "name": "collision_confounding",
+            "r": 30000.0,
+            "mass": 100.0
+        },
+        {
+            "name": "natural",
+            "x": -500.0,
+            "r": 30.0,
+            "vx": 10.0,
+            "mass": 100.0
+        }
+    ]
+}
