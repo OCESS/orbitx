@@ -137,25 +137,75 @@ class FlightGui:
     def _orb_speed(self, planet_name: str) -> float:
         """The orbital speed of an astronomical body or object.
 
-        Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
+        Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed
+
+        note from Will: This equation is correct only for small eccentricities:
+        it is accurate for the earth around the sun, less so for a comet.
+        See: Vis Viva equation: https://en.wikipedia.org/wiki/Vis-viva_equation"""
         reference = common.find_entity(planet_name, self._last_physical_state)
         return self._vpython.sqrt((G * reference.mass) / reference.r)
+
+    def _semimajor_axis(self, planet_name: str) -> float :
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        # calculate the semimajor axis: the mean distance between bodies in an 
+        # elliptical orbit
+        v = self._speed(reference, habitat)
+        r = self._CoM_distance(reference,habitat)
+        mu = reference.mass*G
+        E = 0.5*habitat.mass*v**2 - (habitat.mass*mu)/r
+        return -mu/(2*E)
+    # end of _semimajor_axis
+
+    def _eccentricity_mag(self, planet_name: str) -> float :
+        reference = common.find_entity(planet_name, self._last_physical_state)
+        habitat = common.find_entity(
+            self._habitat.name, self._last_physical_state)
+        # calculate the eccentricity - a defining feature of ellipses
+        v = self._vpython.vector(
+            reference.vx - habitat.vx,
+            reference.vy - habitat.vy,
+            0
+        )
+        r = self._vpython.vector(
+            reference.x - habitat.x,
+            reference.y - habitat.y,
+            0
+        )
+        mu = reference.mass*G
+        return vpython.mag( ((vpython.mag2(v)*r)/mu) - ((vpython.dot(v,r)*v)/mu) - vpython.norm(r) )
+    # end of _eccentricity_mag
 
     def _periapsis(self, planet_name: str) -> float:
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         # calculate and return the periapsis
-        return 100
+        return _semimajor_axis(habitat, reference)*(1 - _eccentricity_mag(habitat,reference))
+    # end of _periapsis
 
     def _apoapsis(self, planet_name: str) -> float:
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         # calculate and return the apoapsis
-        return 100
+        return _semimajor_axis(habitat, reference)*(1 +_eccentricity_mag(habitat,reference))
+    # end of _apoapsis
 
-    def _altitude(self, planet_name, planet_name2='Habitat'):
+    def _CoM_distance(self, planet_name: str, planet_name2: str = 'Habitat') -> float :
+        """Caculate distance between ref_planet and Habitat
+        returns: the number of metres"""
+
+        planet = common.find_entity(planet_name, self._last_physical_state)
+        planet2 = common.find_entity(planet_name2, self._last_physical_state)
+        return math.hypot(
+            planet.x - planet2.x,
+            planet.y - planet2.y
+        )
+    # end of _CoM_distance
+
+    def _altitude(self, planet_name: str, planet_name2: str = 'Habitat') -> float :
         """Caculate distance between ref_planet and Habitat
         returns: the number of metres"""
         planet = common.find_entity(planet_name, self._last_physical_state)
@@ -175,27 +225,45 @@ class FlightGui:
             0
         ))
 
-    def _v_speed(self, planet_name: str) -> float:
-        """Centripetal velocity of the habitat relative to planet_name.
+    def _v_speed(self, planet_name: str) -> float :
+        """Radial velocity of the habitat relative to planet_name.
 
         Returns a negative number of m/s when the habitat is falling,
         and positive when the habitat is rising."""
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
-        return 100
+            r = _vpython.vector(
+            reference.x - habitat.x,
+            reference.y - habitat.y
+        )
+            radial_v = _speed(habitat,reference)*vpython.norm(r)
+        return vpython.mag(radial_v)
+
+    # end of _v_speed
 
     def _h_speed(self, planet_name: str) -> float:
         """Tangential velocity of the habitat relative to planet_name.
 
         Always returns a positive number of m/s, of how fast the habitat is
-        moving side-to-side relative to the reference surface."""
+        moving side-to-side relative to the reference surface. """
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
-        return 100
-
-    def _posn(self, entity):
+            r = _vpython.vector(
+            reference.x - habitat.x,
+            reference.y - habitat.y
+        )
+            v = _vpython.vector(
+            reference.vx - habitat.vx,
+            reference.vy - habitat.vy
+        )
+            tangential_v = v - (_speed(habitat,reference)*vpython.norm(r))
+        return vpython.mag(tangential_v)
+        return 
+    # end of _h_speed
+    
+    def _posn(self, entity: protos.Entity) -> vpython.cyvector.vector :
         """Translates into the frame of reference of the origin."""
         return self._vpython.vector(
             entity.x - self._origin.x,
