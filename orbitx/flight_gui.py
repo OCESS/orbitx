@@ -16,8 +16,6 @@ import math
 from . import common
 from . import orbitx_pb2 as protos
 
-import vpython
-
 log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
@@ -31,14 +29,11 @@ PLANET_SHININIESS = 0.3
 
 class FlightGui:
 
-    def __init__(self, physical_state_to_draw: protos.PhysicalState, texture_path: str =None, no_intro: bool =False )-> None: 
-        ctrl_c_handler: function = signal.getsignal(signal.SIGINT)
+    def __init__(self, physical_state_to_draw, texture_path=None, no_intro=False):
+        ctrl_c_handler = signal.getsignal(signal.SIGINT)
         # Note that this might actually start an HTTP server!
-        #import vpython
-
-        ################################ Attributes ############################### 
-
-        self._vpython: module = vpython        
+        import vpython
+        self._vpython = vpython
 
         if self._vpython.__version__ == '7.4.7':
             # vpython installs "os._exit(0)" signal handlers in 7.4.7.
@@ -70,27 +65,24 @@ class FlightGui:
             autoscale=True
         )
 
-        self._show_label: bool = True
-        self._show_trails: bool = False
-        self._pause: bool = False
-        self._scene.autoscale: bool = False
-        self.pause_label: vpython.vpython.label = None
-        self._texture_path: NoneType = texture_path
-        self._commands: list = []
-        self._spheres: dict = {}    
-        self._labels: dict = {}
-        self._landing_graphic: dict = {}
+        self._commands = []
 
+        self._show_label = True
+        self._show_trails = False
+        self._pause = False
         self.pause_label = vpython.label(
             text="Simulation Paused.", visible=False)
 
         self._scene.bind('keydown', self._handle_keydown)
         self._scene.bind('click', self._handle_click)
         # Show all planets in solar system
-        self._scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+        self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
-        ####################################################################
+        self._spheres = {}
+        self._labels = {}
+        self._landing_graphic = {}
 
+        self._texture_path = texture_path
         if texture_path is None:
             # Look for orbitx/data/textures
             self._texture_path = Path('data', 'textures')
@@ -113,7 +105,7 @@ class FlightGui:
             self._landing_graphic[planet.name] = self._draw_landing_graphic(
                 planet)
 
-        # self._scene.autoscale: bool = False
+        self._scene.autoscale = False
         self._set_caption()
 
         # Add an animation when launching the program
@@ -123,9 +115,8 @@ class FlightGui:
                 self._vpython.rate(100)
                 self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
-    # end of __self__
 
-    def shutdown(self) -> None:
+    def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
         if not self._vpython._isnotebook and \
                 self._vpython.__version__ == '7.4.7':
@@ -142,45 +133,39 @@ class FlightGui:
             # bypass name mangling with getattr.
             getattr(self._vpython.no_notebook, '__server').shutdown()
             getattr(self._vpython.no_notebook, '__interact_loop').stop()
-    # end of shutdown
 
-    def _orb_speed(self, planet_name: str) -> float :
+    def _orb_speed(self, planet_name: str) -> float:
         """The orbital speed of an astronomical body or object.
 
         Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
         reference = common.find_entity(planet_name, self._last_physical_state)
         return self._vpython.sqrt((G * reference.mass) / reference.r)
-    # end of _orb_speed
 
-    def _periapsis(self, planet_name: str) -> float :
+    def _periapsis(self, planet_name: str) -> float:
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         # calculate and return the periapsis
         return 100
-    # end of _periapsis
 
-    def _apoapsis(self, planet_name: str) -> float :
+    def _apoapsis(self, planet_name: str) -> float:
         reference = common.find_entity(planet_name, self._last_physical_state)
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         # calculate and return the apoapsis
         return 100
-    # end of _apoapsis
 
-    def _altitude(self, planet_name: str, planet_name2: str = 'Habitat') -> float :
+    def _altitude(self, planet_name, planet_name2='Habitat'):
         """Caculate distance between ref_planet and Habitat
         returns: the number of metres"""
-
         planet = common.find_entity(planet_name, self._last_physical_state)
         planet2 = common.find_entity(planet_name2, self._last_physical_state)
         return math.hypot(
             planet.x - planet2.x,
             planet.y - planet2.y
         ) - planet.r - planet2.r
-    # end of _altitude
 
-    def _speed(self, planet_name: str, planet_name2: str = 'Habitat') -> float :
+    def _speed(self, planet_name, planet_name2='Habitat'):
         """Caculate speed between ref_planet and Habitat"""
         planet = common.find_entity(planet_name, self._last_physical_state)
         planet2 = common.find_entity(planet_name2, self._last_physical_state)
@@ -189,9 +174,8 @@ class FlightGui:
             planet.vy - planet2.vy,
             0
         ))
-    # end of _speed
 
-    def _v_speed(self, planet_name: str) -> float :
+    def _v_speed(self, planet_name: str) -> float:
         """Centripetal velocity of the habitat relative to planet_name.
 
         Returns a negative number of m/s when the habitat is falling,
@@ -200,9 +184,8 @@ class FlightGui:
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         return 100
-    # end of _v_speed
 
-    def _h_speed(self, planet_name: str) -> float :
+    def _h_speed(self, planet_name: str) -> float:
         """Tangential velocity of the habitat relative to planet_name.
 
         Always returns a positive number of m/s, of how fast the habitat is
@@ -211,42 +194,36 @@ class FlightGui:
         habitat = common.find_entity(
             self._habitat.name, self._last_physical_state)
         return 100
-    # end of _h_speed
 
-    def _posn(self, entity: protos.Entity) -> vpython.cyvector.vector :
+    def _posn(self, entity):
         """Translates into the frame of reference of the origin."""
-
         return self._vpython.vector(
             entity.x - self._origin.x,
             entity.y - self._origin.y,
             0)
-    # end of _posn
 
-    def _unit_velocity(self, entity: protos.Entity) -> vpython.cyvector.vector :
+    def _unit_velocity(self, entity):
         """Provides entity velocity relative to reference."""
         return self._vpython.vector(
             entity.vx - self._reference.vx,
             entity.vy - self._reference.vy,
             0).norm()
-    # end of _unit_velocity
 
-    def _set_reference(self, entity_name: str) -> None :
+    def _set_reference(self, entity_name):
         try:
             self._reference = common.find_entity(
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
-    # end of _set_reference
 
-    def _set_target(self, entity_name: str) -> None :
+    def _set_target(self, entity_name):
         try:
             self._target = common.find_entity(
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
-        # end of _set_target
 
-    def _set_origin(self, entity_name: str) -> None :
+    def _set_origin(self, entity_name):
         """Set origin position for rendering universe and reset the trails.
 
         Because GPU(Graphics Processing Unit) cannot deal with extreme case of
@@ -264,35 +241,31 @@ class FlightGui:
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
-        # end of _set_origin
 
-    def _clear_trails(self) -> None :
+    def _clear_trails(self):
         for sphere in self._spheres.values():
             if sphere.name == 'Habitat':
                 self._habitat_trail.clear()
             else:
                 sphere.clear_trail()
-    # end of _clear_trails
 
-    def _show_hide_label(self) -> None :
+    def _show_hide_label(self):
         if self._show_label:
             for key, label in self._labels.items():
                 label.visible = True
         else:
             for key, label in self._labels.items():
                 label.visible = False
-    # end of _show_hide_label
 
-    def pop_commands(self) -> list :
+    def pop_commands(self):
         """Take gathered user input and send it off."""
         old_commands = self._commands
         self._commands = []
         return old_commands
-    # end of pop_commands
 
-    def _handle_keydown(self, evt: vpython.vpython.event_return) -> None :
+    def _handle_keydown(self, evt):
         """Input key handler"""
-        
+
         k = evt.key
         if k == 'l':
             self._show_label = not self._show_label
@@ -342,9 +315,7 @@ class FlightGui:
         #    self.cur_caption = (self.cur_caption + 1) % 4
         #    self.set_caption()
 
-    # end of _handle_keydown
-
-    def _handle_click(self, evt: vpython.vpython.event_return) -> None :
+    def _handle_click(self, evt):
         # global obj, clicked
         try:
             obj = self._scene.mouse.pick
@@ -355,10 +326,8 @@ class FlightGui:
             pass
         # clicked = True
 
-    # end of _handle_click
-
     # TODO: 1)Update with correct physics values
-    def _set_caption(self) -> None :
+    def _set_caption(self):
         """Set and update the captions."""
 
         # There's a bit of magic here. Normally, vpython.wtext will make a
@@ -451,15 +420,13 @@ class FlightGui:
 
         self._scene.append_to_caption(VPYTHON_CSS)
         self._scene.append_to_caption(VPYTHON_JS)
-    # end of _set_caption
 
     # TODO: create bind functions for target, ref, and NAV MODE
-    def _set_menus(self) -> None :
+    def _set_menus(self):
         """This creates dropped down menu which is used when set_caption."""
 
-        def build_menu(*, choices: list = None, bind = None, # type of bind = <class method>
-                       selected: str = None, caption: str = None, helptext: str = None) -> vpython.vpython.menu:
-
+        def build_menu(*, choices=None, bind=None,
+                       selected=None, caption=None, helptext=None):
             menu = self._vpython.menu(
                 choices=choices,
                 pos=self._scene.caption_anchor,
@@ -470,7 +437,6 @@ class FlightGui:
                 f"<span class='helptext'>{helptext}</span>")
             self._scene.append_to_caption("\n")
             return menu
-        # end of build_menu
 
         self._centre_menu = build_menu(
             choices=list(self._spheres),
@@ -519,9 +485,8 @@ class FlightGui:
             bind=self._trail_checkbox_hook, checked=False, text='Trails')
         self._scene.append_to_caption(
             " <span class='helptext'>Graphically intensive</span>")
-    # end of _set_menus
 
-    def draw(self, physical_state_to_draw: protos.PhysicalState) -> None :
+    def draw(self, physical_state_to_draw):
         self._last_physical_state = physical_state_to_draw
         # Have to reset origin, reference, and target with new positions
         self._set_origin(self._origin.name)
@@ -538,9 +503,8 @@ class FlightGui:
         for wtext in self._wtexts:
             # Update text of all text widgets.
             wtext.text = wtext.text_func()
-    # end of draw
 
-    def _draw_sphere(self, planet: protos.Entity) -> vpython.vpython.sphere :
+    def _draw_sphere(self, planet):
         texture = self._texture_path / (planet.name + '.jpg')
 
         if planet.name == "Habitat":
@@ -599,10 +563,10 @@ class FlightGui:
             obj.texture = str(texture)
         else:
             log.debug(f'Could not find texture {texture}')
-        return obj
-    # end of _draw_sphere
 
-    def _draw_labels(self, planet: protos.Entity) -> vpython.vpython.label:
+        return obj
+
+    def _draw_labels(self, planet):
         label = self._vpython.label(
             visible=True, pos=self._posn(planet),
             xoffset=0, yoffset=10, height=16,
@@ -616,10 +580,10 @@ class FlightGui:
                 f'Heading: {round(np.degrees(entity.heading))}\xb0'
             )
         label.text = label.text_function(planet)
-        return label
-    # end of _draw_labels
 
-    def _draw_landing_graphic(self, planet: protos.Entity) -> vpython.vpython.cylinder :
+        return label
+
+    def _draw_landing_graphic(self, planet):
         """Draw something that simulates a flat surface at near zoom levels."""
         size = planet.r * 0.01
         texture = self._texture_path / (planet.name + '.jpg')
@@ -631,24 +595,21 @@ class FlightGui:
             shininess=PLANET_SHININIESS,
             texture=str(texture) if texture.is_file() else None
         )
-    # end of _draw_landing_graphic
 
-    def _update_sphere(self, planet: protos.Entity) -> None :
+    def _update_sphere(self, planet):
         sphere = self._spheres[planet.name]
         sphere.pos = self._posn(planet)
         sphere.axis = self._ang_pos(planet.heading)
         if planet.name == 'Habitat':
             sphere.arrow = self._unit_velocity(planet)
             self._habitat = planet
-    # end of _update_sphere
 
-    def _update_label(self, planet: protos.Entity) -> None :
+    def _update_label(self, planet):
         label = self._labels[planet.name]
         label.text = label.text_function(planet)
         label.pos = self._posn(planet)
-    # end of _update_label
 
-    def _update_landing_graphic(self, planet: protos.Entity) -> None :
+    def _update_landing_graphic(self, planet):
         """Rotate the landing graphic to always be facing the Habitat.
 
         The landing graphic has to be on the surface of the planet,
@@ -664,34 +625,28 @@ class FlightGui:
         landing_graphic.pos = (
             self._posn(planet) + axis * planet.r
         )
-    # end of _update_landing_graphic
 
-    def _recentre_dropdown_hook(self, selection: vpython.vpython.menu) -> None :
+    def _recentre_dropdown_hook(self, selection):
         self._set_origin(selection.selected)
         self.recentre_camera(selection.selected)
         self._clear_trails()
-    # end of _recentre_dropdown_hook
 
-    def _reference_dropdown_hook(self, selection: vpython.vpython.menu) -> None :
+    def _reference_dropdown_hook(self, selection):
         self._set_reference(selection.selected)
-    # end of _reference_dropdown_hook
 
-    def _target_dropdown_hook(self, selection: vpython.vpython.menu) -> None :
+    def _target_dropdown_hook(self, selection):
         self._set_target(selection.selected)
-    # end of _target_dropdown_hook
 
-    def _navmode_dropdown_hook(self, selection: vpython.vpython.menu) -> None :
+    def _navmode_dropdown_hook(self, selection):
         self._set_navmode(selection.selected)
-    # end of _navmode_dropdown_hook
 
-    def _time_acc_dropdown_hook(self, selection: vpython.vpython.menu) -> None :
+    def _time_acc_dropdown_hook(self, selection):
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
         self._commands.append(protos.Command(
             ident=protos.Command.TIME_ACC_SET,
             arg=time_acc))
-    # end of _time_acc_dropdown_hook
 
-    def _trail_checkbox_hook(self, selection: vpython.vpython.menu) -> None :
+    def _trail_checkbox_hook(self, selection):
         self._show_trails = selection.checked
         for sphere in self._spheres.values():
             if sphere.name == 'Habitat':
@@ -709,9 +664,8 @@ class FlightGui:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
             self._set_origin(self._centre_menu.selected)
-    # end of _trail_checkbox_hook
 
-    def notify_time_acc_change(self, new_acc: int) -> None :
+    def notify_time_acc_change(self, new_acc):
         new_acc_str = f'{new_acc:,}×'
         if new_acc_str == self._time_acc_menu.selected:
             return
@@ -719,9 +673,8 @@ class FlightGui:
             log.error(f'"{new_acc_str}" not a valid time acceleration')
             return
         self._time_acc_menu.selected = new_acc_str
-    # end of notify_time_acc_change
 
-    def recentre_camera(self, planet_name: str) -> None :
+    def recentre_camera(self, planet_name):
         """Change camera to focus on different object
 
         Because GPU(Graphics Processing Unit) cannot deal with extreme case of
@@ -741,16 +694,13 @@ class FlightGui:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
         except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
-    # end of recentre_camera
 
-    def _ang_pos(self, angle: float) -> vpython.cyvector.vector :
+    def _ang_pos(self, angle):
         return self._vpython.vector(np.cos(angle), np.sin(angle), 0)
-    # end of _ang_pos
 
-    def rate(self, framerate: int) -> None :
+    def rate(self, framerate):
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         self._vpython.rate(framerate)
-    # end of rate
 
 
 VPYTHON_CSS = """<style>
