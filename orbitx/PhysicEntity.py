@@ -7,27 +7,21 @@ class PhysicsEntity(object):
     habitat_hull_strength=50
     spacestation_hull_strength=100
     cannot_land=0 #reserved for small astroid, to be changed
+
     def __init__(self, entity):
         assert isinstance(entity, protos.Entity)
         self.name = entity.name
         self.pos = np.asarray([entity.x, entity.y])
-        self.R = entity.r
+        self.r = entity.r
         self.v = np.asarray([entity.vx, entity.vy])
         self.m = entity.mass
         self.spin = entity.spin
         self.heading = entity.heading
         self.fuel = entity.fuel
         self.throttle = entity.throttle
-        self.attached_to =""
-        if hasattr(entity,"attached_to"):
-            self.attached_to = entity.attached_to
-        self.broken=False
-        if hasattr(entity,"broken"):
-            self.broken = entity.broken
-        self.artificial=False
-        if hasattr(entity,"artificial"):
-            self.artificial = entity.artificial
-
+        self.attached_to = entity.attached_to
+        self.broken = entity.broken
+        self.artificial = entity.artificial
 
     def as_proto(self):
         return protos.Entity(
@@ -36,7 +30,7 @@ class PhysicsEntity(object):
             y=self.pos[1],
             vx=self.v[0],
             vy=self.v[1],
-            r=self.R,
+            r=self.r,
             mass=self.m,
             spin=self.spin,
             heading=self.heading,
@@ -107,7 +101,7 @@ class ReactionWheel(object):
 
 class Habitat():
     """Static class implementing hab engine and reaction wheel constraints."""
-    engine = Engine(max_fuel_cons=1, max_acc=100)
+    engine = Engine(max_fuel_cons=1, max_acc=12)
     rw = ReactionWheel(max_spin_change=1)
 
     @classmethod

@@ -188,6 +188,26 @@ class PhysicsEngineTestCase(unittest.TestCase):
                              (y0.Y[2] - y0.Y[1])**2
                              ))
 
+    def test_landing(self):
+        with PhysicsEngine('tests/artificial-collision.json') \
+                as physics_engine:
+            # This case is the same as simple-collision, but the first entity
+            # has the artificial flag set. Thus it should land and stick.
+            # As in simple-collision, the collision happens at about t = 42.
+            before = physics_engine.get_state(40)
+            after = physics_engine.get_state(50)
+
+            assert before.entities[0].artificial
+            assert not before.entities[2].artificial
+
+            self.assertTrue(before.entities[0].x > before.entities[2].x)
+            self.assertTrue(before.entities[2].vx > 0)
+            self.assertAlmostEqual(after.entities[0].vx, after.entities[2].vx)
+            self.assertAlmostEqual(after.entities[0].x,
+                                   (after.entities[2].x +
+                                    after.entities[0].r +
+                                    after.entities[2].r))
+
 
 if __name__ == '__main__':
     unittest.main()
