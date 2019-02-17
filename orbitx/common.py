@@ -106,6 +106,8 @@ def write_savefile(physical_state, file):
 
 
 def find_entity(name, physical_state):
+    assert isinstance(name, str)
+    assert isinstance(physical_state, protos.PhysicalState)
     try:
         return [entity for entity in physical_state.entities
                 if entity.name == name][0]
