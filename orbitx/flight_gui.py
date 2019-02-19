@@ -6,9 +6,14 @@ Call FlightGui.draw() in the main loop to update positions in the GUI.
 Call FlightGui.pop_commands() to collect user input.
 """
 
+import collections
+import copy
 import logging
 import signal
+import threading
+import time
 from pathlib import Path
+from typing import List, Tuple
 
 import numpy as np
 import math
@@ -16,22 +21,7 @@ import math
 from . import common
 from . import orbitx_pb2 as protos
 
-
-# See https://github.com/BruceSherwood/vpython-jupyter/pull/102
-# for why this ugly import is necessary
-ctrl_c_handler = signal.getsignal(signal.SIGINT)
-
-import vpython  # noqa: E402
-
-vp_closed = False
-if vpython.__version__ == '7.4.7':
-    signal.signal(signal.SIGINT, ctrl_c_handler)
-
-    def callback(*_):
-        getattr(vpython.no_notebook, '__interact_loop').stop()
-        vp_closed = True
-    getattr(vpython.no_notebook,
-            '__factory').protocol.onClose = callback
+import vpython
 
 log = logging.getLogger()
 
@@ -42,6 +32,8 @@ DEFAULT_TARGET = 'Moon'
 G = 6.674e-11
 
 PLANET_SHININIESS = 0.3
+
+Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 
 
 class FlightGui:
@@ -74,7 +66,8 @@ class FlightGui:
         self._commands: list = []
         self._spheres: dict = {}
         self._labels: dict = {}
-        self._landing_graphic: dict = {}
+        self._target_landing_graphic: vpython.compound = None
+        self._reference_landing_graphic: vpython.compound = None
 
         self._pause_label = vpython.label(
             text="Simulation Paused.", visible=False)
@@ -90,15 +83,17 @@ class FlightGui:
 
         assert len(physical_state_to_draw.entities) >= 1
         self._last_physical_state = physical_state_to_draw
-        self._set_origin(DEFAULT_CENTRE)
-        self._set_reference(DEFAULT_REFERENCE)
-        self._set_target(DEFAULT_TARGET)
+        self._new_origin(DEFAULT_CENTRE)
+        self._new_reference(DEFAULT_REFERENCE)
+        self._new_target(DEFAULT_TARGET)
 
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
-            self._landing_graphic[planet.name] = self._draw_landing_graphic(
-                planet)
+
+        self._target_landing_graphic = self._draw_landing_graphic(self._target)
+        self._reference_landing_graphic = self._draw_landing_graphic(
+            self._reference)
 
         # self._scene.autoscale: bool = False
         self._set_caption()
@@ -221,23 +216,23 @@ class FlightGui:
             0).norm()
     # end of _unit_velocity
 
-    def _set_reference(self, entity_name: str) -> None:
+    def _new_reference(self, entity_name: str) -> None:
         try:
             self._reference = common.find_entity(
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
-    # end of _set_reference
+    # end of _new_reference
 
-    def _set_target(self, entity_name: str) -> None:
+    def _new_target(self, entity_name: str) -> None:
         try:
             self._target = common.find_entity(
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
-        # end of _set_target
+        # end of _new_target
 
-    def _set_origin(self, entity_name: str) -> None:
+    def _new_origin(self, entity_name: str) -> None:
         """Set origin position for rendering universe and reset the trails.
 
         Because GPU(Graphics Processing Unit) cannot deal with extreme case of
@@ -255,7 +250,7 @@ class FlightGui:
                 entity_name, self._last_physical_state)
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
-        # end of _set_origin
+        # end of _new_origin
 
     def _clear_trails(self) -> None:
         for sphere in self._spheres.values():
@@ -475,7 +470,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._set_reference(selection.selected),
+            bind=lambda selection: self._new_reference(selection.selected),
             selected=DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
@@ -484,7 +479,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._set_target(selection.selected),
+            bind=lambda selection: self._new_target(selection.selected),
             selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
@@ -517,16 +512,24 @@ class FlightGui:
     def draw(self, physical_state_to_draw: protos.PhysicalState) -> None:
         self._last_physical_state = physical_state_to_draw
         # Have to reset origin, reference, and target with new positions
-        self._set_origin(self._origin.name)
-        self._set_reference(self._reference.name)
-        self._set_target(self._target.name)
+        self._origin = common.find_entity(
+            self._origin.name, physical_state_to_draw)
+        self._target = common.find_entity(
+            self._target.name, physical_state_to_draw)
+        self._reference = common.find_entity(
+            self._reference.name, physical_state_to_draw)
+
+        self._update_landing_graphic(
+            self._reference, self._reference_landing_graphic)
+        self._update_landing_graphic(
+            self._target, self._target_landing_graphic)
+
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
         for planet in physical_state_to_draw.entities:
             self._update_sphere(planet)
             if self._show_label:
                 self._update_label(planet)
-            self._update_landing_graphic(planet)
 
         for wtext in self._wtexts:
             # Update text of all text widgets.
@@ -571,11 +574,13 @@ class FlightGui:
                 self._habitat_trail.clear()
 
         else:
+            # Note the radius is slightly too small. This is so that the sphere
+            # doesn't intersect with the landing graphic.
             obj = vpython.sphere(
                 pos=self._posn(planet),
                 axis=self._ang_pos(planet.heading),
                 up=vpython.vector(0, 0, 1),
-                radius=planet.r,
+                radius=planet.r * 0.95,
                 make_trail=self._show_trails,
                 retain=10000,
                 shininess=PLANET_SHININIESS
@@ -612,18 +617,20 @@ class FlightGui:
         return label
     # end of _draw_labels
 
-    def _draw_landing_graphic(self, planet: protos.Entity) -> vpython.cylinder:
-        """Draw something that simulates a flat surface at near zoom levels."""
-        size = planet.r * 0.01
-        texture = self._texture_path / (planet.name + '.jpg')
-        return vpython.cylinder(
-            up=vpython.vector(0, 0, 1),
-            axis=vpython.vector(-size, 0, 0),
-            radius=size,
-            pos=self._posn(planet),  # This will be filled in by the _update
-            shininess=PLANET_SHININIESS,
-            texture=str(texture) if texture.is_file() else None
-        )
+    def _draw_landing_graphic(self, entity: protos.Entity) -> vpython.compound:
+        """Draw something that simulates a flat surface at near zoom levels.
+
+        Only draws the landing graphic on the target and reference."""
+        # Iterate over a list of Point 3-tuples, each representing the
+        # vertices of a triangle in the sphere segment.
+        vpython_tris = []
+        for tri in _build_sphere_segment_vertices(entity.r):
+            vpython_verts = [vpython.vertex(pos=vpython.vector(*coord))
+                             for coord in tri]
+            vpython_tris.append(vpython.triangle(vs=vpython_verts))
+        ret = vpython.compound(
+            vpython_tris, pos=self._posn(entity), up=vpython.vector(0, 0, 1))
+        return ret
     # end of _draw_landing_graphic
 
     def _update_sphere(self, planet: protos.Entity) -> None:
@@ -641,26 +648,27 @@ class FlightGui:
         label.pos = self._posn(planet)
     # end of _update_label
 
-    def _update_landing_graphic(self, planet: protos.Entity) -> None:
+    def _update_landing_graphic(self,
+                                entity: protos.Entity,
+                                landing_graphic: vpython.compound) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
         The landing graphic has to be on the surface of the planet,
         but also the part of the planet closest to the habitat."""
         axis = vpython.vector(
-            self._habitat.x - planet.x,
-            self._habitat.y - planet.y,
+            self._habitat.x - entity.x,
+            self._habitat.y - entity.y,
             0
         ).norm()
-        landing_graphic = self._landing_graphic[planet.name]
 
-        landing_graphic.axis = -axis * landing_graphic.length
+        landing_graphic.axis = vpython.vector(axis.y, axis.x, 0)
         landing_graphic.pos = (
-            self._posn(planet) + axis * planet.r
+            self._posn(entity) + axis * (entity.r - landing_graphic.width / 2)
         )
     # end of _update_landing_graphic
 
     def _recentre_dropdown_hook(self, selection: vpython.menu) -> None:
-        self._set_origin(selection.selected)
+        self._new_origin(selection.selected)
         self.recentre_camera(selection.selected)
         self._clear_trails()
     # end of _recentre_dropdown_hook
@@ -689,7 +697,7 @@ class FlightGui:
         if not self._show_trails:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
-            self._set_origin(self._centre_menu.selected)
+            self._new_origin(self._centre_menu.selected)
     # end of _trail_checkbox_hook
 
     def notify_time_acc_change(self, new_acc: int) -> None:
@@ -716,7 +724,7 @@ class FlightGui:
                 self._scene.range = self._spheres[planet_name].radius * 2
 
             self._scene.camera.follow(self._spheres[planet_name])
-            self._set_origin(planet_name)
+            self._new_origin(planet_name)
 
         except KeyError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
@@ -831,3 +839,63 @@ INPUT_CHEATSHEET = """
     </tr>-->
 </table>
 """
+
+
+def _build_sphere_segment_vertices(
+        radius: float,
+        refine_steps=1,
+        ang_size=np.deg2rad(10)) -> List[Tuple[Point, Point, Point]]:
+    """Returns a segment of a sphere, which has a specified radius.
+    The return is a list of xyz-tuples, each representing a vertex."""
+    # This code inspired by:
+    # http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+    # Thanks, Andreas Kahler.
+    # TODO: limit the number of vertices generated to 65536 (the max in a
+    # vpython compound object).
+
+    # We set the 'middle' of the surface we're constructing to be (0, 0, r).
+    # Think of this as a point on the surface of the sphere centred on (0,0,0)
+    # with radius r.
+    # Then, we construct four equilateral triangles that will all meet at
+    # this point. Each triangle is ang_size degrees away from the 'middle'.
+
+    # The values of 100 are placeholders, and get replaced by cos(ang_size) * r
+    tris = np.array([
+        (Point(0, 1, 100), Point(1, 0, 100), Point(0, 0, 100)),
+        (Point(1, 0, 100), Point(0, -1, 100), Point(0, 0, 100)),
+        (Point(0, -1, 100), Point(-1, 0, 100), Point(0, 0, 100)),
+        (Point(-1, 0, 100), Point(0, 1, 100), Point(0, 0, 100))
+    ])
+
+    # Set the z of each xyz-tuple to be radius, and everything else to be
+    # the coordinates on the radius-sphere times -1, 0, or 1.
+    tris = np.where(
+        [True, True, False],
+        radius * np.sin(ang_size) * tris,
+        radius * np.cos(ang_size))
+
+    def midpoint(left: Point, right: Point) -> Point:
+        # Find the midpoint between the xyz-tuples left and right, but also
+        # on the surface of a sphere (so not just a simple average).
+        midpoint = (left + right) / 2
+        midpoint_radial_dist = np.linalg.norm(midpoint)
+        return radius * midpoint / midpoint_radial_dist
+
+    for _ in range(0, refine_steps):
+        new_tris = np.ndarray(shape=(0, 3, 3))
+        for tri in tris:
+            # A tri is a 3-tuple of xyz-tuples.
+            a = midpoint(tri[0], tri[1])
+            b = midpoint(tri[1], tri[2])
+            c = midpoint(tri[2], tri[0])
+
+            # Turn one triangle into a triforce projected onto a sphere.
+            new_tris = np.append(new_tris, [
+                (tri[0], a, c),
+                (tri[1], b, a),
+                (tri[2], c, b),
+                (a, b, c)  # The centre triangle of the triforce
+            ], axis=0)
+        tris = new_tris
+
+    return tris
