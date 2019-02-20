@@ -24,6 +24,7 @@ import orbitx.orbitx_pb2 as protos
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 import orbitx.network as network
 import orbitx.physics as physics
+import orbitx.Vpython as vp
 
 log = logging.getLogger()
 cleanup_function = None
@@ -179,7 +180,8 @@ def lead_server_loop(args):
                         physics_engine._time_acceleration)
 
             if not args.no_gui:
-                if gui._vpython.__version__ == '7.4.7' and gui.closed:
+                # if gui._vpython.__version__ == '7.4.7' and gui.closed:
+                if vp.vp().__version__ == '7.4.7' and vp.closed:
                     break
                 gui.draw(state)
                 gui.rate(common.FRAMERATE)
