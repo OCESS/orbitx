@@ -14,9 +14,11 @@ import numpy as np
 import math
 
 from . import common
-from . import orbitx_pb2 as protos
+from . import orbitx_pb2 as protos  # physics module
 
-import vpython
+import vpython                      # python 3D graphic library module
+import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
+import orbitx.Vpython as vp
 
 log = logging.getLogger()
 
@@ -32,73 +34,37 @@ PLANET_SHININIESS = 0.3
 class FlightGui:
 
     def __init__(self, physical_state_to_draw: protos.PhysicalState, texture_path: str =None, no_intro: bool =False )-> None: 
-        ctrl_c_handler: function = signal.getsignal(signal.SIGINT)
         # Note that this might actually start an HTTP server!
-        #import vpython
+        assert len(physical_state_to_draw.entities) >= 1
 
         ################################ Attributes ############################### 
 
-        self._vpython: module = vpython        
-
-        if self._vpython.__version__ == '7.4.7':
-            # vpython installs "os._exit(0)" signal handlers in 7.4.7.
-            # Very not good for us.
-            # Reset the signal handler to default behaviour.
-            signal.signal(signal.SIGINT, ctrl_c_handler)
-
-            # os._exit(0) is in one other place, let's take that out too.
-            # Unfortunately, now that vpython isn't calling os._exit, we have
-            # to notify someone when the GUI closed.
-            # Note to access vpython double underscore variables, we have to
-            # bypass normal name mangling by using getattr.
-            def callback(*_):
-                getattr(self._vpython.no_notebook, '__interact_loop').stop()
-                self.closed = True
-            self.closed = False
-            getattr(self._vpython.no_notebook,
-                    '__factory').protocol.onClose = callback
-
-        # Set up our vpython canvas and other internal variables
-        self._scene = vpython.canvas(
-            title='<b>OrbitX</b>',
-            align='right',
-            width=800,
-            height=600,
-            center=vpython.vector(0, 0, 0),
-            up=vpython.vector(0, 0, 1),
-            forward=vpython.vector(0.1, 0.1, -1),
-            autoscale=True
-        )
-
+        self._last_physical_state: protos.PhysicalState = physical_state_to_draw
+        # self._vpython: module = vpython
+        self._vpython = vp.vp()        
+        # self._vpython_version_check() # check whether its version is 7.4.7
+        vp.vpython_version_check() # check whether its version is 7.4.7
+        self._scene: vpython.vpython.canvas  = self._init_canvas() # create a vpython canvas object
         self._show_label: bool = True
         self._show_trails: bool = False
         self._pause: bool = False
-        self._scene.autoscale: bool = False
         self.pause_label: vpython.vpython.label = None
-        self._texture_path: NoneType = texture_path
+        self._texture_path: str = texture_path
         self._commands: list = []
         self._spheres: dict = {}    
         self._labels: dict = {}
         self._landing_graphic: dict = {}
-
-        self.pause_label = vpython.label(
-            text="Simulation Paused.", visible=False)
-
-        self._scene.bind('keydown', self._handle_keydown)
-        self._scene.bind('click', self._handle_click)
-        # Show all planets in solar system
-        self._scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+        self.pause_label: vpython.vpython.label = vpython.label(text="Simulation Paused.", visible=False)
 
         ####################################################################
 
+        # set texture path
         if texture_path is None:
             # Look for orbitx/data/textures
             self._texture_path = Path('data', 'textures')
         # stars = str(self._texture_path / 'Stars.jpg')
         # vpython.sphere(radius=9999999999999, texture=stars)
 
-        assert len(physical_state_to_draw.entities) >= 1
-        self._last_physical_state = physical_state_to_draw
         # Unnecessary code as these are reset through _set_X?
         #self._origin = physical_state_to_draw.entities[0]
         #self._reference = physical_state_to_draw.entities[0]
@@ -107,13 +73,12 @@ class FlightGui:
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
 
+        # initial setting for planets
         for planet in physical_state_to_draw.entities:
             self._spheres[planet.name] = self._draw_sphere(planet)
             self._labels[planet.name] = self._draw_labels(planet)
-            self._landing_graphic[planet.name] = self._draw_landing_graphic(
-                planet)
-
-        # self._scene.autoscale: bool = False
+            self._landing_graphic[planet.name] = self._draw_landing_graphic(planet)
+        # for
         self._set_caption()
 
         # Add an animation when launching the program
@@ -124,6 +89,260 @@ class FlightGui:
                 self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
     # end of __self__
+
+    ####################### pritvate methods to initial settings ############################
+
+    # def _vpython_version_check(self) -> None :
+    #     ctrl_c_handler: function = signal.getsignal(signal.SIGINT)
+    #     if self._vpython.__version__ == '7.4.7':
+    #         # vpython installs "os._exit(0)" signal handlers in 7.4.7.
+    #         # Very not good for us.
+    #         # Reset the signal handler to default behaviour.
+    #         signal.signal(signal.SIGINT, ctrl_c_handler)
+
+    #         # os._exit(0) is in one other place, let's take that out too.
+    #         # Unfortunately, now that vpython isn't calling os._exit, we have
+    #         # to notify someone when the GUI closed.
+    #         # Note to access vpython double underscore variables, we have to
+    #         # bypass normal name mangling by using getattr.
+    #         def callback(*_):
+    #             getattr(self._vpython.no_notebook, '__interact_loop').stop()
+    #             self.closed = True
+    #         # end of callback
+    #         self.closed = False
+    #         getattr(self._vpython.no_notebook,'__factory').protocol.onClose = callback
+    # # end of _vpython_version_check
+
+    def _init_canvas(self) -> vpython.vpython.canvas :
+        _scene = vpython.canvas( # Set up our vpython canvas and other internal variables
+            title='<b>OrbitX</b>',
+            align='right',
+            width=800,
+            height=600,
+            center=vpython.vector(0, 0, 0),
+            up=vpython.vector(0, 0, 1),
+            forward=vpython.vector(0.1, 0.1, -1),
+            autoscale=True
+        )
+        _scene.autoscale: bool = False
+        _scene.bind('keydown', self._handle_keydown)
+        _scene.bind('click', self._handle_click)
+        # Show all planets in solar system
+        _scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+        return _scene
+    # end of _init_canvas
+
+    def _draw_sphere(self, planet: protos.Entity) -> vpython.vpython.sphere :
+        texture = self._texture_path / (planet.name + '.jpg')
+
+        if planet.name == "Habitat":
+            # TODO: 1) ARROW
+
+            body = self._vpython.cylinder(
+                pos=self._vpython.vector(0, 0, 0),
+                axis=self._vpython.vector(-5, 0, 0),
+                radius=7)
+            head = self._vpython.cone(pos=self._vpython.vector(
+                0, 0, 0), axis=self._vpython.vector(3, 0, 0), radius=7)
+            wing = self._vpython.triangle(
+                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
+                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 30, 0)),
+                v2=self._vpython.vertex(pos=self._vpython.vector(-5, -30, 0)))
+            wing2 = self._vpython.triangle(
+                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
+                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
+                v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
+
+            obj = self._vpython.compound([body, head, wing, wing2])
+            obj.texture = self._vpython.textures.metal
+            obj.pos = self._posn(planet)
+            obj.axis = self._ang_pos(planet.heading)
+            obj.radius = planet.r / 2
+            obj.shininess = 0.1
+            obj.length = planet.r * 2
+
+            obj.arrow = self._unit_velocity(planet)
+            self._habitat = planet
+            self._vpython.attach_arrow(obj, 'arrow')  # scale=planet.r * 1.5)
+            self._habitat_trail = self._vpython.attach_trail(obj, retain=100)
+            if not self._show_trails:
+                self._habitat_trail.stop()
+                self._habitat_trail.clear()
+
+        else:
+            obj = self._vpython.sphere(
+                pos=self._posn(planet),
+                axis=self._ang_pos(planet.heading),
+                up=self._vpython.vector(0, 0, 1),
+                radius=planet.r,
+                make_trail=self._show_trails,
+                retain=10000,
+                shininess=PLANET_SHININIESS
+            )
+
+        obj.name = planet.name  # For convenient accessing later
+
+        if planet.name == 'Sun':  # The sun is special!
+            obj.emissive = True  # The sun glows!
+            self._scene.lights = []
+            self._lights = [self._vpython.local_light(pos=obj.pos)]
+
+        if texture.is_file():
+            obj.texture = str(texture)
+        else:
+            log.debug(f'Could not find texture {texture}')
+        return obj
+    # end of _draw_sphere
+
+    def _draw_labels(self, planet: protos.Entity) -> vpython.vpython.label:
+        label = self._vpython.label(
+            visible=True, pos=self._posn(planet),
+            xoffset=0, yoffset=10, height=16,
+            border=4, font='sans')
+
+        label.text_function = lambda entity: entity.name
+        if planet.name == 'Habitat':
+            label.text_function = lambda entity: (
+                f'{entity.name}\n'
+                f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
+                f'Heading: {round(np.degrees(entity.heading))}\xb0'
+            )
+        label.text = label.text_function(planet)
+        return label
+    # end of _draw_labels
+
+    def _draw_landing_graphic(self, planet: protos.Entity) -> vpython.vpython.cylinder :
+        """Draw something that simulates a flat surface at near zoom levels."""
+        size = planet.r * 0.01
+        texture = self._texture_path / (planet.name + '.jpg')
+        return self._vpython.cylinder(
+            up=self._vpython.vector(0, 0, 1),
+            axis=self._vpython.vector(-size, 0, 0),
+            radius=size,
+            pos=self._posn(planet),  # This will be filled in by the _update
+            shininess=PLANET_SHININIESS,
+            texture=str(texture) if texture.is_file() else None
+        )
+    # end of _draw_landing_graphic
+
+    def _set_caption(self) -> None :
+        """Set and update the captions."""
+
+        # There's a bit of magic here. Normally, vpython.wtext will make a
+        # <div> in the HTML and automaticall update it when the .text field is
+        # updated in this python code. But if you want to insert a wtext in the
+        # middle of a field, the following first attempt won't work:
+        #     scene.append_to_caption('<table>')
+        #     vpython.wtext(text='widget text')
+        #     scene.append_to_caption('</table>')
+        # because adding the wtext will also close the <table> tag.
+        # But you can't make a wtext that contains HTML DOM tags either,
+        # because every time the text changes several times a second, any open
+        # dropdown menus will be closed.
+        # So we have to insert a <div> where vpython expects it, manually.
+        # We take advantage of the fact that manually modifying scene.caption
+        # will remove the <div> that represents a wtext. Then we add the <div>
+        # back, along with the id="x" that identifies the div, used by vpython.
+        #
+        # TL;DR the div_id variable is a bit magic, if you make a new wtext
+        # before this, increment div_id by one..
+        self._scene.caption += "<table>\n"
+        self._wtexts = []
+        div_id = 1
+        for caption, text_gen_func, helptext, new_section in [
+            ("Orbit speed",
+             lambda: f"{self._orb_speed(self._reference.name):,.7g} m/s",
+             "Speed required for circular orbit at current altitude",
+             False),
+            ("Periapsis",
+             lambda: f"{self._periapsis(self._reference.name):,.7g} m",
+             "Lowest altitude in naïve orbit around reference",
+             False),
+            ("Apoapsis",
+             lambda: f"{self._apoapsis(self._reference.name):,.7g} m",
+             "Highest altitude in naïve orbit around reference",
+             False),
+            ("Ref alt",
+             lambda: f"{self._altitude(self._reference.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Ref speed",
+             lambda: f"{self._speed(self._reference.name):,.7g} m/s",
+             "Speed of habitat above reference surface",
+             False),
+            ("Vertical speed",
+             lambda: f"{self._v_speed(self._reference.name):,.7g} m/s ",
+             "Vertical speed of habitat towards/away reference surface",
+             False),
+            ("Horizontal speed",
+             lambda: f"{self._h_speed(self._reference.name):,.7g} m/s ",
+             "Horizontal speed of habitat across reference surface",
+             False),
+            ("Targ alt",
+             lambda: f"{self._altitude(self._target.name):,.7g} m",
+             "Altitude of habitat above reference surface",
+             True),
+            ("Targ speed",
+             lambda: f"{self._speed(self._target.name):,.7g} m/s",
+             "Altitude of habitat above reference surface",
+             False),
+            ("Throttle",
+             lambda: f"{self._habitat.throttle:.1%}",
+             "Percentage of habitat's maximum rated engines",
+             True)
+        ]:
+            self._wtexts.append(self._vpython.wtext(text=text_gen_func()))
+            self._wtexts[-1].text_func = text_gen_func
+            self._scene.caption += f"""<tr>
+                <td {"class='newsection'" if new_section else ""}>
+                    {caption}
+                </td>
+                <td class="num{" newsection" if new_section else ""}">
+                    <div id="{div_id}">{self._wtexts[-1].text}</div>
+                </td>
+                <td class="helptext{" newsection" if new_section else ""}">
+                    {helptext}
+                </td>
+                </tr>\n"""
+            div_id += 1
+        self._scene.caption += "</table>"
+
+        #self._scene.append_to_caption("Acc: XXX" + "\n")
+        #self._scene.append_to_caption("Vcen: XXX" + "\n")
+        #self._scene.append_to_caption("Vtan: XXX" + "\n")
+        # self._scene.append_to_caption("\n")
+        self._set_menus()
+        self._scene.append_to_caption(style.HELP_CHECKBOX)
+        self._scene.append_to_caption(" Help text")
+        self._scene.append_to_caption(style.INPUT_CHEATSHEET)
+
+        self._scene.append_to_caption(style.VPYTHON_CSS)
+        self._scene.append_to_caption(style.VPYTHON_JS)
+    # end of _set_caption    
+
+    def recentre_camera(self, planet_name: str) -> None :
+        """Change camera to focus on different object
+
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
+        """
+        try:
+            if planet_name == "Sun":
+                self._scene.range = self._spheres["Sun"].radius * 15000
+            else:
+                self._scene.range = self._spheres[planet_name].radius * 2
+
+            self._scene.camera.follow(self._spheres[planet_name])
+            self._set_origin(planet_name)
+
+        except KeyError:
+            log.error(f'Unrecognized planet to follow: "{planet_name}"')
+        except IndexError:
+            log.error(f'Unrecognized planet to follow: "{planet_name}"')
+    # end of recentre_camera
+
+    #################################################################################
 
     def shutdown(self) -> None:
         """Stops any threads vpython has started. Call on exit."""
@@ -358,100 +577,7 @@ class FlightGui:
     # end of _handle_click
 
     # TODO: 1)Update with correct physics values
-    def _set_caption(self) -> None :
-        """Set and update the captions."""
-
-        # There's a bit of magic here. Normally, vpython.wtext will make a
-        # <div> in the HTML and automaticall update it when the .text field is
-        # updated in this python code. But if you want to insert a wtext in the
-        # middle of a field, the following first attempt won't work:
-        #     scene.append_to_caption('<table>')
-        #     vpython.wtext(text='widget text')
-        #     scene.append_to_caption('</table>')
-        # because adding the wtext will also close the <table> tag.
-        # But you can't make a wtext that contains HTML DOM tags either,
-        # because every time the text changes several times a second, any open
-        # dropdown menus will be closed.
-        # So we have to insert a <div> where vpython expects it, manually.
-        # We take advantage of the fact that manually modifying scene.caption
-        # will remove the <div> that represents a wtext. Then we add the <div>
-        # back, along with the id="x" that identifies the div, used by vpython.
-        #
-        # TL;DR the div_id variable is a bit magic, if you make a new wtext
-        # before this, increment div_id by one..
-        self._scene.caption += "<table>\n"
-        self._wtexts = []
-        div_id = 1
-        for caption, text_gen_func, helptext, new_section in [
-            ("Orbit speed",
-             lambda: f"{self._orb_speed(self._reference.name):,.7g} m/s",
-             "Speed required for circular orbit at current altitude",
-             False),
-            ("Periapsis",
-             lambda: f"{self._periapsis(self._reference.name):,.7g} m",
-             "Lowest altitude in naïve orbit around reference",
-             False),
-            ("Apoapsis",
-             lambda: f"{self._apoapsis(self._reference.name):,.7g} m",
-             "Highest altitude in naïve orbit around reference",
-             False),
-            ("Ref alt",
-             lambda: f"{self._altitude(self._reference.name):,.7g} m",
-             "Altitude of habitat above reference surface",
-             True),
-            ("Ref speed",
-             lambda: f"{self._speed(self._reference.name):,.7g} m/s",
-             "Speed of habitat above reference surface",
-             False),
-            ("Vertical speed",
-             lambda: f"{self._v_speed(self._reference.name):,.7g} m/s ",
-             "Vertical speed of habitat towards/away reference surface",
-             False),
-            ("Horizontal speed",
-             lambda: f"{self._h_speed(self._reference.name):,.7g} m/s ",
-             "Horizontal speed of habitat across reference surface",
-             False),
-            ("Targ alt",
-             lambda: f"{self._altitude(self._target.name):,.7g} m",
-             "Altitude of habitat above reference surface",
-             True),
-            ("Targ speed",
-             lambda: f"{self._speed(self._target.name):,.7g} m/s",
-             "Altitude of habitat above reference surface",
-             False),
-            ("Throttle",
-             lambda: f"{self._habitat.throttle:.1%}",
-             "Percentage of habitat's maximum rated engines",
-             True)
-        ]:
-            self._wtexts.append(self._vpython.wtext(text=text_gen_func()))
-            self._wtexts[-1].text_func = text_gen_func
-            self._scene.caption += f"""<tr>
-                <td {"class='newsection'" if new_section else ""}>
-                    {caption}
-                </td>
-                <td class="num{" newsection" if new_section else ""}">
-                    <div id="{div_id}">{self._wtexts[-1].text}</div>
-                </td>
-                <td class="helptext{" newsection" if new_section else ""}">
-                    {helptext}
-                </td>
-                </tr>\n"""
-            div_id += 1
-        self._scene.caption += "</table>"
-
-        #self._scene.append_to_caption("Acc: XXX" + "\n")
-        #self._scene.append_to_caption("Vcen: XXX" + "\n")
-        #self._scene.append_to_caption("Vtan: XXX" + "\n")
-        # self._scene.append_to_caption("\n")
-        self._set_menus()
-        self._scene.append_to_caption(HELP_CHECKBOX)
-        self._scene.append_to_caption(" Help text")
-        self._scene.append_to_caption(INPUT_CHEATSHEET)
-
-        self._scene.append_to_caption(VPYTHON_CSS)
-        self._scene.append_to_caption(VPYTHON_JS)
-    # end of _set_caption
+    
 
     # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self) -> None :
@@ -540,98 +666,7 @@ class FlightGui:
             wtext.text = wtext.text_func()
     # end of draw
 
-    def _draw_sphere(self, planet: protos.Entity) -> vpython.vpython.sphere :
-        texture = self._texture_path / (planet.name + '.jpg')
-
-        if planet.name == "Habitat":
-            # TODO: 1) ARROW
-
-            body = self._vpython.cylinder(
-                pos=self._vpython.vector(0, 0, 0),
-                axis=self._vpython.vector(-5, 0, 0),
-                radius=7)
-            head = self._vpython.cone(pos=self._vpython.vector(
-                0, 0, 0), axis=self._vpython.vector(3, 0, 0), radius=7)
-            wing = self._vpython.triangle(
-                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
-                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 30, 0)),
-                v2=self._vpython.vertex(pos=self._vpython.vector(-5, -30, 0)))
-            wing2 = self._vpython.triangle(
-                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
-                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
-                v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
-
-            obj = self._vpython.compound([body, head, wing, wing2])
-            obj.texture = self._vpython.textures.metal
-            obj.pos = self._posn(planet)
-            obj.axis = self._ang_pos(planet.heading)
-            obj.radius = planet.r / 2
-            obj.shininess = 0.1
-            obj.length = planet.r * 2
-
-            obj.arrow = self._unit_velocity(planet)
-            self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow')  # scale=planet.r * 1.5)
-            self._habitat_trail = self._vpython.attach_trail(obj, retain=100)
-            if not self._show_trails:
-                self._habitat_trail.stop()
-                self._habitat_trail.clear()
-
-        else:
-            obj = self._vpython.sphere(
-                pos=self._posn(planet),
-                axis=self._ang_pos(planet.heading),
-                up=self._vpython.vector(0, 0, 1),
-                radius=planet.r,
-                make_trail=self._show_trails,
-                retain=10000,
-                shininess=PLANET_SHININIESS
-            )
-
-        obj.name = planet.name  # For convenient accessing later
-
-        if planet.name == 'Sun':  # The sun is special!
-            obj.emissive = True  # The sun glows!
-            self._scene.lights = []
-            self._lights = [self._vpython.local_light(pos=obj.pos)]
-
-        if texture.is_file():
-            obj.texture = str(texture)
-        else:
-            log.debug(f'Could not find texture {texture}')
-        return obj
-    # end of _draw_sphere
-
-    def _draw_labels(self, planet: protos.Entity) -> vpython.vpython.label:
-        label = self._vpython.label(
-            visible=True, pos=self._posn(planet),
-            xoffset=0, yoffset=10, height=16,
-            border=4, font='sans')
-
-        label.text_function = lambda entity: entity.name
-        if planet.name == 'Habitat':
-            label.text_function = lambda entity: (
-                f'{entity.name}\n'
-                f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
-                f'Heading: {round(np.degrees(entity.heading))}\xb0'
-            )
-        label.text = label.text_function(planet)
-        return label
-    # end of _draw_labels
-
-    def _draw_landing_graphic(self, planet: protos.Entity) -> vpython.vpython.cylinder :
-        """Draw something that simulates a flat surface at near zoom levels."""
-        size = planet.r * 0.01
-        texture = self._texture_path / (planet.name + '.jpg')
-        return self._vpython.cylinder(
-            up=self._vpython.vector(0, 0, 1),
-            axis=self._vpython.vector(-size, 0, 0),
-            radius=size,
-            pos=self._posn(planet),  # This will be filled in by the _update
-            shininess=PLANET_SHININIESS,
-            texture=str(texture) if texture.is_file() else None
-        )
-    # end of _draw_landing_graphic
+    
 
     def _update_sphere(self, planet: protos.Entity) -> None :
         sphere = self._spheres[planet.name]
@@ -721,27 +756,7 @@ class FlightGui:
         self._time_acc_menu.selected = new_acc_str
     # end of notify_time_acc_change
 
-    def recentre_camera(self, planet_name: str) -> None :
-        """Change camera to focus on different object
-
-        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
-        scene center being approximately 1e11 (planets position), origin
-        entity should be reset every time when making a scene.center update.
-        """
-        try:
-            if planet_name == "Sun":
-                self._scene.range = self._spheres["Sun"].radius * 15000
-            else:
-                self._scene.range = self._spheres[planet_name].radius * 2
-
-            self._scene.camera.follow(self._spheres[planet_name])
-            self._set_origin(planet_name)
-
-        except KeyError:
-            log.error(f'Unrecognized planet to follow: "{planet_name}"')
-        except IndexError:
-            log.error(f'Unrecognized planet to follow: "{planet_name}"')
-    # end of recentre_camera
+    
 
     def _ang_pos(self, angle: float) -> vpython.cyvector.vector :
         return self._vpython.vector(np.cos(angle), np.sin(angle), 0)
@@ -751,102 +766,5 @@ class FlightGui:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         self._vpython.rate(framerate)
     # end of rate
+# end of class FlightGui
 
-
-VPYTHON_CSS = """<style>
-table {
-    margin-top: 1em;
-    margin-bottom: 1em;
-}
-th {
-    text-align: left;
-}
-.newsection {
-    padding-top: 1em;
-}
-.num {
-    font-family: monospace;
-    font-weight: bold;
-}
-select {
-    width: 100px;
-}
-input {
-    width: 100px !important;
-    height: unset !important;
-}
-.helptext {
-    font-size: 75%;
-}
-</style>
-<style title="disable_helptext">
-.helptext {
-    display: none;
-}
-</style>"""
-
-VPYTHON_JS = """<script>
-function show_hide_help() {
-    // If helptext is enabled, we have to "disable disabling it."
-    styleSheets = document.styleSheets;
-    for (i = 0; i < styleSheets.length; ++i) {
-        console.log(styleSheets[i].title)
-        if (styleSheets[i].title == "disable_helptext") {
-            styleSheets[i].disabled =
-                document.getElementById("helptext_checkbox").checked
-        }
-    }
-}
-
-// Keep inputs deselected, so that keyboard input doesn't interfere with them.
-for (var inp of document.querySelectorAll("input,select")) {
-    inp.onchange = function(){this.blur()};
-}
-</script>"""
-
-HELP_CHECKBOX = """
-<input type="checkbox" id="helptext_checkbox" onClick="show_hide_help()">"""
-
-# TODO: there's room for automating tables here.
-INPUT_CHEATSHEET = """
-<table class="helptext">
-    <caption>Input Cheatsheet</caption>
-    <tr>
-        <th>Input</th>
-        <th>Action</th>
-    </tr>
-    <tr>
-        <td>Scroll, or ALT/OPTION-drag</td>
-        <td>Zoom View</td>
-    </tr>
-    <tr>
-        <td>Ctrl-Click</td>
-        <td>Rotate View</td>
-    </tr>
-    <tr>
-        <td>W/S</td>
-        <td>Throttle Up/Down (press shift for fine control)</td>
-    </tr>
-    <tr>
-        <td>Enter</td>
-        <td>Set engines to 100%</td>
-    </tr>
-    <tr>
-        <td>Backspace</td>
-        <td>Set engines to 0%</td>
-    </tr>
-    <tr>
-        <td>A/D</td>
-        <td>Rotate Habitat</td>
-    </tr>
-    <tr>
-        <td>L</td>
-        <td>Toggle labels</td>
-    </tr>
-    <!-- re-enable this when we've fixed pausing
-    <tr>
-        <td>P</td>
-        <td>Pause simulation</td>
-    </tr>-->
-</table>
-"""
