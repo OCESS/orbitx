@@ -11,17 +11,101 @@ class PhysicsEntity(object):
     def __init__(self, entity):
         assert isinstance(entity, protos.Entity)
         self.name = entity.name
-        self.pos = np.asarray([entity.x, entity.y])
-        self.r = entity.r
-        self.v = np.asarray([entity.vx, entity.vy])
-        self.m = entity.mass
-        self.spin = entity.spin
-        self.heading = entity.heading
-        self.fuel = entity.fuel
-        self.throttle = entity.throttle
-        self.attached_to = entity.attached_to
-        self.broken = entity.broken
-        self.artificial = entity.artificial
+        self.proto_entity=entity
+        #self.pos = np.asarray([entity.x, entity.y])
+        #self.r = entity.r
+        #self.v = np.asarray([entity.vx, entity.vy])
+        #self.m = entity.mass
+        #self.spin = entity.spin
+        #self.heading = entity.heading
+        #self.fuel = entity.fuel
+        #self.throttle = entity.throttle
+        #self.attached_to = entity.attached_to
+        #self.broken = entity.broken
+        #self.artificial = entity.artificial
+        
+    @property
+    def pos(self):
+        return np.asarray([self.proto_entity.x, self.proto_entity.y])
+    @property
+    def v(self):
+        return np.asarray([self.proto_entity.vx, self.proto_entity.vy])
+    @property
+    def r(self):
+        return self.proto_entity.r
+    @property
+    def m(self):
+        return self.proto_entity.mass
+
+    @property
+    def spin(self):
+        return self.proto_entity.spin
+
+    @property
+    def heading(self):
+        return self.proto_entity.heading
+
+    @property
+    def fuel(self):
+        return self.proto_entity.fuel
+    @property
+    def throttle(self):
+        return self.proto_entity.throttle
+
+    @property
+    def attached_to(self):
+        return self.proto_entity.attached_to
+
+    @property
+    def broken(self):
+        return self.proto_entity.broken
+
+    @property
+    def artificial(self):
+        return self.proto_entity.artificial
+    
+    @pos.setter
+    def pos(self,x):
+        self.proto_entity.x=x[0]
+        self.proto_entity.y=x[1]
+    @v.setter
+    def v(self,x):
+        self.proto_entity.vx=x[0]
+        self.proto_entity.vy=x[1]
+    @r.setter
+    def r(self,x):
+        self.proto_entity.r=x
+    @m.setter
+    def m(self,x):
+        self.proto_entity.mass=x
+
+    @spin.setter
+    def spin(self,x):
+        self.proto_entity.spin=x
+
+    @heading.setter
+    def heading(self,x):
+        self.proto_entity.heading=x
+
+    @fuel.setter
+    def fuel(self,x):
+        self.proto_entity.fuel=x
+    @throttle.setter
+    def throttle(self,x):
+        self.proto_entity.throttle=x
+
+    @attached_to.setter
+    def attached_to(self,x):
+        self.proto_entity.attached_to=x
+
+    @broken.setter
+    def broken(self,x):
+        self.proto_entity.broken=x
+
+    @artificial.setter
+    def artificial(self,x):
+        self.proto_entity.artificial=x
+    
 
     def as_proto(self):
         return protos.Entity(
