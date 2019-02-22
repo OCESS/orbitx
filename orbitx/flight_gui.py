@@ -510,15 +510,12 @@ class FlightGui:
                 self._habitat_trail.clear()
 
             self._small_habitat = hab_object(self._minimap_canvas)
-            arrow_length = planet.r
             self._ref_arrow = vpython.arrow(
                 canvas=self._minimap_canvas,
-                color=vpython.color.gray(0.5),
-                axis=self._posn(self._reference).norm() * arrow_length * 1.2)
+                color=vpython.color.gray(0.5))
             self._velocity_arrow = vpython.arrow(
                 canvas=self._minimap_canvas,
-                color=vpython.color.red,
-                axis=self._unit_velocity_ref(planet) * arrow_length)
+                color=vpython.color.red)
 
         else:
             obj = self._vpython.sphere(
@@ -580,12 +577,14 @@ class FlightGui:
         sphere.pos = self._posn(planet)
         sphere.axis = self._ang_pos(planet.heading)
         if planet.name == 'Habitat':
-            self._ref_arrow.axis = (
-                self._posn(self._reference).norm() *
-                self._ref_arrow.length)
-            self._velocity_arrow.axis = (
-                self._unit_velocity_ref(planet) *
-                self._velocity_arrow.length)
+            if self._reference != self._habitat:
+                self._ref_arrow.axis = (
+                    self._posn(self._reference).norm() * planet.r * 1.2)
+                self._velocity_arrow.axis = (
+                    self._unit_velocity_ref(planet).norm() * planet.r)
+            else:
+                self._ref_arrow.axis = vpython.vector(0, 0, -1)
+                self._velocity_arrow.axis = vpython.vector(0, 0, -1)
             self._small_habitat.axis = sphere.axis
             self._habitat = planet
 
