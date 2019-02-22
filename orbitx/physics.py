@@ -9,6 +9,8 @@ import scipy.integrate
 import scipy.spatial
 import scipy.special
 
+
+from .physic_functions import *
 from . import orbitx_pb2 as protos
 from . import common
 from .PhysicEntity import PhysicsEntity, Habitat
@@ -17,7 +19,7 @@ default_dtype = np.longdouble
 
 SOLUTION_CACHE_SIZE = 5
 
-NO_INDEX = -1
+
 NOT_BROKEN = 0
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
@@ -279,7 +281,8 @@ class PEngine(object):
             physics_entity.attached_to, self._template_physical_state.entities)
         y.Broken[i] = physics_entity.broken
         return y
-
+    def set_control_craft_index(self,index):
+        self.control_craft_index=index
     def handle_command(self, command, requested_t=None):
         """Interface to set habitat controls.
 
@@ -332,14 +335,15 @@ class PEngine(object):
 
         # Bound throttle to [-20, 120] percent
         y0.Throttle[control_craft_index] = max(
-            common.MIN_THROTTLE, y0.Throttle[self._hab_index])
+            common.MIN_THROTTLE, y0.Throttle[control_craft_index])
         y0.Throttle[control_craft_index] = min(
-            common.MAX_THROTTLE, y0.Throttle[self._hab_index])
+            common.MAX_THROTTLE, y0.Throttle[control_craft_index])
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
 
     def set_state(self, physical_state):
+        self._artificials=np.where(np.array([entity.artificial for entity in physical_state.entities]) >= 1)[0]
         try:
             self._hab_index = [
                 entity.name for entity in physical_state.entities
@@ -362,6 +366,7 @@ class PEngine(object):
 
         # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
+        #protentially problematic ??
         self._template_physical_state.CopyFrom(physical_state)
         for entity in self._template_physical_state.entities:
             # PROTO: if you're changing protobufs remember to change here
@@ -542,19 +547,20 @@ class PEngine(object):
         """
         # PROTO: if you're changing protobufs remember to change here
         y = Y(y_1d)
-        Xa, Ya = _grav_acc(y.X, y.Y, self.M + y.Fuel)
+        Xa, Ya = grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
-        if self._hab_index >= 0 and y.Fuel[self._hab_index] > 0:
-            # We have fuel remaining, calculate thrust
-            throttle = y.Throttle[self._hab_index]
-            fuel_cons[self._hab_index] = - \
-                Habitat.fuel_cons(throttle=throttle)
-            hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                throttle=throttle, heading=y.Heading[self._hab_index])
-            Xa[self._hab_index] += hab_eng_acc_x
-            Ya[self._hab_index] += hab_eng_acc_y
+        for index in self._artificials:
+            if y.Fuel[index] > 0:
+                # We have fuel remaining, calculate thrust
+                throttle = y.Throttle[index]
+                fuel_cons[index] = - \
+                    Habitat.fuel_cons(throttle=throttle)
+                hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+                    throttle=throttle, heading=y.Heading[index])
+                Xa[index] += hab_eng_acc_x
+                Ya[index] += hab_eng_acc_y
 
         # Keep attached entities glued together
         for attached, attachee in enumerate(y.AttachedTo):
@@ -624,8 +630,9 @@ class PEngine(object):
         def hab_fuel_event(t, y_1d):
             """Return a 0 only when throttle is nonzero."""
             y = Y(y_1d)
-            if y.Throttle[self._hab_index] != 0:
-                return Y(y_1d).Fuel[self._hab_index]
+            for index in self._artificials:
+                if y.Throttle[index] != 0:
+                    return Y(y_1d).Fuel[index]
             else:
                 return 1
         hab_fuel_event.terminal = True
@@ -730,67 +737,12 @@ class PEngine(object):
                     y = self._collision_decision(t, y, altitude_event)
                 elif len(ivp_out.t_events[1]):
                     log.debug(f'Got fuel empty at {t}')
-                    # Habitat's out of fuel, the next iteration won't consume
-                    # any fuel. Set throttle to zero anyway.
-                    y.Throttle[self._hab_index] = 0
-                    # Set fuel to a negative value, so it doesn't trigger
-                    # the event function
-                    y.Fuel[self._hab_index] = 0
+                    
+                    for index in self._artificials:
+                        # Habitat's out of fuel, the next iteration won't consume
+                        # any fuel. Set throttle to zero anyway.
+                        y.Throttle[index] = 0
+                        # Set fuel to a negative value, so it doesn't trigger
+                        # the event function
+                        y.Fuel[index] = 0
 
-
-# These _functions are internal helper functions.
-def _force(MM, X, Y):
-    G = 6.674e-11
-    D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
-    # Calculate G * m1*m2/d^2 for each object pair.
-    # In the diagonal case, i.e. an object paired with itself, force = 0.
-    force_matrix = np.divide(MM, np.where(D2 != 0, D2, 1))
-    np.fill_diagonal(force_matrix, 0)
-    return G * force_matrix
-
-
-def _force_sum(_force):
-    return np.sum(_force, 0)
-
-
-def _angle_matrix(X, Y):
-    Xd = X - X.transpose()
-    Yd = Y - Y.transpose()
-    return np.arctan2(Yd, Xd)
-
-
-def _polar_to_cartesian(ang, hyp):
-    X = np.multiply(np.cos(ang), hyp)
-    Y = np.multiply(np.sin(ang), hyp)
-    return X.T, Y.T
-
-
-def _f_to_a(f, M):
-    return np.divide(f, M)
-
-
-def _grav_acc(X, Y, M):
-    # Turn X, Y, M into column vectors, which is easier to do math with.
-    # (row vectors won't transpose)
-    X = X.reshape(1, -1)
-    Y = Y.reshape(1, -1)
-    M = M.reshape(1, -1)
-    MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
-    ang = _angle_matrix(X, Y)
-    FORCE = _force(MM, X, Y)
-    Xf, Yf = _polar_to_cartesian(ang, FORCE)
-    Xf = _force_sum(Xf)
-    Yf = _force_sum(Yf)
-    Xa = _f_to_a(Xf, M)
-    Ya = _f_to_a(Yf, M)
-    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
-
-
-def name_to_index(name, entities):
-    names = [entity.name for entity in entities]
-    return names.index(name) if name else NO_INDEX
-
-
-def index_to_name(i, entities):
-    i = int(i)
-    return entities[i].name if i != NO_INDEX else ""
