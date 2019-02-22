@@ -236,7 +236,9 @@ def main():
     # exception if we try to use vpython. DeprecationWarnings are normally
     # enabled when __name__ == __main__
     warnings.filterwarnings('once', category=DeprecationWarning)
-    warnings.filterwarnings('once', category=ResourceWarning)
+    # vpython generates other warnings, as well as its use of asyncio
+    warnings.filterwarnings('ignore', category=ResourceWarning)
+    warnings.filterwarnings('ignore', module='vpython|asyncio')
 
     args = parse_args()
     try:

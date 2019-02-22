@@ -59,6 +59,8 @@ logging.getLogger().addHandler(logfile_handler)
 
 def enable_verbose_logging():
     """Enables logging of all messages to stdout, from DEBUG upwards"""
+    import warnings
+    warnings.resetwarnings()
     print_handler.setLevel(logging.DEBUG)
 
 
