@@ -16,6 +16,8 @@ import math
 from . import common
 from . import orbitx_pb2 as protos
 
+import vpython
+
 log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
@@ -53,22 +55,7 @@ class FlightGui:
             getattr(self._vpython.no_notebook,
                     '__factory').protocol.onClose = callback
 
-        # Set up the second vpython canvas for display the unit_velocity?
-        #TODO:
-        # 1) when started, the small_habitat axis is too long
-        # 2) Reference arrow doesn't change when habitat spin change?
-        # 3) "s" button should stop spin , and change current "s" to "x"
-        # 4) Find right location for _habitat_scene : above menus
-        self._habitat_scene = vpython.canvas(width=200, height=150,
-                                           center=vpython.vector(0,0,0),
-                                           up=vpython.vector(0, 0, 1),
-                                           forward=vpython.vector(0.1, 0.1, -1),
-                                           autoscale=True,
-                                           userspin=False)
-        self._small_habitat = vpython.cone(canvas=self._habitat_scene, radius=0.1, color=vpython.color.cyan)
-        self._ref_arrow = vpython.arrow(canvas=self._habitat_scene, color=vpython.color.blue)
-        self._target_arrow = vpython.arrow(canvas=self._habitat_scene, color=vpython.color.red)
-        self._habitat_scene.range = 2
+        self._minimap_canvas = self._init_minimap_canvas()
 
         # Set up our vpython canvas and other internal variables
         self._scene = vpython.canvas(
@@ -134,6 +121,17 @@ class FlightGui:
                 self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
 
+    def _init_minimap_canvas(self) -> vpython.canvas:
+        """Create a small sidebar scene showing the hab's orientation.
+        This scene is filled in when the habitat is created."""
+        # Make sure that the main canvas is still the default canvas.
+        main_canvas = vpython.canvas.get_selected()
+        miniamp_canvas = vpython.canvas(
+            width=200, height=150, autoscale=True, userspin=False,
+            up=vpython.vector(0, 0, 1), forward=vpython.vector(0.1, 0.1, -1))
+        main_canvas.select()
+        return miniamp_canvas
+
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
         if not self._vpython._isnotebook and \
@@ -191,14 +189,6 @@ class FlightGui:
             entity.vx - self._reference.vx,
             entity.vy - self._reference.vy,
             0).norm()
-
-    def _unit_velocity_target(self, entity):
-        """Provides entity velocity relative to target."""
-        return self._vpython.vector(
-            entity.vx - self._target.vx,
-            entity.vy - self._target.vy,
-            0).norm()
-
 
     def _set_reference(self, entity_name):
         try:
@@ -479,43 +469,56 @@ class FlightGui:
         texture = self._texture_path / (planet.name + '.jpg')
 
         if planet.name == "Habitat":
-            # TODO: 1) ARROW
+            def hab_object(scene: vpython.canvas) -> vpython.compound:
+                # Change which scene we're drawing a new habitat in
+                old_scene = vpython.canvas.get_selected()
+                scene.select()
 
-            body = self._vpython.cylinder(
-                pos=self._vpython.vector(0, 0, 0),
-                axis=self._vpython.vector(-5, 0, 0),
-                radius=7)
-            head = self._vpython.cone(pos=self._vpython.vector(
-                0, 0, 0), axis=self._vpython.vector(3, 0, 0), radius=7)
-            wing = self._vpython.triangle(
-                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
-                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 30, 0)),
-                v2=self._vpython.vertex(pos=self._vpython.vector(-5, -30, 0)))
-            wing2 = self._vpython.triangle(
-                v0=self._vpython.vertex(pos=self._vpython.vector(0, 0, 0)),
-                v1=self._vpython.vertex(pos=self._vpython.vector(-5, 0, 30)),
-                v2=self._vpython.vertex(pos=self._vpython.vector(-5, 0, -30)))
+                body = vpython.cylinder(
+                    pos=vpython.vector(0, 0, 0),
+                    axis=vpython.vector(-5, 0, 0),
+                    radius=7)
+                head = vpython.cone(
+                    pos=vpython.vector(0, 0, 0),
+                    axis=vpython.vector(3, 0, 0),
+                    radius=7)
+                wing = vpython.triangle(
+                    v0=vpython.vertex(pos=vpython.vector(0, 0, 0)),
+                    v1=vpython.vertex(pos=vpython.vector(-5, 30, 0)),
+                    v2=vpython.vertex(pos=vpython.vector(-5, -30, 0)))
+                wing2 = vpython.triangle(
+                    v0=vpython.vertex(pos=vpython.vector(0, 0, 0)),
+                    v1=vpython.vertex(pos=vpython.vector(-5, 0, 30)),
+                    v2=vpython.vertex(pos=vpython.vector(-5, 0, -30)))
 
-            obj = self._vpython.compound([body, head, wing, wing2])
-            obj.texture = self._vpython.textures.metal
+                hab = vpython.compound([body, head, wing, wing2])
+                hab.texture = vpython.textures.metal
+                hab.axis = self._ang_pos(planet.heading)
+                hab.radius = planet.r / 2
+                hab.shininess = 0.1
+                hab.length = planet.r * 2
+                hab.color = vpython.color.cyan
+                old_scene.select()
+                return hab
+
+            obj = hab_object(self._scene)
             obj.pos = self._posn(planet)
-            obj.axis = self._ang_pos(planet.heading)
-            obj.radius = planet.r / 2
-            obj.shininess = 0.1
-            obj.length = planet.r * 2
-            obj.color= self._vpython.color.cyan
-
-            self._ref_arrow.axis = self._unit_velocity_ref(planet)
-            self._target_arrow.axis = self._unit_velocity_target(planet)
-            self._small_habitat.axis = obj.axis
-
-            obj.arrow = self._unit_velocity_ref(planet)
             self._habitat = planet
-            self._vpython.attach_arrow(obj, 'arrow', scale=planet.r)
-            self._habitat_trail = self._vpython.attach_trail(obj, retain=100)
+            self._habitat_trail = vpython.attach_trail(obj, retain=100)
             if not self._show_trails:
                 self._habitat_trail.stop()
                 self._habitat_trail.clear()
+
+            self._small_habitat = hab_object(self._minimap_canvas)
+            arrow_length = planet.r
+            self._ref_arrow = vpython.arrow(
+                canvas=self._minimap_canvas,
+                color=vpython.color.gray(0.5),
+                axis=self._posn(self._reference).norm() * arrow_length * 1.2)
+            self._velocity_arrow = vpython.arrow(
+                canvas=self._minimap_canvas,
+                color=vpython.color.red,
+                axis=self._unit_velocity_ref(planet) * arrow_length)
 
         else:
             obj = self._vpython.sphere(
@@ -577,10 +580,13 @@ class FlightGui:
         sphere.pos = self._posn(planet)
         sphere.axis = self._ang_pos(planet.heading)
         if planet.name == 'Habitat':
-            self._ref_arrow.axis = self._unit_velocity_ref(planet)
-            self._target_arrow.axis = self._unit_velocity_target(planet)
+            self._ref_arrow.axis = (
+                self._posn(self._reference).norm() *
+                self._ref_arrow.length)
+            self._velocity_arrow.axis = (
+                self._unit_velocity_ref(planet) *
+                self._velocity_arrow.length)
             self._small_habitat.axis = sphere.axis
-            sphere.arrow = self._unit_velocity_ref(planet)
             self._habitat = planet
 
     def _update_label(self, planet):
