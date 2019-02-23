@@ -281,8 +281,10 @@ class PEngine(object):
             physics_entity.attached_to, self._template_physical_state.entities)
         y.Broken[i] = physics_entity.broken
         return y
-    def set_control_craft_index(self,index):
-        self.control_craft_index=index
+
+    def set_control_craft_index(self, index):
+        self.control_craft_index = index
+
     def handle_command(self, command, requested_t=None):
         """Interface to set habitat controls.
 
@@ -343,7 +345,10 @@ class PEngine(object):
         self._restart_simulation(requested_t, y0)
 
     def set_state(self, physical_state):
-        self._artificials=np.where(np.array([entity.artificial for entity in physical_state.entities]) >= 1)[0]
+        self._artificials = np.where(
+            np.array([
+                entity.artificial
+                for entity in physical_state.entities]) >= 1)[0]
         try:
             self._hab_index = [
                 entity.name for entity in physical_state.entities
@@ -366,7 +371,7 @@ class PEngine(object):
 
         # Don't store variables that belong in y0 in the physical_state,
         # it should only be returned from get_state()
-        #protentially problematic ??
+        # protentially problematic ??
         self._template_physical_state.CopyFrom(physical_state)
         for entity in self._template_physical_state.entities:
             # PROTO: if you're changing protobufs remember to change here
@@ -737,12 +742,11 @@ class PEngine(object):
                     y = self._collision_decision(t, y, altitude_event)
                 elif len(ivp_out.t_events[1]):
                     log.debug(f'Got fuel empty at {t}')
-                    
+
                     for index in self._artificials:
-                        # Habitat's out of fuel, the next iteration won't consume
-                        # any fuel. Set throttle to zero anyway.
+                        # Habitat's out of fuel, the next iteration won't
+                        # consume any fuel. Set throttle to zero anyway.
                         y.Throttle[index] = 0
                         # Set fuel to a negative value, so it doesn't trigger
                         # the event function
                         y.Fuel[index] = 0
-
