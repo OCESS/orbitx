@@ -9,7 +9,7 @@ import orbitx.orbitx_pb2 as protos
 
 import orbitx.common as common
 import orbitx.physics as physics
-from orbitx.PhysicEntity import Habitat
+from orbitx.physics_entity import Habitat, PhysicsEntity
 
 log = logging.getLogger()
 
@@ -207,6 +207,32 @@ class PhysicsEngineTestCase(unittest.TestCase):
                                    (after.entities[2].x +
                                     after.entities[0].r +
                                     after.entities[2].r))
+
+
+class PhysicsEntityTestCase(unittest.TestCase):
+    """Tests that PhysicsEntity properly proxies underlying proto."""
+
+    def test_fields(self):
+        def test_field(pe: PhysicsEntity, field: str, val):
+            pe.proto.Clear()
+            setattr(pe, field, val)
+            self.assertEqual(getattr(pe.proto, field), val)
+
+        pe = PhysicsEntity(protos.Entity())
+        test_field(pe, 'name', 'test')
+        test_field(pe, 'x', 5)
+        test_field(pe, 'y', 5)
+        test_field(pe, 'vx', 5)
+        test_field(pe, 'vy', 5)
+        test_field(pe, 'r', 5)
+        test_field(pe, 'mass', 5)
+        test_field(pe, 'heading', 5)
+        test_field(pe, 'spin', 5)
+        test_field(pe, 'fuel', 5)
+        test_field(pe, 'throttle', 5)
+        test_field(pe, 'attached_to', 'other_test')
+        test_field(pe, 'broken', True)
+        test_field(pe, 'artificial', True)
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ import scipy.special
 from .physic_functions import *
 from . import orbitx_pb2 as protos
 from . import common
-from .PhysicEntity import PhysicsEntity, Habitat
+from .physics_entity import PhysicsEntity, Habitat
 
 default_dtype = np.longdouble
 
@@ -396,8 +396,8 @@ class PEngine(object):
         e1 = self._physics_entity_at(y, e1_index)
         e2 = self._physics_entity_at(y, e2_index)
 
-        log.info(f'Collision {t - self._simtime(peek_time=True)} '
-                 f'seconds in the future, {e1.as_proto()} and {e2.as_proto()}')
+        log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in '
+                 f' the future, {e1.proto} and {e2.proto}')
 
         if (e2.attached_to is not "") or (e1.attached_to is not ""):
             log.info('Entities are attached, returning early')
@@ -433,8 +433,10 @@ class PEngine(object):
 
         # Use https://en.wikipedia.org/wiki/Elastic_collision
         # to find the new normal velocities (a 1D collision)
-        new_v1n = (v1n * (e1.m - e2.m) + 2 * e2.m * v2n) / (e1.m + e2.m)
-        new_v2n = (v2n * (e2.m - e1.m) + 2 * e1.m * v1n) / (e1.m + e2.m)
+        new_v1n = ((v1n * (e1.mass - e2.mass) + 2 * e2.mass * v2n) /
+                   (e1.mass + e2.mass))
+        new_v2n = ((v2n * (e2.mass - e1.mass) + 2 * e1.mass * v1n) /
+                   (e1.mass + e2.mass))
 
         # Calculate new velocities
         e1.v = new_v1n * unit_norm + v1t * unit_tang
@@ -445,12 +447,12 @@ class PEngine(object):
         # if 2 artificial object collide (habitat, spacespation)
         # or small astroid collision (need deletion), handle later
         log.info(f'Landing {e1.name} on {e2.name}')
-        assert not e2.artificial
-        assert not e2.cannot_land
+        assert e2.artificial is False
         e1.attached_to = e2.name
 
         # Currently does nothing
-        e1.broken = np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength
+        e1.broken = bool(
+            np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
 
         # set right heading for future takeoff
         norm = e1.pos - e2.pos

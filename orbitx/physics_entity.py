@@ -3,125 +3,48 @@ import numpy as np
 from . import orbitx_pb2 as protos
 
 
-class PhysicsEntity(object):
+class PhysicsEntity:
     habitat_hull_strength = 50
     spacestation_hull_strength = 100
-    cannot_land = 0  # reserved for small astroid, to be changed
 
-    def __init__(self, entity):
+    def __init__(self, entity: protos.Entity):
         assert isinstance(entity, protos.Entity)
-        self.name = entity.name
-        self.proto_entity = entity
+        self.proto = entity
+
+    def __repr__(self):
+        return self.proto.__repr__()
+
+    def __str__(self):
+        return self.proto.__str__()
 
     @property
     def pos(self):
-        return np.asarray([self.proto_entity.x, self.proto_entity.y])
-
-    @property
-    def v(self):
-        return np.asarray([self.proto_entity.vx, self.proto_entity.vy])
-
-    @property
-    def r(self):
-        return self.proto_entity.r
-
-    @property
-    def m(self):
-        return self.proto_entity.mass
-
-    @property
-    def spin(self):
-        return self.proto_entity.spin
-
-    @property
-    def heading(self):
-        return self.proto_entity.heading
-
-    @property
-    def fuel(self):
-        return self.proto_entity.fuel
-
-    @property
-    def throttle(self):
-        return self.proto_entity.throttle
-
-    @property
-    def attached_to(self):
-        return self.proto_entity.attached_to
-
-    @property
-    def broken(self):
-        return self.proto_entity.broken
-
-    @property
-    def artificial(self):
-        return self.proto_entity.artificial
+        return np.asarray([self.proto.x, self.proto.y])
 
     @pos.setter
     def pos(self, x):
-        self.proto_entity.x = x[0]
-        self.proto_entity.y = x[1]
+        self.proto.x = x[0]
+        self.proto.y = x[1]
+
+    @property
+    def v(self):
+        return np.asarray([self.proto.vx, self.proto.vy])
 
     @v.setter
     def v(self, x):
-        self.proto_entity.vx = x[0]
-        self.proto_entity.vy = x[1]
+        self.proto.vx = x[0]
+        self.proto.vy = x[1]
 
-    @r.setter
-    def r(self, x):
-        self.proto_entity.r = x
 
-    @m.setter
-    def m(self, x):
-        self.proto_entity.mass = x
-
-    @spin.setter
-    def spin(self, x):
-        self.proto_entity.spin = x
-
-    @heading.setter
-    def heading(self, x):
-        self.proto_entity.heading = x
-
-    @fuel.setter
-    def fuel(self, x):
-        self.proto_entity.fuel = x
-
-    @throttle.setter
-    def throttle(self, x):
-        self.proto_entity.throttle = x
-
-    @attached_to.setter
-    def attached_to(self, x):
-        self.proto_entity.attached_to = x
-
-    @broken.setter
-    def broken(self, x):
-        self.proto_entity.broken = x
-
-    @artificial.setter
-    def artificial(self, x):
-        self.proto_entity.artificial = x
-
-    def as_proto(self):
-        return protos.Entity(
-            name=self.name,
-            x=self.pos[0],
-            y=self.pos[1],
-            vx=self.v[0],
-            vy=self.v[1],
-            r=self.r,
-            mass=self.m,
-            spin=self.spin,
-            heading=self.heading,
-            fuel=self.fuel,
-            throttle=self.throttle,
-            attached_to=self.attached_to,
-            # I don't know if adding bool() is the cleanest solution
-            broken=bool(self.broken),
-            artificial=bool(self.artificial)
-        )
-
+for field in protos.Entity.DESCRIPTOR.fields:
+    # For every field in the underlying protobuf entity, make a
+    # convenient equivalent property to allow code like the following:
+    # PhysicsEntity(entity).heading = 5
+    setattr(PhysicsEntity, field.name, property(
+        fget=lambda self, name=field.name: getattr(self.proto, name),
+        fset=lambda self, val, name=field.name: setattr(self.proto, name, val),
+        fdel=lambda self, name=field.name: delattr(self.proto, name),
+        doc=f"Proxy of the underlying field, self.proto.{field.name}"))
 
 # A note about functions with the signature "(self, *, arg1=None, arg2=None"
 # there are a lot of float parameters to the upcoming APIs, so I think it's
@@ -131,6 +54,7 @@ class PhysicsEntity(object):
 # habitat.fuel_cons(0.2)
 # The former is hopefully much clearer, so I think mandatory keyword arguments
 # is better in this case.
+
 
 class Engine(object):
     def __init__(self, *, max_fuel_cons=None, max_acc=None):
