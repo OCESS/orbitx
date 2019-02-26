@@ -1,4 +1,5 @@
 import collections
+import functools
 import logging
 import threading
 import time
@@ -10,12 +11,11 @@ import scipy.spatial
 import scipy.special
 
 
-from .physic_functions import *
 from . import orbitx_pb2 as protos
 from . import common
-from .physics_entity import PhysicsEntity, Habitat
-
-default_dtype = np.longdouble
+from .physic_functions import *
+from .physics_entity import Habitat
+from .physics_state import PhysicsState
 
 SOLUTION_CACHE_SIZE = 5
 
@@ -57,101 +57,6 @@ log = logging.getLogger()
 # a physical_state that our API users expect.
 
 
-class Y():
-    """Wraps a y0 input/output to solve_ivp.
-    y0 = [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken].
-
-    Example usage:
-    y = Y(physical_state, or y_1d)
-    y.X[5] = 32.2
-    print(y.Fuel[4])
-    """
-
-    def __init__(self, data):
-        """Takes either an np.ndarray or a PhysicalState."""
-        if isinstance(data, np.ndarray):
-            assert len(data.shape) == 1
-            self._y_1d = data
-        else:
-            # PROTO: if you're changing protobufs remember to change here
-            # and also make an accessor for your variable
-            assert isinstance(data, protos.PhysicalState)
-            X = np.array([entity.x for entity in data.entities])
-            Y = np.array([entity.y for entity in data.entities])
-            VX = np.array([entity.vx for entity in data.entities])
-            VY = np.array([entity.vy for entity in data.entities])
-            Heading = np.array([entity.heading for entity in data.entities])
-            Spin = np.array([entity.spin for entity in data.entities])
-            Fuel = np.array([entity.fuel for entity in data.entities])
-            Throttle = np.array([entity.throttle for entity in data.entities])
-
-            # Internally translate string names to indices, otherwise
-            # our entire y vector will turn into a string vector oh no.
-            # Note this will be converted to floats, not integer indices.
-            AttachedTo = np.array([
-                name_to_index(entity.attached_to, data.entities)
-                for entity in data.entities
-            ])
-
-            Broken = np.array([entity.broken for entity in data.entities])
-
-            self._y_1d = np.concatenate(
-                (
-                    X, Y, VX, VY, Heading, Spin,
-                    Fuel, Throttle, AttachedTo, Broken
-                ), axis=None).astype(default_dtype)
-
-        # y_1d has 10 components
-        self._n = len(self._y_1d) // 10
-
-        assert min(self.AttachedTo) >= NO_INDEX
-        assert max(self.AttachedTo) < self._n
-
-    @property
-    def X(self):
-        return self._y_1d[0 * self._n:1 * self._n]
-
-    @property
-    def Y(self):
-        return self._y_1d[1 * self._n:2 * self._n]
-
-    @property
-    def VX(self):
-        return self._y_1d[2 * self._n:3 * self._n]
-
-    @property
-    def VY(self):
-        return self._y_1d[3 * self._n:4 * self._n]
-
-    @property
-    def Heading(self):
-        return self._y_1d[4 * self._n:5 * self._n]
-
-    def BoundHeading(self):
-        """Coerce internal heading values to [0, 2pi)."""
-        self._y_1d[4 * self._n:5 * self._n] %= (2 * np.pi)
-
-    @property
-    def Spin(self):
-        return self._y_1d[5 * self._n:6 * self._n]
-
-    @property
-    def Fuel(self):
-        return self._y_1d[6 * self._n:7 * self._n]
-
-    @property
-    def Throttle(self):
-        return self._y_1d[7 * self._n:8 * self._n]
-
-    @property
-    def AttachedTo(self):
-        return self._y_1d[8 * self._n:9 * self._n]
-
-    @property
-    def Broken(self):
-        return self._y_1d[9 * self._n:10 * self._n]
-
-
 class PEngine(object):
     """Physics Engine class. Encapsulates simulating physical state.
 
@@ -183,9 +88,10 @@ class PEngine(object):
         # notified. Currently, that's just if self._solutions or
         # self._last_simtime changes.
         self._solutions_cond = threading.Condition()
-        self._last_monotime = time.monotonic()
-        self._time_acceleration = common.DEFAULT_TIME_ACC
-        self._simthread_exception = None
+        self._solutions: collections.Deque
+        self._last_monotime: float = time.monotonic()
+        self._time_acceleration: float = common.DEFAULT_TIME_ACC
+        self._simthread_exception: Exception = None
 
         self.set_state(physical_state)
 
@@ -227,13 +133,13 @@ class PEngine(object):
                 self._solutions_cond.notify_all()
             self._simthread.join()
 
-    def _restart_simulation(self, t0, y0):
+    def _restart_simulation(self, t0: float, y0: PhysicsState) -> None:
         self._stop_simthread()
 
         self._simthread = threading.Thread(
             target=self._simthread_target,
             args=(t0, y0),
-            name='simthread',
+            name=f'simthread {round(t0)}',
             daemon=True
         )
         self._stopping_simthread = False
@@ -249,39 +155,6 @@ class PEngine(object):
         # Fork self._simthread into the background.
         self._simthread.start()
 
-    def _physics_entity_at(self, y, i):
-        """Returns a PhysicsEntity constructed from the i'th entity."""
-        # PROTO: if you're changing protobufs remember to change here
-        protobuf_entity = self._template_physical_state.entities[i]
-        protobuf_entity.x = y.X[i]
-        protobuf_entity.y = y.Y[i]
-        protobuf_entity.vx = y.VX[i]
-        protobuf_entity.vy = y.VY[i]
-        protobuf_entity.heading = y.Heading[i]
-        protobuf_entity.spin = y.Spin[i]
-        protobuf_entity.fuel = y.Fuel[i]
-        protobuf_entity.throttle = y.Throttle[i]
-
-        physics_entity = PhysicsEntity(protobuf_entity)
-        physics_entity.attached_to = index_to_name(
-            y.AttachedTo[i], self._template_physical_state.entities)
-        physics_entity.broken = bool(int(y.Broken[i]))
-        return physics_entity
-
-    def _merge_physics_entity_into(self, physics_entity, y, i):
-        """Inverse of _physics_entity_at, merges a physics_entity into y."""
-        # PROTO: if you're changing protobufs remember to change here
-        y.X[i], y.Y[i] = physics_entity.pos
-        y.VX[i], y.VY[i] = physics_entity.v
-        y.Heading[i] = physics_entity.heading
-        y.Spin[i] = physics_entity.spin
-        y.Fuel[i] = physics_entity.fuel
-        y.Throttle[i] = physics_entity.throttle
-        y.AttachedTo[i] = name_to_index(
-            physics_entity.attached_to, self._template_physical_state.entities)
-        y.Broken[i] = physics_entity.broken
-        return y
-
     def set_control_craft_index(self, index):
         self.control_craft_index = index
 
@@ -291,11 +164,8 @@ class PEngine(object):
         Use an argument to change habitat throttle or spinning, and simulation
         will restart with this new information."""
         requested_t = self._simtime(requested_t)
-        y0 = Y(self.get_state(requested_t))
+        y0 = PhysicsState(None, self.get_state(requested_t))
         log.info(f'Got command for simtime t={requested_t}: {command}')
-
-        # Make sure we've slowed down, stuff is about to happen.
-        self._time_acceleration = common.DEFAULT_TIME_ACC
 
         # temp change before implementatin of spacestation
         control_craft_index = self._hab_index
@@ -304,10 +174,10 @@ class PEngine(object):
             nonlocal y0
             # Make sure that we're slightly above the surface of an attachee
             # before un-attaching two entities
-            attachee_index = int(y0.AttachedTo[control_craft_index])
-            if attachee_index != NO_INDEX:
-                ship = self._physics_entity_at(y0, control_craft_index)
-                attachee = self._physics_entity_at(y0, attachee_index)
+            attached_to = y0.attached_to()
+            if control_craft_index in attached_to:
+                ship = y0[control_craft_index]
+                attachee = y0[attached_to[attachee_index]]
 
                 norm = ship.pos - attachee.pos
                 unit_norm = norm / np.linalg.norm(norm)
@@ -315,31 +185,30 @@ class PEngine(object):
                 # an effect, but positive so that a collision will be detected
                 ship.pos = attachee.pos + unit_norm * (
                     common.LAUNCH_SEPARATION + attachee.r + ship.r)
+                ship.attached_to = ''
 
-                y0 = self._merge_physics_entity_into(
-                    ship, y0, control_craft_index)
-                y0.AttachedTo[control_craft_index] = NO_INDEX
+                y0[control_craft_index] = ship
 
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
-            if y0.AttachedTo[control_craft_index] == NO_INDEX:
-                y0.Spin[control_craft_index] += Habitat.spin_change(
+            if control_craft_index not in y0.attached_to():
+                hab = y0[control_craft_index]
+                hab.spin += Habitat.spin_change(
                     requested_spin_change=command.arg)
+                y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
             launch()
-            y0.Throttle[control_craft_index] += command.arg
+            hab = y0[control_craft_index]
+            hab.throttle += command.arg
+            y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
             launch()
-            y0.Throttle[control_craft_index] = command.arg
+            hab = y0[control_craft_index]
+            hab.throttle = command.arg
+            y0[control_craft_index] = hab
 
         elif command.ident == protos.Command.TIME_ACC_SET:
             assert command.arg > 0
             self._time_acceleration = command.arg
-
-        # Bound throttle to [-20, 120] percent
-        y0.Throttle[control_craft_index] = max(
-            common.MIN_THROTTLE, y0.Throttle[control_craft_index])
-        y0.Throttle[control_craft_index] = min(
-            common.MAX_THROTTLE, y0.Throttle[control_craft_index])
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -363,41 +232,25 @@ class PEngine(object):
         except ValueError:
             self._spacestation_index = 0
 
-        y0 = Y(physical_state)
-        self.R = np.array([entity.r for entity in physical_state.entities]
-                          ).astype(default_dtype)
-        self.M = np.array([entity.mass for entity in physical_state.entities]
-                          ).astype(default_dtype)
-
-        # Don't store variables that belong in y0 in the physical_state,
-        # it should only be returned from get_state()
-        # protentially problematic ??
-        self._template_physical_state.CopyFrom(physical_state)
-        for entity in self._template_physical_state.entities:
-            # PROTO: if you're changing protobufs remember to change here
-            entity.ClearField('x')
-            entity.ClearField('y')
-            entity.ClearField('vx')
-            entity.ClearField('vy')
-            entity.ClearField('heading')
-            entity.ClearField('spin')
-            entity.ClearField('fuel')
-            entity.ClearField('throttle')
-            if hasattr(entity, "attached_to"):
-                entity.ClearField('attached_to')
-            if hasattr(entity, "attached_to"):
-                entity.ClearField('broken')
+        y0 = PhysicsState(None, physical_state)
+        # We keep track of the PhysicalState because our simulation only
+        # simulates things that change like position and velocity, not things
+        # that stay constant like names and mass. self._last_physical_state
+        # contains these constants.
+        self._last_physical_state: protos.PhysicalState = physical_state
+        self.R = np.array([entity.r for entity in physical_state.entities])
+        self.M = np.array([entity.mass for entity in physical_state.entities])
 
         self._restart_simulation(physical_state.timestamp, y0)
 
     def _collision_decision(self, t, y, altitude_event):
         e1_index, e2_index = altitude_event(
-            t, y._y_1d, return_pair=True)
-        e1 = self._physics_entity_at(y, e1_index)
-        e2 = self._physics_entity_at(y, e2_index)
+            t, y.y0(), return_pair=True)
+        e1 = y[e1_index]
+        e2 = y[e2_index]
 
         log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in '
-                 f' the future, {e1.proto} and {e2.proto}')
+                 f' the future, {e1} and {e2}')
 
         if (e2.attached_to is not "") or (e1.attached_to is not ""):
             log.info('Entities are attached, returning early')
@@ -410,8 +263,8 @@ class PEngine(object):
         else:
             self._bounce(e1, e2)
 
-        y = self._merge_physics_entity_into(e1, y, e1_index)
-        y = self._merge_physics_entity_into(e2, y, e2_index)
+        y[e1_index] = e1
+        y[e2_index] = e2
         return y
 
     def _bounce(self, e1, e2):
@@ -461,39 +314,6 @@ class PEngine(object):
         e1.spin = e2.spin
         e1.v = e2.v
 
-    def _state_from_y_1d(self, t, y):
-        y = Y(y)
-        state = protos.PhysicalState()
-        state.MergeFrom(self._template_physical_state)
-        state.timestamp = t
-        entity_names = [
-            entity.name for entity in self._template_physical_state.entities
-        ]
-        # PROTO: if you're changing protobufs remember to change here
-        for x, y, vx, vy, heading, spin, fuel, throttle, \
-            attached_index, broken, entity in zip(
-                y.X, y.Y, y.VX, y.VY, y.Heading, y.Spin,
-                y.Fuel, y.Throttle, y.AttachedTo, y.Broken,
-                state.entities):
-            entity.x = x
-            entity.y = y
-            entity.vx = vx
-            entity.vy = vy
-            entity.heading = heading
-            entity.spin = spin
-            entity.fuel = fuel
-            entity.throttle = throttle
-            # We don't use index_to_name because we're doing a whole list at
-            # once, not just a single translation. So we optimize for that.
-            attached_index = int(attached_index)
-
-            # (no field "broken" in protocol message object).
-            if attached_index != NO_INDEX:
-                entity.attached_to = entity_names[attached_index]
-            if broken != NOT_BROKEN:
-                entity.broken = bool(int(broken))
-        return state
-
     def get_state(self, requested_t=None):
         """Return the latest physical state of the simulation."""
         requested_t = self._simtime(requested_t)
@@ -521,7 +341,9 @@ class PEngine(object):
                 if soln.t_min <= requested_t and requested_t <= soln.t_max:
                     solution = soln
 
-        return self._state_from_y_1d(requested_t, solution(requested_t))
+        return PhysicsState(
+            solution(requested_t), self._last_physical_state
+        ).as_proto(requested_t)
 
     def _simthread_target(self, t, y):
         log.debug('simthread started')
@@ -532,7 +354,8 @@ class PEngine(object):
             self._simthread_exception = e
         log.debug('simthread exited')
 
-    def _derive(self, t, y_1d):
+    def _derive(self, t: float, y_1d: np.ndarray,
+                proto_state: protos.PhysicalState) -> np.ndarray:
         """
         y_1d =
          [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken]
@@ -553,53 +376,50 @@ class PEngine(object):
                                                 current_y_of_system)
         """
         # PROTO: if you're changing protobufs remember to change here
-        y = Y(y_1d)
-        Xa, Ya = grav_acc(y.X, y.Y, self.M + y.Fuel)
+        y: PhysicsState = PhysicsState(y_1d, proto_state)
+        y_components = y._y_components()
+        Xa, Ya = grav_acc(
+            y_components[PhysicsState.X_COMP],
+            y_components[PhysicsState.Y_COMP],
+            self.M + y_components[PhysicsState.FUEL_COMP])
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
         for index in self._artificials:
-            if y.Fuel[index] > 0:
+            if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
-                throttle = y.Throttle[index]
+                throttle = y[index].throttle
                 fuel_cons[index] = - \
                     Habitat.fuel_cons(throttle=throttle)
                 hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                    throttle=throttle, heading=y.Heading[index])
+                    throttle=throttle, heading=y[index].heading)
                 Xa[index] += hab_eng_acc_x
                 Ya[index] += hab_eng_acc_y
 
         # Keep attached entities glued together
-        for attached, attachee in enumerate(y.AttachedTo):
-            # The entity at index 'attached' is attached to the entity at index
-            # 'attachee'. For example, the habitat could be attached to the
-            # Earth, in which case 'attached' would reference the habitat and
-            # 'attachee' would reference the Earth
-            if attachee == NO_INDEX:
-                continue
-            attachee = int(attachee)
+        attached_to = y.attached_to()
+        for index in attached_to:
+            attached = y[index]
+            attachee = y[attached_to[index]]
 
             # If we're attached to something, make sure we move in lockstep.
-            y.VX[attached] = y.VX[attachee]
-            y.VY[attached] = y.VY[attachee]
-            Xa[attached] = Xa[attachee]
-            Ya[attached] = Ya[attachee]
+            attached.v = attachee.v
+            Xa[index] = Xa[attached_to[index]]
+            Ya[index] = Ya[attached_to[index]]
 
             # We also add velocity and centripetal acceleration that comes
             # from being attached to the surface of a spinning object.
-            e1 = self._physics_entity_at(y, attached)
-            e2 = self._physics_entity_at(y, attachee)
-            norm = e1.pos - e2.pos
+            norm = attached.pos - attachee.pos
             unit_norm = norm / np.linalg.norm(norm)
             # The unit tangent is perpendicular to the unit normal vector
             unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
             # These two lines courtesy of wikipedia "Circular motion"
-            circular_velocity = unit_tang * e2.spin * e2.r
-            centripetal_acc = unit_norm * e2.spin ** 2 * e2.r
-            y.VX[attached] += circular_velocity[0]
-            y.VY[attached] += circular_velocity[1]
-            Xa[attached] += centripetal_acc[0]
-            Ya[attached] += centripetal_acc[1]
+            circular_velocity = unit_tang * attachee.spin * attachee.r
+            centripetal_acc = unit_norm * attachee.spin ** 2 * attachee.r
+            attached.v += circular_velocity
+            y[index] = attached
+            Xa[index] += centripetal_acc[0]
+            Ya[index] += centripetal_acc[1]
 
         # for futur spacestation code
         # if y.Fuel[self._spacestation_index] > 0:
@@ -615,11 +435,14 @@ class PEngine(object):
 
         return np.concatenate(
             (
-                y.VX, y.VY, Xa, Ya, y.Spin, zeros,
-                fuel_cons, zeros, zeros, zeros
+                y_components[PhysicsState.VX_COMP],
+                y_components[PhysicsState.VY_COMP],
+                Xa, Ya,
+                y_components[PhysicsState.SPIN_COMP],
+                zeros, fuel_cons, zeros, zeros, zeros
             ), axis=None)
 
-    def _generate_new_ode_solutions(self, t, y):
+    def _generate_new_ode_solutions(self, t: float, y: PhysicsState) -> None:
         # An overview of how time is managed:
         #
         # self._last_simtime is the main thread's latest idea of
@@ -633,27 +456,32 @@ class PEngine(object):
         # time that the solution can be evaluated at and still be accurate.
         # The highest such t_max should always be larger than the current
         # simulation time, i.e. self._last_simtime
+        proto_state = y._proto_state
 
-        def hab_fuel_event(t, y_1d):
+        def hab_fuel_event(t: float, y_1d: np.ndarray) -> float:
             """Return a 0 only when throttle is nonzero."""
-            y = Y(y_1d)
+            y = PhysicsState(y_1d, proto_state)
             for index in self._artificials:
-                if y.Throttle[index] != 0:
-                    return Y(y_1d).Fuel[index]
+                if y[index].throttle != 0:
+                    return y[index].fuel
             else:
                 return 1
         hab_fuel_event.terminal = True
         hab_fuel_event.direction = -1
 
-        def altitude_event(_, y_1d, return_pair=False):
+        def altitude_event(
+                t: float, y_1d: np.ndarray, return_pair=False) -> float:
             """An event function. See numpy documentation for solve_ivp.
 
             @return a scalar, with 0 indicating a collision and a sign change
                 indicating a collision has happened.
             """
-            y = Y(y_1d)
-            n = y._n
-            posns = np.column_stack((y.X, y.Y))  # 2xN of (x, y) positions
+            y = PhysicsState(y_1d, proto_state)
+            n = len(proto_state.entities)
+            # 2xN of (x, y) positions
+            posns = np.column_stack((
+                y._y_components()[PhysicsState.X_COMP],
+                y._y_components()[PhysicsState.Y_COMP]))
             # An n*n matrix of _altitudes_ between each entity
             alt_matrix = (
                 scipy.spatial.distance.cdist(posns, posns) -
@@ -665,9 +493,10 @@ class PEngine(object):
 
             # If there are any entities attached to any other entities, ignore
             # both the attachee and the attached entity.
-            for index in np.where(y.AttachedTo >= 0)[0]:
-                alt_matrix[index, int(y.AttachedTo[index])] = np.inf
-                alt_matrix[int(y.AttachedTo[index]), index] = np.inf
+            attached_to = y.attached_to()
+            for index in attached_to:
+                alt_matrix[index, attached_to[index]] = np.inf
+                alt_matrix[attached_to[index], index] = np.inf
 
             if return_pair:
                 # Returns the actual pair of indicies instead of a scalar.
@@ -680,7 +509,6 @@ class PEngine(object):
             else:
                 # solve_ivp invocation, return scalar
                 return np.min(alt_matrix)
-
         altitude_event.terminal = True  # Event stops integration
         altitude_event.direction = -1  # Event matters when going pos -> neg
 
@@ -691,12 +519,11 @@ class PEngine(object):
             # Then we should integrate the interval of
             # [self._solutions[-1].t_max, requested_t]
             # and hopefully a bit farther past the end of that interval.
-            y.BoundHeading()
             ivp_out = scipy.integrate.solve_ivp(
-                self._derive,
+                functools.partial(self._derive, proto_state=proto_state),
                 [t, t + self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
-                y._y_1d,
+                y.y0(),
                 events=[altitude_event, hab_fuel_event],
                 # np.sqrt is here to give a slower-than-linear step size growth
                 max_step=np.sqrt(self._time_acceleration),
@@ -705,14 +532,7 @@ class PEngine(object):
 
             if ivp_out.status < 0:
                 # Integration error
-                log.warning(ivp_out.message)
-                log.warning(('Retrying with decreased time acceleration = '
-                             f'{self._time_acceleration / 10}'))
-                self._time_acceleration = self._time_acceleration / 10
-                if self._time_acceleration < 1:
-                    # We can't lower the time acceleration anymore
-                    raise Exception(ivp_out.message)
-                continue
+                raise Exception(ivp_out.message)
 
             # When we create a new solution, let other people know.
             with self._solutions_cond:
@@ -732,7 +552,7 @@ class PEngine(object):
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
-            y = Y(ivp_out.y[:, -1])
+            y = PhysicsState(ivp_out.y[:, -1], proto_state)
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
@@ -746,9 +566,11 @@ class PEngine(object):
                     log.debug(f'Got fuel empty at {t}')
 
                     for index in self._artificials:
+                        artificial = y[index]
                         # Habitat's out of fuel, the next iteration won't
                         # consume any fuel. Set throttle to zero anyway.
-                        y.Throttle[index] = 0
+                        artificial.throttle = 0
                         # Set fuel to a negative value, so it doesn't trigger
                         # the event function
-                        y.Fuel[index] = 0
+                        artificial.fuel = 0
+                        y[index] = artificial

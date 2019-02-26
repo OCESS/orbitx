@@ -10,6 +10,7 @@ import orbitx.orbitx_pb2 as protos
 import orbitx.common as common
 import orbitx.physics as physics
 from orbitx.physics_entity import Habitat, PhysicsEntity
+from orbitx.physics_state import PhysicsState
 
 log = logging.getLogger()
 
@@ -233,6 +234,63 @@ class PhysicsEntityTestCase(unittest.TestCase):
         test_field(pe, 'attached_to', 'other_test')
         test_field(pe, 'broken', True)
         test_field(pe, 'artificial', True)
+
+
+class PhysicsStateTestCase(unittest.TestCase):
+    """Tests PhysicsState accessors and setters."""
+
+    physical_state = protos.PhysicalState(
+        timestamp=5,
+        entities=[
+            protos.Entity(
+                name='First', mass=100, r=200,
+                x=10, y=20, vx=30, vy=40, heading=1, spin=50, fuel=60,
+                throttle=70),
+            protos.Entity(
+                name='Second', mass=101, r=201, artificial=True,
+                x=11, y=21, vx=31, vy=41, heading=2, spin=51, fuel=61,
+                throttle=71, attached_to='First', broken=True)
+        ]
+    )
+
+    def test_attatched_to(self):
+        """Test that the special .attached_to field is properly set."""
+        ps = PhysicsState(None, self.physical_state)
+        self.assertEqual(ps['First'].attached_to, '')
+        self.assertEqual(ps['Second'].attached_to, 'First')
+        self.assertEqual(ps.attached_to(), {1: 0})
+
+    def test_y_vector_init(self):
+        """Test that initializing with a y-vector uses y-vector values."""
+        y0 = np.array([
+            10, 20,   # x
+            30, 40,   # y
+            50, 60,   # vx
+            0, 0,     # vy
+            0, 0,     # heading
+            70, 80,   # spin
+            90, 100,  # fuel
+            0, 0,     # throttle
+            1, -1,    # only First is attached to Second
+            0, 1      # Second is broken
+        ])
+
+        ps = PhysicsState(y0, self.physical_state)
+        self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
+        self.assertEqual(ps['First'].attached_to, 'Second')
+
+        proto_state = ps.proto_state(self.physical_state.timestamp)
+        self.assertEqual(proto_state.entities[0].fuel, 90)
+        self.assertTrue(proto_state.entities[1].broken)
+        self.assertEqual(proto_state.timestamp, self.physical_state.timestamp)
+
+    def test_get_set(self):
+        """Test __getitem__ and __setitem__."""
+        ps = PhysicsState(None, self.physical_state)
+        entity = ps[0]
+        entity.attached_to = 'Second'
+        ps[0] = entity
+        self.assertEqual(ps[0].attached_to, 'Second')
 
 
 if __name__ == '__main__':
