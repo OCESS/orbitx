@@ -35,21 +35,6 @@ class PhysicsState:
     # N_COMPONENTS would be 4.
     N_COMPONENTS: int = 10
 
-    # Positions in the ordering of components.
-    # TODO: Not ideal, but consider what's a better solution. Just @properties
-    # again? It's a lot of repeated code. I want to get this to Ye Qin so he's
-    # unblocked on AYSE implementation though.
-    X_COMP: int = 0
-    Y_COMP: int = 1
-    VX_COMP: int = 2
-    VY_COMP: int = 3
-    HEADING_COMP: int = 4
-    SPIN_COMP: int = 5
-    FUEL_COMP: int = 6
-    THROTTLE_COMP: int = 7
-    ATTACHED_TO_COMP: int = 8
-    BROKEN_COMP: int = 9
-
     # Datatype of internal y-vector
     DTYPE = np.longdouble
 
@@ -73,7 +58,8 @@ class PhysicsState:
         # self._proto_state will have positions, velocities, etc for all
         # entities. DO NOT USE THESE they will be stale. Use the accessors of
         # this class instead!
-        self._proto_state: protos.PhysicalState = proto_state
+        self._proto_state = proto_state
+        self._n = len(proto_state.entities)
 
         if y is None:
             # PROTO: if you're changing protobufs remember to change here
@@ -143,7 +129,7 @@ class PhysicsState:
     def y0(self):
         """Returns a y-vector suitable as input for scipy.solve_ivp."""
         # Ensure that heading is within [0, 2pi).
-        self._y_components()[self.HEADING_COMP] %= (2 * np.pi)
+        self._y_components()[4] %= (2 * np.pi)
         return self._y0
 
     def as_proto(self, t: float) -> protos.PhysicalState:
@@ -163,18 +149,6 @@ class PhysicsState:
             entity.attached_to = self._index_to_name(attached_index)
             entity.broken = bool(broken)
         return self._proto_state
-
-    def attached_to(self) -> Dict[int, int]:
-        """Returns a mapping from index to index of entity attachments.
-
-        If the 0th entity is attached to the 2nd entity, 0 -> 2 will be mapped.
-        """
-        attach_map = {}
-        for attached, attachee in enumerate(
-                self._y_components()[self.ATTACHED_TO_COMP]):
-            if int(attachee) != self.NO_INDEX:
-                attach_map[attached] = int(attachee)
-        return attach_map
 
     def __getitem__(self, index: Union[str, int]) -> PhysicsEntity:
         """Returns a PhysicsEntity view at a given name or index.
@@ -223,3 +197,52 @@ class PhysicsState:
             val.x, val.y, val.vx, val.vy, val.heading, val.spin, val.fuel,
             val.throttle, attached_index, val.broken
         ]).astype(self.DTYPE)
+
+    @property
+    def X(self):
+        return self._y_components()[0]
+
+    @property
+    def Y(self):
+        return self._y_components()[1]
+
+    @property
+    def VX(self):
+        return self._y_components()[2]
+
+    @property
+    def VY(self):
+        return self._y_components()[3]
+
+    @property
+    def Heading(self):
+        return self._y_components()[4]
+
+    @property
+    def Spin(self):
+        return self._y_components()[5]
+
+    @property
+    def Fuel(self):
+        return self._y_components()[6]
+
+    @property
+    def Throttle(self):
+        return self._y_components()[7]
+
+    @property
+    def AttachedTo(self) -> Dict[int, int]:
+        """Returns a mapping from index to index of entity attachments.
+
+        If the 0th entity is attached to the 2nd entity, 0 -> 2 will be mapped.
+        """
+        attach_map = {}
+        for attached, attachee in enumerate(
+                self._y_components()[8]):
+            if int(attachee) != self.NO_INDEX:
+                attach_map[attached] = int(attachee)
+        return attach_map
+
+    @property
+    def Broken(self):
+        return self._y_components()[9]

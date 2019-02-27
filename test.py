@@ -258,7 +258,7 @@ class PhysicsStateTestCase(unittest.TestCase):
         ps = PhysicsState(None, self.physical_state)
         self.assertEqual(ps['First'].attached_to, '')
         self.assertEqual(ps['Second'].attached_to, 'First')
-        self.assertEqual(ps.attached_to(), {1: 0})
+        self.assertEqual(ps.AttachedTo, {1: 0})
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
@@ -279,7 +279,7 @@ class PhysicsStateTestCase(unittest.TestCase):
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
         self.assertEqual(ps['First'].attached_to, 'Second')
 
-        proto_state = ps.proto_state(self.physical_state.timestamp)
+        proto_state = ps.as_proto(self.physical_state.timestamp)
         self.assertEqual(proto_state.entities[0].fuel, 90)
         self.assertTrue(proto_state.entities[1].broken)
         self.assertEqual(proto_state.timestamp, self.physical_state.timestamp)

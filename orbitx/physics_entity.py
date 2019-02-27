@@ -4,6 +4,15 @@ from . import orbitx_pb2 as protos
 
 
 class PhysicsEntity:
+    """A wrapper around protos.Entity.
+
+    Example usage:
+    assert PhysicsEntity(protos.Entity(x=5)).x == 5
+    assert PhysicsEntity(protos.Entity(x=1, y=2)).pos == [1, 2]
+
+    To add fields, or see what fields exists, please see orbitx.proto,
+    specifically the "message Entity" declaration.
+    """
     habitat_hull_strength = 50
     spacestation_hull_strength = 100
 
@@ -16,6 +25,23 @@ class PhysicsEntity:
 
     def __str__(self):
         return self.proto.__str__()
+
+    # These are filled in just below this class definition. These stubs are for
+    # static type analysis with mypy.
+    name: str
+    x: float
+    y: float
+    vx: float
+    vy: float
+    r: float
+    mass: float
+    heading: float
+    spin: float
+    fuel: float
+    throttle: float
+    attached_to: str
+    broken: bool
+    artificial: bool
 
     @property
     def pos(self):
@@ -40,10 +66,19 @@ for field in protos.Entity.DESCRIPTOR.fields:
     # For every field in the underlying protobuf entity, make a
     # convenient equivalent property to allow code like the following:
     # PhysicsEntity(entity).heading = 5
+
+    def fget(self, name=field.name):
+        return getattr(self.proto, name)
+
+    def fset(self, val, name=field.name):
+        return setattr(self.proto, name, val)
+
+    def fdel(self, name=field.name):
+        return delattr(self.proto, name)
+
+    # Assert that there is a stub for the field before setting it.
     setattr(PhysicsEntity, field.name, property(
-        fget=lambda self, name=field.name: getattr(self.proto, name),
-        fset=lambda self, val, name=field.name: setattr(self.proto, name, val),
-        fdel=lambda self, name=field.name: delattr(self.proto, name),
+        fget=fget, fset=fset, fdel=fdel,
         doc=f"Proxy of the underlying field, self.proto.{field.name}"))
 
 # A note about functions with the signature "(self, *, arg1=None, arg2=None"

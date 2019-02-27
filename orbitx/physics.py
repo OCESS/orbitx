@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import warnings
+from typing import Tuple, Union
 
 import numpy as np
 import scipy.integrate
@@ -19,8 +20,6 @@ from .physics_state import PhysicsState
 
 SOLUTION_CACHE_SIZE = 5
 
-
-NOT_BROKEN = 0
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
@@ -36,25 +35,6 @@ log = logging.getLogger()
 # https://stackoverflow.com/a/52103839/1333978
 # Basically, it can sometimes be important in this module whether a call to
 # np.array() is copying something, or changing the dtype, etc.
-
-# Note on where to add new variables to the simulation:
-#
-# If you're adding something that will never change over the course of the
-# simulation, you should add that variable to the .proto definition of an
-# entity (and it would be best to optionally add it to PhysicsEntity as well).
-# Examples of these kinds of variables are name and mass. Then, when a
-# physical_state is loaded by set_state, these immutable variables will be
-# stored in self._template_physical_state, no extra action needed.
-#
-# If you're adding something that will change over the course of a simulation,
-# you should add that variable to the Y class, which represents the state
-# of mutable variables in the simulation at a certain point in time. For
-# example, position, velocity, fuel, and throttle are all mutable variables
-# that go in the Y class. Look for the string "# PROTO:" for where these
-# kinds of variables should be inserted, since there's some bookkeeping needed
-# to translate these variables from the internal representation (a bunch of
-# continuously-evaluable functions of time that return a numpy.ndarray) to
-# a physical_state that our API users expect.
 
 
 class PEngine(object):
@@ -174,10 +154,10 @@ class PEngine(object):
             nonlocal y0
             # Make sure that we're slightly above the surface of an attachee
             # before un-attaching two entities
-            attached_to = y0.attached_to()
-            if control_craft_index in attached_to:
+            attached_to = y0.AttachedTo
+            if control_craft_index in attached_to.keys():
                 ship = y0[control_craft_index]
-                attachee = y0[attached_to[attachee_index]]
+                attachee = y0[attached_to[control_craft_index]]
 
                 norm = ship.pos - attachee.pos
                 unit_norm = norm / np.linalg.norm(norm)
@@ -190,7 +170,7 @@ class PEngine(object):
                 y0[control_craft_index] = ship
 
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
-            if control_craft_index not in y0.attached_to():
+            if control_craft_index not in y0.AttachedTo:
                 hab = y0[control_craft_index]
                 hab.spin += Habitat.spin_change(
                     requested_spin_change=command.arg)
@@ -375,13 +355,8 @@ class PEngine(object):
                                                 current_t_of_system,
                                                 current_y_of_system)
         """
-        # PROTO: if you're changing protobufs remember to change here
-        y: PhysicsState = PhysicsState(y_1d, proto_state)
-        y_components = y._y_components()
-        Xa, Ya = grav_acc(
-            y_components[PhysicsState.X_COMP],
-            y_components[PhysicsState.Y_COMP],
-            self.M + y_components[PhysicsState.FUEL_COMP])
+        y = PhysicsState(y_1d, proto_state)
+        Xa, Ya = grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
@@ -397,7 +372,7 @@ class PEngine(object):
                 Ya[index] += hab_eng_acc_y
 
         # Keep attached entities glued together
-        attached_to = y.attached_to()
+        attached_to = y.AttachedTo
         for index in attached_to:
             attached = y[index]
             attachee = y[attached_to[index]]
@@ -433,14 +408,10 @@ class PEngine(object):
         #    Xa[self._spacestation_index] += hab_eng_acc_x
         #    Ya[self._spacestation_index] += hab_eng_acc_y
 
-        return np.concatenate(
-            (
-                y_components[PhysicsState.VX_COMP],
-                y_components[PhysicsState.VY_COMP],
-                Xa, Ya,
-                y_components[PhysicsState.SPIN_COMP],
-                zeros, fuel_cons, zeros, zeros, zeros
-            ), axis=None)
+        return np.concatenate((
+            y.VX, y.VY, Xa, Ya, y.Spin,
+            zeros, fuel_cons, zeros, zeros, zeros
+        ), axis=None)
 
     def _generate_new_ode_solutions(self, t: float, y: PhysicsState) -> None:
         # An overview of how time is managed:
@@ -458,60 +429,6 @@ class PEngine(object):
         # simulation time, i.e. self._last_simtime
         proto_state = y._proto_state
 
-        def hab_fuel_event(t: float, y_1d: np.ndarray) -> float:
-            """Return a 0 only when throttle is nonzero."""
-            y = PhysicsState(y_1d, proto_state)
-            for index in self._artificials:
-                if y[index].throttle != 0:
-                    return y[index].fuel
-            else:
-                return 1
-        hab_fuel_event.terminal = True
-        hab_fuel_event.direction = -1
-
-        def altitude_event(
-                t: float, y_1d: np.ndarray, return_pair=False) -> float:
-            """An event function. See numpy documentation for solve_ivp.
-
-            @return a scalar, with 0 indicating a collision and a sign change
-                indicating a collision has happened.
-            """
-            y = PhysicsState(y_1d, proto_state)
-            n = len(proto_state.entities)
-            # 2xN of (x, y) positions
-            posns = np.column_stack((
-                y._y_components()[PhysicsState.X_COMP],
-                y._y_components()[PhysicsState.Y_COMP]))
-            # An n*n matrix of _altitudes_ between each entity
-            alt_matrix = (
-                scipy.spatial.distance.cdist(posns, posns) -
-                np.array([self.R]) - np.array([self.R]).T)
-            # To simplify calculations, an entity's altitude from itself is inf
-            np.fill_diagonal(alt_matrix, np.inf)
-            # For each pair of objects that have collisions disabled between
-            # them, also set their altitude to be inf
-
-            # If there are any entities attached to any other entities, ignore
-            # both the attachee and the attached entity.
-            attached_to = y.attached_to()
-            for index in attached_to:
-                alt_matrix[index, attached_to[index]] = np.inf
-                alt_matrix[attached_to[index], index] = np.inf
-
-            if return_pair:
-                # Returns the actual pair of indicies instead of a scalar.
-                flattened_index = alt_matrix.argmin()
-                # flattened_index is a value in the interval [1, n*n]-1.
-                # Turn it into a  2D index.
-                object_i = flattened_index // n
-                object_j = flattened_index % n
-                return object_i, object_j
-            else:
-                # solve_ivp invocation, return scalar
-                return np.min(alt_matrix)
-        altitude_event.terminal = True  # Event stops integration
-        altitude_event.direction = -1  # Event matters when going pos -> neg
-
         while not self._stopping_simthread:
             # self._solutions contains ODE solutions for the interval
             # [self._solutions[0].t_min, self._solutions[-1].t_max]
@@ -519,6 +436,9 @@ class PEngine(object):
             # Then we should integrate the interval of
             # [self._solutions[-1].t_max, requested_t]
             # and hopefully a bit farther past the end of that interval.
+            hab_fuel_event = HabFuelEvent(proto_state)
+            altitude_event = AltitudeEvent(proto_state, self.R)
+
             ivp_out = scipy.integrate.solve_ivp(
                 functools.partial(self._derive, proto_state=proto_state),
                 [t, t + self._time_acceleration],
@@ -574,3 +494,71 @@ class PEngine(object):
                         # the event function
                         artificial.fuel = 0
                         y[index] = artificial
+
+
+class Event:
+    # These two fields tell scipy to stop simulation when __call__ returns 0
+    terminal = True
+    direction = -1
+
+    # Implement this in an event subclass
+    def __call___(self, t: float, y_1d: np.ndarray) -> float:
+        raise NotImplemented
+
+
+class HabFuelEvent(Event):
+    def __init__(self, proto_state: protos.PhysicalState):
+        self.proto_state = proto_state
+
+    def __call__(self, t, y_1d) -> float:
+        """Return a 0 only when throttle is nonzero."""
+        y = PhysicsState(y_1d, self.proto_state)
+        for index, entity in enumerate(y._proto_state.entities):
+            if entity.artificial and y.Throttle[index] != 0:
+                return y.Fuel[index]
+        return 1
+
+
+class AltitudeEvent(Event):
+    def __init__(self, proto_state: protos.PhysicalState, radii: np.ndarray):
+        self.proto_state = proto_state
+        self.radii = radii
+
+    def __call__(self, t, y_1d, return_pair=False
+                 ) -> Union[float, Tuple[int, int]]:
+        """An event function. See numpy documentation for solve_ivp.
+
+        Returns a scalar, with 0 indicating a collision and a sign change
+            indicating a collision has happened.
+        """
+        y = PhysicsState(y_1d, self.proto_state)
+        n = len(self.proto_state.entities)
+        # 2xN of (x, y) positions
+        posns = np.column_stack((y.X, y.Y))
+        # An n*n matrix of _altitudes_ between each entity
+        alt_matrix = (
+            scipy.spatial.distance.cdist(posns, posns) -
+            np.array([self.radii]) - np.array([self.radii]).T)
+        # To simplify calculations, an entity's altitude from itself is inf
+        np.fill_diagonal(alt_matrix, np.inf)
+        # For each pair of objects that have collisions disabled between
+        # them, also set their altitude to be inf
+
+        # If there are any entities attached to any other entities, ignore
+        # both the attachee and the attached entity.
+        attached_to = y.AttachedTo
+        for index in attached_to:
+            alt_matrix[index, attached_to[index]] = np.inf
+            alt_matrix[attached_to[index], index] = np.inf
+
+        if return_pair:
+            # Returns the actual pair of indicies instead of a scalar.
+            flattened_index = alt_matrix.argmin()
+            # flattened_index is a value in the interval [1, n*n]-1.
+            # Turn it into a  2D index.
+            object_i = flattened_index // n
+            object_j = flattened_index % n
+            return object_i, object_j
+        else:
+            # solve_ivp invocation, return scalar
+            return np.min(alt_matrix)
