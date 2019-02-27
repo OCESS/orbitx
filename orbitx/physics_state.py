@@ -13,7 +13,7 @@ class PhysicsState:
     """The physical state of the system for use in solve_ivp and elsewhere.
 
     Example usage:
-    y = Y(physical_state, y_1d)
+    y = PhysicsState(physical_state, y_1d)
 
     entity = y[0]
     y['Habitat'] = habitat
