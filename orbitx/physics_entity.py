@@ -3,51 +3,83 @@ import numpy as np
 from . import orbitx_pb2 as protos
 
 
-class PhysicsEntity(object):
-    habitat_hull_strength: int = 50
-    spacestation_hull_strength: int = 100
-    cannot_land: int = 0  # reserved for small astroid, to be changed
+class PhysicsEntity:
+    """A wrapper around protos.Entity.
 
-    def __init__(self, entity: protos.PhysicalState) -> None:
+    Example usage:
+    assert PhysicsEntity(protos.Entity(x=5)).x == 5
+    assert PhysicsEntity(protos.Entity(x=1, y=2)).pos == [1, 2]
+
+    To add fields, or see what fields exists, please see orbitx.proto,
+    specifically the "message Entity" declaration.
+    """
+    habitat_hull_strength = 50
+    spacestation_hull_strength = 100
+
+    def __init__(self, entity: protos.Entity):
         assert isinstance(entity, protos.Entity)
-        self.name: str = entity.name
-        self.pos = np.asarray([entity.x, entity.y])
-        self.R = entity.r
-        self.v = np.asarray([entity.vx, entity.vy])
-        self.m = entity.mass
-        self.spin = entity.spin
-        self.heading = entity.heading
-        self.fuel = entity.fuel
-        self.throttle = entity.throttle
-        self.attached_to = ""
-        if hasattr(entity, "attached_to"):
-            self.attached_to = entity.attached_to
-        self.broken = False
-        if hasattr(entity, "broken"):
-            self.broken = entity.broken
-        self.artificial = False
-        if hasattr(entity, "artificial"):
-            self.artificial = entity.artificial
+        self.proto = entity
 
-    def as_proto(self):
-        return protos.Entity(
-            name=self.name,
-            x=self.pos[0],
-            y=self.pos[1],
-            vx=self.v[0],
-            vy=self.v[1],
-            r=self.R,
-            mass=self.m,
-            spin=self.spin,
-            heading=self.heading,
-            fuel=self.fuel,
-            throttle=self.throttle,
-            attached_to=self.attached_to,
-            # I don't know if adding bool() is the cleanest solution
-            broken=bool(self.broken),
-            artificial=bool(self.artificial)
-        )
+    def __repr__(self):
+        return self.proto.__repr__()
 
+    def __str__(self):
+        return self.proto.__str__()
+
+    # These are filled in just below this class definition. These stubs are for
+    # static type analysis with mypy.
+    name: str
+    x: float
+    y: float
+    vx: float
+    vy: float
+    r: float
+    mass: float
+    heading: float
+    spin: float
+    fuel: float
+    throttle: float
+    attached_to: str
+    broken: bool
+    artificial: bool
+
+    @property
+    def pos(self):
+        return np.asarray([self.proto.x, self.proto.y])
+
+    @pos.setter
+    def pos(self, x):
+        self.proto.x = x[0]
+        self.proto.y = x[1]
+
+    @property
+    def v(self):
+        return np.asarray([self.proto.vx, self.proto.vy])
+
+    @v.setter
+    def v(self, x):
+        self.proto.vx = x[0]
+        self.proto.vy = x[1]
+
+
+for field in protos.Entity.DESCRIPTOR.fields:
+    # For every field in the underlying protobuf entity, make a
+    # convenient equivalent property to allow code like the following:
+    # PhysicsEntity(entity).heading = 5
+
+    def fget(self, name=field.name):
+        return getattr(self.proto, name)
+
+    def fset(self, val, name=field.name):
+        return setattr(self.proto, name, val)
+
+    def fdel(self, name=field.name):
+        return delattr(self.proto, name)
+
+    # Assert that there is a stub for the field before setting it.
+    setattr(PhysicsEntity, field.name, property(
+        fget=fget, fset=fset, fdel=fdel,
+        doc=f"Proxy of the underlying field, self.proto.{field.name}"))
 
 # A note about functions with the signature "(self, *, arg1=None, arg2=None"
 # there are a lot of float parameters to the upcoming APIs, so I think it's
@@ -57,6 +89,7 @@ class PhysicsEntity(object):
 # habitat.fuel_cons(0.2)
 # The former is hopefully much clearer, so I think mandatory keyword arguments
 # is better in this case.
+
 
 class Engine(object):
     def __init__(self, *, max_fuel_cons=None, max_acc=None):
@@ -107,7 +140,7 @@ class ReactionWheel(object):
 
 class Habitat():
     """Static class implementing hab engine and reaction wheel constraints."""
-    engine = Engine(max_fuel_cons=1, max_acc=100)
+    engine = Engine(max_fuel_cons=1, max_acc=12)
     rw = ReactionWheel(max_spin_change=1)
 
     @classmethod

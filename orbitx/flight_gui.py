@@ -100,7 +100,6 @@ class FlightGui:
                 vpython.rate(100)
                 self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
-    # end of __self__
 
     def _init_canvas(self) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
@@ -266,14 +265,12 @@ class FlightGui:
             self._reference = self._find_entity(entity_name)
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
-    # end of _set_reference
 
     def _set_target(self, entity_name: str) -> None:
         try:
             self._target = self._find_entity(entity_name)
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
-        # end of _set_target
 
     def _set_origin(self, entity_name: str) -> None:
         """Set origin position for rendering universe and reset the trails.
@@ -292,7 +289,6 @@ class FlightGui:
             self._origin = self._find_entity(entity_name)
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
-        # end of _set_origin
 
     def _set_habitat(self, entity_name: str) -> None:
         try:
@@ -315,7 +311,6 @@ class FlightGui:
         old_commands = self._commands
         self._commands = []
         return old_commands
-    # end of pop_commands
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
         """Input key handler"""
@@ -371,8 +366,6 @@ class FlightGui:
             pass
         # clicked = True
 
-    # end of _handle_click
-
     # TODO: 1)Update with correct physics values
 
     # TODO: create bind functions for target, ref, and NAV MODE
@@ -394,7 +387,6 @@ class FlightGui:
                 f"<span class='helptext'>{helptext}</span>")
             self._scene.append_to_caption("\n")
             return menu
-        # end of build_menu
 
         self._centre_menu = build_menu(
             choices=list(self._spheres),
@@ -443,7 +435,6 @@ class FlightGui:
             bind=self._trail_checkbox_hook, checked=False, text='Trails')
         self._scene.append_to_caption(
             " <span class='helptext'>Graphically intensive</span>")
-    # end of _set_menus
 
     def draw(self, physical_state_to_draw: protos.PhysicalState) -> None:
         self._last_physical_state = physical_state_to_draw
@@ -464,20 +455,17 @@ class FlightGui:
         for wtext in self._wtexts:
             # Update text of all text widgets.
             wtext.text = wtext.text_func()
-    # end of draw
 
     def _recentre_dropdown_hook(self, selection: vpython.menu) -> None:
         self._set_origin(selection.selected)
         self.recentre_camera(selection.selected)
         self._clear_trails()
-    # end of _recentre_dropdown_hook
 
     def _time_acc_dropdown_hook(self, selection: vpython.menu) -> None:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
         self._commands.append(protos.Command(
             ident=protos.Command.TIME_ACC_SET,
             arg=time_acc))
-    # end of _time_acc_dropdown_hook
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
         self._show_trails = selection.checked
@@ -488,7 +476,6 @@ class FlightGui:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
             self._set_origin(self._centre_menu.selected)
-    # end of _trail_checkbox_hook
 
     def notify_time_acc_change(self, new_acc: int) -> None:
         new_acc_str = f'{new_acc:,}×'
@@ -498,7 +485,6 @@ class FlightGui:
             log.error(f'"{new_acc_str}" not a valid time acceleration')
             return
         self._time_acc_menu.selected = new_acc_str
-    # end of notify_time_acc_change
 
     def rate(self, framerate: int) -> None:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""

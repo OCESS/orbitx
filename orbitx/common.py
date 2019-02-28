@@ -16,16 +16,16 @@ FRAMERATE = 100
 
 DEFAULT_TIME_ACC = 1
 
-CHEAT_FUEL = 0
+MIN_THROTTLE = -1
+MAX_THROTTLE = 1
 
-MIN_THROTTLE = -0.2
-MAX_THROTTLE = 1.2
+LAUNCH_SEPARATION = 0.5
 
 DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'
 
 # Set up a logger.
-# Log DEBUG and higher to stderr,
+# Log DEBUG and higher to the logfile,
 # Log WARNING and higher to stdout.
 logging.getLogger().setLevel(logging.DEBUG)
 logging.captureWarnings(True)
@@ -58,7 +58,9 @@ logging.getLogger().addHandler(logfile_handler)
 
 
 def enable_verbose_logging():
-    """Enables logging of all messages, from DEBUG upwards"""
+    """Enables logging of all messages to stdout, from DEBUG upwards"""
+    import warnings
+    warnings.resetwarnings()
     print_handler.setLevel(logging.DEBUG)
 
 

@@ -2,11 +2,8 @@ from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
 from orbitx.displayable import Displayable
 import vpython
-import logging
-import orbitx.calculator
 import orbitx.calculator as calc
 import numpy as np
-import math
 
 
 class Habitat(Displayable):
@@ -17,7 +14,7 @@ class Habitat(Displayable):
         self._label = self._draw_labels()
     # end of __init__
 
-    def __create_habitat(self) -> vpython.vpython.compound:
+    def __create_habitat(self) -> vpython.compound:
         """
                 create a vpython compound object that represents our habitat.
         """

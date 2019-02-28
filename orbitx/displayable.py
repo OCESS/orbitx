@@ -32,22 +32,8 @@ class Displayable(metaclass=ABCMeta):
             xoffset=0, yoffset=10, height=16,
             border=4, font='sans')
 
-    # def _draw_landing_graphic(self) -> vpython.cylinder:
-    #     """Draw something that simulates a flat surface at near zoom levels."""
-    #     size = self._entity.r * 0.01
-    #     texture = self._texture_path / (self._entity.name + '.jpg')
-    #     return vpython.cylinder(
-    #         up=vpython.vector(0, 0, 1),
-    #         axis=vpython.vector(-size, 0, 0),
-    #         radius=size,
-    #         pos=calc.posn(self._entity),  # This will be filled in by the _update
-    #         shininess=Displayable.PLANET_SHININIESS,
-    #         texture=str(texture) if texture.is_file() else None
-    #     )
-    # # end of _draw_landing_graphic
-
     def _show_hide_label(self) -> None:
-        _label.visible = not _label.visible
+        self._label.visible = not self._label.visible
 
     def _update_landing_graphic(self) -> None:
         """Rotate the landing graphic to always be facing the Habitat.

@@ -13,8 +13,7 @@ TARGET = 2
 HABITAT = 3
 
 G = 6.674e-11
-ORT = [None, None, None, None]  # ORT consists of origin, reference and target.
-#vpython = vp.vp()
+ORT: List[protos.Entity] = [None, None, None, None]
 
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
@@ -51,7 +50,7 @@ def physicalSate() -> protos.PhysicalState:
 # end of physicalSate
 
 
-def posn(entity: protos.Entity) -> vpython.cyvector.vector:
+def posn(entity: protos.Entity) -> vpython.vector:
     """ posn returns a vector object that its value represents translates into 
         the frame of reference of the origin.
     """
@@ -62,7 +61,7 @@ def posn(entity: protos.Entity) -> vpython.cyvector.vector:
 # end of posn
 
 
-def ang_pos(angle: float) -> vpython.cyvector.vector:
+def ang_pos(angle: float) -> vpython.vector:
     return vpython.vector(np.cos(angle), np.sin(angle), 0)
 # end of _ang_pos
 
@@ -127,7 +126,7 @@ def h_speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
 # end of _h_speed
 
 
-def unit_velocity(entity: protos.Entity) -> vpython.cyvector.vector:
+def unit_velocity(entity: protos.Entity) -> vpython.vector:
     """Provides entity velocity relative to reference."""
     return vpython.vector(
         entity.vx - reference().vx,

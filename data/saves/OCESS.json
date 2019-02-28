@@ -9,7 +9,8 @@
       "r": 80.0,
       "mass": 275000.0,
       "heading": 1.6,
-      "fuel": 10000.0
+      "fuel": 10000.0,
+      "artificial": true
     },
     {
       "name": "AYSE",
@@ -19,7 +20,8 @@
       "vy": 20406.8541293456,
       "r": 500,
       "mass": 20000000,
-      "fuel": 15120000
+      "fuel": 15120000,
+      "artificial": true
     },
     {
       "name": "Sun",
