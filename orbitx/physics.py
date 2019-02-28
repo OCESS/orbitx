@@ -474,7 +474,6 @@ class PEngine(object):
 
             y = PhysicsState(ivp_out.y[:, -1], proto_state)
             t = ivp_out.t[-1]
-
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
