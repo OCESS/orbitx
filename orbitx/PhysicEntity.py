@@ -4,12 +4,13 @@ from . import orbitx_pb2 as protos
 
 
 class PhysicsEntity(object):
-    habitat_hull_strength=50
-    spacestation_hull_strength=100
-    cannot_land=0 #reserved for small astroid, to be changed
-    def __init__(self, entity):
+    habitat_hull_strength: int = 50
+    spacestation_hull_strength: int = 100
+    cannot_land: int = 0  # reserved for small astroid, to be changed
+
+    def __init__(self, entity: protos.PhysicalState) -> None:
         assert isinstance(entity, protos.Entity)
-        self.name = entity.name
+        self.name: str = entity.name
         self.pos = np.asarray([entity.x, entity.y])
         self.R = entity.r
         self.v = np.asarray([entity.vx, entity.vy])
@@ -18,16 +19,15 @@ class PhysicsEntity(object):
         self.heading = entity.heading
         self.fuel = entity.fuel
         self.throttle = entity.throttle
-        self.attached_to =""
-        if hasattr(entity,"attached_to"):
+        self.attached_to = ""
+        if hasattr(entity, "attached_to"):
             self.attached_to = entity.attached_to
-        self.broken=False
-        if hasattr(entity,"broken"):
+        self.broken = False
+        if hasattr(entity, "broken"):
             self.broken = entity.broken
-        self.artificial=False
-        if hasattr(entity,"artificial"):
+        self.artificial = False
+        if hasattr(entity, "artificial"):
             self.artificial = entity.artificial
-
 
     def as_proto(self):
         return protos.Entity(

@@ -3,7 +3,6 @@ from enum import Enum
 from typing import List
 import vpython
 from . import orbitx_pb2 as protos  # physics module
-import orbitx.Vpython as vp
 import numpy as np
 import math
 
@@ -11,6 +10,7 @@ import math
 ORIGIN = 0
 REFERENCE = 1
 TARGET = 2
+HABITAT = 3
 
 G = 6.674e-11
 ORT = [None, None, None, None]  # ORT consists of origin, reference and target.
@@ -18,10 +18,11 @@ ORT = [None, None, None, None]  # ORT consists of origin, reference and target.
 
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
-            target: protos.Entity):
+            target: protos.Entity, ahabitat: protos.Entity):
     ORT[ORIGIN] = origin
     ORT[REFERENCE] = reference
     ORT[TARGET] = target
+    ORT[HABITAT] = ahabitat
 # end of set_ORT
 
 
@@ -38,6 +39,11 @@ def reference() -> protos.Entity:
 def target() -> protos.Entity:
     return ORT[TARGET]
 # end of target
+
+
+def habitat() -> protos.Entity:
+    return ORT[HABITAT]
+# end of habitat
 
 
 def physicalSate() -> protos.PhysicalState:
