@@ -7,3 +7,4 @@ appmode
 numpy
 scipy
 autopep8
+flamegraph

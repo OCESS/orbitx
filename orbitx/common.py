@@ -116,11 +116,17 @@ def find_entity(name, physical_state):
         raise
 
 
-_profile_thread = None
-
-
 def start_profiling():
+    # TODO: codify my workflow for profiling graphics vs simulation code.
+    # Basically, profiling graphics is done by using dev tools of whatever
+    # browser (in Firefox, F12 > Performance > Start Recording Performance)
+    # And profiling python simulation code is done by running this function,
+    # then processing PERF_FILE with https://github.com/brendangregg/FlameGraph
+    # The command is, without appropriate paths, is:
+    # dos2unix PERF_FILE && flamegraph.pl PERF_FILE > orbitx-perf.svg
+    # Where flamegraph.pl is from that brendangregg repo.
     import flamegraph
-    global _profile_thread
-    _profile_thread = flamegraph.start_profile_thread(
-        fd=open(PERF_FILE, 'w'))
+    flamegraph.start_profile_thread(
+        fd=open(PERF_FILE, 'w'),
+        filter=r'(simthread|MainThread)'
+    )
