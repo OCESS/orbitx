@@ -24,7 +24,7 @@ class Planet(Displayable):
         self._draw_labels()
     # end of __init__
 
-    def _draw_labels(self):  # -> vpython.label:
+    def _draw_labels(self) -> None:
         self._label = self._create_label()
         self._label.text_function = lambda entity: entity.name
         self._label.text = self._label.text_function(self._entity)

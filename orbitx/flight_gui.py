@@ -35,7 +35,6 @@ G = 6.674e-11
 
 PLANET_SHININIESS = 0.3
 
-
 class FlightGui:
 
     def __init__(
@@ -167,6 +166,14 @@ class FlightGui:
              lambda: f"{calc.orb_speed(self._reference):,.7g} m/s",
              "Speed required for circular orbit at current altitude",
              False),
+            ("Periapsis",
+             lambda: f"{calc.periapsis(self._reference):,.7g} m",
+             "Lowest altitude in naïve orbit around reference",
+             False),
+            ("Apoapsis",
+             lambda: f"{calc.apoapsis(self._reference):,.7g} m",
+             "Highest altitude in naïve orbit around reference",
+             False),
             ("Ref alt",
              lambda: f"{calc.altitude(self._reference, self._habitat):,.7g} m",
              "Altitude of habitat above reference surface",
@@ -174,6 +181,16 @@ class FlightGui:
             ("Ref speed",
              lambda: f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
              "Speed of habitat above reference surface",
+             False),
+            ("Vertical speed",
+             lambda:
+             f"{calc.v_speed(self._reference, self._habitat):,.7g} m/s ",
+             "Vertical speed of habitat towards/away reference surface",
+             False),
+            ("Horizontal speed",
+             lambda:
+             f"{calc.h_speed(self._reference, self._habitat):,.7g} m/s ",
+             "Horizontal speed of habitat across reference surface",
              False),
             ("Targ alt",
              lambda:

@@ -1,7 +1,6 @@
 from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
 from orbitx.displayable import Displayable
-from multipledispatch import dispatch
 import vpython
 import orbitx.calculator as calc
 import numpy as np
@@ -20,11 +19,9 @@ class Habitat(Displayable):
 
     def hab_object(self, scene: vpython.canvas) -> vpython.compound:
         # Change which scene we're drawing a new habitat in
-        @dispatch(int, int, int)
         def vector(x: float, y: float, z: float) -> vpython.vector:
             return vpython.vector(x, y, z)
 
-        @dispatch(int, int, int)
         def vertex(x: float, y: float, z: float) -> vpython.vector:
             return vpython.vertex(pos=vector(x, y, z))
 
@@ -84,14 +81,15 @@ class Habitat(Displayable):
 
     def draw(self, entity: protos.Entity):
         self._update_obj(entity)
-        same = calc.reference() != calc.habitat()
+        same = calc.reference() == calc.habitat()
+        default = vpython.vector(0, 0, -1)
         ref_arrow_axis = calc.posn(
             calc.reference()).norm() * self._entity.r * 1.2
         velocity_arrow_axis = calc.unit_velocity(
             self._entity).norm() * self._entity.r
-        vector = vpython.vector(0, 0, -1)
-        self._ref_arrow.axis = ref_arrow_axis if same else vector
-        self._velocity_arrow.axis = velocity_arrow_axis if same else vector
+        
+        self._ref_arrow.axis = default if same else ref_arrow_axis
+        self._velocity_arrow.axis = default if same else velocity_arrow_axis
         self._small_habitat.axis = self._obj.axis
     # end of draw
 
