@@ -46,8 +46,9 @@ class FlightGui:
     ) -> None:
         # Note that this might actually start an HTTP server!
         assert len(physical_state_to_draw.entities) >= 1
-
+        ######################  attributes  ###########################
         self._last_physical_state = physical_state_to_draw
+        self._minimap_canvas = self._init_minimap_canvas()
         # create a vpython canvas object
         self._scene: vpython.canvas = self._init_canvas()
         self._show_label: bool = True
@@ -64,7 +65,7 @@ class FlightGui:
         self._displaybles: Dict[str, Displayable] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
-        ####################################################################
+        ################################################################
 
         # set texture path
         if texture_path is None:
@@ -81,7 +82,8 @@ class FlightGui:
         for planet in physical_state_to_draw.entities:
             obj = None
             if planet.name == "Habitat":
-                obj = Habitat(planet, self._texture_path)
+                obj = Habitat(planet, self._texture_path,
+                              self._scene, self._minimap_canvas)
             elif planet.name == "AYSE":
                 obj = SpaceStation(planet, self._texture_path)
             elif planet.name == "Sun":
@@ -100,6 +102,19 @@ class FlightGui:
                 vpython.rate(100)
                 self._scene.range = self._scene.range * 0.98
         self.recentre_camera(DEFAULT_CENTRE)
+    # end of __init__
+
+    def _init_minimap_canvas(self) -> vpython.canvas:
+        """Create a small sidebar scene showing the hab's orientation.
+        This scene is filled in when the habitat is created."""
+        # Make sure that the main canvas is still the default canvas.
+        main_canvas = vpython.canvas.get_selected()
+        miniamp_canvas = vpython.canvas(
+            width=200, height=150, autoscale=True, userspin=False,
+            up=vpython.vector(0, 0, 1), forward=vpython.vector(0.1, 0.1, -1))
+        main_canvas.select()
+        return miniamp_canvas
+    # end of _init_minimap_canvas
 
     def _init_canvas(self) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
@@ -112,7 +127,8 @@ class FlightGui:
             center=vpython.vector(0, 0, 0),
             up=vpython.vector(0, 0, 1),
             forward=vpython.vector(0.1, 0.1, -1),
-            autoscale=True
+            autoscale=True,
+            userspin=False
         )
         _scene.autoscale: bool = False
         _scene.bind('keydown', self._handle_keydown)
@@ -151,14 +167,6 @@ class FlightGui:
              lambda: f"{calc.orb_speed(self._reference):,.7g} m/s",
              "Speed required for circular orbit at current altitude",
              False),
-            ("Periapsis",
-             lambda: f"{calc.periapsis(self._reference):,.7g} m",
-             "Lowest altitude in naïve orbit around reference",
-             False),
-            ("Apoapsis",
-             lambda: f"{calc.apoapsis(self._reference):,.7g} m",
-             "Highest altitude in naïve orbit around reference",
-             False),
             ("Ref alt",
              lambda: f"{calc.altitude(self._reference, self._habitat):,.7g} m",
              "Altitude of habitat above reference surface",
@@ -166,16 +174,6 @@ class FlightGui:
             ("Ref speed",
              lambda: f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
              "Speed of habitat above reference surface",
-             False),
-            ("Vertical speed",
-             lambda:
-             f"{calc.v_speed(self._reference, self._habitat):,.7g} m/s ",
-             "Vertical speed of habitat towards/away reference surface",
-             False),
-            ("Horizontal speed",
-             lambda:
-             f"{calc.h_speed(self._reference, self._habitat):,.7g} m/s ",
-             "Horizontal speed of habitat across reference surface",
              False),
             ("Targ alt",
              lambda:

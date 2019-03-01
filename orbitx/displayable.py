@@ -20,7 +20,6 @@ class Displayable(metaclass=ABCMeta):
         self._obj = None
         self._label = None
         self._texture: str
-        # self._landing_graphic = self._draw_landing_graphic()
 
         texture = texture_path / (self._entity.name + '.jpg')
         self._texture = str(texture) if texture.is_file() else None
@@ -58,7 +57,7 @@ class Displayable(metaclass=ABCMeta):
         self._obj.pos = calc.posn(self._entity)
         self._obj.axis = calc.ang_pos(self._entity.heading)
         # update label objects
-        self._label.text_function(self._entity)
+        self._label.text = self._label.text_function(self._entity)
         self._label.pos = calc.posn(self._entity)
         # update landing graphic objects
         # self._update_landing_graphic()
@@ -73,7 +72,7 @@ class Displayable(metaclass=ABCMeta):
     # end of relevant_range
 
     @abstractmethod
-    def _draw_labels(self) -> vpython.label:
+    def _draw_labels(self) -> None:
         pass
     # end of _draw_labels
 
