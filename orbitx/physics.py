@@ -364,8 +364,7 @@ class PEngine(object):
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
                 throttle = y[index].throttle
-                fuel_cons[index] = - \
-                    Habitat.fuel_cons(throttle=throttle)
+                fuel_cons[index] = -Habitat.fuel_cons(throttle=throttle)
                 hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
                     throttle=throttle, heading=y[index].heading)
                 Xa[index] += hab_eng_acc_x

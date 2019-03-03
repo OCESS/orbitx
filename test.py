@@ -220,8 +220,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
         """Test that landed ships have stable altitude in the long term."""
         with PhysicsEngine('landed.json') as physics_engine:
             initial = PhysicsState(None, physics_engine.get_state(10))
-            physics_engine.set_time_acceleration(100_000, requested_t=10)
-            final = PhysicsState(None, physics_engine.get_state(500_000))
+            physics_engine.set_time_acceleration(1_000_000, requested_t=10)
+            final = PhysicsState(None, physics_engine.get_state(1_000_000))
             self.assertAlmostEqual(
                 np.linalg.norm(initial['Earth'].pos - initial['Habitat'].pos),
                 initial['Earth'].r + initial['Habitat'].r,

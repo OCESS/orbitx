@@ -5,7 +5,8 @@
             "name": "habitat",
             "r": 50.0,
             "mass": 300.0,
-            "fuel": 100.0
+            "fuel": 100.0,
+            "artificial": true
         }
     ]
 }
