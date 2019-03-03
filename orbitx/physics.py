@@ -239,9 +239,9 @@ class PEngine(object):
         if e1.artificial:
             if e2.artificial:
                 if e2.dockable:
-                    self._docking(e1,e2)
+                    self._docking(e1,e2, e2_index)
                 elif e1.dockable:
-                    self._docking(e2,e1)
+                    self._docking(e2,e1, e1_index)
                 else:
                     self._bounce(e1, e2)
             else:
@@ -255,7 +255,7 @@ class PEngine(object):
         y[e2_index] = e2
         return y
     
-    def _docking(self, e1, e2):
+    def _docking(self, e1, e2, e2_index):
         # e1 is an artificial object
         # if 2 artificial object to be docked on (spacespation)
         
@@ -286,8 +286,9 @@ class PEngine(object):
         e1.throttle = 0
         e1.spin = e2.spin
         e1.v = e2.v
-        #need index
-        #self.control_craft_index=
+        
+        #to be turn on later
+        #self.control_craft_index=e2_index
     
     def _bounce(self, e1, e2):
         # Resolve a collision by:
