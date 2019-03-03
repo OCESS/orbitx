@@ -37,6 +37,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             common.enable_verbose_logging()
 
     def test_simple_collision(self):
+        """Test elastic collisions of two small-mass objects colliding."""
         with PhysicsEngine('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second
             # on a collision course going left to right. The two should bounce.
@@ -55,6 +56,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 round(bounced.entities[1].vy))
 
     def test_basic_movement(self):
+        """Test that a moving object changes its position."""
         with PhysicsEngine('tests/only-sun.json') as physics_engine:
             # In this case, the only entity is the Sun. It starts at (0, 0)
             # with a speed of (1, -1). It should move.
@@ -72,6 +74,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(moved.entities[0].vy, -1)
 
     def test_gravitation(self):
+        """Test that gravitational acceleration at t=0 is as expected."""
         with PhysicsEngine('tests/massive-objects.json') as physics_engine:
             # In this case, the first entity is very massive and the second
             # entity should gravitate towards the first entity.
@@ -85,11 +88,12 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
             # Test the internal math that the internal derive function is doing
             # the right calculations. Break out your SPH4U physics equations!!
-            y0 = physics.Y(initial)
+            y0 = physics.PhysicsState(None, initial)
             # Note that dy.X is actually the velocity at 0,
             # and dy.VX is acceleration.
-            dy = physics.Y(physics_engine._derive(0, y0._y_1d))
-            self.assertEqual(dy._n, 2)
+            dy = physics.PhysicsState(
+                physics_engine._derive(0, y0._y0, initial), initial)
+            self.assertEqual(len(dy.X), 2)
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
@@ -141,6 +145,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
                              round(empty_fuel.entities[0].vx))
 
     def test_three_body(self):
+        """Test gravitational acceleration between three bodies is expected."""
         with PhysicsEngine('tests/three-body.json') as physics_engine:
             # In this case, three entities form a 90-45-45 triangle, with the
             # entity at the right angle being about as massive as the sun.
@@ -149,9 +154,10 @@ class PhysicsEngineTestCase(unittest.TestCase):
             state = physics_engine.get_state(0)
 
             # Test that every single entity has the correct accelerations.
-            y0 = physics.Y(state)
-            dy = physics.Y(physics_engine._derive(0, y0._y_1d))
-            self.assertEqual(dy._n, 3)
+            y0 = physics.PhysicsState(None, state)
+            dy = physics.PhysicsState(
+                physics_engine._derive(0, y0._y0, state), state)
+            self.assertEqual(len(dy.X), 3)
 
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
@@ -279,10 +285,10 @@ class PhysicsStateTestCase(unittest.TestCase):
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
         self.assertEqual(ps['First'].attached_to, 'Second')
 
-        proto_state = ps.as_proto(self.physical_state.timestamp)
+        proto_state = ps.as_proto(50)
+        self.assertEqual(proto_state.timestamp, 50)
         self.assertEqual(proto_state.entities[0].fuel, 90)
         self.assertTrue(proto_state.entities[1].broken)
-        self.assertEqual(proto_state.timestamp, self.physical_state.timestamp)
 
     def test_get_set(self):
         """Test __getitem__ and __setitem__."""

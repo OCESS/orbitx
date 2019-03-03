@@ -119,7 +119,7 @@ class PEngine(object):
         self._simthread = threading.Thread(
             target=self._simthread_target,
             args=(t0, y0),
-            name=f'simthread {round(t0)}',
+            name=f'simthread t={round(t0)} acc={self._time_acceleration}',
             daemon=True
         )
         self._stopping_simthread = False
