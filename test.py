@@ -109,6 +109,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.VY[1], 0)
 
     def test_engines(self):
+        """Test that engines use fuel and accelerate at the expected."""
         with PhysicsEngine('tests/habitat.json') as physics_engine:
             # In this test case, there is a single entity that has 300 kg fuel.
             # heading, velocity, and position are all 0.
@@ -214,6 +215,21 @@ class PhysicsEngineTestCase(unittest.TestCase):
                                    (after.entities[2].x +
                                     after.entities[0].r +
                                     after.entities[2].r))
+
+    def test_longterm_stable_landing(self):
+        """Test that landed ships have stable altitude in the long term."""
+        with PhysicsEngine('landed.json') as physics_engine:
+            initial = PhysicsState(None, physics_engine.get_state(10))
+            physics_engine.set_time_acceleration(100_000, requested_t=10)
+            final = PhysicsState(None, physics_engine.get_state(500_000))
+            self.assertAlmostEqual(
+                np.linalg.norm(initial['Earth'].pos - initial['Habitat'].pos),
+                initial['Earth'].r + initial['Habitat'].r,
+                delta=1)
+            self.assertAlmostEqual(
+                np.linalg.norm(final['Earth'].pos - final['Habitat'].pos),
+                final['Earth'].r + final['Habitat'].r,
+                delta=1)
 
 
 class PhysicsEntityTestCase(unittest.TestCase):

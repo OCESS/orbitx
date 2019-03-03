@@ -1,5 +1,6 @@
 """Provides PhysicsState, a wrapping class for a PhysicalState and y-vector."""
 
+import copy
 from typing import List, Dict, Optional, Union
 
 import numpy as np
@@ -148,7 +149,7 @@ class PhysicsState:
 
             entity.attached_to = self._index_to_name(attached_index)
             entity.broken = bool(broken)
-        return self._proto_state
+        return copy.deepcopy(self._proto_state)
 
     def __getitem__(self, index: Union[str, int]) -> PhysicsEntity:
         """Returns a PhysicsEntity view at a given name or index.
