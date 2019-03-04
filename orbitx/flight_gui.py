@@ -7,11 +7,8 @@ Call FlightGui.pop_commands() to collect user input.
 """
 
 import collections
-import copy
 import logging
 import signal
-import threading
-import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -628,9 +625,8 @@ class FlightGui:
             vpython_verts = [vpython.vertex(pos=vpython.vector(*coord))
                              for coord in tri]
             vpython_tris.append(vpython.triangle(vs=vpython_verts))
-        ret = vpython.compound(
+        return vpython.compound(
             vpython_tris, pos=self._posn(entity), up=vpython.vector(0, 0, 1))
-        return ret
     # end of _draw_landing_graphic
 
     def _update_sphere(self, planet: protos.Entity) -> None:
@@ -661,7 +657,7 @@ class FlightGui:
             0
         ).norm()
 
-        landing_graphic.axis = vpython.vector(axis.y, axis.x, 0)
+        landing_graphic.axis = vpython.vector(axis.y, -axis.x, 0)
         landing_graphic.pos = (
             self._posn(entity) + axis * (entity.r - landing_graphic.width / 2)
         )
@@ -844,7 +840,7 @@ INPUT_CHEATSHEET = """
 def _build_sphere_segment_vertices(
         radius: float,
         refine_steps=1,
-        ang_size=np.deg2rad(10)) -> List[Tuple[Point, Point, Point]]:
+        size=5000) -> List[Tuple[Point, Point, Point]]:
     """Returns a segment of a sphere, which has a specified radius.
     The return is a list of xyz-tuples, each representing a vertex."""
     # This code inspired by:
@@ -857,24 +853,26 @@ def _build_sphere_segment_vertices(
     # Think of this as a point on the surface of the sphere centred on (0,0,0)
     # with radius r.
     # Then, we construct four equilateral triangles that will all meet at
-    # this point. Each triangle is ang_size degrees away from the 'middle'.
+    # this point. Each triangle is `size` metres long.
 
-    # The values of 100 are placeholders, and get replaced by cos(ang_size) * r
+    # The values of 100 are placeholders, and get replaced by cos(theta) * r
     tris = np.array([
         (Point(0, 1, 100), Point(1, 0, 100), Point(0, 0, 100)),
         (Point(1, 0, 100), Point(0, -1, 100), Point(0, 0, 100)),
         (Point(0, -1, 100), Point(-1, 0, 100), Point(0, 0, 100)),
         (Point(-1, 0, 100), Point(0, 1, 100), Point(0, 0, 100))
     ])
+    # Each Point gets coerced to a length-3 numpy array
 
     # Set the z of each xyz-tuple to be radius, and everything else to be
     # the coordinates on the radius-sphere times -1, 0, or 1.
+    theta = np.arctan(size / radius)
     tris = np.where(
         [True, True, False],
-        radius * np.sin(ang_size) * tris,
-        radius * np.cos(ang_size))
+        radius * np.sin(theta) * tris,
+        radius * np.cos(theta))
 
-    def midpoint(left: Point, right: Point) -> Point:
+    def midpoint(left: np.ndarray, right: np.ndarray) -> np.ndarray:
         # Find the midpoint between the xyz-tuples left and right, but also
         # on the surface of a sphere (so not just a simple average).
         midpoint = (left + right) / 2
