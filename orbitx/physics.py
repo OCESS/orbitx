@@ -247,7 +247,7 @@ class PEngine(object):
             else:
                 self._land(e1, e2)
         elif e2.artificial:
-                self._land(e2, e1)
+            self._land(e2, e1)
         else:
             self._bounce(e1, e2)
 
