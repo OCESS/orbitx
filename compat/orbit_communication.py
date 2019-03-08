@@ -3,7 +3,7 @@
 from pathlib import Path, PurePath, PureWindowsPath
 from typing import Dict, List
 
-from orbitx.compat import filetransforms
+from compat import filetransforms
 
 _client_path: Dict[str, Path] = {}
 _file_vars: Dict[str, bytes] = {}
