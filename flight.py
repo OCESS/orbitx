@@ -82,8 +82,8 @@ def parse_args():
     parser.add_argument('--profile', action='store_true', default=False,
                         help='Generating profiling reports, for a flamegraph.')
 
-    parser.add_argument('--sseg', action='store_true', default=False,
-                        help='Draw sphere segments. Might be slow at startup!')
+    # parser.add_argument('--sseg', action='store_true', default=False,
+    #             help='Draw sphere segments. Might be slow at startup!')
 
     args, unknown = parser.parse_known_args()
     if unknown:
@@ -145,9 +145,11 @@ def lead_server_loop(args):
 
     if not args.no_gui:
         global cleanup_function
+        # gui = flight_gui.FlightGui(
+        #     physics_engine.get_state(), no_intro=args.no_intro)
+        # gui.draw_sphere_segments = args.sseg
         gui = flight_gui.FlightGui(
             physics_engine.get_state(), no_intro=args.no_intro)
-        gui.draw_sphere_segments = args.sseg
         cleanup_function = gui.shutdown
 
     server = grpc.server(
@@ -179,11 +181,6 @@ def lead_server_loop(args):
                         physics_engine._time_acceleration)
 
             if not args.no_gui:
-                # commented out this if statement since there's no version test code
-                # in flight_gui.py now
-
-                # if flight_gui.vp_closed:
-                #     break
                 gui.draw(state)
                 gui.rate(common.FRAMERATE)
             else:

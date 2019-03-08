@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Callable
 import math
 
+
 import numpy as np
 from . import common
 from . import orbitx_pb2 as protos  # physics module
@@ -34,6 +35,7 @@ DEFAULT_TARGET = 'Moon'
 G = 6.674e-11
 
 PLANET_SHININIESS = 0.3
+
 
 class FlightGui:
 
@@ -66,6 +68,9 @@ class FlightGui:
         self._scene.lights = []  # This line shouldn't be removed
         ################################################################
 
+        self._scene.autoscale: bool = False
+        self._scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+
         # set texture path
         if texture_path is None:
             # Look for orbitx/data/textures
@@ -92,6 +97,12 @@ class FlightGui:
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
         # for
+
+        Displayable._target_landing_graphic = (
+            Displayable._draw_landing_graphic(self._target))
+        Displayable._reference_landing_graphic = (
+            Displayable._draw_landing_graphic(self._reference))
+
         self._set_caption()
 
         # Add an animation when launching the program
@@ -462,6 +473,11 @@ class FlightGui:
                      self._habitat)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
+
+        Displayable._update_landing_graphic(
+            self._reference, Displayable._reference_landing_graphic)
+        Displayable._update_landing_graphic(
+            self._target, Displayable._target_landing_graphic)
 
         for planet in physical_state_to_draw.entities:
             self._displaybles[planet.name].draw(planet)

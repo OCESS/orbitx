@@ -1,11 +1,12 @@
 from . import common
 from enum import Enum
-from typing import List
+from typing import List, Tuple
 from multipledispatch import dispatch
 import vpython
 from . import orbitx_pb2 as protos  # physics module
 import numpy as np
 import math
+import collections
 
 
 ORIGIN = 0
@@ -15,6 +16,7 @@ HABITAT = 3
 
 G = 6.674e-11
 ORT: List[protos.Entity] = [None, None, None, None]
+Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
@@ -24,6 +26,7 @@ def set_ORT(origin: protos.Entity, reference: protos.Entity,
     ORT[TARGET] = target
     ORT[HABITAT] = ahabitat
 # end of set_ORT
+
 
 def origin() -> protos.Entity:
     return ORT[ORIGIN]
@@ -133,3 +136,69 @@ def unit_velocity(entity: protos.Entity) -> vpython.vector:
         entity.vy - reference().vy,
         0).norm()
 # end of _unit_velocity
+
+
+def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
+    # Find the midpoint between the xyz-tuples left and right, but also
+    # on the surface of a sphere (so not just a simple average).
+    midpoint = (left + right) / 2
+    midpoint_radial_dist = np.linalg.norm(midpoint)
+    return radius * midpoint / midpoint_radial_dist
+# end of midpoint
+
+
+def _build_sphere_segment_vertices(
+        radius: float,
+        refine_steps=1,
+        size=5000) -> List[Tuple[Point, Point, Point]]:
+    """Returns a segment of a sphere, which has a specified radius.
+    The return is a list of xyz-tuples, each representing a vertex."""
+    # This code inspired by:
+    # http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+    # Thanks, Andreas Kahler.
+    # TODO: limit the number of vertices generated to 65536 (the max in a
+    # vpython compound object).
+
+    # We set the 'middle' of the surface we're constructing
+    # to be (0, 0, r). Think of this as a point on the surface of
+    # the sphere centred on (0,0,0) with radius r.
+    # Then, we construct four equilateral triangles that will all meet at
+    # this point. Each triangle is `size` metres long.
+
+    # The values of 100 are placeholders,
+    # and get replaced by cos(theta) * r
+    tris = np.array([
+        (Point(0, 1, 100), Point(1, 0, 100), Point(0, 0, 100)),
+        (Point(1, 0, 100), Point(0, -1, 100), Point(0, 0, 100)),
+        (Point(0, -1, 100), Point(-1, 0, 100), Point(0, 0, 100)),
+        (Point(-1, 0, 100), Point(0, 1, 100), Point(0, 0, 100))
+    ])
+    # Each Point gets coerced to a length-3 numpy array
+
+    # Set the z of each xyz-tuple to be radius, and everything else to be
+    # the coordinates on the radius-sphere times -1, 0, or 1.
+    theta = np.arctan(size / radius)
+    tris = np.where(
+        [True, True, False],
+        radius * np.sin(theta) * tris,
+        radius * np.cos(theta))
+
+    for _ in range(0, refine_steps):
+        new_tris = np.ndarray(shape=(0, 3, 3))
+        for tri in tris:
+            # A tri is a 3-tuple of xyz-tuples.
+            a = midpoint(tri[0], tri[1], radius)
+            b = midpoint(tri[1], tri[2], radius)
+            c = midpoint(tri[2], tri[0], radius)
+
+            # Turn one triangle into a triforce projected onto a sphere.
+            new_tris = np.append(new_tris, [
+                (tri[0], a, c),
+                (tri[1], b, a),
+                (tri[2], c, b),
+                (a, b, c)  # The centre triangle of the triforce
+            ], axis=0)
+        tris = new_tris
+
+    return tris
+# end of _build_sphere_segment_vertices
