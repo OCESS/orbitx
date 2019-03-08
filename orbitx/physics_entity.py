@@ -60,6 +60,12 @@ class PhysicsEntity:
     def v(self, x):
         self.proto.vx = x[0]
         self.proto.vy = x[1]
+        
+        
+    #temporary solution to detect AYSE, need improvement
+    @property
+    def dockable(self):
+        return self.name == "AYSE"
 
 
 for field in protos.Entity.DESCRIPTOR.fields:

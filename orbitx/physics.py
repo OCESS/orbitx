@@ -208,7 +208,7 @@ class PEngine(object):
         try:
             self._spacestation_index = [
                 entity.name for entity in physical_state.entities
-            ].index('SpaceStation')
+            ].index('AYSE')
         except ValueError:
             self._spacestation_index = 0
 
@@ -237,16 +237,59 @@ class PEngine(object):
             return e1, e2
 
         if e1.artificial:
-            self._land(e1, e2)
+            if e2.artificial:
+                if e2.dockable:
+                    self._docking(e1,e2, e2_index)
+                elif e1.dockable:
+                    self._docking(e2,e1, e1_index)
+                else:
+                    self._bounce(e1, e2)
+            else:
+                self._land(e1, e2)
         elif e2.artificial:
-            self._land(e2, e1)
+                self._land(e2, e1)
         else:
             self._bounce(e1, e2)
 
         y[e1_index] = e1
         y[e2_index] = e2
         return y
+    
+    def _docking(self, e1, e2, e2_index):
+        # e1 is an artificial object
+        # if 2 artificial object to be docked on (spacespation)
+        
+        norm = e1.pos - e2.pos
+        collision_angle = np.arctan2(norm[1], norm[0])
+        collision_angle=collision_angle%(2*np.pi)
+        
+        ANGLE_MIN=(e2.heading+0.7*np.pi)%(2*np.pi)
+        ANGLE_MAX=(e2.heading+1.3*np.pi)%(2*np.pi)
+        
+        if collision_angle<ANGLE_MIN or collision_angle>ANGLE_MAX:
+            #add damage ?
+            self._bounce(e1,e2)
+            return
+        
+        log.info(f'Docking {e1.name} on {e2.name}')
+        e1.attached_to = e2.name
 
+        # Currently does nothing
+        e1.broken = bool(
+            np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
+
+        # set right heading for future takeoff
+        e2_opposite=e2.heading+np.pi
+        e1.pos=[np.cos(e2_opposite)*e2.r+e2.pos[0],np.sin(e2_opposite)*e2.r+e2.pos[1]]
+        #e1.heading = -e2.heading
+        e1.heading = (e2_opposite)%(2*np.pi)
+        e1.throttle = 0
+        e1.spin = e2.spin
+        e1.v = e2.v
+        
+        #to be turn on later
+        #self.control_craft_index=e2_index
+    
     def _bounce(self, e1, e2):
         # Resolve a collision by:
         # 1. calculating positions and velocities of the two entities
@@ -275,10 +318,13 @@ class PEngine(object):
         e1.v = new_v1n * unit_norm + v1t * unit_tang
         e2.v = new_v2n * unit_norm + v2t * unit_tang
 
+
+            
     def _land(self, e1, e2):
         # e1 is an artificial object
         # if 2 artificial object collide (habitat, spacespation)
         # or small astroid collision (need deletion), handle later
+        
         log.info(f'Landing {e1.name} on {e2.name}')
         assert e2.artificial is False
         e1.attached_to = e2.name
@@ -473,6 +519,7 @@ class PEngine(object):
 
             y = PhysicsState(ivp_out.y[:, -1], proto_state)
             t = ivp_out.t[-1]
+
             if ivp_out.status > 0:
                 log.debug(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
