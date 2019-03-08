@@ -7,6 +7,7 @@ from . import common
 
 NO_INDEX = -1
 
+
 def name_to_index(name, entities):
     names = [entity.name for entity in entities]
     return names.index(name) if name else NO_INDEX
@@ -15,7 +16,6 @@ def name_to_index(name, entities):
 def index_to_name(i, entities):
     i = int(i)
     return entities[i].name if i != NO_INDEX else ""
-
 
 
 def grav_acc(X, Y, M):
@@ -35,6 +35,8 @@ def grav_acc(X, Y, M):
     return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 # These _functions are internal helper functions.
+
+
 def _force(MM, X, Y):
     G = 6.674e-11
     D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
@@ -63,8 +65,3 @@ def _polar_to_cartesian(ang, hyp):
 
 def _f_to_a(f, M):
     return np.divide(f, M)
-
-
-
-
-

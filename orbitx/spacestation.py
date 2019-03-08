@@ -15,7 +15,7 @@ class SpaceStation(Displayable):
         _pos = calc.posn(entity)
         _radius = entity.r
         _axis = 2 * entity.r * \
-                vpython.vector(np.cos(entity.heading), np.sin(entity.heading), 0)
+            vpython.vector(np.cos(entity.heading), np.sin(entity.heading), 0)
         ship = vpython.cone(pos=vpython.vector(2, 0, 0),
                             axis=vpython.vector(-8, 0, 0),
                             radius=3,
@@ -46,11 +46,11 @@ class SpaceStation(Displayable):
         self._label = self._draw_labels()
     # end of __init__
 
-    def _draw_labels(self) -> vpython.label:
+    def _draw_labels(self) -> None:
         self._label = self._create_label()
         self._label.text_function = lambda entity: entity.name
         self._label.text = self._label.text_function(self._entity)
-        return self._label
+    # end of _draw_labels
 
     def draw(self, entity: protos.PhysicalState):
         self._update_obj(entity)
