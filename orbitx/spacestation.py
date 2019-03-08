@@ -43,7 +43,7 @@ class SpaceStation(Displayable):
         self._station_trail.stop()
         self._station_trail.clear()
 
-        self._label = self._draw_labels()
+        self._draw_labels()
     # end of __init__
 
     def _draw_labels(self) -> None:
