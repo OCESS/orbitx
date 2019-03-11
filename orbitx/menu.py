@@ -11,10 +11,6 @@ DEFAULT_TARGET = 'Moon'
 
 
 class Menu:
-    def __init__(self):
-        self.ad = None
-    # end of __init__
-
     def set_caption(self, gui) -> None:
         """Set and update the captions."""
 
@@ -92,7 +88,6 @@ class Menu:
              True)
         ]:
             gui.append_wtexts(vpython.wtext(text=text_gen_func()))
-            # self._wtexts[-1].text_func = text_gen_func
             gui.set_wtexts_text_func_at(-1, text_gen_func)
             gui.concat_caption(f"""<tr>
                 <td {"class='newsection'" if new_section else ""}>
@@ -107,6 +102,9 @@ class Menu:
                 </tr>\n""")
 
             div_id += 1
+            reference = gui.get_reference()
+            target = gui.get_target()
+            habitat = gui.get_habitat()
         # end of for
         gui.concat_caption("</table>")
         self._set_menus(gui)
