@@ -172,22 +172,21 @@ class PEngine(object):
             if control_craft_index not in y0.AttachedTo:
                 hab = y0[control_craft_index]
                 hab.spin += Habitat.spin_change(
-                    requested_spin_change=command.arg)
+                    requested_spin_change=command.spin_change)
                 y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
             launch()
             hab = y0[control_craft_index]
-            hab.throttle += command.arg
+            hab.throttle += command.throttle_change
             y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
             launch()
             hab = y0[control_craft_index]
-            hab.throttle = command.arg
+            hab.throttle = command.throttle_set
             y0[control_craft_index] = hab
-
         elif command.ident == protos.Command.TIME_ACC_SET:
-            assert command.arg > 0
-            self._time_acceleration = command.arg
+            assert command.time_acc_set > 0
+            self._time_acceleration = command.time_acc_set
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
