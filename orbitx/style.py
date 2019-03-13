@@ -1,19 +1,34 @@
 
 
 VPYTHON_CSS = """<style>
+* {
+    background-color: black;
+    color: white;
+    border-style: none;
+    border-color: white;
+}
+
 table {
     margin-top: 1em;
     margin-bottom: 1em;
 }
 th {
     text-align: left;
+    border-style: solid
+    height: 100px;
 }
+
+tr {
+    height: 25px;
+}
+
 .newsection {
     padding-top: 1em;
 }
 .num {
     font-family: monospace;
     font-weight: bold;
+    border-collapse: collapse;
 }
 select {
     width: 100px;

@@ -1,7 +1,8 @@
-#from orbitx.flight_gui import FlightGui
 from typing import List, Callable
 import orbitx.calculator as calc
+from . import orbitx_pb2 as protos  # physics module
 import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
+import numpy as np
 
 import vpython
 
@@ -11,6 +12,18 @@ DEFAULT_TARGET = 'Moon'
 
 
 class Menu:
+    def __init__(self):
+        self.reference: protos.Entity = None
+        self.target: protos.Entity = None
+        self.habitat: protos.Entity = None
+    # end of __init__
+
+    def _update_RTH(self, gui):
+        self.reference = gui.get_reference()
+        self.target = gui.get_target()
+        self.habitat = gui.get_habitat()
+    # end of _update_RTH
+
     def set_caption(self, gui) -> None:
         """Set and update the captions."""
 
@@ -34,77 +47,87 @@ class Menu:
         # before this, increment div_id by one..
 
         # self._scene.caption += "<table>\n"
-        reference = gui.get_reference()
-        target = gui.get_target()
-        habitat = gui.get_habitat()
+        self._update_RTH(gui)
         gui.concat_caption("<table>\n")
-        #self._wtexts = []
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{calc.orb_speed(reference):,.7g} m/s",
+             lambda: f"{calc.orb_speed(self.reference):,.7g} m/s",
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
-             lambda: f"{calc.periapsis(reference):,.7g} m",
+             lambda: f"{calc.periapsis(self.reference):,.7g} m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
-             lambda: f"{calc.apoapsis(reference):,.7g} m",
+             lambda: f"{calc.apoapsis(self.reference):,.7g} m",
              "Highest altitude in naïve orbit around reference",
              False),
+            ("HRT phase angle:",
+             lambda: f"{round(np.degrees(self.habitat.heading))} degrees",
+             "Current angle of habitat",
+             False),
+            ("Fuel: ",
+             lambda: f"{abs(round(self.habitat.fuel, 1))} kg",
+             "Remaining fuel of habitat",
+             False),
+            ("Throttle",
+             lambda:
+             f"{self.habitat.throttle:.1%}",
+             "Percentage of habitat's maximum rated engines",
+             False),
+
             ("Ref alt",
-             lambda: f"{calc.altitude(reference, habitat):,.7g} m",
+             lambda: f"{calc.altitude(self.reference, self.habitat):,.7g} m",
              "Altitude of habitat above reference surface",
-             True),
+             False),
             ("Ref speed",
-             lambda: f"{calc.speed(reference, habitat):,.7g} m/s",
+             lambda: f"{calc.speed(self.reference, self.habitat):,.7g} m/s",
              "Speed of habitat above reference surface",
              False),
             ("Vertical speed",
              lambda:
-             f"{calc.v_speed(reference, habitat):,.7g} m/s ",
+             f"{calc.v_speed(self.reference, self.habitat):,.7g} m/s ",
              "Vertical speed of habitat towards/away reference surface",
              False),
             ("Horizontal speed",
              lambda:
-             f"{calc.h_speed(reference, habitat):,.7g} m/s ",
+             f"{calc.h_speed(self.reference, self.habitat):,.7g} m/s ",
              "Horizontal speed of habitat across reference surface",
              False),
             ("Targ alt",
              lambda:
-             f"{calc.altitude(target, habitat):,.7g} m",
-             "Altitude of habitat above reference surface",
-             True),
-            ("Targ speed",
-             lambda:
-             f"{calc.speed(target, habitat):,.7g} m/s",
+             f"{calc.altitude(self.target, self.habitat):,.7g} m",
              "Altitude of habitat above reference surface",
              False),
-            ("Throttle",
+            ("Targ speed",
              lambda:
-             f"{habitat.throttle:.1%}",
-             "Percentage of habitat's maximum rated engines",
-             True)
+             f"{calc.speed(self.target, self.habitat):,.7g} m/s",
+             "Altitude of habitat above reference surface",
+             False)
+
+            # Pitch: ? degrees
+
+            # Landing acceleration: ? m/s/s
         ]:
             gui.append_wtexts(vpython.wtext(text=text_gen_func()))
             gui.set_wtexts_text_func_at(-1, text_gen_func)
             gui.concat_caption(f"""<tr>
                 <td {"class='newsection'" if new_section else ""}>
                     {caption}
-                </td>
-                <td class="num{" newsection" if new_section else ""}">
-                    <div id="{div_id}">{gui.wtexts_at(-1).text}</div>
-                </td>
-                <td class="helptext{" newsection" if new_section else ""}">
-                    {helptext}
-                </td>
-                </tr>\n""")
+                </td >
+                <td class = "num{" newsection" if new_section else ""}" >
+                    <div id = "{div_id}" >
+                        {gui.wtexts_at(-1).text}
+                    </div >
+                    <div class = "helptext{"newsection" if new_section else ""}" >
+                        {helptext}
+                    </div >
+                </td >
+                </tr >\n""")
 
             div_id += 1
-            reference = gui.get_reference()
-            target = gui.get_target()
-            habitat = gui.get_habitat()
+            self._update_RTH(gui)
         # end of for
         gui.concat_caption("</table>")
         self._set_menus(gui)
@@ -140,7 +163,7 @@ class Menu:
             bind=gui._recentre_dropdown_hook,
             selected=DEFAULT_CENTRE,
             caption="Centre",
-            helptext="Focus of camera"
+            helptext="\nFocus of camera"
         ))
 
         build_menu(
@@ -149,7 +172,7 @@ class Menu:
             selected=DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
-                "Take position, velocity relative to this.")
+                "\nTake position, velocity relative to this.")
         )
 
         build_menu(
@@ -157,7 +180,7 @@ class Menu:
             bind=lambda selection: gui._set_target(selection.selected),
             selected=DEFAULT_TARGET,
             caption="Target",
-            helptext="For use by NAV mode"
+            helptext="\nFor use by NAV mode"
         )
 
         build_menu(
@@ -165,7 +188,7 @@ class Menu:
             bind=lambda selection: self._set_navmode(selection.selected),
             selected='deprt ref',
             caption="NAV mode",
-            helptext="Automatically points habitat"
+            helptext="\nAutomatically points habitat"
         )
 
         gui.set_time_acc_menu(build_menu(
@@ -174,7 +197,7 @@ class Menu:
             bind=gui._time_acc_dropdown_hook,
             selected=1,
             caption="Warp",
-            helptext="Speed of simulation"
+            helptext="\nSpeed of simulation"
         ))
 
         gui.append_caption("\n")
@@ -182,4 +205,6 @@ class Menu:
             bind=gui._trail_checkbox_hook, checked=False, text='Trails')
         gui.append_caption(
             " <span class='helptext'>Graphically intensive</span>")
-# end of Menu
+    # end of _set_menus
+
+# end of class Menu

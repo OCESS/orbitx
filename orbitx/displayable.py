@@ -4,10 +4,9 @@ from pathlib import Path
 import vpython
 import logging
 from . import orbitx_pb2 as protos  # physics module
-import orbitx.calculator
 import orbitx.calculator as calc
 import numpy as np
-import math
+
 
 log = logging.getLogger()
 
