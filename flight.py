@@ -145,9 +145,6 @@ def lead_server_loop(args):
 
     if not args.no_gui:
         global cleanup_function
-        # gui = flight_gui.FlightGui(
-        #     physics_engine.get_state(), no_intro=args.no_intro)
-        # gui.draw_sphere_segments = args.sseg
         gui = flight_gui.FlightGui(
             physics_engine.get_state(), no_intro=args.no_intro)
         cleanup_function = gui.shutdown
@@ -171,14 +168,16 @@ def lead_server_loop(args):
 
             if not args.no_gui:
                 user_commands += gui.pop_commands()
+            user_commands += state_server.pop_commands()
 
             # If we have any commands, process them so the simthread has as
             # much time as possible to regenerate solutions before next update
             for command in user_commands:
                 if command.ident != protos.Command.NOOP:
                     physics_engine.handle_command(command)
-                    gui.notify_time_acc_change(
-                        physics_engine._time_acceleration)
+                    if not args.no_gui:
+                        gui.notify_time_acc_change(
+                            physics_engine._time_acceleration)
 
             if not args.no_gui:
                 gui.draw(state)
