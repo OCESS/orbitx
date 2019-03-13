@@ -18,13 +18,13 @@ class SpaceStation(Displayable):
                             axis=vpython.vector(-8, 0, 0),
                             radius=3,
                             opacity=0.7)
-        entrance = vpython.extrusion(path=[vpython.vec(0, 0, 0),
-                                           vpython.vec(-4, 0, 0)],
-                                     shape=[vpython.shapes.circle(radius=1.5),
-                                            vpython.shapes.rectangle(pos=[0, -0.3],
-                                                                     width=1.5,
-                                                                     height=1.5)],
-                                     pos=vpython.vec(0, 0, 0))  # position
+        entrance = vpython.extrusion(
+            path=[vpython.vec(0, 0, 0), vpython.vec(-4, 0, 0)],
+            shape=[vpython.shapes.circle(radius=1.5),
+                    vpython.shapes.rectangle(pos=[0, -0.3],
+                                             width=1.5,
+                                             height=1.5)],
+            pos=vpython.vec(0, 0, 0))  # position
 
         self._obj = vpython.compound([ship, entrance])
         self._obj.pos = _pos

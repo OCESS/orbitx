@@ -119,10 +119,10 @@ class Menu:
                 <td class = "num{" newsection" if new_section else ""}" >
                     <div id = "{div_id}" >
                         {gui.wtexts_at(-1).text}
-                    </div >
-                    <div class = "helptext{"newsection" if new_section else ""}" >
+                </div >
+                <div class = "helptext{"newsection" if new_section else ""}" >
                         {helptext}
-                    </div >
+                </div >
                 </td >
                 </tr >\n""")
 
