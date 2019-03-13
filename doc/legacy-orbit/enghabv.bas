@@ -1562,7 +1562,12 @@
         IF source(1, 2) = 1 THEN HABexploded = 1 ELSE HABexploded = 0
         IF source(5, 2) = 1 THEN AYSEexploded = 1 ELSE AYSEexploded = 0
         switch(57, 11) = RCcap
-       
+
+        'At this point, zvar known elements are
+        ' 3: hab fuel
+        ' 4: known fuel
+        ' 5: hab broken i think
+        ' 6: ayse broken i think
         chkBYTE=chkBYTE+1
         if chkBYTE>58 then chkBYTE=1
         outSTR$ = chr$(chkBYTE+64)

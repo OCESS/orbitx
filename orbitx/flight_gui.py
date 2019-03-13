@@ -388,7 +388,7 @@ class FlightGui:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
         self._commands.append(protos.Command(
             ident=protos.Command.TIME_ACC_SET,
-            arg=time_acc))
+            time_acc_set=time_acc))
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
         self._show_trails = selection.checked

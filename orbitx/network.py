@@ -2,6 +2,8 @@
 
 import logging
 import threading
+import queue
+from typing import List
 
 import grpc
 
@@ -30,8 +32,9 @@ class StateServer(grpc_stubs.StateServerServicer):
     def __init__(self):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
+        self._commands = queue.SimpleQueue()
 
-    def notify_state_change(self, physical_state_copy):
+    def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
         # properly. When changing this code, consider that multithreading is
         # hard. This StateServer will be in a different thread than the main
@@ -42,11 +45,29 @@ class StateServer(grpc_stubs.StateServerServicer):
             self._internal_state_copy = physical_state_copy
             self._class_used_properly = True
 
-    def get_physical_state(self, request, context):
-        """Server-side implementation of this remote procedure call (RPC)."""
+    def get_physical_state(
+            self, request: protos.Command, context) -> protos.PhysicalState:
+        """Server-side implementation of this remote procedure call (RPC).
+
+        This is called by GRPC, and the name of the function is special (it's
+        referenced in orbitx.proto, under service StateServer)"""
+        if request.ident != protos.Command.NOOP:
+            self._commands.put(request)
         with self._internal_state_lock:
             assert self._class_used_properly
             return self._internal_state_copy
+
+    def pop_commands(self) -> List[protos.Command]:
+        """Returns all commands that have been sent to this server.
+
+        Calling this method again immediately will likely return nothing."""
+        commands: List[protos.Command] = []
+        try:
+            while True:
+                commands.append(self._commands.get_nowait())
+        except queue.Empty:
+            pass
+        return commands
 
 
 class StateClient:
@@ -66,9 +87,11 @@ class StateClient:
     def __init__(self, cnc_address, cnc_port):
         self.cnc_location = f'{cnc_address}:{cnc_port}'
 
-    def _get_physical_state(self):
-        return self.stub.get_physical_state(
-            protos.Command(ident=protos.Command.NOOP))
+    def _get_physical_state(
+            self, command: protos.Command=None) -> protos.PhysicalState:
+        if command is None:
+            command = protos.Command(ident=protos.Command.NOOP)
+        return self.stub.get_physical_state(command)
 
     def __enter__(self):
         self.channel = grpc.insecure_channel(self.cnc_location)

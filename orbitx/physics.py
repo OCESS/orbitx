@@ -77,7 +77,7 @@ class PEngine(object):
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
         self.handle_command(protos.Command(
-            ident=protos.Command.TIME_ACC_SET, arg=time_acceleration))
+            ident=protos.Command.TIME_ACC_SET, time_acc_set=time_acceleration))
 
     def _simtime(self, requested_t=None, *, peek_time=False):
         """Gets simulation time, accounting for time acceleration and passage.
@@ -187,6 +187,14 @@ class PEngine(object):
         elif command.ident == protos.Command.TIME_ACC_SET:
             assert command.time_acc_set > 0
             self._time_acceleration = command.time_acc_set
+        elif command.ident == protos.Command.ENGINEERING_UPDATE:
+            Habitat.engine.max_thrust = command.engineering_update.max_thrust
+            hab = y0['Habitat']
+            ayse = y0['AYSE']
+            hab.fuel = command.engineering_update.hab_fuel
+            ayse.fuel = command.engineering_update.ayse_fuel
+            y0['Habitat'] = hab
+            y0['AYSE'] = ayse
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -405,10 +413,13 @@ class PEngine(object):
         for index in self._artificials:
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
-                throttle = y[index].throttle
-                fuel_cons[index] = -Habitat.fuel_cons(throttle=throttle)
-                hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                    throttle=throttle, heading=y[index].heading)
+                entity = y[index]
+                fuel_cons[index] = -Habitat.fuel_cons(throttle=entity.throttle)
+                hab_eng_acc_x, hab_eng_acc_y = (
+                    Habitat.thrust(
+                        throttle=entity.throttle, heading=entity.heading) /
+                    (entity.mass + entity.fuel)
+                )
                 Xa[index] += hab_eng_acc_x
                 Ya[index] += hab_eng_acc_y
 

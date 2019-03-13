@@ -28,8 +28,9 @@ message Command {
     }
 
     message EngineeringUpdate {
-        double hab_fuel = 1;
-        double ayse_fuel = 2;
+        double max_thrust = 1;
+        double hab_fuel = 2;
+        double ayse_fuel = 3;
     }
 
     Ident ident = 1;
