@@ -24,9 +24,24 @@ message Command {
         HAB_THROTTLE_CHANGE = 2;
         HAB_THROTTLE_SET = 3;
         TIME_ACC_SET = 4;
+        ENGINEERING_UPDATE = 5;
     }
+
+    message EngineeringUpdate {
+        double max_thrust = 1;
+        double hab_fuel = 2;
+        double ayse_fuel = 3;
+    }
+
     Ident ident = 1;
-    double arg = 2;
+
+    oneof arg {
+        double spin_change = 2;
+        double throttle_change = 3;
+        double throttle_set = 4;
+        double time_acc_set = 5;
+        EngineeringUpdate engineering_update = 6;
+    }
 }
 
 // To use this object in python code, you can do things like:

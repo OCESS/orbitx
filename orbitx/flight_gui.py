@@ -258,35 +258,35 @@ class FlightGui:
         elif k == 'a':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
-                arg=np.radians(10)))
+                spin_change=np.radians(10)))
         elif k == 'd':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_SPIN_CHANGE,
-                arg=-np.radians(10)))
+                spin_change=-np.radians(10)))
         elif k == 'w':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=0.01))
+                throttle_change=0.01))
         elif k == 's':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=-0.01))
+                throttle_change=-0.01))
         elif k == 'W':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=0.001))
+                throttle_change=0.001))
         elif k == 'S':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_CHANGE,
-                arg=-0.001))
+                throttle_change=-0.001))
         elif k == '\n':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_SET,
-                arg=1.00))
+                throttle_set=1.00))
         elif k == 'backspace':
             self._commands.append(protos.Command(
                 ident=protos.Command.HAB_THROTTLE_SET,
-                arg=0.00))
+                throttle_set=0.00))
     # end of _handle_keydown
 
     def _handle_click(self, evt: vpython.event_return) -> None:
@@ -388,7 +388,7 @@ class FlightGui:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
         self._commands.append(protos.Command(
             ident=protos.Command.TIME_ACC_SET,
-            arg=time_acc))
+            time_acc_set=time_acc))
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
         self._show_trails = selection.checked

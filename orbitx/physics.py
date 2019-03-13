@@ -11,7 +11,6 @@ import scipy.integrate
 import scipy.spatial
 import scipy.special
 
-
 from . import orbitx_pb2 as protos
 from . import common
 from .physic_functions import *
@@ -78,7 +77,7 @@ class PEngine(object):
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
         self.handle_command(protos.Command(
-            ident=protos.Command.TIME_ACC_SET, arg=time_acceleration))
+            ident=protos.Command.TIME_ACC_SET, time_acc_set=time_acceleration))
 
     def _simtime(self, requested_t=None, *, peek_time=False):
         """Gets simulation time, accounting for time acceleration and passage.
@@ -173,22 +172,29 @@ class PEngine(object):
             if control_craft_index not in y0.AttachedTo:
                 hab = y0[control_craft_index]
                 hab.spin += Habitat.spin_change(
-                    requested_spin_change=command.arg)
+                    requested_spin_change=command.spin_change)
                 y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
             launch()
             hab = y0[control_craft_index]
-            hab.throttle += command.arg
+            hab.throttle += command.throttle_change
             y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
             launch()
             hab = y0[control_craft_index]
-            hab.throttle = command.arg
+            hab.throttle = command.throttle_set
             y0[control_craft_index] = hab
-
         elif command.ident == protos.Command.TIME_ACC_SET:
-            assert command.arg > 0
-            self._time_acceleration = command.arg
+            assert command.time_acc_set > 0
+            self._time_acceleration = command.time_acc_set
+        elif command.ident == protos.Command.ENGINEERING_UPDATE:
+            Habitat.engine.max_thrust = command.engineering_update.max_thrust
+            hab = y0['Habitat']
+            ayse = y0['AYSE']
+            hab.fuel = command.engineering_update.hab_fuel
+            ayse.fuel = command.engineering_update.ayse_fuel
+            y0['Habitat'] = hab
+            y0['AYSE'] = ayse
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -239,9 +245,9 @@ class PEngine(object):
         if e1.artificial:
             if e2.artificial:
                 if e2.dockable:
-                    self._docking(e1,e2, e2_index)
+                    self._docking(e1, e2, e2_index)
                 elif e1.dockable:
-                    self._docking(e2,e1, e1_index)
+                    self._docking(e2, e1, e1_index)
                 else:
                     self._bounce(e1, e2)
             else:
@@ -254,23 +260,23 @@ class PEngine(object):
         y[e1_index] = e1
         y[e2_index] = e2
         return y
-    
+
     def _docking(self, e1, e2, e2_index):
         # e1 is an artificial object
         # if 2 artificial object to be docked on (spacespation)
-        
+
         norm = e1.pos - e2.pos
         collision_angle = np.arctan2(norm[1], norm[0])
-        collision_angle=collision_angle%(2*np.pi)
-        
-        ANGLE_MIN=(e2.heading+0.7*np.pi)%(2*np.pi)
-        ANGLE_MAX=(e2.heading+1.3*np.pi)%(2*np.pi)
-        
-        if collision_angle<ANGLE_MIN or collision_angle>ANGLE_MAX:
-            #add damage ?
-            self._bounce(e1,e2)
+        collision_angle = collision_angle % (2 * np.pi)
+
+        ANGLE_MIN = (e2.heading + 0.7 * np.pi) % (2 * np.pi)
+        ANGLE_MAX = (e2.heading + 1.3 * np.pi) % (2 * np.pi)
+
+        if collision_angle < ANGLE_MIN or collision_angle > ANGLE_MAX:
+            # add damage ?
+            self._bounce(e1, e2)
             return
-        
+
         log.info(f'Docking {e1.name} on {e2.name}')
         e1.attached_to = e2.name
 
@@ -279,17 +285,17 @@ class PEngine(object):
             np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
 
         # set right heading for future takeoff
-        e2_opposite=e2.heading+np.pi
-        e1.pos=[np.cos(e2_opposite)*e2.r+e2.pos[0],np.sin(e2_opposite)*e2.r+e2.pos[1]]
-        #e1.heading = -e2.heading
-        e1.heading = (e2_opposite)%(2*np.pi)
+        e2_opposite = e2.heading + np.pi
+        e1.pos = [np.cos(e2_opposite) * e2.r + e2.pos[0],
+                  np.sin(e2_opposite) * e2.r + e2.pos[1]]
+        e1.heading = (e2_opposite) % (2 * np.pi)
         e1.throttle = 0
         e1.spin = e2.spin
         e1.v = e2.v
-        
-        #to be turn on later
-        #self.control_craft_index=e2_index
-    
+
+        # to be turn on later
+        # self.control_craft_index=e2_index
+
     def _bounce(self, e1, e2):
         # Resolve a collision by:
         # 1. calculating positions and velocities of the two entities
@@ -318,13 +324,11 @@ class PEngine(object):
         e1.v = new_v1n * unit_norm + v1t * unit_tang
         e2.v = new_v2n * unit_norm + v2t * unit_tang
 
-
-            
     def _land(self, e1, e2):
         # e1 is an artificial object
         # if 2 artificial object collide (habitat, spacespation)
         # or small astroid collision (need deletion), handle later
-        
+
         log.info(f'Landing {e1.name} on {e2.name}')
         assert e2.artificial is False
         e1.attached_to = e2.name
@@ -409,10 +413,13 @@ class PEngine(object):
         for index in self._artificials:
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
-                throttle = y[index].throttle
-                fuel_cons[index] = -Habitat.fuel_cons(throttle=throttle)
-                hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
-                    throttle=throttle, heading=y[index].heading)
+                entity = y[index]
+                fuel_cons[index] = -Habitat.fuel_cons(throttle=entity.throttle)
+                hab_eng_acc_x, hab_eng_acc_y = (
+                    Habitat.thrust(
+                        throttle=entity.throttle, heading=entity.heading) /
+                    (entity.mass + entity.fuel)
+                )
                 Xa[index] += hab_eng_acc_x
                 Ya[index] += hab_eng_acc_y
 

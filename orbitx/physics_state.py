@@ -181,6 +181,7 @@ class PhysicsState:
         PhysicsState[2] = physics_entity
         PhysicsState['Habitat'] = physics_entity
         """
+        # TODO: allow y['Habitat'].fuel = 5
         if isinstance(index, str):
             # Turn a name-based index into an integer
             index = self._entity_names().index(index)
