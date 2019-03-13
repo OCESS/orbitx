@@ -2,11 +2,8 @@ from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
 from orbitx.displayable import Displayable
 import vpython
-import logging
-import orbitx.calculator
 import orbitx.calculator as calc
 import numpy as np
-import math
 
 
 class SpaceStation(Displayable):
@@ -20,13 +17,13 @@ class SpaceStation(Displayable):
                             axis=vpython.vector(-8, 0, 0),
                             radius=3,
                             opacity=0.7)
-        entrance = vpython.extrusion(path=[vpython.vec(0, 0, 0),
-                                           vpython.vec(-4, 0, 0)],
-                                     shape=[vpython.shapes.circle(radius=1.5),
-                                            vpython.shapes.rectangle(pos=[0, -0.3],
-                                                                     width=1.5,
-                                                                     height=1.5)],
-                                     pos=vpython.vec(0, 0, 0))  # position
+        entrance = vpython.extrusion(
+            path=[vpython.vec(0, 0, 0), vpython.vec(-4, 0, 0)],
+            shape=[vpython.shapes.circle(radius=1.5),
+                   vpython.shapes.rectangle(pos=[0, -0.3],
+                                            width=1.5,
+                                            height=1.5)],
+            pos=vpython.vec(0, 0, 0))  # position
 
         self._obj = vpython.compound([ship, entrance])
         self._obj.pos = _pos
@@ -58,7 +55,6 @@ class SpaceStation(Displayable):
 
     def clear_trail(self) -> None:
         self._station_trail.clear()
-
     # end of clear_trail
 
     def trail_option(self, stop: bool = False) -> None:
@@ -67,4 +63,6 @@ class SpaceStation(Displayable):
         else:
             self._station_trail.stop()
             self._station_trail.clear()
+    # end of trail_option
+
 # end of class SpaceStation

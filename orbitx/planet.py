@@ -2,11 +2,7 @@ from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
 from orbitx.displayable import Displayable
 import vpython
-import logging
-import orbitx.calculator
 import orbitx.calculator as calc
-import numpy as np
-import math
 
 
 class Planet(Displayable):

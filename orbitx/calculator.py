@@ -1,5 +1,3 @@
-from . import common
-from enum import Enum
 from typing import List, Tuple
 import vpython
 from . import orbitx_pb2 as protos  # physics module
