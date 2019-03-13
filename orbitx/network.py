@@ -88,7 +88,7 @@ class StateClient:
         self.cnc_location = f'{cnc_address}:{cnc_port}'
 
     def _get_physical_state(
-            self, command: protos.Command=None) -> protos.PhysicalState:
+            self, command: protos.Command = None) -> protos.PhysicalState:
         if command is None:
             command = protos.Command(ident=protos.Command.NOOP)
         return self.stub.get_physical_state(command)

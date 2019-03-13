@@ -60,9 +60,9 @@ class PhysicsEntity:
     def v(self, x):
         self.proto.vx = x[0]
         self.proto.vy = x[1]
-        
-        
-    #temporary solution to detect AYSE, need improvement
+
+    # temporary solution to detect AYSE, need improvement
+
     @property
     def dockable(self):
         return self.name == "AYSE"
@@ -112,7 +112,7 @@ class Engine(object):
         assert throttle is not None
         return abs(throttle) * self._max_fuel_cons
 
-    def thrust(self, *, throttle: float=None) -> float:
+    def thrust(self, *, throttle: float = None) -> float:
         """
         throttle: unitless float, nominally in the range [0, 1]
         fuel: kg of fuel available for engine to burn
@@ -150,19 +150,19 @@ class Habitat():
     rw = ReactionWheel(max_spin_change=1)
 
     @classmethod
-    def spin_change(cls, *, requested_spin_change: float=None) -> float:
+    def spin_change(cls, *, requested_spin_change: float = None) -> float:
         assert requested_spin_change is not None
         return cls.rw.spin_change(
             requested_spin_change=requested_spin_change)
 
     @classmethod
-    def fuel_cons(cls, *, throttle: float=None) -> float:
+    def fuel_cons(cls, *, throttle: float = None) -> float:
         assert throttle is not None
         return abs(cls.engine.fuel_cons(throttle=throttle))
 
     @classmethod
     def thrust(cls, *,
-               throttle: float=None, heading: float=None) -> np.ndarray:
+               throttle: float = None, heading: float = None) -> np.ndarray:
         assert throttle is not None
         assert heading is not None
         thrust = cls.engine.thrust(throttle=throttle)
