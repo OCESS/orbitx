@@ -146,8 +146,8 @@ def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
 
 def _build_sphere_segment_vertices(
         radius: float,
-        refine_steps=1,
-        size=5000) -> List[Tuple[Point, Point, Point]]:
+        size: float,
+        refine_steps=3) -> List[Tuple[Point, Point, Point]]:
     """Returns a segment of a sphere, which has a specified radius.
     The return is a list of xyz-tuples, each representing a vertex."""
     # This code inspired by:

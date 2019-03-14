@@ -69,6 +69,10 @@ class Habitat(Displayable):
         return habitat
     # end of __create_habitat
 
+    def draw_landing_graphic(self, entity: protos.Entity) -> None:
+        # Habitats don't have landing graphics
+        pass
+
     def _draw_labels(self) -> None:
         self._label = self._create_label()
         self._label.text_function = lambda entity: (
