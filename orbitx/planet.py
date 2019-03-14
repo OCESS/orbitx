@@ -11,7 +11,7 @@ class Planet(Displayable):
         self._obj = vpython.sphere(pos=calc.posn(entity),
                                    axis=calc.ang_pos(entity.heading),
                                    up=vpython.vector(0, 0, 1),
-                                   radius=entity.r * 0.95,
+                                   radius=entity.r - 10,
                                    make_trail=False,
                                    retain=10000,
                                    texture=self._texture,
