@@ -166,4 +166,4 @@ class Habitat():
         assert throttle is not None
         assert heading is not None
         thrust = cls.engine.thrust(throttle=throttle)
-        return np.cos(heading) * thrust, np.sin(heading) * thrust
+        return thrust * np.array([np.cos(heading), np.sin(heading)])

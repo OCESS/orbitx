@@ -32,7 +32,7 @@ class StateServer(grpc_stubs.StateServerServicer):
     def __init__(self):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
-        self._commands = queue.SimpleQueue()
+        self._commands = queue.Queue()
 
     def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
