@@ -4,7 +4,15 @@ VPYTHON_CSS = """<style>
 * {
     background-color: black;
     color: white;
-    border-style: none;
+    border-collapse: collapse;
+    border-color: white;
+}
+
+div {
+    border-collapse: collapse;
+}
+
+canvas {
     border-color: white;
 }
 
@@ -14,12 +22,17 @@ table {
 }
 th {
     text-align: left;
-    border-style: solid
-    height: 100px;
+    border-collapse: collapse;
+    height: 50px;
+}
+
+td {
+    width: 20%;
 }
 
 tr {
-    height: 25px;
+    height: 30px;
+    border-style: solid;
 }
 
 .newsection {
@@ -74,11 +87,11 @@ INPUT_CHEATSHEET = """
 <table class="helptext">
     <caption>Input Cheatsheet</caption>
     <tr>
-        <th>Input</th>
-        <th>Action</th>
+            <th>Input</th>
+            <th>Action</th>
     </tr>
     <tr>
-        <td>Scroll, or ALT/OPTION-drag</td>
+        <td>Scroll, or ALT/OPTION-drag &nbsp</td>
         <td>Zoom View</td>
     </tr>
     <tr>
