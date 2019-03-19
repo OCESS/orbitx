@@ -427,7 +427,7 @@ class PEngine(object):
         # Keep attached entities glued together
         attached_to = y.AttachedTo
         for index in attached_to:
-            f attached_to[index] in self._artificials:
+            if attached_to[index] in self._artificials:
                 y.Spin[index]=y[attached_to[index]].spin
             attached = y[index]
             attachee = y[attached_to[index]]
