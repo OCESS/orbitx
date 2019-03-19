@@ -67,7 +67,7 @@ class FlightGui:
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
         self._wtexts = []
-        #self._menu: vpython.menu = Menu()
+        # self._menu: vpython.menu = Menu()
         ################################################################
 
         self._scene.autoscale: bool = False
@@ -101,8 +101,8 @@ class FlightGui:
         calc.set_ORT(self._origin, self._reference, self._target,
                      self._habitat)
 
-        #self._menu.set_caption(self)
-        self._set_caption();
+        # self._menu.set_caption(self)
+        self._set_caption()
 
         # Add an animation when launching the program
         #   to describe the solar system and the current location
@@ -450,7 +450,7 @@ class FlightGui:
              lambda: f"{round(np.degrees(self._habitat.heading))} degrees",
              "Current angle of habitat",
              False),
-            ("Fuel: ",
+            ("Fuel ",
              lambda: f"{abs(round(self._habitat.fuel, 1))} kg",
              "Remaining fuel of habitat",
              False),
@@ -486,7 +486,17 @@ class FlightGui:
             ("Targ speed",
              lambda:
              f"{calc.speed(self._target, self._habitat):,.7g} m/s",
-             "Altitude of habitat above reference surface",
+             "...........................",
+             False),
+            ("Pitch",
+             lambda:
+             f"{calc.pitch(self._habitat):,.7g} m/s",
+             "...........................",
+             False),
+            ("landing acceleration",
+             lambda:
+             f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
+             "..........................",
              False)
         ]:
             self._wtexts.append(vpython.wtext(text=text_gen_func()))

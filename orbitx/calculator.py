@@ -135,6 +135,19 @@ def unit_velocity(entity: protos.Entity) -> vpython.vector:
 # end of _unit_velocity
 
 
+def pitch(entity: protos.Entity) -> vpython.vector:
+    """....."""
+    return np.degrees(entity.heading)
+# end of pitch
+
+
+def landing_acceleration(
+        planet1: protos.Entity, planet2: protos.Entity) -> vpython.vector:
+    """....."""
+    return 100
+# end of landing_acceleration
+
+
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
     # Find the midpoint between the xyz-tuples left and right, but also
     # on the surface of a sphere (so not just a simple average).

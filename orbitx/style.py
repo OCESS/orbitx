@@ -19,6 +19,7 @@ canvas {
 table {
     margin-top: 1em;
     margin-bottom: 1em;
+    height: 30%;
 }
 th {
     text-align: left;
@@ -31,7 +32,7 @@ td {
 }
 
 tr {
-    height: 30px;
+    height: 20px;
     border-style: solid;
 }
 
