@@ -29,7 +29,6 @@ def write_state_to_osbackup(
     names = [entity.name for entity in orbitx_state.entities]
     hab = _name_to_entity('Habitat', names, orbitx_state)
     ayse = _name_to_entity('AYSE', names, orbitx_state)
-    earth = _name_to_entity('Earth', names, orbitx_state)
 
     with open(osbackup_path, 'r+b') as osbackup:
         # See enghabv.bas at label 813 (around line 1500) for where these
@@ -51,8 +50,12 @@ def write_state_to_osbackup(
 
         osbackup.seek(24, SEEK_CUR)
         _write_int('Module' in names, osbackup)
-        _write_single(norm(ayse.pos - hab.pos), osbackup)
-        _write_single(norm(earth.pos - hab.pos), osbackup)
+        # These next two variables are technically AYSEdist and OCESSdist
+        # but they're used for engineering to determine if you can load fuel
+        # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
+        # engineering if we're attached, but don't tell it any more deets.
+        _write_single(150 if hab.attached_to == 'AYSE' else 1000, osbackup)
+        _write_single(150 if hab.attached_to == 'Earth' else 1000, osbackup)
 
         osbackup.seek(24, SEEK_CUR)
         # pressure = cvs(mid$(inpSTR$,k,4)):k=k+4

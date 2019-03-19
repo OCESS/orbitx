@@ -63,7 +63,7 @@ class Menu:
              lambda: f"{calc.apoapsis(self.reference):,.7g} m",
              "Highest altitude in naïve orbit around reference",
              False),
-            ("HRT phase angle:",
+            ("HRT phase angle &nbsp",
              lambda: f"{round(np.degrees(self.habitat.heading))} degrees",
              "Current angle of habitat",
              False),
@@ -120,7 +120,8 @@ class Menu:
                     <div id = "{div_id}" >
                         {gui.wtexts_at(-1).text}
                 </div >
-                <div class = "helptext{"newsection" if new_section else ""}" >
+                <div class = "helptext{"newsection" if new_section else ""}" 
+                    style="font-size: 12px">
                         {helptext}
                 </div >
                 </td >
