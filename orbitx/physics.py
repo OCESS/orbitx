@@ -297,7 +297,7 @@ class PEngine(object):
         e1.v = e2.v
 
         # to be turn on later
-        # self.control_craft_index=e2_index
+        self.control_craft_index=e2_index
 
     def _bounce(self, e1, e2):
         # Resolve a collision by:
