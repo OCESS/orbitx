@@ -521,6 +521,12 @@ class FlightGui:
         self._set_menus()
         self._scene.append_to_caption(style.HELP_CHECKBOX)
         self._scene.append_to_caption(" Help text")
+        self._scene.append_to_caption("\t\t")
+        vpython.button(
+            text="Switch", pos=self._scene.caption_anchor, bind=self._dock)
+        self._scene.append_to_caption(
+            f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
+
         self._scene.append_to_caption(style.INPUT_CHEATSHEET)
 
         self._scene.append_to_caption(style.VPYTHON_CSS)
@@ -598,6 +604,15 @@ class FlightGui:
         vpython.checkbox(
             bind=self._trail_checkbox_hook, checked=False, text='Trails')
         self._scene.append_to_caption(
-            " <span class='helptext'>Graphically intensive</span>")
+            " <span class='helptext'>&nbspGraphically intensive</span>")
+
+        self._scene.append_to_caption("\t\t\t")
+        vpython.button(
+            text=" Dock ", pos=self._scene.caption_anchor, bind=self._dock)
+        self._scene.append_to_caption(
+            f"<span class='helptext'>Dock to AYSE</span>")
     # end of _set_menus
+
+    def _dock(self):
+        print("dock")
 # end of class FlightGui
