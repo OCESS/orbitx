@@ -147,8 +147,10 @@ class PEngine(object):
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
         # temp change before implementatin of spacestation
-        f attached_to[index] in self._artificials:
-                y.Spin[index]=y[attached_to[index]].spin
+        if hasattr(self,"control_craft_index"):
+            control_craft_index = self.control_craft_index
+        else:
+            control_craft_index=self._hab_index
 
         def launch():
             nonlocal y0
