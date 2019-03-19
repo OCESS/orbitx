@@ -60,7 +60,6 @@ class FlightGui:
         self._texture_path: Path = texture_path
         self._commands: list = []
         self._spheres: dict = {}
-        self._landing_graphic: dict = {}
         self.pause_label: vpython.label = vpython.label(
             text="Simulation Paused.", visible=False)
 
@@ -80,14 +79,10 @@ class FlightGui:
             self._texture_path = Path('data', 'textures')
 
         self._set_origin(DEFAULT_CENTRE)
-        self._set_reference(DEFAULT_REFERENCE)
-        self._set_target(DEFAULT_TARGET)
-        self._set_habitat("Habitat")
-        calc.set_ORT(self._origin, self._reference, self._target,
-                     self._habitat)
+        calc.ORT[0] = self._origin
 
         for planet in physical_state_to_draw.entities:
-            obj = None
+            obj: Displayable
             if planet.name == "Habitat":
                 obj = Habitat(planet, self._texture_path,
                               self._scene, self._minimap_canvas)
@@ -99,12 +94,12 @@ class FlightGui:
                 obj = Planet(planet, self._texture_path)
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
-        # for
 
-        Displayable._target_landing_graphic = (
-            Displayable._draw_landing_graphic(self._target))
-        Displayable._reference_landing_graphic = (
-            Displayable._draw_landing_graphic(self._reference))
+        self._set_reference(DEFAULT_REFERENCE)
+        self._set_target(DEFAULT_TARGET)
+        self._set_habitat("Habitat")
+        calc.set_ORT(self._origin, self._reference, self._target,
+                     self._habitat)
 
         #self._menu.set_caption(self)
         self._set_caption();
@@ -114,7 +109,7 @@ class FlightGui:
         if not no_intro:
             while self._scene.range > 600000:
                 vpython.rate(100)
-                self._scene.range = self._scene.range * 0.98
+                self._scene.range = self._scene.range * 0.92
         self.recentre_camera(DEFAULT_CENTRE)
     # end of __init__
 
@@ -139,16 +134,15 @@ class FlightGui:
             width=800,
             height=600,
             center=vpython.vector(0, 0, 0),
-            up=vpython.vector(0, 0, 1),
-            forward=vpython.vector(0.1, 0.1, -1),
-            autoscale=True,
-            userspin=False
+            up=vpython.vector(0.1, 0.1, 1),
+            forward=vpython.vector(0, 0, -1),
+            autoscale=True
         )
-        _scene.autoscale: bool = False
+        _scene.autoscale = False
         _scene.bind('keydown', self._handle_keydown)
         _scene.bind('click', self._handle_click)
         # Show all planets in solar system
-        _scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+        _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
     # end of _init_canvas
 
@@ -198,12 +192,16 @@ class FlightGui:
     def _set_reference(self, entity_name: str) -> None:
         try:
             self._reference = self._find_entity(entity_name)
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._reference)
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
 
     def _set_target(self, entity_name: str) -> None:
         try:
             self._target = self._find_entity(entity_name)
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._target)
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
 
@@ -359,18 +357,13 @@ class FlightGui:
         self._last_physical_state = physical_state_to_draw
         # Have to reset origin, reference, and target with new positions
         self._habitat = self._find_entity("Habitat")
-        self._set_origin(self._origin.name)
-        self._set_reference(self._reference.name)
-        self._set_target(self._target.name)
+        self._origin = self._find_entity(self._origin.name)
+        self._reference = self._find_entity(self._reference.name)
+        self._target = self._find_entity(self._target.name)
         calc.set_ORT(self._origin, self._reference, self._target,
                      self._habitat)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
-
-        Displayable._update_landing_graphic(
-            self._reference, Displayable._reference_landing_graphic)
-        Displayable._update_landing_graphic(
-            self._target, Displayable._target_landing_graphic)
 
         for planet in physical_state_to_draw.entities:
             self._displaybles[planet.name].draw(planet)
