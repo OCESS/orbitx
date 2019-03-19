@@ -147,7 +147,8 @@ class PEngine(object):
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
         # temp change before implementatin of spacestation
-        control_craft_index = self._hab_index
+        f attached_to[index] in self._artificials:
+                y.Spin[index]=y[attached_to[index]].spin
 
         def launch():
             nonlocal y0
@@ -426,6 +427,8 @@ class PEngine(object):
         # Keep attached entities glued together
         attached_to = y.AttachedTo
         for index in attached_to:
+            f attached_to[index] in self._artificials:
+                y.Spin[index]=y[attached_to[index]].spin
             attached = y[index]
             attachee = y[attached_to[index]]
 
