@@ -4,8 +4,6 @@ from . import orbitx_pb2 as protos  # physics module
 import numpy as np
 import math
 import collections
-from decimal import getcontext, Decimal
-
 
 ORIGIN = 0
 REFERENCE = 1
@@ -15,9 +13,6 @@ HABITAT = 3
 G = 6.674e-11
 ORT: List[protos.Entity] = [None, None, None, None]
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
-
-getcontext().prec = 1
-
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
             target: protos.Entity, ahabitat: protos.Entity):
@@ -50,7 +45,7 @@ def habitat() -> protos.Entity:
 
 def round(n: float) -> int:
     """Round up n and return it in int type"""
-    return (np.around(n, decimals=-1))
+    return np.around(n)
 
 
 def to_sci_format(n: float) -> float:
