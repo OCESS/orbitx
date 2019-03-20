@@ -4,9 +4,10 @@ from pathlib import Path
 import vpython
 import logging
 from . import orbitx_pb2 as protos  # physics module
+import orbitx.calculator
 import orbitx.calculator as calc
 import numpy as np
-
+import math
 
 log = logging.getLogger()
 
@@ -75,7 +76,10 @@ class Displayable(metaclass=ABCMeta):
         self._entity = entity
         # update planet objects
         self._obj.pos = calc.posn(self._entity)
-        self._obj.axis = calc.ang_pos(self._entity.heading)
+        if entity.name == "AYSE":
+            self._obj.axis = calc.ang_pos(self._entity.heading+np.pi)
+        else:
+            self._obj.axis = calc.ang_pos(self._entity.heading)
         # update label objects
         self._label.text = self._label.text_function(self._entity)
         self._label.pos = calc.posn(self._entity)
