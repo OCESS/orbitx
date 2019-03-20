@@ -40,7 +40,7 @@ tr {
     font-family: monospace;
     font-weight: bold;
     border-collapse: collapse;
-    width: 30%;
+    width: 20%;
 }
 select {
     width: 100px;

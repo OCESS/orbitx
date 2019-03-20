@@ -4,7 +4,7 @@ from . import orbitx_pb2 as protos  # physics module
 import numpy as np
 import math
 import collections
-#from decimal import getcontext, Decimal
+from decimal import getcontext, Decimal
 
 
 ORIGIN = 0
@@ -16,7 +16,8 @@ G = 6.674e-11
 ORT: List[protos.Entity] = [None, None, None, None]
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 
-#getcontext().prec = 10
+getcontext().prec = 1
+
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
             target: protos.Entity, ahabitat: protos.Entity):
@@ -47,6 +48,16 @@ def habitat() -> protos.Entity:
 # end of habitat
 
 
+def round(n: float) -> int:
+    """Round up n and return it in int type"""
+    return (np.around(n, decimals=-1))
+
+
+def to_sci_format(n: float) -> float:
+    """convert float n into scientific form"""
+    return np.format_float_scientific(n, unique=False, precision=5)
+
+
 def posn(entity: protos.Entity) -> vpython.vector:
     """ posn returns a vector object that its value represents translates into
         the frame of reference of the origin.
@@ -70,25 +81,28 @@ def phase_angle() -> float:
     ref_pos = np.array([reference().x, reference().y])
     hab_relative = np.array([habitat().x, habitat().y]) - ref_pos
     targ_relative = np.array([target().x, target().y]) - ref_pos
-    return np.degrees(
+    angle = np.degrees(
         np.arctan2(hab_relative[1], hab_relative[0]) -
         np.arctan2(targ_relative[1], targ_relative[0])
     ) % 360
+    return to_sci_format(angle)
 
-def orb_speed(reference: protos.Entity) -> float:
+
+def orb_speed(reference: protos.Entity) -> int:
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
-    return np.sqrt(
+    result = np.sqrt(
         (reference.mass**2 * G) /
         ((habitat().mass + reference.mass) * distance(reference, habitat())))
+    return round(result)
 # end of _orb_speed
 
 
 def altitude(planet1: protos.Entity, planet2: protos.Entity) -> float:
     """Caculate distance between ref_planet and Habitat
     returns: the number of metres"""
-
-    return distance(planet1, planet2) - planet1.r - planet2.r
+    result = distance(planet1, planet2) - planet1.r - planet2.r
+    return round(result)
 # end of _altitude
 
 
@@ -98,11 +112,12 @@ def distance(planet1: protos.Entity, planet2: protos.Entity) -> float:
 
 def speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
     """Caculate speed between ref_planet and Habitat"""
-    return vpython.mag(vpython.vector(
+    result = vpython.mag(vpython.vector(
         planet1.vx - planet2.vx,
         planet1.vy - planet2.vy,
         0
     ))
+    return round(result)
 # end of _speed
 
 
@@ -115,7 +130,8 @@ def v_speed(entityA: protos.Entity, entityB: protos.Entity) -> float:
     normal = np.array([entityA.x - entityB.x, entityA.y - entityB.y])
     normal = normal / np.linalg.norm(normal)
     radial_v = np.dot(normal, v)
-    return np.linalg.norm(radial_v)
+    radial_v = np.linalg.norm(radial_v)
+    return round(radial_v)
 # end of _v_speed
 
 
@@ -129,7 +145,8 @@ def h_speed(entityA: protos.Entity, entityB: protos.Entity) -> float:
     normal = normal / np.linalg.norm(normal)
     tangent = np.array([normal[1], -normal[0]])
     tangent_v = np.dot(tangent, v)
-    return np.linalg.norm(tangent_v)
+    tangent_v = np.linalg.norm(tangent_v)
+    return round(tangent_v)
 # end of _h_speed
 
 
@@ -144,7 +161,8 @@ def unit_velocity(entity: protos.Entity) -> vpython.vector:
 
 def pitch(entity: protos.Entity) -> vpython.vector:
     """....."""
-    return np.degrees(entity.heading)
+    degree = np.degrees(entity.heading)
+    return round(degree)
 # end of pitch
 
 
@@ -186,7 +204,7 @@ def periapsis(entityA: protos.Entity, entityB: protos.Entity) -> float:
         semimajor_axis(entityA, entityB) *
         (1 - eccentricity(entityA, entityB))
     )
-    return max(peri_distance - entityB.r, 0)
+    return round(max(peri_distance - entityB.r, 0))
 
 
 def apoapsis(entityA: protos.Entity, entityB: protos.Entity) -> float:
@@ -198,7 +216,7 @@ def apoapsis(entityA: protos.Entity, entityB: protos.Entity) -> float:
         semimajor_axis(entityA, entityB) *
         (1 + eccentricity(entityA, entityB))
     )
-    return max(apo_distance - entityB.r, 0)
+    return to_sci_format(max(apo_distance - entityB.r, 0))
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
