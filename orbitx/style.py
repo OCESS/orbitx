@@ -27,7 +27,7 @@ th {
     height: 50px;
 }
 
-td {
+td.newsection {
     width: 20%;
 }
 
@@ -36,13 +36,11 @@ tr {
     border-style: solid;
 }
 
-.newsection {
-    padding-top: 1em;
-}
 .num {
     font-family: monospace;
     font-weight: bold;
     border-collapse: collapse;
+    width: 30%;
 }
 select {
     width: 100px;

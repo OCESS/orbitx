@@ -4,6 +4,7 @@ from . import orbitx_pb2 as protos  # physics module
 import numpy as np
 import math
 import collections
+#from decimal import getcontext, Decimal
 
 
 ORIGIN = 0
@@ -15,6 +16,7 @@ G = 6.674e-11
 ORT: List[protos.Entity] = [None, None, None, None]
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 
+#getcontext().prec = 10
 
 def set_ORT(origin: protos.Entity, reference: protos.Entity,
             target: protos.Entity, ahabitat: protos.Entity):
@@ -72,7 +74,6 @@ def phase_angle() -> float:
         np.arctan2(hab_relative[1], hab_relative[0]) -
         np.arctan2(targ_relative[1], targ_relative[0])
     ) % 360
-
 
 def orb_speed(reference: protos.Entity) -> float:
     """The orbital speed of an astronomical body or object.

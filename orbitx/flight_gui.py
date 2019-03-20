@@ -502,13 +502,13 @@ class FlightGui:
             self._wtexts.append(vpython.wtext(text=text_gen_func()))
             self._wtexts[-1].text_func = text_gen_func
             self._scene.caption += f"""<tr>
-            <td {"class='newsection'" if new_section else ""}>
+            <td class="newsection">
                 {caption}
             </td >
-            <td class = "num{" newsection" if new_section else ""}" >
+            <td class = "num">
                 <div id = "{div_id}" >
                     {self._wtexts[-1].text}
-            </div >
+                </div >
             <div class = "helptext{"newsection" if new_section else ""}" 
                 style="font-size: 12px">
                     {helptext}
