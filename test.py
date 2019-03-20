@@ -8,6 +8,7 @@ import numpy as np
 import orbitx.orbitx_pb2 as protos
 
 import orbitx.common as common
+import orbitx.calculator as calculate
 import orbitx.physics as physics
 from orbitx.physics_entity import Habitat, PhysicsEntity
 from orbitx.physics_state import PhysicsState
@@ -118,8 +119,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
             physics_engine.handle_command(
                 protos.Command(
-                    ident=protos.Command.HAB_THROTTLE_CHANGE,
-                    arg=throttle),
+                    ident=protos.Command.HAB_THROTTLE_SET,
+                    throttle_set=throttle),
                 requested_t=0)
 
             initial = physics_engine.get_state(0)
@@ -131,10 +132,13 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 moved.entities[0].fuel,
                 (initial.entities[0].fuel -
                  t_delta * Habitat.fuel_cons(throttle=throttle)))
-            self.assertAlmostEqual(
-                moved.entities[0].vx,
-                t_delta * Habitat.acceleration(
-                    throttle=throttle, heading=initial.entities[0].heading)[0])
+            self.assertTrue(
+                moved.entities[0].vx <
+                (t_delta *
+                    Habitat.thrust(throttle=throttle,
+                                   heading=initial.entities[0].heading)[0] /
+                    (moved.entities[0].mass + moved.entities[0].fuel))
+            )
 
             t_no_fuel = (initial.entities[0].fuel /
                          Habitat.fuel_cons(throttle=throttle))
@@ -313,6 +317,52 @@ class PhysicsStateTestCase(unittest.TestCase):
         entity.attached_to = 'Second'
         ps[0] = entity
         self.assertEqual(ps[0].attached_to, 'Second')
+
+
+class CalculationsTestCase(unittest.TestCase):
+    """The file tests/gui-test.json encodes the position of the Earth and the
+    ISS, with all possitions offset by a billion metres along the x and y axes.
+    https://www.wolframalpha.com/input/?i=International+Space+Station
+    describes the orbital parameters of the ISS, all numbers in this test are
+    taken from that page."""
+
+    def setUp(self):
+        if '-v' in sys.argv:
+            common.enable_verbose_logging()
+
+    def test_orbital_parameters(self):
+        # Again, see
+        # https://www.wolframalpha.com/input/?i=International+Space+Station
+        # For these expected values
+        state = common.load_savefile(common.savefile('tests/gui-test.json'))
+        iss = state.entities[0]
+        earth = state.entities[1]
+
+        # The semimajor axis is relatively close to expected.
+        self.assertAlmostEqual(
+            calculate.semimajor_axis(iss, earth) / 6785e3, 1, delta=0.1)
+
+        # The eccentricity is within 1e-6 of the expected.
+        self.assertAlmostEqual(
+            calculate.eccentricity(iss, earth), 5.893e-4, delta=10)
+
+        # The apoapsis is relatively close to expected.
+        self.assertAlmostEqual(
+            calculate.apoapsis(iss, earth) / (418.3e3 + earth.r),
+            1, delta=0.1)
+
+        # The periapsis is relatively close to expected.
+        self.assertAlmostEqual(
+            calculate.periapsis(iss, earth) / (410.3e3 + earth.r),
+            1, delta=0.1)
+
+    def test_speeds(self):
+        state = common.load_savefile(common.savefile('tests/gui-test.json'))
+        iss = state.entities[0]
+        earth = state.entities[1]
+
+        self.assertAlmostEqual(calculate.h_speed(iss, earth), 7665, delta=10)
+        self.assertAlmostEqual(calculate.v_speed(iss, earth), -0.1, delta=10)
 
 
 if __name__ == '__main__':

@@ -31,7 +31,7 @@ log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
-DEFAULT_TARGET = 'Moon'
+DEFAULT_TARGET = 'AYSE'
 
 G = 6.674e-11
 
@@ -101,7 +101,6 @@ class FlightGui:
         calc.set_ORT(self._origin, self._reference, self._target,
                      self._habitat)
 
-        # self._menu.set_caption(self)
         self._set_caption()
 
         # Add an animation when launching the program
@@ -120,7 +119,7 @@ class FlightGui:
         main_canvas = vpython.canvas.get_selected()
         miniamp_canvas = vpython.canvas(
             width=200, height=150, autoscale=True, userspin=False,
-            up=vpython.vector(0, 0, 1), forward=vpython.vector(0.1, 0.1, -1))
+            up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
         main_canvas.select()
         return miniamp_canvas
     # end of _init_minimap_canvas
@@ -129,10 +128,10 @@ class FlightGui:
         """Set up our vpython canvas and other internal variables"""
 
         _scene = vpython.canvas(
-            title='<b>OrbitX</b>',
+            title='<title>OrbitX</title>',
             align='right',
             width=800,
-            height=600,
+            height=800,
             center=vpython.vector(0, 0, 0),
             up=vpython.vector(0.1, 0.1, 1),
             forward=vpython.vector(0, 0, -1),
@@ -439,16 +438,17 @@ class FlightGui:
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
-             lambda: f"{calc.periapsis(self._reference):,.7g} m",
+             lambda:
+                f"{calc.periapsis(self._reference, self._habitat):,.7g} m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
-             lambda: f"{calc.apoapsis(self._reference):,.7g} m",
+             lambda: f"{calc.apoapsis(self._reference, self._habitat):,.7g} m",
              "Highest altitude in naïve orbit around reference",
              False),
-            ("HRT phase angle &nbsp",
-             lambda: f"{round(np.degrees(self._habitat.heading))} degrees",
-             "Current angle of habitat",
+            ("HRT phase θ",
+             lambda: f"{calc.phase_angle()} °",
+             "Angle between Habitat, Reference, and Target",
              False),
             ("Fuel ",
              lambda: f"{abs(round(self._habitat.fuel, 1))} kg",
@@ -569,7 +569,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._new_reference(selection.selected),
+            bind=lambda selection: self._set_reference(selection.selected),
             selected=DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
@@ -578,7 +578,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._new_target(selection.selected),
+            bind=lambda selection: self._set_target(selection.selected),
             selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
@@ -586,7 +586,7 @@ class FlightGui:
 
         build_menu(
             choices=['deprt ref'],
-            bind=lambda selection: self._set_navmode(selection.selected),
+            bind=lambda selection: log.error(f"Unimplemented: {selection}"),
             selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
