@@ -293,7 +293,7 @@ class PEngine(object):
                   np.sin(e2_opposite) * e2.r + e2.pos[1]]
         e1.heading = (e2_opposite) % (2 * np.pi)
         e1.throttle = 0
-        e1.spin = e2.spin
+        e1.spin = 0
         e1.v = e2.v
 
         # to be turn on later
