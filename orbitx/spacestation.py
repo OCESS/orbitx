@@ -11,8 +11,7 @@ class SpaceStation(Displayable):
         super(SpaceStation, self).__init__(entity, texture_path)
         _pos = calc.posn(entity)
         _radius = entity.r
-        _axis = 2 * entity.r * \
-            vpython.vector(np.cos(entity.heading), np.sin(entity.heading), 0)
+        _axis = calc.ang_pos(self._entity.heading+np.pi)
         ship = vpython.cone(pos=vpython.vector(2, 0, 0),
                             axis=vpython.vector(-8, 0, 0),
                             radius=3,
@@ -28,10 +27,10 @@ class SpaceStation(Displayable):
         self._obj = vpython.compound([ship, entrance])
         self._obj.pos = _pos
         self._obj.axis = _axis
-        self._obj.radius = _radius
-        self._obj.length = _radius
-        self._obj.height = _radius
-        self._obj.width = _radius
+        self._obj.radius = _radius *2
+        self._obj.length = _radius *2
+        self._obj.height = _radius *2
+        self._obj.width = _radius *2
 
         self._obj.name = self._entity.name
 
