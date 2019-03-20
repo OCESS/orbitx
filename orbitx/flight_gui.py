@@ -523,7 +523,8 @@ class FlightGui:
         self._scene.append_to_caption(" Help text")
         self._scene.append_to_caption("\t\t")
         vpython.button(
-            text="Switch", pos=self._scene.caption_anchor, bind=self._dock)
+            text=" Switch ", pos=self._scene.caption_anchor,
+            disabled=True, bind=self._switch)
         self._scene.append_to_caption(
             f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
 
@@ -608,11 +609,14 @@ class FlightGui:
 
         self._scene.append_to_caption("\t\t\t")
         vpython.button(
-            text=" Dock ", pos=self._scene.caption_anchor, bind=self._dock)
+            text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
         self._scene.append_to_caption(
             f"<span class='helptext'>Dock to AYSE</span>")
     # end of _set_menus
 
-    def _dock(self):
-        print("dock")
+    def _undock(self):
+        print("undock")
+
+    def _switch(self):
+        print("switch")
 # end of class FlightGui
