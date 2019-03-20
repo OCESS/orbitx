@@ -4,8 +4,6 @@ VPYTHON_CSS = """<style>
 * {
     background-color: black;
     color: white;
-    border-collapse: collapse;
-    border-color: white;
 }
 
 div {
@@ -20,28 +18,31 @@ table {
     margin-top: 1em;
     margin-bottom: 1em;
     height: 30%;
+    border-collapse: collapse;
+    border-style: none;
 }
+
 th {
     text-align: left;
     border-collapse: collapse;
     height: 50px;
 }
 
-td.newsection {
-    width: 20%;
+tr.newsection {
+    border-top-style: solid;
+    border-top-width: thin;
+    border-top-color: white;
 }
 
-tr {
-    height: 20px;
-    border-style: solid;
+td {
+    width: 10em;
 }
-
-.num {
+td.num {
     font-family: monospace;
     font-weight: bold;
-    border-collapse: collapse;
-    width: 30%;
+    width: 70%;
 }
+
 select {
     width: 100px;
 }

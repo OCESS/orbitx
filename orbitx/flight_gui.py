@@ -38,6 +38,13 @@ G = 6.674e-11
 PLANET_SHININIESS = 0.3
 
 
+def format_num(num: float) -> str:
+    """This should be refactored with the Menu class after symposium."""
+    # TODO: refactor this along with the Menu class
+    # This return string will be at most 10 characters
+    return '{:,.5g}'.format(round(num))
+
+
 class FlightGui:
 
     def __init__(
@@ -434,82 +441,79 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{calc.orb_speed(self._reference):,.7g} m/s",
+             lambda: format_num(
+                 calc.orb_speed(self._reference)) + " m/s",
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
-             lambda:
-                f"{calc.periapsis(self._reference, self._habitat):,.7g} m",
+             lambda: format_num(
+                 calc.periapsis(self._reference, self._habitat)) + " m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
-             lambda: f"{calc.apoapsis(self._reference, self._habitat):,.7g} m",
+             lambda: format_num(
+                 calc.apoapsis(self._reference, self._habitat)) + " m",
              "Highest altitude in naïve orbit around reference",
              False),
             ("HRT phase θ",
-             lambda: f"{calc.phase_angle()} °",
+             lambda: '{:.0f}'.format(calc.phase_angle()) + "°",
              "Angle between Habitat, Reference, and Target",
              False),
+            ("Throttle",
+             lambda: "{:.1%}".format(self._habitat.throttle),
+             "Percentage of habitat's maximum rated engines",
+             True),
             ("Fuel ",
-             lambda: f"{abs(round(self._habitat.fuel, 1))} kg",
+             lambda: format_num(self._habitat.fuel) + " kg",
              "Remaining fuel of habitat",
              False),
-            ("Throttle",
-             lambda:
-             f"{self._habitat.throttle:.1%}",
-             "Percentage of habitat's maximum rated engines",
-             False),
-
-            ("Ref alt",
-             lambda: f"{calc.altitude(self._reference, self._habitat):,.7g} m",
+            ("Ref altitude",
+             lambda: format_num(
+                calc.altitude(self._reference, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
-             False),
+             True),
             ("Ref speed",
-             lambda: f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
+             lambda: format_num(
+                calc.speed(self._reference, self._habitat)) + " m/s",
              "Speed of habitat above reference surface",
              False),
             ("Vertical speed",
              lambda:
-             f"{calc.v_speed(self._reference, self._habitat):,.7g} m/s ",
+             format_num(
+                calc.v_speed(self._reference, self._habitat)) + " m/s ",
              "Vertical speed of habitat towards/away reference surface",
              False),
             ("Horizontal speed",
              lambda:
-             f"{calc.h_speed(self._reference, self._habitat):,.7g} m/s ",
+             format_num(
+                calc.h_speed(self._reference, self._habitat)) + " m/s ",
              "Horizontal speed of habitat across reference surface",
              False),
-            ("Targ alt",
+            ("Targ altitude",
              lambda:
-             f"{calc.altitude(self._target, self._habitat):,.7g} m",
+             format_num(
+                calc.altitude(self._target, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
-             False),
+             True),
             ("Targ speed",
              lambda:
-             f"{calc.speed(self._target, self._habitat):,.7g} m/s",
-             "...........................",
-             False),
-            ("Pitch",
-             lambda:
-             f"{calc.pitch(self._habitat):,.7g} m/s",
-             "...........................",
-             False),
-            ("landing acceleration",
-             lambda:
-             f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
-             "..........................",
+             format_num(
+                calc.speed(self._target, self._habitat)) + " m/s",
+             "Speed of habitat above target surface",
              False)
+            # TODO add pitch and stopping acceleration fields after symposium
         ]:
             self._wtexts.append(vpython.wtext(text=text_gen_func()))
             self._wtexts[-1].text_func = text_gen_func
-            self._scene.caption += f"""<tr>
-            <td class="newsection">
+            self._scene.caption += f"""<tr {"class='newsection'" if new_section else ""}>
+            <td>
                 {caption}
             </td >
-            <td class = "num">
+            <td class="num">
                 <div id = "{div_id}" >
                     {self._wtexts[-1].text}
                 </div >
-            <div class = "helptext{"newsection" if new_section else ""}" 
+            <div class="helptext"
                 style="font-size: 12px">
                     {helptext}
             </div >
