@@ -93,6 +93,13 @@ class GrpcServerContext:
         self._server.stop(0)
 
 
+def format_num(num: float) -> str:
+    """This should be refactored with the Menu class after symposium."""
+    # TODO: refactor this along with the Menu class
+    # This return string will be at most 10 characters
+    return '{:,.5g}'.format(round(num))
+
+
 def load_savefile(file):
     with open(file, 'r') as f:
         data = f.read()

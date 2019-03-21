@@ -38,13 +38,6 @@ G = 6.674e-11
 PLANET_SHININIESS = 0.3
 
 
-def format_num(num: float) -> str:
-    """This should be refactored with the Menu class after symposium."""
-    # TODO: refactor this along with the Menu class
-    # This return string will be at most 10 characters
-    return '{:,.5g}'.format(round(num))
-
-
 class FlightGui:
 
     def __init__(
@@ -441,17 +434,17 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: format_num(
+             lambda: common.format_num(
                  calc.orb_speed(self._reference)) + " m/s",
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
-             lambda: format_num(
+             lambda: common.format_num(
                  calc.periapsis(self._reference, self._habitat)) + " m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
-             lambda: format_num(
+             lambda: common.format_num(
                  calc.apoapsis(self._reference, self._habitat)) + " m",
              "Highest altitude in naïve orbit around reference",
              False),
@@ -464,40 +457,36 @@ class FlightGui:
              "Percentage of habitat's maximum rated engines",
              True),
             ("Fuel ",
-             lambda: format_num(self._habitat.fuel) + " kg",
+             lambda: common.format_num(self._habitat.fuel) + " kg",
              "Remaining fuel of habitat",
              False),
             ("Ref altitude",
-             lambda: format_num(
+             lambda: common.format_num(
                 calc.altitude(self._reference, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
              True),
             ("Ref speed",
-             lambda: format_num(
+             lambda: common.format_num(
                 calc.speed(self._reference, self._habitat)) + " m/s",
              "Speed of habitat above reference surface",
              False),
             ("Vertical speed",
-             lambda:
-             format_num(
+             lambda: common.format_num(
                 calc.v_speed(self._reference, self._habitat)) + " m/s ",
              "Vertical speed of habitat towards/away reference surface",
              False),
             ("Horizontal speed",
-             lambda:
-             format_num(
+             lambda: common.format_num(
                 calc.h_speed(self._reference, self._habitat)) + " m/s ",
              "Horizontal speed of habitat across reference surface",
              False),
             ("Targ altitude",
-             lambda:
-             format_num(
+             lambda: common.format_num(
                 calc.altitude(self._target, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
              True),
             ("Targ speed",
-             lambda:
-             format_num(
+             lambda: common.format_num(
                 calc.speed(self._target, self._habitat)) + " m/s",
              "Speed of habitat above target surface",
              False)

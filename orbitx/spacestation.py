@@ -4,6 +4,7 @@ from orbitx.displayable import Displayable
 import vpython
 import orbitx.calculator as calc
 import numpy as np
+import orbitx.common as common
 
 
 class SpaceStation(Displayable):
@@ -49,7 +50,10 @@ class SpaceStation(Displayable):
 
     def _draw_labels(self) -> None:
         self._label = self._create_label()
-        self._label.text_function = lambda entity: entity.name
+        self._label.text_function = lambda entity: (
+            f'{entity.name}\n'
+            f'Fuel: {common.format_num(entity.fuel)} kg'
+        )
         self._label.text = self._label.text_function(self._entity)
     # end of _draw_labels
 
