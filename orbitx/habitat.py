@@ -86,8 +86,10 @@ class Habitat(Displayable):
         self._update_obj(entity)
         same = calc.reference() == calc.habitat()
         default = vpython.vector(0, 0, -1)
-        ref_arrow_axis = calc.posn(
-            calc.reference()).norm() * self._entity.r * 1.2
+
+        ref_pos = vpython.vector(calc.reference().x, calc.reference().y, 0)
+        hab_pos = vpython.vector(calc.habitat().x, calc.habitat().y, 0)
+        ref_arrow_axis = (ref_pos - hab_pos).norm() * self._entity.r * 1.2
         velocity_arrow_axis = calc.unit_velocity(
             self._entity).norm() * self._entity.r
 
