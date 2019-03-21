@@ -6,6 +6,11 @@ VPYTHON_CSS = """<style>
     color: white;
 }
 
+.ui-resizable-handle {
+    /* hides the resize bars on the edges of canvases */
+    background-image: none;
+}
+
 div {
     border-collapse: collapse;
 }
@@ -36,6 +41,7 @@ tr.newsection {
 
 td {
     width: 10em;
+    padding: 4px
 }
 td.num {
     font-family: monospace;
