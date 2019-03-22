@@ -43,6 +43,7 @@ class Habitat(Displayable):
         hab.radius = self._entity.r / 2
         hab.shininess = 0.1
         hab.length = self._entity.r * 2
+        hab.height=self._entity.r
         hab.color = vpython.color.cyan
         old_scene.select()
         return hab

@@ -134,9 +134,6 @@ class PEngine(object):
         # Fork self._simthread into the background.
         self._simthread.start()
 
-    def set_control_craft_index(self, index):
-        self.control_craft_index = index
-
     def handle_command(self, command, requested_t=None):
         """Interface to set habitat controls.
 
@@ -146,8 +143,7 @@ class PEngine(object):
         y0 = PhysicsState(None, self.get_state(requested_t))
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
-        # temp change before implementatin of spacestation
-        control_craft_index = self._hab_index
+        control_craft_index = y0.control_craft_index()
 
         def launch():
             nonlocal y0
@@ -290,11 +286,8 @@ class PEngine(object):
                   np.sin(e2_opposite) * e2.r + e2.pos[1]]
         e1.heading = (e2_opposite) % (2 * np.pi)
         e1.throttle = 0
-        e1.spin = e2.spin
+        e1.spin = 0
         e1.v = e2.v
-
-        # to be turn on later
-        # self.control_craft_index=e2_index
 
     def _bounce(self, e1, e2):
         # Resolve a collision by:
@@ -426,6 +419,8 @@ class PEngine(object):
         # Keep attached entities glued together
         attached_to = y.AttachedTo
         for index in attached_to:
+            if attached_to[index] in self._artificials:
+                y.Spin[index] = y[attached_to[index]].spin
             attached = y[index]
             attachee = y[attached_to[index]]
 

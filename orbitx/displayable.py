@@ -8,7 +8,11 @@ import vpython
 import numpy as np
 from . import orbitx_pb2 as protos  # physics module
 
+import orbitx.calculator
 import orbitx.calculator as calc
+import numpy as np
+import math
+
 
 
 log = logging.getLogger()
@@ -107,8 +111,12 @@ class Displayable(metaclass=ABCMeta):
     def _update_obj(self, entity: protos.Entity) -> None:
         self._entity = entity
         # update planet objects
-        self._obj.pos = calc.posn(entity)
-        self._obj.axis = calc.ang_pos(entity.heading)
+        self._obj.pos = calc.posn(self._entity)
+        if entity.name == "AYSE":
+            self._obj.axis = calc.ang_pos(self._entity.heading+np.pi)
+        else:
+            self._obj.axis = calc.ang_pos(self._entity.heading)
+
         # update label objects
         self._label.text = self._label.text_function(entity)
         self._label.pos = calc.posn(entity)

@@ -248,3 +248,13 @@ class PhysicsState:
     @property
     def Broken(self):
         return self._y_components()[9]
+
+    def control_craft_index(self) -> int:
+        """TODO: replace this with a field in the protobuf."""
+        hab_index = self._name_to_index('Habitat')
+        ayse_index = self._name_to_index('AYSE')
+
+        if self[hab_index].attached_to == 'AYSE':
+            return ayse_index
+        else:
+            return hab_index
