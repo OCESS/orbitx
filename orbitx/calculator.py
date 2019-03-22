@@ -5,7 +5,6 @@ import numpy as np
 import math
 import collections
 
-
 ORIGIN = 0
 REFERENCE = 1
 TARGET = 2
@@ -45,13 +44,8 @@ def habitat() -> protos.Entity:
 # end of habitat
 
 
-def physicalSate() -> protos.PhysicalState:
-    return ORT[PHYSICALSTATE]
-# end of physicalSate
-
-
 def posn(entity: protos.Entity) -> vpython.vector:
-    """ posn returns a vector object that its value represents translates into 
+    """ posn returns a vector object that its value represents translates into
         the frame of reference of the origin.
     """
     return vpython.vector(
@@ -66,36 +60,37 @@ def ang_pos(angle: float) -> vpython.vector:
 # end of _ang_pos
 
 
+def phase_angle() -> float:
+    """The orbital phase angle, habitat-reference-target.
+    i.e. the angle between the ref-hab vector and the ref-targ vector."""
+    # Code from Newton Excel Bach blog, 2014, "the angle between two vectors"
+    ref_pos = np.array([reference().x, reference().y])
+    hab_relative = np.array([habitat().x, habitat().y]) - ref_pos
+    targ_relative = np.array([target().x, target().y]) - ref_pos
+    return np.degrees(
+        np.arctan2(hab_relative[1], hab_relative[0]) -
+        np.arctan2(targ_relative[1], targ_relative[0])
+    ) % 360
+
 def orb_speed(reference: protos.Entity) -> float:
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
-    return vpython.sqrt((G * reference.mass) / reference.r)
+    return np.sqrt(
+        (reference.mass**2 * G) /
+        ((habitat().mass + reference.mass) * distance(reference, habitat())))
 # end of _orb_speed
-
-
-def periapsis(habitat: protos.Entity) -> float:
-    # reference = reference()
-    # calculate and return the periapsis
-    return 100
-# end of _periapsis
-
-
-def apoapsis(habitat: str) -> float:
-    # reference = reference()
-    # calculate and return the apoapsis
-    return 100
-# end of _apoapsis
 
 
 def altitude(planet1: protos.Entity, planet2: protos.Entity) -> float:
     """Caculate distance between ref_planet and Habitat
     returns: the number of metres"""
 
-    return math.hypot(
-        planet1.x - planet2.x,
-        planet1.y - planet2.y
-    ) - planet1.r - planet2.r
+    return distance(planet1, planet2) - planet1.r - planet2.r
 # end of _altitude
+
+
+def distance(planet1: protos.Entity, planet2: protos.Entity) -> float:
+    return math.hypot(planet1.x - planet2.x, planet1.y - planet2.y)
 
 
 def speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
@@ -108,21 +103,30 @@ def speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
 # end of _speed
 
 
-def v_speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
+def v_speed(entityA: protos.Entity, entityB: protos.Entity) -> float:
     """Centripetal velocity of the habitat relative to planet_name.
 
     Returns a negative number of m/s when the habitat is falling,
     and positive when the habitat is rising."""
-    return 100
+    v = np.array([entityA.vx - entityB.vx, entityA.vy - entityB.vy])
+    normal = np.array([entityA.x - entityB.x, entityA.y - entityB.y])
+    normal = normal / np.linalg.norm(normal)
+    radial_v = np.dot(normal, v)
+    return np.linalg.norm(radial_v)
 # end of _v_speed
 
 
-def h_speed(planet1: protos.Entity, planet2: protos.Entity) -> float:
+def h_speed(entityA: protos.Entity, entityB: protos.Entity) -> float:
     """Tangential velocity of the habitat relative to planet_name.
 
     Always returns a positive number of m/s, of how fast the habitat is
     moving side-to-side relative to the reference surface."""
-    return 100
+    v = np.array([entityA.vx - entityB.vx, entityA.vy - entityB.vy])
+    normal = np.array([entityA.x - entityB.x, entityA.y - entityB.y])
+    normal = normal / np.linalg.norm(normal)
+    tangent = np.array([normal[1], -normal[0]])
+    tangent_v = np.dot(tangent, v)
+    return np.linalg.norm(tangent_v)
 # end of _h_speed
 
 
@@ -133,6 +137,65 @@ def unit_velocity(entity: protos.Entity) -> vpython.vector:
         entity.vy - reference().vy,
         0).norm()
 # end of _unit_velocity
+
+
+def pitch(entity: protos.Entity) -> vpython.vector:
+    """....."""
+    return np.degrees(entity.heading)
+# end of pitch
+
+
+def landing_acceleration(
+        planet1: protos.Entity, planet2: protos.Entity) -> vpython.vector:
+    """....."""
+    return 100
+# end of landing_acceleration
+
+
+def semimajor_axis(entityA: protos.Entity, entityB: protos.Entity) -> float:
+    """Calculate semimajor axis: the mean distance between bodies in an
+    elliptical orbit. See 'calculation of semi-major axis from state vectors'
+    on the wikipedia article for semi-major axes."""
+    v = np.array([entityA.vx - entityB.vx, entityA.vy - entityB.vy])
+    r = distance(entityA, entityB)
+    mu = (entityB.mass + entityA.mass) * G
+    E = np.dot(v, v) / 2 - mu / r
+    return -mu / (2 * E)
+
+
+def eccentricity(entityA: protos.Entity, entityB: protos.Entity) -> float:
+    """Calculates the eccentricity - a defining feature of ellipses.
+    See https://en.wikipedia.org/wiki/Orbital_eccentricity for the equation."""
+    v = np.array([entityA.vx - entityB.vx, entityA.vy - entityB.vy])
+    r = np.array([entityA.x - entityB.x, entityA.y - entityB.y])
+    mu = (entityB.mass + entityA.mass) * G  # G(m + M)
+    E = np.dot(v, v) / 2 - mu / np.linalg.norm(r)  # v^2/2 - mu/dist
+    h = np.cross(r, v)  # r (cross) v
+    return np.sqrt(1 + (2 * E * np.dot(h, h)) / (mu**2))
+
+
+def periapsis(entityA: protos.Entity, entityB: protos.Entity) -> float:
+    """Calculates the lowest altitude in the orbit of entityA above entityB.
+
+    A negative means at some point in entityA's orbit, entityA will crash into
+    the surface of entityB."""
+    peri_distance = (
+        semimajor_axis(entityA, entityB) *
+        (1 - eccentricity(entityA, entityB))
+    )
+    return max(peri_distance - entityB.r, 0)
+
+
+def apoapsis(entityA: protos.Entity, entityB: protos.Entity) -> float:
+    """Calculates the highest altitude in the orbit of entityA above entityB.
+
+    A positive apoapsis means at some point in entityA's orbit, entityA will
+    be above the surface of entityB."""
+    apo_distance = (
+        semimajor_axis(entityA, entityB) *
+        (1 + eccentricity(entityA, entityB))
+    )
+    return max(apo_distance - entityB.r, 0)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
@@ -146,8 +209,8 @@ def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
 
 def _build_sphere_segment_vertices(
         radius: float,
-        refine_steps=1,
-        size=5000) -> List[Tuple[Point, Point, Point]]:
+        size: float,
+        refine_steps=3) -> List[Tuple[Point, Point, Point]]:
     """Returns a segment of a sphere, which has a specified radius.
     The return is a list of xyz-tuples, each representing a vertex."""
     # This code inspired by:

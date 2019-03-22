@@ -3,7 +3,7 @@ from pathlib import Path
 from orbitx.displayable import Displayable
 import vpython
 import orbitx.calculator as calc
-import numpy as np
+import orbitx.common as common
 
 
 class Habitat(Displayable):
@@ -70,12 +70,15 @@ class Habitat(Displayable):
         return habitat
     # end of __create_habitat
 
+    def draw_landing_graphic(self, entity: protos.Entity) -> None:
+        # Habitats don't have landing graphics
+        pass
+
     def _draw_labels(self) -> None:
         self._label = self._create_label()
         self._label.text_function = lambda entity: (
             f'{entity.name}\n'
-            f'Fuel: {abs(round(entity.fuel, 1))} kg\n'
-            f'Heading: {round(np.degrees(entity.heading))}\xb0'
+            f'Fuel: {common.format_num(entity.fuel)} kg'
         )
         self._label.text = self._label.text_function(self._entity)
     # end of _draw_labels
@@ -84,8 +87,10 @@ class Habitat(Displayable):
         self._update_obj(entity)
         same = calc.reference() == calc.habitat()
         default = vpython.vector(0, 0, -1)
-        ref_arrow_axis = calc.posn(
-            calc.reference()).norm() * self._entity.r * 1.2
+
+        ref_pos = vpython.vector(calc.reference().x, calc.reference().y, 0)
+        hab_pos = vpython.vector(calc.habitat().x, calc.habitat().y, 0)
+        ref_arrow_axis = (ref_pos - hab_pos).norm() * self._entity.r * 1.2
         velocity_arrow_axis = calc.unit_velocity(
             self._entity).norm() * self._entity.r
 

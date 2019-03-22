@@ -11,10 +11,11 @@ class Planet(Displayable):
         self._obj = vpython.sphere(pos=calc.posn(entity),
                                    axis=calc.ang_pos(entity.heading),
                                    up=vpython.vector(0, 0, 1),
-                                   radius=entity.r * 0.95,
+                                   radius=entity.r * 0.9,
                                    make_trail=False,
                                    retain=10000,
                                    texture=self._texture,
+                                   bumpmap=vpython.bumpmaps.gravel,
                                    shininess=Displayable.PLANET_SHININIESS)
         self._obj.name = self._entity.name
         self._draw_labels()

@@ -31,7 +31,7 @@ log = logging.getLogger()
 
 DEFAULT_CENTRE = 'Habitat'
 DEFAULT_REFERENCE = 'Earth'
-DEFAULT_TARGET = 'Moon'
+DEFAULT_TARGET = 'AYSE'
 
 G = 6.674e-11
 
@@ -60,7 +60,6 @@ class FlightGui:
         self._texture_path: Path = texture_path
         self._commands: list = []
         self._spheres: dict = {}
-        self._landing_graphic: dict = {}
         self.pause_label: vpython.label = vpython.label(
             text="Simulation Paused.", visible=False)
 
@@ -68,7 +67,7 @@ class FlightGui:
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
         self._wtexts = []
-        #self._menu: vpython.menu = Menu()
+        # self._menu: vpython.menu = Menu()
         ################################################################
 
         self._scene.autoscale: bool = False
@@ -80,14 +79,10 @@ class FlightGui:
             self._texture_path = Path('data', 'textures')
 
         self._set_origin(DEFAULT_CENTRE)
-        self._set_reference(DEFAULT_REFERENCE)
-        self._set_target(DEFAULT_TARGET)
-        self._set_habitat("Habitat")
-        calc.set_ORT(self._origin, self._reference, self._target,
-                     self._habitat)
+        calc.ORT[0] = self._origin
 
         for planet in physical_state_to_draw.entities:
-            obj = None
+            obj: Displayable
             if planet.name == "Habitat":
                 obj = Habitat(planet, self._texture_path,
                               self._scene, self._minimap_canvas)
@@ -99,22 +94,21 @@ class FlightGui:
                 obj = Planet(planet, self._texture_path)
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
-        # for
 
-        Displayable._target_landing_graphic = (
-            Displayable._draw_landing_graphic(self._target))
-        Displayable._reference_landing_graphic = (
-            Displayable._draw_landing_graphic(self._reference))
+        self._set_reference(DEFAULT_REFERENCE)
+        self._set_target(DEFAULT_TARGET)
+        self._set_habitat("Habitat")
+        calc.set_ORT(self._origin, self._reference, self._target,
+                     self._habitat)
 
-        #self._menu.set_caption(self)
-        self._set_caption();
+        self._set_caption()
 
         # Add an animation when launching the program
         #   to describe the solar system and the current location
         if not no_intro:
             while self._scene.range > 600000:
                 vpython.rate(100)
-                self._scene.range = self._scene.range * 0.98
+                self._scene.range = self._scene.range * 0.92
         self.recentre_camera(DEFAULT_CENTRE)
     # end of __init__
 
@@ -125,7 +119,7 @@ class FlightGui:
         main_canvas = vpython.canvas.get_selected()
         miniamp_canvas = vpython.canvas(
             width=200, height=150, autoscale=True, userspin=False,
-            up=vpython.vector(0, 0, 1), forward=vpython.vector(0.1, 0.1, -1))
+            up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
         main_canvas.select()
         return miniamp_canvas
     # end of _init_minimap_canvas
@@ -134,21 +128,20 @@ class FlightGui:
         """Set up our vpython canvas and other internal variables"""
 
         _scene = vpython.canvas(
-            title='<b>OrbitX</b>',
+            title='<title>OrbitX</title>',
             align='right',
             width=800,
-            height=600,
+            height=800,
             center=vpython.vector(0, 0, 0),
-            up=vpython.vector(0, 0, 1),
-            forward=vpython.vector(0.1, 0.1, -1),
-            autoscale=True,
-            userspin=False
+            up=vpython.vector(0.1, 0.1, 1),
+            forward=vpython.vector(0, 0, -1),
+            autoscale=True
         )
-        _scene.autoscale: bool = False
+        _scene.autoscale = False
         _scene.bind('keydown', self._handle_keydown)
         _scene.bind('click', self._handle_click)
         # Show all planets in solar system
-        _scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
+        _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
     # end of _init_canvas
 
@@ -198,12 +191,16 @@ class FlightGui:
     def _set_reference(self, entity_name: str) -> None:
         try:
             self._reference = self._find_entity(entity_name)
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._reference)
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
 
     def _set_target(self, entity_name: str) -> None:
         try:
             self._target = self._find_entity(entity_name)
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._target)
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
 
@@ -359,18 +356,13 @@ class FlightGui:
         self._last_physical_state = physical_state_to_draw
         # Have to reset origin, reference, and target with new positions
         self._habitat = self._find_entity("Habitat")
-        self._set_origin(self._origin.name)
-        self._set_reference(self._reference.name)
-        self._set_target(self._target.name)
+        self._origin = self._find_entity(self._origin.name)
+        self._reference = self._find_entity(self._reference.name)
+        self._target = self._find_entity(self._target.name)
         calc.set_ORT(self._origin, self._reference, self._target,
                      self._habitat)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
-
-        Displayable._update_landing_graphic(
-            self._reference, Displayable._reference_landing_graphic)
-        Displayable._update_landing_graphic(
-            self._target, Displayable._target_landing_graphic)
 
         for planet in physical_state_to_draw.entities:
             self._displaybles[planet.name].draw(planet)
@@ -442,71 +434,75 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: f"{calc.orb_speed(self._reference):,.7g} m/s",
+             lambda: common.format_num(
+                 calc.orb_speed(self._reference)) + " m/s",
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
-             lambda: f"{calc.periapsis(self._reference):,.7g} m",
+             lambda: common.format_num(
+                 calc.periapsis(self._reference, self._habitat)) + " m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
-             lambda: f"{calc.apoapsis(self._reference):,.7g} m",
+             lambda: common.format_num(
+                 calc.apoapsis(self._reference, self._habitat)) + " m",
              "Highest altitude in naïve orbit around reference",
              False),
-            ("HRT phase angle &nbsp",
-             lambda: f"{round(np.degrees(self._habitat.heading))} degrees",
-             "Current angle of habitat",
-             False),
-            ("Fuel: ",
-             lambda: f"{abs(round(self._habitat.fuel, 1))} kg",
-             "Remaining fuel of habitat",
+            ("HRT phase θ",
+             lambda: '{:.0f}'.format(calc.phase_angle()) + "°",
+             "Angle between Habitat, Reference, and Target",
              False),
             ("Throttle",
-             lambda:
-             f"{self._habitat.throttle:.1%}",
+             lambda: "{:.1%}".format(self._habitat.throttle),
              "Percentage of habitat's maximum rated engines",
+             True),
+            ("Fuel ",
+             lambda: common.format_num(self._habitat.fuel) + " kg",
+             "Remaining fuel of habitat",
              False),
-
-            ("Ref alt",
-             lambda: f"{calc.altitude(self._reference, self._habitat):,.7g} m",
+            ("Ref altitude",
+             lambda: common.format_num(
+                calc.altitude(self._reference, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
-             False),
+             True),
             ("Ref speed",
-             lambda: f"{calc.speed(self._reference, self._habitat):,.7g} m/s",
+             lambda: common.format_num(
+                calc.speed(self._reference, self._habitat)) + " m/s",
              "Speed of habitat above reference surface",
              False),
             ("Vertical speed",
-             lambda:
-             f"{calc.v_speed(self._reference, self._habitat):,.7g} m/s ",
+             lambda: common.format_num(
+                calc.v_speed(self._reference, self._habitat)) + " m/s ",
              "Vertical speed of habitat towards/away reference surface",
              False),
             ("Horizontal speed",
-             lambda:
-             f"{calc.h_speed(self._reference, self._habitat):,.7g} m/s ",
+             lambda: common.format_num(
+                calc.h_speed(self._reference, self._habitat)) + " m/s ",
              "Horizontal speed of habitat across reference surface",
              False),
-            ("Targ alt",
-             lambda:
-             f"{calc.altitude(self._target, self._habitat):,.7g} m",
+            ("Targ altitude",
+             lambda: common.format_num(
+                calc.altitude(self._target, self._habitat)) + " m",
              "Altitude of habitat above reference surface",
-             False),
+             True),
             ("Targ speed",
-             lambda:
-             f"{calc.speed(self._target, self._habitat):,.7g} m/s",
-             "Altitude of habitat above reference surface",
+             lambda: common.format_num(
+                calc.speed(self._target, self._habitat)) + " m/s",
+             "Speed of habitat above target surface",
              False)
+            # TODO add pitch and stopping acceleration fields after symposium
         ]:
             self._wtexts.append(vpython.wtext(text=text_gen_func()))
             self._wtexts[-1].text_func = text_gen_func
-            self._scene.caption += f"""<tr>
-            <td {"class='newsection'" if new_section else ""}>
+            self._scene.caption += f"""<tr {"class='newsection'" if new_section else ""}>
+            <td>
                 {caption}
             </td >
-            <td class = "num{" newsection" if new_section else ""}" >
+            <td class="num">
                 <div id = "{div_id}" >
                     {self._wtexts[-1].text}
-            </div >
-            <div class = "helptext{"newsection" if new_section else ""}" 
+                </div >
+            <div class="helptext"
                 style="font-size: 12px">
                     {helptext}
             </div >
@@ -518,6 +514,13 @@ class FlightGui:
         self._set_menus()
         self._scene.append_to_caption(style.HELP_CHECKBOX)
         self._scene.append_to_caption(" Help text")
+        self._scene.append_to_caption("\t\t")
+        vpython.button(
+            text=" Switch ", pos=self._scene.caption_anchor,
+            disabled=True, bind=self._switch)
+        self._scene.append_to_caption(
+            f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
+
         self._scene.append_to_caption(style.INPUT_CHEATSHEET)
 
         self._scene.append_to_caption(style.VPYTHON_CSS)
@@ -559,7 +562,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._new_reference(selection.selected),
+            bind=lambda selection: self._set_reference(selection.selected),
             selected=DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
@@ -568,7 +571,7 @@ class FlightGui:
 
         build_menu(
             choices=list(self._spheres),
-            bind=lambda selection: self._new_target(selection.selected),
+            bind=lambda selection: self._set_target(selection.selected),
             selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
@@ -576,7 +579,7 @@ class FlightGui:
 
         build_menu(
             choices=['deprt ref'],
-            bind=lambda selection: self._set_navmode(selection.selected),
+            bind=lambda selection: log.error(f"Unimplemented: {selection}"),
             selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
@@ -595,6 +598,18 @@ class FlightGui:
         vpython.checkbox(
             bind=self._trail_checkbox_hook, checked=False, text='Trails')
         self._scene.append_to_caption(
-            " <span class='helptext'>Graphically intensive</span>")
+            " <span class='helptext'>&nbspGraphically intensive</span>")
+
+        self._scene.append_to_caption("\t\t\t")
+        vpython.button(
+            text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
+        self._scene.append_to_caption(
+            f"<span class='helptext'>Dock to AYSE</span>")
     # end of _set_menus
+
+    def _undock(self):
+        print("undock")
+
+    def _switch(self):
+        print("switch")
 # end of class FlightGui

@@ -4,8 +4,11 @@ VPYTHON_CSS = """<style>
 * {
     background-color: black;
     color: white;
-    border-collapse: collapse;
-    border-color: white;
+}
+
+.ui-resizable-handle {
+    /* hides the resize bars on the edges of canvases */
+    background-image: none;
 }
 
 div {
@@ -19,30 +22,33 @@ canvas {
 table {
     margin-top: 1em;
     margin-bottom: 1em;
+    height: 30%;
+    border-collapse: collapse;
+    border-style: none;
 }
+
 th {
     text-align: left;
     border-collapse: collapse;
     height: 50px;
 }
 
+tr.newsection {
+    border-top-style: solid;
+    border-top-width: thin;
+    border-top-color: white;
+}
+
 td {
-    width: 20%;
+    width: 10em;
+    padding: 4px
 }
-
-tr {
-    height: 30px;
-    border-style: solid;
-}
-
-.newsection {
-    padding-top: 1em;
-}
-.num {
+td.num {
     font-family: monospace;
     font-weight: bold;
-    border-collapse: collapse;
+    width: 70%;
 }
+
 select {
     width: 100px;
 }
