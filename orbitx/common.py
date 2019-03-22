@@ -19,7 +19,10 @@ DEFAULT_TIME_ACC = 1
 MIN_THROTTLE = -1
 MAX_THROTTLE = 1
 
+# A small positive distance and speed, respectively, that is added to a ship
+# that is undocking.
 LAUNCH_SEPARATION = 0.5
+LAUNCH_BOOST_SPEED = 1.0
 
 DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'

@@ -25,6 +25,7 @@ message Command {
         HAB_THROTTLE_SET = 3;
         TIME_ACC_SET = 4;
         ENGINEERING_UPDATE = 5;
+        UNDOCK = 6;
     }
 
     message EngineeringUpdate {

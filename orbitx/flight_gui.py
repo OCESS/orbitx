@@ -608,7 +608,7 @@ class FlightGui:
     # end of _set_menus
 
     def _undock(self):
-        print("undock")
+        self._commands.append(protos.Command(ident=protos.Command.UNDOCK))
 
     def _switch(self):
         print("switch")

@@ -145,24 +145,23 @@ class PEngine(object):
 
         control_craft_index = y0.control_craft_index()
 
-        def launch():
+        def launch(craft_index: int):
             nonlocal y0
             # Make sure that we're slightly above the surface of an attachee
             # before un-attaching two entities
             attached_to = y0.AttachedTo
-            if control_craft_index in attached_to.keys():
-                ship = y0[control_craft_index]
-                attachee = y0[attached_to[control_craft_index]]
+            if craft_index in attached_to.keys():
+                ship = y0[craft_index]
+                attachee = y0[attached_to[craft_index]]
 
                 norm = ship.pos - attachee.pos
                 unit_norm = norm / np.linalg.norm(norm)
-                # This magic number is anything that is small to make much of
-                # an effect, but positive so that a collision will be detected
                 ship.pos = attachee.pos + unit_norm * (
                     common.LAUNCH_SEPARATION + attachee.r + ship.r)
+                ship.v += unit_norm * common.LAUNCH_BOOST_SPEED
                 ship.attached_to = ''
 
-                y0[control_craft_index] = ship
+                y0[craft_index] = ship
 
         if command.ident == protos.Command.HAB_SPIN_CHANGE:
             if control_craft_index not in y0.AttachedTo:
@@ -171,12 +170,12 @@ class PEngine(object):
                     requested_spin_change=command.spin_change)
                 y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
-            launch()
+            launch(control_craft_index)
             hab = y0[control_craft_index]
             hab.throttle += command.throttle_change
             y0[control_craft_index] = hab
         elif command.ident == protos.Command.HAB_THROTTLE_SET:
-            launch()
+            launch(control_craft_index)
             hab = y0[control_craft_index]
             hab.throttle = command.throttle_set
             y0[control_craft_index] = hab
@@ -191,6 +190,8 @@ class PEngine(object):
             ayse.fuel = command.engineering_update.ayse_fuel
             y0['Habitat'] = hab
             y0['AYSE'] = ayse
+        elif command.ident == protos.Command.UNDOCK:
+            launch(y0._name_to_index('Habitat'))
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
