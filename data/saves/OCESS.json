@@ -21,7 +21,7 @@
       "vy": 20406.8541293456,
       "r": 500,
       "mass": 20000000,
-      "heading": 1.6,
+      "heading": 0.01,
       "fuel": 15120000,
       "artificial": true
     },
