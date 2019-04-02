@@ -8,14 +8,14 @@ from typing import List
 
 from numpy.linalg import norm
 
-import orbitx.orbitx_pb2 as protos
-from orbitx.physics_entity import PhysicsEntity
+from orbitx import state
+from orbitx import network
 
 _last_orbitsse_modified_time = 0.0
 
 
 def write_state_to_osbackup(
-    orbitx_state: protos.PhysicalState,
+    orbitx_state: state.PhysicsState,
     osbackup_path: Path
 ) -> None:
     """Writes information to OSbackup.RND.
@@ -26,9 +26,8 @@ def write_state_to_osbackup(
     writing here by reading the source for engineering (enghabv.bas) and seeing
     what information it reads from OSbackup.RND"""
 
-    names = [entity.name for entity in orbitx_state.entities]
-    hab = _name_to_entity('Habitat', names, orbitx_state)
-    ayse = _name_to_entity('AYSE', names, orbitx_state)
+    hab = orbitx_state['Habitat']
+    ayse = orbitx_state['AYSE']
 
     with open(osbackup_path, 'r+b') as osbackup:
         # See enghabv.bas at label 813 (around line 1500) for where these
@@ -62,7 +61,7 @@ def write_state_to_osbackup(
         # Accel# = cvs(mid$(inpSTR$,k,4)):k=k+4
 
 
-def read_update_from_orbitsse(orbitsse_path: Path) -> protos.Command:
+def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     global _last_orbitsse_modified_time
     command = protos.Command(ident=protos.Command.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
@@ -87,16 +86,6 @@ def read_update_from_orbitsse(orbitsse_path: Path) -> protos.Command:
     command.engineering_update.hab_fuel = Zvar[2]
     command.engineering_update.ayse_fuel = Zvar[3]
     return command
-
-
-def _name_to_entity(
-        name: str, names: List[str],
-        state: protos.PhysicalState) -> PhysicsEntity:
-    # TODO this should be generalized, lots of other code does this repeatedly.
-    if name in names:
-        return PhysicsEntity(state.entities[names.index(name)])
-    else:
-        return PhysicsEntity(protos.Entity())
 
 
 def _write_int(integer: int, file):

@@ -9,17 +9,17 @@ Call FlightGui.pop_commands() to collect user input.
 import logging
 import signal
 from pathlib import Path
-from typing import Dict, List, Callable
+from typing import Callable, Dict, List, Optional
 import math
 
-
 import numpy as np
-from . import common
-from . import orbitx_pb2 as protos  # physics module
 import vpython                      # python 3D graphic library module
 
-import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
+from . import common
+from orbitx.orbitx_pb2 import Command
 import orbitx.calculator as calc
+import orbitx.state as state
+import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
 from orbitx.displayable import Displayable
 from orbitx.planet import Planet
 from orbitx.habitat import Habitat
@@ -42,14 +42,13 @@ class FlightGui:
 
     def __init__(
         self,
-        physical_state_to_draw: protos.PhysicalState,
+        draw_state: state.PhysicsState,
         texture_path: Path = None,
         no_intro: bool = False
     ) -> None:
-        # Note that this might actually start an HTTP server!
-        assert len(physical_state_to_draw.entities) >= 1
+        assert len(draw_state) >= 1
         ######################  attributes  ###########################
-        self._last_physical_state = physical_state_to_draw
+        self._last_state = draw_state
         self._minimap_canvas = self._init_minimap_canvas()
         # create a vpython canvas object
         self._scene: vpython.canvas = self._init_canvas()
@@ -57,7 +56,9 @@ class FlightGui:
         self._show_trails: bool = False
         self._pause: bool = False
         self.pause_label: vpython.label = None
-        self._texture_path: Path = texture_path
+        self._texture_path: Path = (
+            Path('data', 'textures') if texture_path is None else texture_path
+        )
         self._commands: list = []
         self._spheres: dict = {}
         self.pause_label: vpython.label = vpython.label(
@@ -66,22 +67,17 @@ class FlightGui:
         self._displaybles: Dict[str, Displayable] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
-        self._wtexts = []
+        self._wtexts: List[vpython.wtext] = []
         # self._menu: vpython.menu = Menu()
         ################################################################
 
-        self._scene.autoscale: bool = False
-        self._scene.range: float = 696000000.0 * 15000  # Sun radius * 15000
-
-        # set texture path
-        if texture_path is None:
-            # Look for orbitx/data/textures
-            self._texture_path = Path('data', 'textures')
+        self._scene.autoscale = False
+        self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
         self._set_origin(DEFAULT_CENTRE)
         calc.ORT[0] = self._origin
 
-        for planet in physical_state_to_draw.entities:
+        for planet in draw_state:
             obj: Displayable
             if planet.name == "Habitat":
                 obj = Habitat(planet, self._texture_path,
@@ -139,7 +135,6 @@ class FlightGui:
         )
         _scene.autoscale = False
         _scene.bind('keydown', self._handle_keydown)
-        _scene.bind('click', self._handle_click)
         # Show all planets in solar system
         _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
@@ -184,13 +179,9 @@ class FlightGui:
             getattr(vpython.no_notebook, '__interact_loop').stop()
     # end of shutdown
 
-    def _find_entity(self, name: str) -> protos.Entity:
-        return common.find_entity(name, self._last_physical_state)
-    # end of _find_entity
-
     def _set_reference(self, entity_name: str) -> None:
         try:
-            self._reference = self._find_entity(entity_name)
+            self._reference = self._last_state[entity_name]
             self._displaybles[entity_name].draw_landing_graphic(
                 self._reference)
         except IndexError:
@@ -198,7 +189,7 @@ class FlightGui:
 
     def _set_target(self, entity_name: str) -> None:
         try:
-            self._target = self._find_entity(entity_name)
+            self._target = self._last_state[entity_name]
             self._displaybles[entity_name].draw_landing_graphic(
                 self._target)
         except IndexError:
@@ -218,13 +209,13 @@ class FlightGui:
             entity_name = self._reference.name
 
         try:
-            self._origin = self._find_entity(entity_name)
+            self._origin = self._last_state[entity_name]
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
 
     def _set_habitat(self, entity_name: str) -> None:
         try:
-            self._habitat = self._find_entity(entity_name)
+            self._habitat = self._last_state[entity_name]
         except IndexError:
             log.error(f'Tried to set non-existent "{entity_name}"')
 
@@ -254,75 +245,56 @@ class FlightGui:
         elif k == 'p':
             self._pause = not self._pause
         elif k == 'a':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_SPIN_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_SPIN_CHANGE,
                 spin_change=np.radians(10)))
         elif k == 'd':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_SPIN_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_SPIN_CHANGE,
                 spin_change=-np.radians(10)))
         elif k == 'w':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_CHANGE,
                 throttle_change=0.01))
         elif k == 's':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_CHANGE,
                 throttle_change=-0.01))
         elif k == 'W':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_CHANGE,
                 throttle_change=0.001))
         elif k == 'S':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_CHANGE,
                 throttle_change=-0.001))
         elif k == '\n':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_SET,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_SET,
                 throttle_set=1.00))
         elif k == 'backspace':
-            self._commands.append(protos.Command(
-                ident=protos.Command.HAB_THROTTLE_SET,
+            self._commands.append(Command(
+                ident=Command.HAB_THROTTLE_SET,
                 throttle_set=0.00))
     # end of _handle_keydown
-
-    def _handle_click(self, evt: vpython.event_return) -> None:
-        # global obj, clicked
-        try:
-            obj = self._scene.mouse.pick
-            if obj is not None:
-                self.update_caption(obj)
-
-        except AttributeError:
-            pass
-        # clicked = True
-
-    # TODO: 1)Update with correct physics values
-
-    # TODO: create bind functions for target, ref, and NAV MODE
 
     def get_cpation_anchor(self) -> vpython.canvas:
         return self._scene.caption_anchor
     # end of get_cpation_anchor
 
-    def get_spheres(self) -> List[protos.Entity]:
-        return self._spheres
-    # end of get_spheres
-
-    def get_reference(self) -> protos.Entity:
+    def get_reference(self) -> state.Entity:
         return self._reference
     # end of get_reference
 
-    def get_target(self) -> protos.Entity:
+    def get_target(self) -> state.Entity:
         return self._target
     # end of get_target
 
-    def get_origin(self) -> protos.Entity:
+    def get_origin(self) -> state.Entity:
         return self._origin
     # end of get_origin
 
-    def get_habitat(self) -> protos.Entity:
+    def get_habitat(self) -> state.Entity:
         return self._habitat
     # end of get_habitat
 
@@ -352,19 +324,19 @@ class FlightGui:
         self._time_acc_menu = menu
     # end of set_time_acc_menu
 
-    def draw(self, physical_state_to_draw: protos.PhysicalState) -> None:
-        self._last_physical_state = physical_state_to_draw
+    def draw(self, draw_state: state.PhysicsState) -> None:
+        self._last_state = draw_state
         # Have to reset origin, reference, and target with new positions
-        self._habitat = self._find_entity("Habitat")
-        self._origin = self._find_entity(self._origin.name)
-        self._reference = self._find_entity(self._reference.name)
-        self._target = self._find_entity(self._target.name)
+        self._habitat = self._last_state["Habitat"]
+        self._origin = self._last_state[self._origin.name]
+        self._reference = self._last_state[self._reference.name]
+        self._target = self._last_state[self._target.name]
         calc.set_ORT(self._origin, self._reference, self._target,
                      self._habitat)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
-        for planet in physical_state_to_draw.entities:
+        for planet in draw_state:
             self._displaybles[planet.name].draw(planet)
         # for
 
@@ -379,8 +351,8 @@ class FlightGui:
 
     def _time_acc_dropdown_hook(self, selection: vpython.menu) -> None:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
-        self._commands.append(protos.Command(
-            ident=protos.Command.TIME_ACC_SET,
+        self._commands.append(Command(
+            ident=Command.TIME_ACC_SET,
             time_acc_set=time_acc))
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
@@ -589,7 +561,7 @@ class FlightGui:
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
             bind=self._time_acc_dropdown_hook,
-            selected=1,
+            selected='1×',
             caption="Warp",
             helptext="Speed of simulation"
         )
@@ -608,7 +580,7 @@ class FlightGui:
     # end of _set_menus
 
     def _undock(self):
-        self._commands.append(protos.Command(ident=protos.Command.UNDOCK))
+        self._commands.append(Command(ident=Command.UNDOCK))
 
     def _switch(self):
         print("switch")

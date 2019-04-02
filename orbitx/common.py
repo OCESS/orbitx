@@ -7,6 +7,7 @@ from pathlib import Path
 import google.protobuf.json_format
 
 from . import orbitx_pb2 as protos
+from . import state
 
 
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
@@ -103,27 +104,18 @@ def format_num(num: float) -> str:
     return '{:,.5g}'.format(round(num))
 
 
-def load_savefile(file):
+def load_savefile(file) -> state.PhysicsState:
     with open(file, 'r') as f:
         data = f.read()
     read_state = protos.PhysicalState()
     google.protobuf.json_format.Parse(data, read_state)
-    return read_state
+    return state.PhysicsState(None, read_state)
 
 
 def write_savefile(physical_state, file):
     with open(file, 'w') as outfile:
         outfile.write(
             google.protobuf.json_format.MessageToJson(physical_state))
-
-
-def find_entity(name, physical_state):
-    try:
-        return [entity for entity in physical_state.entities
-                if entity.name == name][0]
-    except IndexError:
-        logging.getLogger().error(f'{name} not found in entity list')
-        raise
 
 
 def start_profiling():

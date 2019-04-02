@@ -1,12 +1,14 @@
-from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
-from orbitx.displayable import Displayable
+
 import vpython
+
 import orbitx.calculator as calc
+from orbitx.displayable import Displayable
+import orbitx.state as state
 
 
 class Planet(Displayable):
-    def __init__(self, entity: protos.Entity, texture_path: Path) -> None:
+    def __init__(self, entity: state.Entity, texture_path: Path) -> None:
         super(Planet, self).__init__(entity, texture_path)
         self._obj = vpython.sphere(pos=calc.posn(entity),
                                    axis=calc.ang_pos(entity.heading),
@@ -27,7 +29,7 @@ class Planet(Displayable):
         self._label.text = self._label.text_function(self._entity)
     # end of _draw_labels
 
-    def draw(self, entity: protos.Entity):
+    def draw(self, entity: state.Entity):
         self._update_obj(entity)
     # end of draw
 

@@ -18,7 +18,7 @@ service StateServer {
 
 
 message Command {
-    enum Ident {
+    enum Idents {
         NOOP = 0;
         HAB_SPIN_CHANGE = 1;
         HAB_THROTTLE_CHANGE = 2;
@@ -34,7 +34,7 @@ message Command {
         double ayse_fuel = 3;
     }
 
-    Ident ident = 1;
+    Idents ident = 1;
 
     oneof arg {
         double spin_change = 2;

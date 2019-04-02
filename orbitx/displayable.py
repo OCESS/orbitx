@@ -6,14 +6,12 @@ from typing import Optional
 
 import vpython
 import numpy as np
-from . import orbitx_pb2 as protos  # physics module
 
 import orbitx.calculator
 import orbitx.calculator as calc
+import orbitx.state as state
 import numpy as np
 import math
-
-
 
 log = logging.getLogger()
 
@@ -23,11 +21,11 @@ class Displayable(metaclass=ABCMeta):
     LANDING_GRAPHIC_OPAQUE_ALTITUDE = 100_000
     LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
 
-    def __init__(self, entity: protos.Entity, texture_path: Path) -> None:
+    def __init__(self, entity: state.Entity, texture_path: Path) -> None:
         self._obj: vpython.sphere
         self._label: vpython.label
         self._small_landing_graphic: vpython.compound
-        self._texture: str
+        self._texture: Optional[str]
 
         self._entity = entity
 
@@ -43,7 +41,7 @@ class Displayable(metaclass=ABCMeta):
             xoffset=0, yoffset=10, height=16,
             border=4, font='sans')
 
-    def draw_landing_graphic(self, entity: protos.Entity) -> None:
+    def draw_landing_graphic(self, entity: state.Entity) -> None:
         """Draw something that simulates a flat surface at near zoom levels."""
         def graphic(size: float):
             # Iterate over a list of Point 3-tuples, each representing the
@@ -74,7 +72,7 @@ class Displayable(metaclass=ABCMeta):
     # end of draw_small_landing_graphic
 
     def _update_landing_graphic(
-        self, graphic: vpython.compound, entity: protos.Entity
+        self, graphic: vpython.compound, entity: state.Entity
     ) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
@@ -108,12 +106,12 @@ class Displayable(metaclass=ABCMeta):
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible
 
-    def _update_obj(self, entity: protos.Entity) -> None:
+    def _update_obj(self, entity: state.Entity) -> None:
         self._entity = entity
         # update planet objects
         self._obj.pos = calc.posn(self._entity)
         if entity.name == "AYSE":
-            self._obj.axis = calc.ang_pos(self._entity.heading+np.pi)
+            self._obj.axis = calc.ang_pos(self._entity.heading + np.pi)
         else:
             self._obj.axis = calc.ang_pos(self._entity.heading)
 
@@ -129,7 +127,7 @@ class Displayable(metaclass=ABCMeta):
         return self._obj
     # end of get_obj
 
-    def relevant_range(self) -> None:
+    def relevant_range(self) -> float:
         return self._obj.radius * 2
     # end of relevant_range
 
@@ -139,7 +137,7 @@ class Displayable(metaclass=ABCMeta):
     # end of _draw_labels
 
     @abstractmethod
-    def draw(self, entity: protos.Entity) -> None:
+    def draw(self, entity: state.Entity) -> None:
         pass
     # end of draw
 

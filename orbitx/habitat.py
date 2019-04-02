@@ -1,18 +1,20 @@
-from . import orbitx_pb2 as protos  # physics module
 from pathlib import Path
-from orbitx.displayable import Displayable
+
 import vpython
+
 import orbitx.calculator as calc
 import orbitx.common as common
+from orbitx.displayable import Displayable
+import orbitx.state as state
 
 
 class Habitat(Displayable):
-    def __init__(self, entity: protos.Entity, texture_path: Path,
+    def __init__(self, entity: state.Entity, texture_path: Path,
                  scene: vpython.canvas, minimap: vpython.canvas) -> None:
         super(Habitat, self).__init__(entity, texture_path)
-        self._habitat_trail = None
-        self._ref_arrow = None
-        self._velocity_arrow = None
+        self._habitat_trail: vpython.trail = None
+        self._ref_arrow: vpython.arrow = None
+        self._velocity_arrow: vpython.arrow = None
         self._obj = self.__create_habitat(scene, minimap)
         self._draw_labels()
     # end of __init__
@@ -43,7 +45,7 @@ class Habitat(Displayable):
         hab.radius = self._entity.r / 2
         hab.shininess = 0.1
         hab.length = self._entity.r * 2
-        hab.height=self._entity.r
+        hab.height = self._entity.r
         hab.color = vpython.color.cyan
         old_scene.select()
         return hab
@@ -70,7 +72,7 @@ class Habitat(Displayable):
         return habitat
     # end of __create_habitat
 
-    def draw_landing_graphic(self, entity: protos.Entity) -> None:
+    def draw_landing_graphic(self, entity: state.Entity) -> None:
         # Habitats don't have landing graphics
         pass
 
@@ -83,7 +85,7 @@ class Habitat(Displayable):
         self._label.text = self._label.text_function(self._entity)
     # end of _draw_labels
 
-    def draw(self, entity: protos.Entity):
+    def draw(self, entity: state.Entity):
         self._update_obj(entity)
         same = calc.reference() == calc.habitat()
         default = vpython.vector(0, 0, -1)

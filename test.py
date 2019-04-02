@@ -9,9 +9,9 @@ import orbitx.orbitx_pb2 as protos
 
 import orbitx.common as common
 import orbitx.calculator as calculate
+import orbitx.network as network
 import orbitx.physics as physics
-from orbitx.physics_entity import Habitat, PhysicsEntity
-from orbitx.physics_state import PhysicsState
+from orbitx import state
 
 log = logging.getLogger()
 
@@ -48,13 +48,13 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # Let's do some math oh hey, they should collide at t=42.
             approach = physics_engine.get_state(41)
             bounced = physics_engine.get_state(43)
-            self.assertTrue(approach.entities[0].x > approach.entities[2].x)
-            self.assertTrue(approach.entities[2].vx > 0)
-            self.assertTrue(bounced.entities[0].x > bounced.entities[2].x)
-            self.assertTrue(bounced.entities[2].vx < 0)
+            self.assertTrue(approach[0].x > approach[2].x)
+            self.assertTrue(approach[2].vx > 0)
+            self.assertTrue(bounced[0].x > bounced[2].x)
+            self.assertTrue(bounced[2].vx < 0)
             self.assertEqual(
-                round(approach.entities[1].vy),
-                round(bounced.entities[1].vy))
+                round(approach[1].vy),
+                round(bounced[1].vy))
 
     def test_basic_movement(self):
         """Test that a moving object changes its position."""
@@ -64,15 +64,15 @@ class PhysicsEngineTestCase(unittest.TestCase):
             initial = physics_engine.get_state(0)
             moved = physics_engine.get_state(10)
             self.assertEqual(initial.timestamp, 0)
-            self.assertAlmostEqual(initial.entities[0].x, 0)
-            self.assertAlmostEqual(initial.entities[0].y, 0)
-            self.assertAlmostEqual(initial.entities[0].vx, 1)
-            self.assertAlmostEqual(initial.entities[0].vy, -1)
+            self.assertAlmostEqual(initial[0].x, 0)
+            self.assertAlmostEqual(initial[0].y, 0)
+            self.assertAlmostEqual(initial[0].vx, 1)
+            self.assertAlmostEqual(initial[0].vy, -1)
             self.assertEqual(moved.timestamp, 10)
-            self.assertAlmostEqual(moved.entities[0].x, 10)
-            self.assertAlmostEqual(moved.entities[0].y, -10)
-            self.assertAlmostEqual(moved.entities[0].vx, 1)
-            self.assertAlmostEqual(moved.entities[0].vy, -1)
+            self.assertAlmostEqual(moved[0].x, 10)
+            self.assertAlmostEqual(moved[0].y, -10)
+            self.assertAlmostEqual(moved[0].vx, 1)
+            self.assertAlmostEqual(moved[0].vy, -1)
 
     def test_gravitation(self):
         """Test that gravitational acceleration at t=0 is as expected."""
@@ -84,28 +84,29 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # https://www.wolframalpha.com/input/?i=1e30+kg+*+G+%2F+(1e8+m)%5E2
             # According to the above, this should be somewhere between 6500 and
             # 7000 m/s after one second.
-            self.assertTrue(moved.entities[1].vx > 5000,
-                            msg=f'vx is actually {moved.entities[1].vx}')
+            self.assertTrue(moved[1].vx > 5000,
+                            msg=f'vx is actually {moved[1].vx}')
 
             # Test the internal math that the internal derive function is doing
             # the right calculations. Break out your SPH4U physics equations!!
-            y0 = physics.PhysicsState(None, initial)
+            y0 = initial
             # Note that dy.X is actually the velocity at 0,
             # and dy.VX is acceleration.
-            dy = physics.PhysicsState(
-                physics_engine._derive(0, y0._y0, initial), initial)
+            dy = state.PhysicsState(
+                physics_engine._derive(0, y0._y0, y0._proto_state),
+                y0._proto_state)
             self.assertEqual(len(dy.X), 2)
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(G * initial.entities[1].mass /
+                             round(G * initial[1].mass /
                                    (y0.X[0] - y0.X[1])**2))
             self.assertAlmostEqual(dy.VY[0], 0)
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(G * initial.entities[0].mass /
+                             round(G * initial[0].mass /
                                    (y0.X[1] - y0.X[0])**2))
             self.assertAlmostEqual(dy.VY[1], 0)
 
@@ -118,36 +119,37 @@ class PhysicsEngineTestCase(unittest.TestCase):
             t_delta = 5
 
             physics_engine.handle_command(
-                protos.Command(
-                    ident=protos.Command.HAB_THROTTLE_SET,
+                network.Request(
+                    ident=network.Request.HAB_THROTTLE_SET,
                     throttle_set=throttle),
                 requested_t=0)
 
             initial = physics_engine.get_state(0)
             moved = physics_engine.get_state(t_delta)
 
-            self.assertAlmostEqual(initial.entities[0].heading, 0)
+            self.assertAlmostEqual(initial[0].heading, 0)
 
             self.assertAlmostEqual(
-                moved.entities[0].fuel,
-                (initial.entities[0].fuel -
-                 t_delta * Habitat.fuel_cons(throttle=throttle)))
+                moved[0].fuel,
+                (initial[0].fuel -
+                 t_delta * state.Habitat.fuel_cons(throttle=throttle)))
             self.assertTrue(
-                moved.entities[0].vx <
+                moved[0].vx <
                 (t_delta *
-                    Habitat.thrust(throttle=throttle,
-                                   heading=initial.entities[0].heading)[0] /
-                    (moved.entities[0].mass + moved.entities[0].fuel))
+                    state.Habitat.thrust(
+                        throttle=throttle,
+                        heading=initial[0].heading)[0] /
+                    (moved[0].mass + moved[0].fuel))
             )
 
-            t_no_fuel = (initial.entities[0].fuel /
-                         Habitat.fuel_cons(throttle=throttle))
+            t_no_fuel = (initial[0].fuel /
+                         state.Habitat.fuel_cons(throttle=throttle))
             empty_fuel = physics_engine.get_state(t_no_fuel)
             after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
 
-            self.assertEqual(round(empty_fuel.entities[0].fuel), 0)
-            self.assertEqual(round(after_empty_fuel.entities[0].vx),
-                             round(empty_fuel.entities[0].vx))
+            self.assertEqual(round(empty_fuel[0].fuel), 0)
+            self.assertEqual(round(after_empty_fuel[0].vx),
+                             round(empty_fuel[0].vx))
 
     def test_three_body(self):
         """Test gravitational acceleration between three bodies is expected."""
@@ -156,47 +158,48 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # entity at the right angle being about as massive as the sun.
             # The first entity is the massive entity, the second is far to the
             # left, and the third is far to the top.
-            state = physics_engine.get_state(0)
+            physics_state = physics_engine.get_state(0)
 
             # Test that every single entity has the correct accelerations.
-            y0 = physics.PhysicsState(None, state)
-            dy = physics.PhysicsState(
-                physics_engine._derive(0, y0._y0, state), state)
+            y0 = physics_state
+            dy = state.PhysicsState(
+                physics_engine._derive(0, y0._y0, y0._proto_state),
+                physics_state._proto_state)
             self.assertEqual(len(dy.X), 3)
 
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(G * state.entities[1].mass /
+                             round(G * physics_state[1].mass /
                                    (y0.X[0] - y0.X[1])**2))
             self.assertEqual(round(abs(dy.VY[0])),
-                             round(G * state.entities[2].mass /
+                             round(G * physics_state[2].mass /
                                    (y0.Y[0] - y0.Y[2])**2))
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(G * state.entities[0].mass /
+                             round(G * physics_state[0].mass /
                                    (y0.X[1] - y0.X[0])**2 +
 
-                                   np.sqrt(2) * G * state.entities[2].mass /
+                                   np.sqrt(2) * G * physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2
                                    ))
             self.assertEqual(round(abs(dy.VY[1])),
-                             round(np.sqrt(2) * G * state.entities[2].mass /
+                             round(np.sqrt(2) * G * physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2))
 
             self.assertAlmostEqual(dy.X[2], y0.VX[2])
             self.assertAlmostEqual(dy.Y[2], y0.VY[2])
             self.assertEqual(round(abs(dy.VX[2])),
-                             round(np.sqrt(2) * G * state.entities[2].mass /
+                             round(np.sqrt(2) * G * physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2))
             self.assertEqual(round(abs(dy.VY[2])),
                              round(
-                             G * state.entities[0].mass /
+                             G * physics_state[0].mass /
                              (y0.Y[2] - y0.Y[0])**2 +
 
-                             np.sqrt(2) * G * state.entities[1].mass /
+                             np.sqrt(2) * G * physics_state[1].mass /
                              (y0.Y[2] - y0.Y[1])**2
                              ))
 
@@ -209,23 +212,24 @@ class PhysicsEngineTestCase(unittest.TestCase):
             before = physics_engine.get_state(40)
             after = physics_engine.get_state(50)
 
-            assert before.entities[0].artificial
-            assert not before.entities[2].artificial
+            assert before[0].artificial
+            assert not before[2].artificial
 
-            self.assertTrue(before.entities[0].x > before.entities[2].x)
-            self.assertTrue(before.entities[2].vx > 0)
-            self.assertAlmostEqual(after.entities[0].vx, after.entities[2].vx)
-            self.assertAlmostEqual(after.entities[0].x,
-                                   (after.entities[2].x +
-                                    after.entities[0].r +
-                                    after.entities[2].r))
+            self.assertTrue(before[0].x > before[2].x)
+            self.assertTrue(before[2].vx > 0)
+            self.assertAlmostEqual(after[0].vx, after[2].vx)
+            self.assertAlmostEqual(after[0].x,
+                                   (after[2].x +
+                                    after[0].r +
+                                    after[2].r))
 
     def test_longterm_stable_landing(self):
         """Test that landed ships have stable altitude in the long term."""
         with PhysicsEngine('landed.json') as physics_engine:
-            initial = PhysicsState(None, physics_engine.get_state(10))
+            initial = physics_engine.get_state(10)
             physics_engine.set_time_acceleration(1_000_000, requested_t=10)
-            final = PhysicsState(None, physics_engine.get_state(1_000_000))
+            final = state.PhysicsState(
+                None, physics_engine.get_state(1_000_000))
             self.assertAlmostEqual(
                 np.linalg.norm(initial['Earth'].pos - initial['Habitat'].pos),
                 initial['Earth'].r + initial['Habitat'].r,
@@ -236,16 +240,16 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 delta=1)
 
 
-class PhysicsEntityTestCase(unittest.TestCase):
-    """Tests that PhysicsEntity properly proxies underlying proto."""
+class EntityTestCase(unittest.TestCase):
+    """Tests that state.Entity properly proxies underlying proto."""
 
     def test_fields(self):
-        def test_field(pe: PhysicsEntity, field: str, val):
+        def test_field(pe: state.Entity, field: str, val):
             pe.proto.Clear()
             setattr(pe, field, val)
             self.assertEqual(getattr(pe.proto, field), val)
 
-        pe = PhysicsEntity(protos.Entity())
+        pe = state.Entity(protos.Entity())
         test_field(pe, 'name', 'test')
         test_field(pe, 'x', 5)
         test_field(pe, 'y', 5)
@@ -263,7 +267,7 @@ class PhysicsEntityTestCase(unittest.TestCase):
 
 
 class PhysicsStateTestCase(unittest.TestCase):
-    """Tests PhysicsState accessors and setters."""
+    """Tests state.PhysicsState accessors and setters."""
 
     physical_state = protos.PhysicalState(
         timestamp=5,
@@ -281,7 +285,7 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_attatched_to(self):
         """Test that the special .attached_to field is properly set."""
-        ps = PhysicsState(None, self.physical_state)
+        ps = state.PhysicsState(None, self.physical_state)
         self.assertEqual(ps['First'].attached_to, '')
         self.assertEqual(ps['Second'].attached_to, 'First')
         self.assertEqual(ps.AttachedTo, {1: 0})
@@ -301,18 +305,19 @@ class PhysicsStateTestCase(unittest.TestCase):
             0, 1      # Second is broken
         ])
 
-        ps = PhysicsState(y0, self.physical_state)
+        ps = state.PhysicsState(y0, self.physical_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
         self.assertEqual(ps['First'].attached_to, 'Second')
 
-        proto_state = ps.as_proto(50)
+        proto_state = ps.as_proto()
+        proto_state.timestamp = 50
         self.assertEqual(proto_state.timestamp, 50)
         self.assertEqual(proto_state.entities[0].fuel, 90)
         self.assertTrue(proto_state.entities[1].broken)
 
     def test_get_set(self):
         """Test __getitem__ and __setitem__."""
-        ps = PhysicsState(None, self.physical_state)
+        ps = state.PhysicsState(None, self.physical_state)
         entity = ps[0]
         entity.attached_to = 'Second'
         ps[0] = entity
@@ -334,9 +339,10 @@ class CalculationsTestCase(unittest.TestCase):
         # Again, see
         # https://www.wolframalpha.com/input/?i=International+Space+Station
         # For these expected values
-        state = common.load_savefile(common.savefile('tests/gui-test.json'))
-        iss = state.entities[0]
-        earth = state.entities[1]
+        physics_state = common.load_savefile(common.savefile(
+            'tests/gui-test.json'))
+        iss = physics_state[0]
+        earth = physics_state[1]
 
         # The semimajor axis is relatively close to expected.
         self.assertAlmostEqual(
@@ -357,9 +363,10 @@ class CalculationsTestCase(unittest.TestCase):
             1, delta=0.1)
 
     def test_speeds(self):
-        state = common.load_savefile(common.savefile('tests/gui-test.json'))
-        iss = state.entities[0]
-        earth = state.entities[1]
+        physics_state = common.load_savefile(common.savefile(
+            'tests/gui-test.json'))
+        iss = physics_state[0]
+        earth = physics_state[1]
 
         self.assertAlmostEqual(calculate.h_speed(iss, earth), 7665, delta=10)
         self.assertAlmostEqual(calculate.v_speed(iss, earth), -0.1, delta=10)

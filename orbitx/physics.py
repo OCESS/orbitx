@@ -11,11 +11,11 @@ import scipy.integrate
 import scipy.spatial
 import scipy.special
 
-from . import orbitx_pb2 as protos
+from orbitx.network import Request
 from . import common
 from .physic_functions import *
-from .physics_entity import Habitat
-from .physics_state import PhysicsState
+from . import state
+from orbitx.orbitx_pb2 import PhysicalState
 
 SOLUTION_CACHE_SIZE = 5
 
@@ -36,7 +36,7 @@ log = logging.getLogger()
 # np.array() is copying something, or changing the dtype, etc.
 
 
-class PEngine(object):
+class PEngine:
     """Physics Engine class. Encapsulates simulating physical state.
 
     Methods beginning with an underscore are not part of the API and change!
@@ -58,10 +58,7 @@ class PEngine(object):
     to hit me (Patrick) up, and I can help.
     """
 
-    def __init__(self, physical_state):
-        # A PhysicalState, but no x, y, vx, or vy. That's handled by get_state.
-        self._template_physical_state = protos.PhysicalState()
-
+    def __init__(self, physical_state: state.PhysicsState):
         # Controls access to self._solutions. If anything changes that is
         # related to self._solutions, this condition variable should be
         # notified. Currently, that's just if self._solutions or
@@ -76,8 +73,8 @@ class PEngine(object):
 
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
-        self.handle_command(protos.Command(
-            ident=protos.Command.TIME_ACC_SET, time_acc_set=time_acceleration))
+        self.handle_command(Request(
+            ident=Request.TIME_ACC_SET, time_acc_set=time_acceleration))
 
     def _simtime(self, requested_t=None, *, peek_time=False):
         """Gets simulation time, accounting for time acceleration and passage.
@@ -112,7 +109,7 @@ class PEngine(object):
                 self._solutions_cond.notify_all()
             self._simthread.join()
 
-    def _restart_simulation(self, t0: float, y0: PhysicsState) -> None:
+    def _restart_simulation(self, t0: float, y0: state.PhysicsState) -> None:
         self._stop_simthread()
 
         self._simthread = threading.Thread(
@@ -140,7 +137,7 @@ class PEngine(object):
         Use an argument to change habitat throttle or spinning, and simulation
         will restart with this new information."""
         requested_t = self._simtime(requested_t)
-        y0 = PhysicsState(None, self.get_state(requested_t))
+        y0 = self.get_state(requested_t)
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
         control_craft_index = y0.control_craft_index()
@@ -163,68 +160,68 @@ class PEngine(object):
 
                 y0[craft_index] = ship
 
-        if command.ident == protos.Command.HAB_SPIN_CHANGE:
+        if command.ident == Request.HAB_SPIN_CHANGE:
             if control_craft_index not in y0.AttachedTo:
                 hab = y0[control_craft_index]
-                hab.spin += Habitat.spin_change(
+                hab.spin += state.Habitat.spin_change(
                     requested_spin_change=command.spin_change)
                 y0[control_craft_index] = hab
-        elif command.ident == protos.Command.HAB_THROTTLE_CHANGE:
+        elif command.ident == Request.HAB_THROTTLE_CHANGE:
             launch(control_craft_index)
             hab = y0[control_craft_index]
             hab.throttle += command.throttle_change
             y0[control_craft_index] = hab
-        elif command.ident == protos.Command.HAB_THROTTLE_SET:
+        elif command.ident == Request.HAB_THROTTLE_SET:
             launch(control_craft_index)
             hab = y0[control_craft_index]
             hab.throttle = command.throttle_set
             y0[control_craft_index] = hab
-        elif command.ident == protos.Command.TIME_ACC_SET:
+        elif command.ident == Request.TIME_ACC_SET:
             assert command.time_acc_set > 0
             self._time_acceleration = command.time_acc_set
-        elif command.ident == protos.Command.ENGINEERING_UPDATE:
-            Habitat.engine.max_thrust = command.engineering_update.max_thrust
+        elif command.ident == Request.ENGINEERING_UPDATE:
+            state.Habitat.engine.max_thrust = \
+                command.engineering_update.max_thrust
             hab = y0['Habitat']
             ayse = y0['AYSE']
             hab.fuel = command.engineering_update.hab_fuel
             ayse.fuel = command.engineering_update.ayse_fuel
             y0['Habitat'] = hab
             y0['AYSE'] = ayse
-        elif command.ident == protos.Command.UNDOCK:
+        elif command.ident == Request.UNDOCK:
             launch(y0._name_to_index('Habitat'))
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
 
-    def set_state(self, physical_state):
+    def set_state(self, physical_state: state.PhysicsState):
         self._artificials = np.where(
             np.array([
                 entity.artificial
-                for entity in physical_state.entities]) >= 1)[0]
+                for entity in physical_state]) >= 1)[0]
         try:
             self._hab_index = [
-                entity.name for entity in physical_state.entities
+                entity.name for entity in physical_state
             ].index('Habitat')
         except ValueError:
             self._hab_index = 0
 
         try:
             self._spacestation_index = [
-                entity.name for entity in physical_state.entities
+                entity.name for entity in physical_state
             ].index('AYSE')
         except ValueError:
             self._spacestation_index = 0
 
-        y0 = PhysicsState(None, physical_state)
         # We keep track of the PhysicalState because our simulation only
         # simulates things that change like position and velocity, not things
         # that stay constant like names and mass. self._last_physical_state
         # contains these constants.
-        self._last_physical_state: protos.PhysicalState = physical_state
-        self.R = np.array([entity.r for entity in physical_state.entities])
-        self.M = np.array([entity.mass for entity in physical_state.entities])
+        self._last_physical_state = physical_state._proto_state
+        self.R = np.array([entity.r for entity in physical_state])
+        self.M = np.array([entity.mass for entity in physical_state])
 
-        self._restart_simulation(physical_state.timestamp, y0)
+        self._restart_simulation(physical_state.timestamp, physical_state)
 
     def _collision_decision(self, t, y, altitude_event):
         e1_index, e2_index = altitude_event(
@@ -338,7 +335,7 @@ class PEngine(object):
         e1.spin = e2.spin
         e1.v = e2.v
 
-    def get_state(self, requested_t=None):
+    def get_state(self, requested_t=None) -> state.PhysicsState:
         """Return the latest physical state of the simulation."""
         requested_t = self._simtime(requested_t)
 
@@ -365,21 +362,24 @@ class PEngine(object):
                 if soln.t_min <= requested_t and requested_t <= soln.t_max:
                     solution = soln
 
-        return PhysicsState(
+        newest_state = state.PhysicsState(
             solution(requested_t), self._last_physical_state
-        ).as_proto(requested_t)
+        )
+        newest_state.timestamp = requested_t
+
+        return newest_state
 
     def _simthread_target(self, t, y):
         log.debug('simthread started')
         try:
-            self._generate_new_ode_solutions(t, y)
+            self._run_simulation(t, y)
         except Exception as e:
             log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
         log.debug('simthread exited')
 
     def _derive(self, t: float, y_1d: np.ndarray,
-                proto_state: protos.PhysicalState) -> np.ndarray:
+                pass_through_state: PhysicalState) -> np.ndarray:
         """
         y_1d =
          [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken]
@@ -399,7 +399,7 @@ class PEngine(object):
                                                 current_t_of_system,
                                                 current_y_of_system)
         """
-        y = PhysicsState(y_1d, proto_state)
+        y = state.PhysicsState(y_1d, pass_through_state)
         Xa, Ya = grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
@@ -408,9 +408,10 @@ class PEngine(object):
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
                 entity = y[index]
-                fuel_cons[index] = -Habitat.fuel_cons(throttle=entity.throttle)
+                fuel_cons[index] = -state.Habitat.fuel_cons(
+                    throttle=entity.throttle)
                 hab_eng_acc_x, hab_eng_acc_y = (
-                    Habitat.thrust(
+                    state.Habitat.thrust(
                         throttle=entity.throttle, heading=entity.heading) /
                     (entity.mass + entity.fuel)
                 )
@@ -449,8 +450,8 @@ class PEngine(object):
         #    # We have fuel remaining, calculate thrust
         #    throttle = y.Throttle[self._spacestation_index]
         #    fuel_cons[self._spacestation_index] = \
-        #        -Habitat.fuel_cons(throttle=throttle)
-        #    hab_eng_acc_x, hab_eng_acc_y = Habitat.acceleration(
+        #        -state.Habitat.fuel_cons(throttle=throttle)
+        #    hab_eng_acc_x, hab_eng_acc_y = state.Habitat.acceleration(
         #        throttle=throttle,
         #        heading=y.Heading[self._spacestation_index])
         #    Xa[self._spacestation_index] += hab_eng_acc_x
@@ -461,7 +462,7 @@ class PEngine(object):
             zeros, fuel_cons, zeros, zeros, zeros
         ), axis=None)
 
-    def _generate_new_ode_solutions(self, t: float, y: PhysicsState) -> None:
+    def _run_simulation(self, t: float, y: state.PhysicsState) -> None:
         # An overview of how time is managed:
         #
         # self._last_simtime is the main thread's latest idea of
@@ -484,11 +485,12 @@ class PEngine(object):
             # Then we should integrate the interval of
             # [self._solutions[-1].t_max, requested_t]
             # and hopefully a bit farther past the end of that interval.
-            hab_fuel_event = HabFuelEvent(proto_state)
-            altitude_event = AltitudeEvent(proto_state, self.R)
+            hab_fuel_event = HabFuelEvent(y)
+            altitude_event = AltitudeEvent(y, self.R)
 
             ivp_out = scipy.integrate.solve_ivp(
-                functools.partial(self._derive, proto_state=proto_state),
+                functools.partial(
+                    self._derive, pass_through_state=proto_state),
                 [t, t + self._time_acceleration],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
@@ -520,7 +522,7 @@ class PEngine(object):
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
-            y = PhysicsState(ivp_out.y[:, -1], proto_state)
+            y = state.PhysicsState(ivp_out.y[:, -1], proto_state)
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
@@ -555,12 +557,12 @@ class Event:
 
 
 class HabFuelEvent(Event):
-    def __init__(self, proto_state: protos.PhysicalState):
-        self.proto_state = proto_state
+    def __init__(self, initial_state: state.PhysicsState):
+        self.initial_state = initial_state
 
     def __call__(self, t, y_1d) -> float:
         """Return a 0 only when throttle is nonzero."""
-        y = PhysicsState(y_1d, self.proto_state)
+        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
         for index, entity in enumerate(y._proto_state.entities):
             if entity.artificial and y.Throttle[index] != 0:
                 return y.Fuel[index]
@@ -568,8 +570,8 @@ class HabFuelEvent(Event):
 
 
 class AltitudeEvent(Event):
-    def __init__(self, proto_state: protos.PhysicalState, radii: np.ndarray):
-        self.proto_state = proto_state
+    def __init__(self, initial_state: state.PhysicsState, radii: np.ndarray):
+        self.initial_state = initial_state
         self.radii = radii
 
     def __call__(self, t, y_1d, return_pair=False
@@ -579,8 +581,8 @@ class AltitudeEvent(Event):
         Returns a scalar, with 0 indicating a collision and a sign change
             indicating a collision has happened.
         """
-        y = PhysicsState(y_1d, self.proto_state)
-        n = len(self.proto_state.entities)
+        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
+        n = len(self.initial_state)
         # 2xN of (x, y) positions
         posns = np.column_stack((y.X, y.Y))
         # An n*n matrix of _altitudes_ between each entity

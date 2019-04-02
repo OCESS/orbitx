@@ -1,6 +1,6 @@
 from typing import List, Callable
 import orbitx.calculator as calc
-from . import orbitx_pb2 as protos  # physics module
+from . import state
 import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
 import numpy as np
 
@@ -13,9 +13,9 @@ DEFAULT_TARGET = 'Moon'
 
 class Menu:
     def __init__(self):
-        self.reference: protos.Entity = None
-        self.target: protos.Entity = None
-        self.habitat: protos.Entity = None
+        self.reference: state.Entity = None
+        self.target: state.Entity = None
+        self.habitat: state.Entity = None
     # end of __init__
 
     def _update_RTH(self, gui):

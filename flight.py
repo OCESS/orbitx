@@ -20,7 +20,6 @@ import grpc
 
 import orbitx.common as common
 import orbitx.flight_gui as flight_gui
-import orbitx.orbitx_pb2 as protos
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 import orbitx.network as network
 import orbitx.physics as physics
@@ -164,7 +163,7 @@ def lead_server_loop(args):
             user_commands = []
             state = physics_engine.get_state()
             state_server.notify_state_change(
-                copy.deepcopy(state))
+                copy.deepcopy(state._proto_state))
 
             if not args.no_gui:
                 user_commands += gui.pop_commands()
@@ -173,7 +172,7 @@ def lead_server_loop(args):
             # If we have any commands, process them so the simthread has as
             # much time as possible to regenerate solutions before next update
             for command in user_commands:
-                if command.ident != protos.Command.NOOP:
+                if command.ident != network.Request.NOOP:
                     physics_engine.handle_command(command)
                     if not args.no_gui:
                         gui.notify_time_acc_change(
