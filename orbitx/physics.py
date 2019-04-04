@@ -182,14 +182,14 @@ class PEngine:
         elif command.ident == Request.ENGINEERING_UPDATE:
             state.Habitat.engine.max_thrust = \
                 command.engineering_update.max_thrust
-            hab = y0['Habitat']
-            ayse = y0['AYSE']
+            hab = y0[common.HABITAT]
+            ayse = y0[common.AYSE]
             hab.fuel = command.engineering_update.hab_fuel
             ayse.fuel = command.engineering_update.ayse_fuel
-            y0['Habitat'] = hab
-            y0['AYSE'] = ayse
+            y0[common.HABITAT] = hab
+            y0[common.AYSE] = ayse
         elif command.ident == Request.UNDOCK:
-            launch(y0._name_to_index('Habitat'))
+            launch(y0._name_to_index(common.HABITAT))
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)
@@ -202,14 +202,14 @@ class PEngine:
         try:
             self._hab_index = [
                 entity.name for entity in physical_state
-            ].index('Habitat')
+            ].index(common.HABITAT)
         except ValueError:
             self._hab_index = 0
 
         try:
             self._spacestation_index = [
                 entity.name for entity in physical_state
-            ].index('AYSE')
+            ].index(common.AYSE)
         except ValueError:
             self._spacestation_index = 0
 

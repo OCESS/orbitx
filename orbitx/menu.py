@@ -1,13 +1,15 @@
 from typing import List, Callable
-import orbitx.calculator as calc
-from . import state
-import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
-import numpy as np
 
+import numpy as np
 import vpython
 
-DEFAULT_CENTRE = 'Habitat'
-DEFAULT_REFERENCE = 'Earth'
+from orbitx import common
+from orbitx import state
+from orbitx import calculator as calc
+from orbitx import style
+
+DEFAULT_CENTRE = common.HABITAT
+DEFAULT_REFERENCE = common.EARTH
 DEFAULT_TARGET = 'Moon'
 
 

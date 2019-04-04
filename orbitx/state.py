@@ -10,8 +10,8 @@ from typing import List, Dict, Optional, Union
 import numpy as np
 import vpython
 
-from . import orbitx_pb2 as protos
-from . import common
+from orbitx import orbitx_pb2 as protos
+from orbitx import common
 
 
 class Entity:
@@ -79,7 +79,7 @@ class Entity:
     # TODO: temporary solution to detect AYSE, need improvement
     @property
     def dockable(self):
-        return self.name == "AYSE"
+        return self.name == common.AYSE
 
 
 for field in protos.Entity.DESCRIPTOR.fields:
@@ -109,7 +109,7 @@ class PhysicsState:
     y = PhysicsState(physical_state, y_1d)
 
     entity = y[0]
-    y['Habitat'] = habitat
+    y[common.HABITAT] = habitat
     scipy.solve_ivp(y.y0())
 
     See help(PhysicsState.__init__) for how to initialize. Basically, the `y`
@@ -255,7 +255,7 @@ class PhysicsState:
 
         Allows the following:
         physics_entity = PhysicsState[2]
-        physics_entity = PhysicsState['Habitat']
+        physics_entity = PhysicsState[common.HABITAT]
         """
         if isinstance(index, str):
             # Turn a name-based index into an integer
@@ -278,9 +278,9 @@ class PhysicsState:
 
         Allows the following:
         PhysicsState[2] = physics_entity
-        PhysicsState['Habitat'] = physics_entity
+        PhysicsState[common.HABITAT] = physics_entity
         """
-        # TODO: allow y['Habitat'].fuel = 5
+        # TODO: allow y[common.HABITAT].fuel = 5
         if isinstance(index, str):
             # Turn a name-based index into an integer
             index = self._entity_names().index(index)
@@ -358,10 +358,10 @@ class PhysicsState:
 
     def control_craft_index(self) -> int:
         """TODO: replace this with a field in the protobuf."""
-        hab_index = self._name_to_index('Habitat')
+        hab_index = self._name_to_index(common.HABITAT)
 
-        if self[hab_index].attached_to == 'AYSE':
-            return self._name_to_index('AYSE')
+        if self[hab_index].attached_to == common.AYSE:
+            return self._name_to_index(common.AYSE)
         else:
             return hab_index
 

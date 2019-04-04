@@ -32,9 +32,9 @@ from orbitx.menu import Menu
 
 log = logging.getLogger()
 
-DEFAULT_CENTRE = 'Habitat'
-DEFAULT_REFERENCE = 'Earth'
-DEFAULT_TARGET = 'AYSE'
+DEFAULT_CENTRE = common.HABITAT
+DEFAULT_REFERENCE = common.EARTH
+DEFAULT_TARGET = common.AYSE
 
 G = 6.674e-11
 
@@ -81,11 +81,11 @@ class FlightGui:
 
         for planet in draw_state:
             obj: Displayable
-            if planet.name == "Habitat":
+            if planet.name == common.HABITAT:
                 obj = Habitat(planet, self, self._scene, self._minimap_canvas)
-            elif planet.name == "AYSE":
+            elif planet.name == common.AYSE:
                 obj = SpaceStation(planet, self)
-            elif planet.name == "Sun":
+            elif planet.name == common.SUN:
                 obj = Star(planet, self)
             else:
                 obj = Planet(planet, self)
@@ -94,7 +94,7 @@ class FlightGui:
 
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
-        self._set_habitat("Habitat")
+        self._set_habitat(common.HABITAT)
 
         self._set_caption()
 
@@ -190,7 +190,7 @@ class FlightGui:
             return self._origin
 
     def active_craft(self) -> state.Entity:
-        return self._last_state['Habitat']
+        return self._last_state[common.HABITAT]
 
     def _set_reference(self, entity_name: str) -> None:
         try:
@@ -342,7 +342,7 @@ class FlightGui:
     def draw(self, draw_state: state.PhysicsState) -> None:
         self._last_state = draw_state
         # Have to reset origin, reference, and target with new positions
-        self._habitat = self._last_state["Habitat"]
+        self._habitat = self._last_state[common.HABITAT]
         self._origin = self._last_state[self._origin.name]
         self._reference = self._last_state[self._reference.name]
         self._target = self._last_state[self._target.name]

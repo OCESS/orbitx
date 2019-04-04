@@ -10,6 +10,13 @@ from . import orbitx_pb2 as protos
 from . import state
 
 
+# Frequently-used entity names are here as constants. You can use string
+# literals instead, but that's more prone to mipsellings.
+HABITAT = 'Habitat'
+AYSE = 'AYSE'
+SUN = 'Sun'
+EARTH = 'Earth'
+
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
 DEFAULT_LEAD_SERVER_PORT = 28430
 

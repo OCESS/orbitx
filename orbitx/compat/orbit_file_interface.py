@@ -8,6 +8,7 @@ from typing import List
 
 from numpy.linalg import norm
 
+from orbitx import common
 from orbitx import state
 from orbitx import network
 
@@ -26,8 +27,8 @@ def write_state_to_osbackup(
     writing here by reading the source for engineering (enghabv.bas) and seeing
     what information it reads from OSbackup.RND"""
 
-    hab = orbitx_state['Habitat']
-    ayse = orbitx_state['AYSE']
+    hab = orbitx_state[common.HABITAT]
+    ayse = orbitx_state[common.AYSE]
 
     with open(osbackup_path, 'r+b') as osbackup:
         # See enghabv.bas at label 813 (around line 1500) for where these
@@ -53,8 +54,9 @@ def write_state_to_osbackup(
         # but they're used for engineering to determine if you can load fuel
         # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
         # engineering if we're attached, but don't tell it any more deets.
-        _write_single(150 if hab.attached_to == 'AYSE' else 1000, osbackup)
-        _write_single(150 if hab.attached_to == 'Earth' else 1000, osbackup)
+        _write_single(150 if hab.attached_to == common.AYSE else 1000, osbackup)
+        _write_single(
+            150 if hab.attached_to == common.EARTH else 1000, osbackup)
 
         osbackup.seek(24, SEEK_CUR)
         # pressure = cvs(mid$(inpSTR$,k,4)):k=k+4

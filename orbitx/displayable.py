@@ -7,7 +7,7 @@ from typing import Optional
 import vpython
 import numpy as np
 
-import orbitx.calculator
+from orbitx import common
 import orbitx.calculator as calc
 import orbitx.state as state
 from orbitx.flight_gui import FlightGui
@@ -56,7 +56,7 @@ class Displayable(metaclass=ABCMeta):
                 vpython_verts = [vpython.vertex(
                     pos=vpython.vector(*coord),
                     color=(vpython.vector(0, 0.6, 0.8)
-                           if entity.name == 'Earth' else
+                           if entity.name == common.EARTH else
                            vpython.vector(0.5, 0.5, 0.5)))
                     for coord in tri]
                 vpython_tris.append(vpython.triangle(vs=vpython_verts))
@@ -113,7 +113,7 @@ class Displayable(metaclass=ABCMeta):
         self._entity = entity
         # update planet objects
         self._obj.pos = entity.screen_pos(self.flight_gui.origin())
-        if entity.name == "AYSE":
+        if entity.name == common.AYSE:
             self._obj.axis = calc.angle_to_vpy(self._entity.heading + np.pi)
         else:
             self._obj.axis = calc.angle_to_vpy(self._entity.heading)
