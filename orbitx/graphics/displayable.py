@@ -11,7 +11,7 @@ import numpy as np
 from orbitx import calc
 from orbitx import common
 from orbitx import state
-from orbitx.flight_gui import FlightGui
+from orbitx.graphics.flight_gui import FlightGui
 
 log = logging.getLogger()
 

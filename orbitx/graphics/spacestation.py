@@ -4,8 +4,8 @@ import numpy as np
 from orbitx import calc
 from orbitx import common
 from orbitx import state
-from orbitx.displayable import Displayable
-from orbitx.flight_gui import FlightGui
+from orbitx.graphics.displayable import Displayable
+from orbitx.graphics.flight_gui import FlightGui
 
 
 class SpaceStation(Displayable):

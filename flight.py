@@ -18,11 +18,11 @@ import urllib.parse
 
 import grpc
 
-import orbitx.common as common
-import orbitx.flight_gui as flight_gui
+from orbitx import common
+from orbitx import network
+from orbitx import physics
+from orbitx.graphics import flight_gui
 import orbitx.orbitx_pb2_grpc as grpc_stubs
-import orbitx.network as network
-import orbitx.physics as physics
 
 log = logging.getLogger()
 cleanup_function = None

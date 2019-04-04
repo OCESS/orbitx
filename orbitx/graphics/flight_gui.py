@@ -23,12 +23,12 @@ from orbitx import calc
 from orbitx import state
 from orbitx import style
 from orbitx.network import Request
-from orbitx.displayable import Displayable
-from orbitx.planet import Planet
-from orbitx.habitat import Habitat
-from orbitx.spacestation import SpaceStation
-from orbitx.star import Star
-from orbitx.menu import Menu
+from orbitx.graphics.displayable import Displayable
+from orbitx.graphics.planet import Planet
+from orbitx.graphics.habitat import Habitat
+from orbitx.graphics.spacestation import SpaceStation
+from orbitx.graphics.star import Star
+from orbitx.graphics.menu import Menu
 
 log = logging.getLogger()
 
