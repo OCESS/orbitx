@@ -1,9 +1,4 @@
 import numpy as np
-import scipy.integrate
-import scipy.spatial
-import scipy.special
-
-from . import common
 
 NO_INDEX = -1
 

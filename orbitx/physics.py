@@ -11,10 +11,10 @@ import scipy.integrate
 import scipy.spatial
 import scipy.special
 
+from orbitx import common
+from orbitx import state
+from orbitx.physic_functions import *
 from orbitx.network import Request
-from . import common
-from .physic_functions import *
-from . import state
 from orbitx.orbitx_pb2 import PhysicalState
 
 SOLUTION_CACHE_SIZE = 5

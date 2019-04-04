@@ -6,8 +6,8 @@ from pathlib import Path
 
 import google.protobuf.json_format
 
-from . import orbitx_pb2 as protos
-from . import state
+from orbitx import orbitx_pb2 as protos
+from orbitx import state
 
 
 # Frequently-used entity names are here as constants. You can use string
@@ -111,7 +111,7 @@ def format_num(num: float) -> str:
     return '{:,.5g}'.format(round(num))
 
 
-def load_savefile(file) -> state.PhysicsState:
+def load_savefile(file) -> 'state.PhysicsState':
     with open(file, 'r') as f:
         data = f.read()
     read_state = protos.PhysicalState()

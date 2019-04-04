@@ -1,8 +1,8 @@
 import vpython
 
-import orbitx.calculator as calc
+from orbitx import calc
+from orbitx import state
 from orbitx.displayable import Displayable
-import orbitx.state as state
 from orbitx.flight_gui import FlightGui
 
 

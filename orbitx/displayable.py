@@ -1,4 +1,5 @@
 import logging
+import math
 from abc import ABCMeta
 from abc import abstractmethod
 from pathlib import Path
@@ -7,12 +8,10 @@ from typing import Optional
 import vpython
 import numpy as np
 
+from orbitx import calc
 from orbitx import common
-import orbitx.calculator as calc
-import orbitx.state as state
+from orbitx import state
 from orbitx.flight_gui import FlightGui
-import numpy as np
-import math
 
 log = logging.getLogger()
 

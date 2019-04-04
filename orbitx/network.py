@@ -7,8 +7,8 @@ from typing import List, Union
 
 import grpc
 
-from . import orbitx_pb2 as protos
-from . import orbitx_pb2_grpc as grpc_stubs
+from orbitx import orbitx_pb2 as protos
+from orbitx import orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 

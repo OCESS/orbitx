@@ -8,9 +8,9 @@ Call FlightGui.pop_commands() to collect user input.
 
 import logging
 import signal
+import math
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, TypeVar
-import math
 
 import numpy as np
 import vpython                      # python 3D graphic library module
@@ -18,11 +18,11 @@ import vpython                      # python 3D graphic library module
 # Forward typing declaration is needed for Displayable and subclasses
 FlightGui = TypeVar('FlightGui')  # noqa: E402
 
-from . import common
-from orbitx.orbitx_pb2 import Command
-import orbitx.calculator as calc
-import orbitx.state as state
-import orbitx.style as style        # HTML5, Javascript and CSS3 code for UI
+from orbitx import common
+from orbitx import calc
+from orbitx import state
+from orbitx import style
+from orbitx.network import Request
 from orbitx.displayable import Displayable
 from orbitx.planet import Planet
 from orbitx.habitat import Habitat
@@ -260,36 +260,36 @@ class FlightGui:
         elif k == 'p':
             self._pause = not self._pause
         elif k == 'a':
-            self._commands.append(Command(
-                ident=Command.HAB_SPIN_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_SPIN_CHANGE,
                 spin_change=np.radians(10)))
         elif k == 'd':
-            self._commands.append(Command(
-                ident=Command.HAB_SPIN_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_SPIN_CHANGE,
                 spin_change=-np.radians(10)))
         elif k == 'w':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_CHANGE,
                 throttle_change=0.01))
         elif k == 's':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_CHANGE,
                 throttle_change=-0.01))
         elif k == 'W':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_CHANGE,
                 throttle_change=0.001))
         elif k == 'S':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_CHANGE,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_CHANGE,
                 throttle_change=-0.001))
         elif k == '\n':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_SET,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_SET,
                 throttle_set=1.00))
         elif k == 'backspace':
-            self._commands.append(Command(
-                ident=Command.HAB_THROTTLE_SET,
+            self._commands.append(Request(
+                ident=Request.HAB_THROTTLE_SET,
                 throttle_set=0.00))
     # end of _handle_keydown
 
@@ -363,8 +363,8 @@ class FlightGui:
 
     def _time_acc_dropdown_hook(self, selection: vpython.menu) -> None:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
-        self._commands.append(Command(
-            ident=Command.TIME_ACC_SET,
+        self._commands.append(Request(
+            ident=Request.TIME_ACC_SET,
             time_acc_set=time_acc))
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
@@ -594,7 +594,7 @@ class FlightGui:
     # end of _set_menus
 
     def _undock(self):
-        self._commands.append(Command(ident=Command.UNDOCK))
+        self._commands.append(Request(ident=Request.UNDOCK))
 
     def _switch(self):
         print("switch")

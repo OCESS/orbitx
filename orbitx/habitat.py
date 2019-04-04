@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import vpython
 
-import orbitx.calculator as calc
-import orbitx.common as common
+from orbitx import calc
+from orbitx import common
+from orbitx import state
 from orbitx.displayable import Displayable
-import orbitx.state as state
 from orbitx.flight_gui import FlightGui
 
 

@@ -7,10 +7,10 @@ import numpy as np
 
 import orbitx.orbitx_pb2 as protos
 
-import orbitx.common as common
-import orbitx.calculator as calculate
-import orbitx.network as network
-import orbitx.physics as physics
+from orbitx import calc
+from orbitx import common
+from orbitx import network
+from orbitx import physics
 from orbitx import state
 
 log = logging.getLogger()
@@ -346,20 +346,20 @@ class CalculationsTestCase(unittest.TestCase):
 
         # The semimajor axis is relatively close to expected.
         self.assertAlmostEqual(
-            calculate.semimajor_axis(iss, earth) / 6785e3, 1, delta=0.1)
+            calc.semimajor_axis(iss, earth) / 6785e3, 1, delta=0.1)
 
         # The eccentricity is within 1e-6 of the expected.
         self.assertAlmostEqual(
-            calculate.eccentricity(iss, earth), 5.893e-4, delta=10)
+            calc.eccentricity(iss, earth), 5.893e-4, delta=10)
 
         # The apoapsis is relatively close to expected.
         self.assertAlmostEqual(
-            calculate.apoapsis(iss, earth) / (418.3e3 + earth.r),
+            calc.apoapsis(iss, earth) / (418.3e3 + earth.r),
             1, delta=0.1)
 
         # The periapsis is relatively close to expected.
         self.assertAlmostEqual(
-            calculate.periapsis(iss, earth) / (410.3e3 + earth.r),
+            calc.periapsis(iss, earth) / (410.3e3 + earth.r),
             1, delta=0.1)
 
     def test_speeds(self):
@@ -368,8 +368,8 @@ class CalculationsTestCase(unittest.TestCase):
         iss = physics_state[0]
         earth = physics_state[1]
 
-        self.assertAlmostEqual(calculate.h_speed(iss, earth), 7665, delta=10)
-        self.assertAlmostEqual(calculate.v_speed(iss, earth), -0.1, delta=10)
+        self.assertAlmostEqual(calc.h_speed(iss, earth), 7665, delta=10)
+        self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=10)
 
 
 if __name__ == '__main__':

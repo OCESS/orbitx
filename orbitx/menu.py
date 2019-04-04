@@ -5,7 +5,7 @@ import vpython
 
 from orbitx import common
 from orbitx import state
-from orbitx import calculator as calc
+from orbitx import calc
 from orbitx import style
 
 DEFAULT_CENTRE = common.HABITAT
@@ -30,7 +30,7 @@ class Menu:
         """Set and update the captions."""
 
         # There's a bit of magic here. Normally, vpython.wtext will make a
-        # <div> in the HTML and automaticall update it when the .text field is
+        # <div> in the HTML and automatically update it when the .text field is
         # updated in this python code. But if you want to insert a wtext in the
         # middle of a field, the following first attempt won't work:
         #     scene.append_to_caption('<table>')

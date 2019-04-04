@@ -4,7 +4,7 @@ import collections
 import vpython
 import numpy as np
 
-import orbitx.state as state
+from orbitx import state
 
 G = 6.674e-11
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])

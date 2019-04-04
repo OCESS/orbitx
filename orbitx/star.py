@@ -1,8 +1,8 @@
 import vpython
 
-from orbitx.planet import Planet
-import orbitx.state as state
+from orbitx import state
 from orbitx.flight_gui import FlightGui
+from orbitx.planet import Planet
 
 
 class Star(Planet):
