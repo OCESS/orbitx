@@ -4,16 +4,16 @@ import logging
 import threading
 import time
 import warnings
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import scipy.integrate
 import scipy.spatial
 import scipy.special
 
+from orbitx import calc
 from orbitx import common
 from orbitx import state
-from orbitx.physic_functions import *
 from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 
@@ -64,10 +64,10 @@ class PEngine:
         # notified. Currently, that's just if self._solutions or
         # self._last_simtime changes.
         self._solutions_cond = threading.Condition()
-        self._solutions: collections.Deque
+        self._solutions: collections.deque
         self._last_monotime: float = time.monotonic()
         self._time_acceleration: float = common.DEFAULT_TIME_ACC
-        self._simthread_exception: Exception = None
+        self._simthread_exception: Optional[Exception] = None
 
         self.set_state(physical_state)
 
@@ -400,7 +400,7 @@ class PEngine:
                                                 current_y_of_system)
         """
         y = state.PhysicsState(y_1d, pass_through_state)
-        Xa, Ya = grav_acc(y.X, y.Y, self.M + y.Fuel)
+        Xa, Ya = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
