@@ -1,24 +1,25 @@
-from pathlib import Path
-
 import vpython
 
 import orbitx.calculator as calc
 from orbitx.displayable import Displayable
 import orbitx.state as state
+from orbitx.flight_gui import FlightGui
 
 
 class Planet(Displayable):
-    def __init__(self, entity: state.Entity, texture_path: Path) -> None:
-        super(Planet, self).__init__(entity, texture_path)
-        self._obj = vpython.sphere(pos=calc.posn(entity),
-                                   axis=calc.ang_pos(entity.heading),
-                                   up=vpython.vector(0, 0, 1),
-                                   radius=entity.r * 0.9,
-                                   make_trail=False,
-                                   retain=10000,
-                                   texture=self._texture,
-                                   bumpmap=vpython.bumpmaps.gravel,
-                                   shininess=Displayable.PLANET_SHININIESS)
+    def __init__(self, entity: state.Entity, flight_gui: FlightGui) -> None:
+        super(Planet, self).__init__(entity, flight_gui)
+        self._obj = vpython.sphere(
+            pos=entity.screen_pos(self.flight_gui.origin()),
+            axis=calc.angle_to_vpy(entity.heading),
+            up=vpython.vector(0, 0, 1),
+            radius=entity.r * 0.9,
+            make_trail=False,
+            retain=10000,
+            texture=self._texture,
+            bumpmap=vpython.bumpmaps.gravel,
+            shininess=Displayable.PLANET_SHININIESS
+        )
         self._obj.name = self._entity.name
         self._draw_labels()
     # end of __init__
@@ -32,13 +33,4 @@ class Planet(Displayable):
     def draw(self, entity: state.Entity):
         self._update_obj(entity)
     # end of draw
-
-    def clear_trail(self) -> None:
-        self._obj.clear_trail()
-    # end of clear_trail
-
-    def trail_option(self, stop: bool = False) -> None:
-        self._obj.make_trail = stop
-        if not stop:
-            self._obj.clear_trail()
 # end of class Planet

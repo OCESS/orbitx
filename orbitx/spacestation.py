@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import vpython
 import numpy as np
 
@@ -7,14 +5,15 @@ import orbitx.calculator as calc
 import orbitx.common as common
 from orbitx.displayable import Displayable
 import orbitx.state as state
+from orbitx.flight_gui import FlightGui
 
 
 class SpaceStation(Displayable):
-    def __init__(self, entity: state.Entity, texture_path: Path) -> None:
-        super(SpaceStation, self).__init__(entity, texture_path)
-        _pos = calc.posn(entity)
+    def __init__(self, entity: state.Entity, flight_gui: FlightGui) -> None:
+        super(SpaceStation, self).__init__(entity, flight_gui)
+        _pos = entity.screen_pos(self.flight_gui.origin())
         _radius = entity.r
-        _axis = calc.ang_pos(self._entity.heading + np.pi)
+        _axis = calc.angle_to_vpy(self._entity.heading + np.pi)
         ship = vpython.cone(pos=vpython.vector(2, 0, 0),
                             axis=vpython.vector(-8, 0, 0),
                             radius=3,
@@ -64,14 +63,12 @@ class SpaceStation(Displayable):
 
     def clear_trail(self) -> None:
         self._station_trail.clear()
-    # end of clear_trail
 
-    def trail_option(self, stop: bool = False) -> None:
-        if stop:
+    def make_trail(self, trails: bool) -> None:
+        self.clear_trail()
+        if trails:
             self._station_trail.start()
         else:
             self._station_trail.stop()
-            self._station_trail.clear()
-    # end of trail_option
 
 # end of class SpaceStation

@@ -8,6 +8,7 @@ import copy
 from typing import List, Dict, Optional, Union
 
 import numpy as np
+import vpython
 
 from . import orbitx_pb2 as protos
 from . import common
@@ -52,6 +53,10 @@ class Entity:
     attached_to: str
     broken: bool
     artificial: bool
+
+    def screen_pos(self, origin: 'Entity') -> vpython.vector:
+        """The on-screen position of this entity, relative to the origin."""
+        return vpython.vector(self.x - origin.x, self.y - origin.y, 0)
 
     @property
     def pos(self):

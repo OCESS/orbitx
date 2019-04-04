@@ -10,6 +10,7 @@ import numpy as np
 import orbitx.calculator
 import orbitx.calculator as calc
 import orbitx.state as state
+from orbitx.flight_gui import FlightGui
 import numpy as np
 import math
 
@@ -21,15 +22,16 @@ class Displayable(metaclass=ABCMeta):
     LANDING_GRAPHIC_OPAQUE_ALTITUDE = 100_000
     LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
 
-    def __init__(self, entity: state.Entity, texture_path: Path) -> None:
+    def __init__(self, entity: state.Entity, flight_gui: FlightGui) -> None:
         self._obj: vpython.sphere
         self._label: vpython.label
         self._small_landing_graphic: vpython.compound
         self._texture: Optional[str]
 
         self._entity = entity
+        self.flight_gui = flight_gui
 
-        texture = texture_path / (self._entity.name + '.jpg')
+        texture = self.flight_gui.texture_path / (self._entity.name + '.jpg')
         self._texture = str(texture) if texture.is_file() else None
         self._small_landing_graphic: Optional[vpython.compound] = None
         self._large_landing_graphic: Optional[vpython.compound] = None
@@ -37,7 +39,7 @@ class Displayable(metaclass=ABCMeta):
 
     def _create_label(self) -> vpython.label:
         return vpython.label(
-            visible=True, pos=calc.posn(self._entity),
+            pos=self._entity.screen_pos(self.flight_gui.origin()),
             xoffset=0, yoffset=10, height=16,
             border=4, font='sans')
 
@@ -60,7 +62,8 @@ class Displayable(metaclass=ABCMeta):
                 vpython_tris.append(vpython.triangle(vs=vpython_verts))
             return vpython.compound(
                 vpython_tris,
-                pos=calc.posn(entity), up=vpython.vector(0, 0, 1))
+                pos=entity.screen_pos(self.flight_gui.origin()),
+                up=vpython.vector(0, 0, 1))
 
         # We have to have to sizes because we want our landing graphic to be
         # visible at large zoom levels (the large one won't be, because vpython
@@ -83,14 +86,14 @@ class Displayable(metaclass=ABCMeta):
             return
 
         axis = vpython.vector(
-            calc.habitat().x - entity.x,
-            calc.habitat().y - entity.y,
+            self.flight_gui.active_craft().x - entity.x,
+            self.flight_gui.active_craft().y - entity.y,
             0
         )
 
         graphic.axis = vpython.vector(-axis.y, axis.x, 0).norm()
         graphic.pos = (
-            calc.posn(entity) +
+            entity.screen_pos(self.flight_gui.origin()) +
             axis.norm() * (entity.r - graphic.width / 2)
         )
 
@@ -109,15 +112,15 @@ class Displayable(metaclass=ABCMeta):
     def _update_obj(self, entity: state.Entity) -> None:
         self._entity = entity
         # update planet objects
-        self._obj.pos = calc.posn(self._entity)
+        self._obj.pos = entity.screen_pos(self.flight_gui.origin())
         if entity.name == "AYSE":
-            self._obj.axis = calc.ang_pos(self._entity.heading + np.pi)
+            self._obj.axis = calc.angle_to_vpy(self._entity.heading + np.pi)
         else:
-            self._obj.axis = calc.ang_pos(self._entity.heading)
+            self._obj.axis = calc.angle_to_vpy(self._entity.heading)
 
         # update label objects
         self._label.text = self._label.text_function(entity)
-        self._label.pos = calc.posn(entity)
+        self._label.pos = entity.screen_pos(self.flight_gui.origin())
         # update landing graphic objects
         self._update_landing_graphic(self._small_landing_graphic, entity)
         self._update_landing_graphic(self._large_landing_graphic, entity)
@@ -141,11 +144,10 @@ class Displayable(metaclass=ABCMeta):
         pass
     # end of draw
 
-    @abstractmethod
     def clear_trail(self) -> None:
-        pass
+        self._obj.clear_trail()
 
-    @abstractmethod
-    def trail_option(self, stop: bool = False) -> None:
-        pass
+    def make_trail(self, trails: bool) -> None:
+        self.clear_trail()
+        self._obj.make_trail = trails
 # end of class Displayable

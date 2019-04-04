@@ -6,12 +6,13 @@ import orbitx.calculator as calc
 import orbitx.common as common
 from orbitx.displayable import Displayable
 import orbitx.state as state
+from orbitx.flight_gui import FlightGui
 
 
 class Habitat(Displayable):
-    def __init__(self, entity: state.Entity, texture_path: Path,
+    def __init__(self, entity: state.Entity, flight_gui: FlightGui,
                  scene: vpython.canvas, minimap: vpython.canvas) -> None:
-        super(Habitat, self).__init__(entity, texture_path)
+        super(Habitat, self).__init__(entity, flight_gui)
         self._habitat_trail: vpython.trail = None
         self._ref_arrow: vpython.arrow = None
         self._velocity_arrow: vpython.arrow = None
@@ -41,7 +42,7 @@ class Habitat(Displayable):
 
         hab = vpython.compound([body, head, wing, wing2])
         hab.texture = vpython.textures.metal
-        hab.axis = calc.ang_pos(self._entity.heading)
+        hab.axis = calc.angle_to_vpy(self._entity.heading)
         hab.radius = self._entity.r / 2
         hab.shininess = 0.1
         hab.length = self._entity.r * 2
@@ -57,7 +58,7 @@ class Habitat(Displayable):
                 create a vpython compound object that represents our habitat.
         """
         habitat = self.hab_object(scene)
-        habitat.pos = calc.posn(self._entity)
+        habitat.pos = self._entity.screen_pos(self.flight_gui.origin())
         self._habitat = self._entity
         self._habitat_trail = vpython.attach_trail(habitat, retain=100)
         self._habitat_trail.stop()
@@ -87,14 +88,16 @@ class Habitat(Displayable):
 
     def draw(self, entity: state.Entity):
         self._update_obj(entity)
-        same = calc.reference() == calc.habitat()
+        same = self.flight_gui.reference() == entity
         default = vpython.vector(0, 0, -1)
 
-        ref_pos = vpython.vector(calc.reference().x, calc.reference().y, 0)
-        hab_pos = vpython.vector(calc.habitat().x, calc.habitat().y, 0)
-        ref_arrow_axis = (ref_pos - hab_pos).norm() * self._entity.r * 1.2
-        velocity_arrow_axis = calc.unit_velocity(
-            self._entity).norm() * self._entity.r
+        ref_arrow_axis = (
+            entity.screen_pos(self.flight_gui.reference()).norm() *
+            self._entity.r * -1.2
+        )
+        v = self._entity.v - self.flight_gui.reference().v
+        velocity_arrow_axis = \
+            vpython.vector(v[0], v[1], 0).norm() * self._entity.r
 
         self._ref_arrow.axis = default if same else ref_arrow_axis
         self._velocity_arrow.axis = default if same else velocity_arrow_axis
@@ -103,12 +106,11 @@ class Habitat(Displayable):
 
     def clear_trail(self) -> None:
         self._habitat_trail.clear()
-    # end of clear_trail
 
-    def trail_option(self, stop: bool = False) -> None:
-        if stop:
+    def make_trail(self, trails: bool) -> None:
+        self.clear_trail()
+        if trails:
             self._habitat_trail.start()
         else:
             self._habitat_trail.stop()
-            self._habitat_trail.clear()
 # end of class Habitat

@@ -9,11 +9,14 @@ Call FlightGui.pop_commands() to collect user input.
 import logging
 import signal
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, TypeVar
 import math
 
 import numpy as np
 import vpython                      # python 3D graphic library module
+
+# Forward typing declaration is needed for Displayable and subclasses
+FlightGui = TypeVar('FlightGui')  # noqa: E402
 
 from . import common
 from orbitx.orbitx_pb2 import Command
@@ -47,7 +50,7 @@ class FlightGui:
         no_intro: bool = False
     ) -> None:
         assert len(draw_state) >= 1
-        ######################  attributes  ###########################
+
         self._last_state = draw_state
         self._minimap_canvas = self._init_minimap_canvas()
         # create a vpython canvas object
@@ -56,7 +59,7 @@ class FlightGui:
         self._show_trails: bool = False
         self._pause: bool = False
         self.pause_label: vpython.label = None
-        self._texture_path: Path = (
+        self.texture_path: Path = (
             Path('data', 'textures') if texture_path is None else texture_path
         )
         self._commands: list = []
@@ -75,27 +78,23 @@ class FlightGui:
         self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
         self._set_origin(DEFAULT_CENTRE)
-        calc.ORT[0] = self._origin
 
         for planet in draw_state:
             obj: Displayable
             if planet.name == "Habitat":
-                obj = Habitat(planet, self._texture_path,
-                              self._scene, self._minimap_canvas)
+                obj = Habitat(planet, self, self._scene, self._minimap_canvas)
             elif planet.name == "AYSE":
-                obj = SpaceStation(planet, self._texture_path)
+                obj = SpaceStation(planet, self)
             elif planet.name == "Sun":
-                obj = Star(planet, self._texture_path)
+                obj = Star(planet, self)
             else:
-                obj = Planet(planet, self._texture_path)
+                obj = Planet(planet, self)
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
 
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
         self._set_habitat("Habitat")
-        calc.set_ORT(self._origin, self._reference, self._target,
-                     self._habitat)
 
         self._set_caption()
 
@@ -114,7 +113,7 @@ class FlightGui:
         # Make sure that the main canvas is still the default canvas.
         main_canvas = vpython.canvas.get_selected()
         miniamp_canvas = vpython.canvas(
-            width=200, height=150, autoscale=True, userspin=False,
+            width=200, height=150, userspin=False, userzoom=False,
             up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
         main_canvas.select()
         return miniamp_canvas
@@ -148,8 +147,7 @@ class FlightGui:
         entity should be reset every time when making a scene.center update.
         """
         try:
-            self._scene.range = self._displaybles[planet_name].relevant_range(
-            )
+            self._scene.range = self._displaybles[planet_name].relevant_range()
 
             self._scene.camera.follow(self._displaybles[planet_name].get_obj())
             self._set_origin(planet_name)
@@ -179,11 +177,28 @@ class FlightGui:
             getattr(vpython.no_notebook, '__interact_loop').stop()
     # end of shutdown
 
+    def reference(self) -> state.Entity:
+        return self._reference
+
+    def target(self) -> state.Entity:
+        return self._target
+
+    def origin(self) -> state.Entity:
+        if self._show_trails:
+            return self._reference
+        else:
+            return self._origin
+
+    def active_craft(self) -> state.Entity:
+        return self._last_state['Habitat']
+
     def _set_reference(self, entity_name: str) -> None:
         try:
             self._reference = self._last_state[entity_name]
             self._displaybles[entity_name].draw_landing_graphic(
                 self._reference)
+            if self._show_trails:
+                self._clear_trails()
         except IndexError:
             log.error(f'Tried to set non-existent reference "{entity_name}"')
 
@@ -331,8 +346,6 @@ class FlightGui:
         self._origin = self._last_state[self._origin.name]
         self._reference = self._last_state[self._reference.name]
         self._target = self._last_state[self._target.name]
-        calc.set_ORT(self._origin, self._reference, self._target,
-                     self._habitat)
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
@@ -347,7 +360,6 @@ class FlightGui:
     def _recentre_dropdown_hook(self, selection: vpython.menu) -> None:
         self._set_origin(selection.selected)
         self.recentre_camera(selection.selected)
-        self._clear_trails()
 
     def _time_acc_dropdown_hook(self, selection: vpython.menu) -> None:
         time_acc = int(selection.selected.replace(',', '').replace('×', ''))
@@ -358,7 +370,7 @@ class FlightGui:
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
         self._show_trails = selection.checked
         for name, obj in self._displaybles.items():
-            obj.trail_option(selection.checked)
+            obj.make_trail(selection.checked)
 
         if not self._show_trails:
             # Turning on trails set our camera origin to be the reference,
@@ -406,60 +418,62 @@ class FlightGui:
         div_id = 1
         for caption, text_gen_func, helptext, new_section in [
             ("Orbit speed",
-             lambda: common.format_num(
-                 calc.orb_speed(self._reference)) + " m/s",
+             lambda:
+                common.format_num(calc.orb_speed(
+                    self.active_craft(), self.reference())) + " m/s",
              "Speed required for circular orbit at current altitude",
              False),
             ("Periapsis",
              lambda: common.format_num(
-                 calc.periapsis(self._reference, self._habitat)) + " m",
+                 calc.periapsis(self.active_craft(), self.reference())) + " m",
              "Lowest altitude in naïve orbit around reference",
              False),
             ("Apoapsis",
              lambda: common.format_num(
-                 calc.apoapsis(self._reference, self._habitat)) + " m",
+                 calc.apoapsis(self.active_craft(), self.reference())) + " m",
              "Highest altitude in naïve orbit around reference",
              False),
             ("HRT phase θ",
-             lambda: '{:.0f}'.format(calc.phase_angle()) + "°",
+             lambda: '{:.0f}'.format(calc.phase_angle(
+                self.active_craft(), self.reference(), self.target())) + "°",
              "Angle between Habitat, Reference, and Target",
              False),
             ("Throttle",
-             lambda: "{:.1%}".format(self._habitat.throttle),
+             lambda: "{:.1%}".format(self.active_craft().throttle),
              "Percentage of habitat's maximum rated engines",
              True),
             ("Fuel ",
-             lambda: common.format_num(self._habitat.fuel) + " kg",
+             lambda: common.format_num(self.active_craft().fuel) + " kg",
              "Remaining fuel of habitat",
              False),
             ("Ref altitude",
              lambda: common.format_num(
-                calc.altitude(self._reference, self._habitat)) + " m",
+                calc.altitude(self.active_craft(), self.reference())) + " m",
              "Altitude of habitat above reference surface",
              True),
             ("Ref speed",
              lambda: common.format_num(
-                calc.speed(self._reference, self._habitat)) + " m/s",
+                calc.speed(self.active_craft(), self.reference())) + " m/s",
              "Speed of habitat above reference surface",
              False),
             ("Vertical speed",
              lambda: common.format_num(
-                calc.v_speed(self._reference, self._habitat)) + " m/s ",
+                calc.v_speed(self.active_craft(), self.reference())) + " m/s ",
              "Vertical speed of habitat towards/away reference surface",
              False),
             ("Horizontal speed",
              lambda: common.format_num(
-                calc.h_speed(self._reference, self._habitat)) + " m/s ",
+                calc.h_speed(self.active_craft(), self.reference())) + " m/s ",
              "Horizontal speed of habitat across reference surface",
              False),
             ("Targ altitude",
              lambda: common.format_num(
-                calc.altitude(self._target, self._habitat)) + " m",
+                calc.altitude(self.active_craft(), self.target())) + " m",
              "Altitude of habitat above reference surface",
              True),
             ("Targ speed",
              lambda: common.format_num(
-                calc.speed(self._target, self._habitat)) + " m/s",
+                calc.speed(self.active_craft(), self.target())) + " m/s",
              "Speed of habitat above target surface",
              False)
             # TODO add pitch and stopping acceleration fields after symposium
