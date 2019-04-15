@@ -1,7 +1,0 @@
-Test results with a server running on corn-syrup.csclub.uwaterloo.ca show that
-
-- performance starts to slightly degrade when there are 50 clients connected and
-  about 60 entities are being sent with each update
-
-- performance starts to degrade when there are 10 clients connected and about
-  10000 or 20000 entities are being sent with each update
