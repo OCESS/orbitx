@@ -26,7 +26,7 @@ class SpaceStation(Displayable):
                                             height=1.5)],
             pos=vpython.vec(0, 0, 0))  # position
 
-        self._obj = vpython.compound([ship, entrance])
+        self._obj = vpython.compound([ship, entrance], make_trail=True)
         self._obj.pos = _pos
         self._obj.axis = _axis
         self._obj.radius = _radius * 2
@@ -35,11 +35,6 @@ class SpaceStation(Displayable):
         self._obj.width = _radius * 2
 
         self._obj.name = self._entity.name
-
-        self._station_trail = vpython.attach_trail(self._obj, retain=100)
-
-        self._station_trail.stop()
-        self._station_trail.clear()
 
         self._draw_labels()
     # end of __init__
@@ -59,16 +54,3 @@ class SpaceStation(Displayable):
 
     def draw(self, entity: state.Entity):
         self._update_obj(entity)
-    # end of draw
-
-    def clear_trail(self) -> None:
-        self._station_trail.clear()
-
-    def make_trail(self, trails: bool) -> None:
-        self.clear_trail()
-        if trails:
-            self._station_trail.start()
-        else:
-            self._station_trail.stop()
-
-# end of class SpaceStation

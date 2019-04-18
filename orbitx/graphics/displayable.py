@@ -22,6 +22,7 @@ class Displayable(metaclass=ABCMeta):
     LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
 
     def __init__(self, entity: state.Entity, flight_gui: FlightGui) -> None:
+        log.debug(f'Constructing {entity.name} graphic')
         self._obj: vpython.sphere
         self._label: vpython.label
         self._small_landing_graphic: vpython.compound

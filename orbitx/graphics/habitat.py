@@ -11,7 +11,6 @@ class Habitat(Displayable):
     def __init__(self, entity: state.Entity, flight_gui: FlightGui,
                  scene: vpython.canvas, minimap: vpython.canvas) -> None:
         super(Habitat, self).__init__(entity, flight_gui)
-        self._habitat_trail: vpython.trail = None
         self._ref_arrow: vpython.arrow = None
         self._velocity_arrow: vpython.arrow = None
         self._obj = self.__create_habitat(scene, minimap)
@@ -38,7 +37,7 @@ class Habitat(Displayable):
         wing2 = vpython.triangle(
             v0=vertex(0, 0, 0), v1=vertex(-5, 0, 30), v2=vertex(-5, 0, -30))
 
-        hab = vpython.compound([body, head, wing, wing2])
+        hab = vpython.compound([body, head, wing, wing2], make_trail=True)
         hab.texture = vpython.textures.metal
         hab.axis = calc.angle_to_vpy(self._entity.heading)
         hab.radius = self._entity.r / 2
@@ -58,9 +57,6 @@ class Habitat(Displayable):
         habitat = self.hab_object(scene)
         habitat.pos = self._entity.screen_pos(self.flight_gui.origin())
         self._habitat = self._entity
-        self._habitat_trail = vpython.attach_trail(habitat, retain=100)
-        self._habitat_trail.stop()
-        self._habitat_trail.clear()
 
         self._small_habitat = self.hab_object(minimap)
         self._ref_arrow = vpython.arrow(
@@ -100,15 +96,3 @@ class Habitat(Displayable):
         self._ref_arrow.axis = default if same else ref_arrow_axis
         self._velocity_arrow.axis = default if same else velocity_arrow_axis
         self._small_habitat.axis = self._obj.axis
-    # end of draw
-
-    def clear_trail(self) -> None:
-        self._habitat_trail.clear()
-
-    def make_trail(self, trails: bool) -> None:
-        self.clear_trail()
-        if trails:
-            self._habitat_trail.start()
-        else:
-            self._habitat_trail.stop()
-# end of class Habitat
