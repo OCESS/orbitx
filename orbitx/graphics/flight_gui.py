@@ -28,7 +28,7 @@ from orbitx.graphics.planet import Planet
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
-from orbitx.graphics.menu import Menu
+from orbitx.graphics.sidebar_widgets import Text, Menu
 
 log = logging.getLogger()
 
@@ -39,6 +39,7 @@ DEFAULT_TARGET = common.AYSE
 G = 6.674e-11
 
 PLANET_SHININIESS = 0.3
+DEFAULT_TRAILS = False
 
 
 class FlightGui:
@@ -70,8 +71,7 @@ class FlightGui:
         self._displaybles: Dict[str, Displayable] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
-        self._wtexts: List[vpython.wtext] = []
-        # self._menu: vpython.menu = Menu()
+        self._wtexts: List[Text] = []
         ################################################################
 
         self._scene.autoscale = False
@@ -91,6 +91,7 @@ class FlightGui:
                 obj = Planet(planet, self)
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
+            obj.make_trail(DEFAULT_TRAILS)
 
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
@@ -117,11 +118,9 @@ class FlightGui:
             up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
         main_canvas.select()
         return miniamp_canvas
-    # end of _init_minimap_canvas
 
     def _init_canvas(self) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
-
         _scene = vpython.canvas(
             title='<title>OrbitX</title>',
             align='right',
@@ -137,7 +136,6 @@ class FlightGui:
         # Show all planets in solar system
         _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
-    # end of _init_canvas
 
     def recentre_camera(self, planet_name: str) -> None:
         """Change camera to focus on different object
@@ -173,6 +171,7 @@ class FlightGui:
 
             # Again, double underscore names will get name mangled unless we
             # bypass name mangling with getattr.
+            log.error('THIS IS ACTUALLY USED')
             getattr(vpython.no_notebook, '__server').shutdown()
             getattr(vpython.no_notebook, '__interact_loop').stop()
     # end of shutdown
@@ -237,12 +236,6 @@ class FlightGui:
     def _clear_trails(self) -> None:
         for name, obj in self._displaybles.items():
             obj.clear_trail()
-    # end of _clear_trails
-
-    def _show_hide_label(self) -> None:
-        for name, obj in self._displaybles.items():
-            obj._show_hide_label()
-    # end of _show_hide_label
 
     def pop_commands(self) -> list:
         """Take gathered user input and send it off."""
@@ -251,12 +244,13 @@ class FlightGui:
         return old_commands
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
-        """Input key handler"""
+        """Called in a non-main thread by vpython when it gets key input."""
 
         k = evt.key
         if k == 'l':
             self._show_label = not self._show_label
-            self._show_hide_label()
+            for name, obj in self._displaybles.items():
+                obj._show_hide_label()
         elif k == 'p':
             self._pause = not self._pause
         elif k == 'a':
@@ -293,52 +287,6 @@ class FlightGui:
                 throttle_set=0.00))
     # end of _handle_keydown
 
-    def get_cpation_anchor(self) -> vpython.canvas:
-        return self._scene.caption_anchor
-    # end of get_cpation_anchor
-
-    def get_reference(self) -> state.Entity:
-        return self._reference
-    # end of get_reference
-
-    def get_target(self) -> state.Entity:
-        return self._target
-    # end of get_target
-
-    def get_origin(self) -> state.Entity:
-        return self._origin
-    # end of get_origin
-
-    def get_habitat(self) -> state.Entity:
-        return self._habitat
-    # end of get_habitat
-
-    def append_caption(self, caption: str) -> None:
-        self._scene.append_to_caption(caption)
-    # end of append_caption
-
-    def concat_caption(self, caption: str) -> None:
-        self._scene.caption += caption
-    # end of concat_caption
-
-    def append_wtexts(self, wtext: vpython.wtext) -> None:
-        self._wtexts.append(wtext)
-    # end of set_wtexts
-
-    def set_wtexts_text_func_at(self, index: int, text_func) -> None:
-        self._wtexts[index].text_func = text_func
-
-    def wtexts_at(self, index: int) -> vpython.wtext:
-        return self._wtexts[index]
-
-    def set_centre_menu(self, menu: vpython.menu) -> None:
-        self._centre_menu = menu
-    # end of _set_centre_menu
-
-    def set_time_acc_menu(self, menu: vpython.menu) -> None:
-        self._time_acc_menu = menu
-    # end of set_time_acc_menu
-
     def draw(self, draw_state: state.PhysicsState) -> None:
         self._last_state = draw_state
         # Have to reset origin, reference, and target with new positions
@@ -351,11 +299,9 @@ class FlightGui:
 
         for planet in draw_state:
             self._displaybles[planet.name].draw(planet)
-        # for
 
         for wtext in self._wtexts:
-            # Update text of all text widgets.
-            wtext.text = wtext.text_func()
+            wtext.update()
 
     def _recentre_dropdown_hook(self, selection: vpython.menu) -> None:
         self._set_origin(selection.selected)
@@ -375,126 +321,123 @@ class FlightGui:
         if not self._show_trails:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
-            self._set_origin(self._centre_menu.selected)
+            self._set_origin(self._centre_menu._menu.selected)
 
     def notify_time_acc_change(self, new_acc: int) -> None:
-        new_acc_str = f'{new_acc:,}×'
-        if new_acc_str == self._time_acc_menu.selected:
+        new_acc_str = f'{int(new_acc):,}×'
+        if new_acc_str == self._time_acc_menu._menu.selected:
             return
-        if new_acc_str not in self._time_acc_menu._choices:
+        if new_acc_str not in self._time_acc_menu._menu._choices:
             log.error(f'"{new_acc_str}" not a valid time acceleration')
             return
-        self._time_acc_menu.selected = new_acc_str
+        self._time_acc_menu._menu.selected = new_acc_str
 
     def rate(self, framerate: int) -> None:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
     # end of rate
 
-    # TODO: 1)Update with correct physics values
     def _set_caption(self) -> None:
         """Set and update the captions."""
 
-        # There's a bit of magic here. Normally, vpython.wtext will make a
-        # <div> in the HTML and automaticall update it when the .text field is
-        # updated in this python code. But if you want to insert a wtext in the
-        # middle of a field, the following first attempt won't work:
-        #     scene.append_to_caption('<table>')
-        #     vpython.wtext(text='widget text')
-        #     scene.append_to_caption('</table>')
-        # because adding the wtext will also close the <table> tag.
-        # But you can't make a wtext that contains HTML DOM tags either,
-        # because every time the text changes several times a second, any open
-        # dropdown menus will be closed.
-        # So we have to insert a <div> where vpython expects it, manually.
-        # We take advantage of the fact that manually modifying scene.caption
-        # will remove the <div> that represents a wtext. Then we add the <div>
-        # back, along with the id="x" that identifies the div, used by vpython.
-        #
-        # TL;DR the div_id variable is a bit magic, if you make a new wtext
-        # before this, increment div_id by one..
         self._scene.caption += "<table>\n"
         self._wtexts = []
         div_id = 1
-        for caption, text_gen_func, helptext, new_section in [
-            ("Orbit speed",
-             lambda:
-                common.format_num(calc.orb_speed(
-                    self.active_craft(), self.reference())) + " m/s",
-             "Speed required for circular orbit at current altitude",
-             False),
-            ("Periapsis",
-             lambda: common.format_num(
-                 calc.periapsis(self.active_craft(), self.reference())) + " m",
-             "Lowest altitude in naïve orbit around reference",
-             False),
-            ("Apoapsis",
-             lambda: common.format_num(
-                 calc.apoapsis(self.active_craft(), self.reference())) + " m",
-             "Highest altitude in naïve orbit around reference",
-             False),
-            ("HRT phase θ",
-             lambda: '{:.0f}'.format(calc.phase_angle(
+        self._wtexts.append(Text(
+            self,
+            "Orbit speed",
+            lambda: common.format_num(calc.orb_speed(
+                self.active_craft(), self.reference())) + " m/s",
+            "Speed required for circular orbit at current altitude",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Periapsis",
+            lambda: common.format_num(calc.periapsis(
+                self.active_craft(), self.reference())) + " m",
+            "Lowest altitude in naïve orbit around reference",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Apoapsis",
+            lambda: common.format_num(calc.apoapsis(
+                self.active_craft(), self.reference())) + " m",
+            "Highest altitude in naïve orbit around reference",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "HRT phase θ",
+            lambda: '{:.0f}'.format(calc.phase_angle(
                 self.active_craft(), self.reference(), self.target())) + "°",
-             "Angle between Habitat, Reference, and Target",
-             False),
-            ("Throttle",
-             lambda: "{:.1%}".format(self.active_craft().throttle),
-             "Percentage of habitat's maximum rated engines",
-             True),
-            ("Fuel ",
-             lambda: common.format_num(self.active_craft().fuel) + " kg",
-             "Remaining fuel of habitat",
-             False),
-            ("Ref altitude",
-             lambda: common.format_num(
-                calc.altitude(self.active_craft(), self.reference())) + " m",
-             "Altitude of habitat above reference surface",
-             True),
-            ("Ref speed",
-             lambda: common.format_num(
-                calc.speed(self.active_craft(), self.reference())) + " m/s",
-             "Speed of habitat above reference surface",
-             False),
-            ("Vertical speed",
-             lambda: common.format_num(
-                calc.v_speed(self.active_craft(), self.reference())) + " m/s ",
-             "Vertical speed of habitat towards/away reference surface",
-             False),
-            ("Horizontal speed",
-             lambda: common.format_num(
-                calc.h_speed(self.active_craft(), self.reference())) + " m/s ",
-             "Horizontal speed of habitat across reference surface",
-             False),
-            ("Targ altitude",
-             lambda: common.format_num(
-                calc.altitude(self.active_craft(), self.target())) + " m",
-             "Altitude of habitat above reference surface",
-             True),
-            ("Targ speed",
-             lambda: common.format_num(
-                calc.speed(self.active_craft(), self.target())) + " m/s",
-             "Speed of habitat above target surface",
-             False)
-            # TODO add pitch and stopping acceleration fields after symposium
-        ]:
-            self._wtexts.append(vpython.wtext(text=text_gen_func()))
-            self._wtexts[-1].text_func = text_gen_func
-            self._scene.caption += f"""<tr {"class='newsection'" if new_section else ""}>
-            <td>
-                {caption}
-            </td >
-            <td class="num">
-                <div id = "{div_id}" >
-                    {self._wtexts[-1].text}
-                </div >
-            <div class="helptext"
-                style="font-size: 12px">
-                    {helptext}
-            </div >
-            </td >
-            </tr >\n"""
-            div_id += 1
+            "Angle between Habitat, Reference, and Target",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Throttle",
+            lambda: "{:.1%}".format(self.active_craft().throttle),
+            "Percentage of habitat's maximum rated engines",
+            new_section=True))
+
+        self._wtexts.append(Text(
+            self,
+            "Fuel ",
+            lambda: common.format_num(self.active_craft().fuel) + " kg",
+            "Remaining fuel of habitat",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Ref altitude",
+            lambda: common.format_num(calc.altitude(
+                self.active_craft(), self.reference())) + " m",
+            "Altitude of habitat above reference surface",
+            new_section=True))
+
+        self._wtexts.append(Text(
+            self,
+            "Ref speed",
+            lambda: common.format_num(calc.speed(
+                self.active_craft(), self.reference())) + " m/s",
+            "Speed of habitat above reference surface",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Vertical speed",
+            lambda: common.format_num(calc.v_speed(
+                self.active_craft(), self.reference())) + " m/s ",
+            "Vertical speed of habitat towards/away reference surface",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Horizontal speed",
+            lambda: common.format_num(calc.h_speed(
+                self.active_craft(), self.reference())) + " m/s ",
+            "Horizontal speed of habitat across reference surface",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Targ altitude",
+            lambda: common.format_num(calc.altitude(
+                self.active_craft(), self.target())) + " m",
+            "Altitude of habitat above reference surface",
+            new_section=True))
+
+        self._wtexts.append(Text(
+            self,
+            "Targ speed",
+            lambda: common.format_num(calc.speed(
+                self.active_craft(), self.target())) + " m/s",
+            "Speed of habitat above target surface",
+            new_section=False))
+
+        # TODO add pitch and stopping acceleration fields after symposium
         self._scene.caption += "</table>"
 
         self._set_menus()
@@ -517,28 +460,8 @@ class FlightGui:
     def _set_menus(self) -> None:
         """This creates dropped down menu which is used when set_caption."""
 
-        def build_menu(
-            *,
-            choices: list = None,
-            bind=None,
-            selected: str = None,
-            caption: str = None,
-            helptext: str = None
-        ) -> vpython.menu:
-
-            menu = vpython.menu(
-                choices=choices,
-                pos=self._scene.caption_anchor,
-                bind=bind,
-                selected=selected)
-            self._scene.append_to_caption(f"&nbsp;<b>{caption}</b>&nbsp;")
-            self._scene.append_to_caption(
-                f"<span class='helptext'>{helptext}</span>")
-            self._scene.append_to_caption("\n")
-            return menu
-        # end of build_menu
-
-        self._centre_menu = build_menu(
+        self._centre_menu = Menu(
+            self,
             choices=list(self._spheres),
             bind=self._recentre_dropdown_hook,
             selected=DEFAULT_CENTRE,
@@ -546,7 +469,8 @@ class FlightGui:
             helptext="Focus of camera"
         )
 
-        build_menu(
+        Menu(
+            self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_reference(selection.selected),
             selected=DEFAULT_REFERENCE,
@@ -555,7 +479,8 @@ class FlightGui:
                 "Take position, velocity relative to this.")
         )
 
-        build_menu(
+        Menu(
+            self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_target(selection.selected),
             selected=DEFAULT_TARGET,
@@ -563,7 +488,8 @@ class FlightGui:
             helptext="For use by NAV mode"
         )
 
-        build_menu(
+        Menu(
+            self,
             choices=['deprt ref'],
             bind=lambda selection: log.error(f"Unimplemented: {selection}"),
             selected='deprt ref',
@@ -571,7 +497,8 @@ class FlightGui:
             helptext="Automatically points habitat"
         )
 
-        self._time_acc_menu = build_menu(
+        self._time_acc_menu = Menu(
+            self,
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
             bind=self._time_acc_dropdown_hook,
@@ -582,7 +509,8 @@ class FlightGui:
 
         self._scene.append_to_caption("\n")
         vpython.checkbox(
-            bind=self._trail_checkbox_hook, checked=False, text='Trails')
+            bind=self._trail_checkbox_hook,
+            checked=DEFAULT_TRAILS, text='Trails')
         self._scene.append_to_caption(
             " <span class='helptext'>&nbspGraphically intensive</span>")
 
