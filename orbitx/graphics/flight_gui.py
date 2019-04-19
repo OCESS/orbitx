@@ -21,7 +21,6 @@ FlightGui = TypeVar('FlightGui')  # noqa: E402
 from orbitx import common
 from orbitx import calc
 from orbitx import state
-from orbitx import style
 from orbitx.network import Request
 from orbitx.graphics.displayable import Displayable
 from orbitx.graphics.planet import Planet
@@ -158,23 +157,7 @@ class FlightGui:
 
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
-        if not vpython._isnotebook and \
-                vpython.__version__ == '7.4.7':
-            # We're not running in a jupyter notebook environment. In
-            # vpython 7.4.7, that means an HTTPServer and a WebSocketServer
-            # are running, each in their own thread. From comments in
-            # vpython.py at about line 370:
-            # "The situation with non-notebook use is similar, but the http
-            # server is threaded, in order to serve glowcomm.html, jpg texture
-            # files, and font files, and the  websocket is also threaded."
-            # This is fixed in the 2019 release of vpython, 7.5.0
-
-            # Again, double underscore names will get name mangled unless we
-            # bypass name mangling with getattr.
-            log.error('THIS IS ACTUALLY USED')
-            getattr(vpython.no_notebook, '__server').shutdown()
-            getattr(vpython.no_notebook, '__interact_loop').stop()
-    # end of shutdown
+        vpython.no_notebook.stop_server()
 
     def reference(self) -> state.Entity:
         return self._reference
@@ -341,8 +324,6 @@ class FlightGui:
         """Set and update the captions."""
 
         self._scene.caption += "<table>\n"
-        self._wtexts = []
-        div_id = 1
         self._wtexts.append(Text(
             self,
             "Orbit speed",
@@ -441,19 +422,28 @@ class FlightGui:
         self._scene.caption += "</table>"
 
         self._set_menus()
-        self._scene.append_to_caption(style.HELP_CHECKBOX)
-        self._scene.append_to_caption(" Help text")
-        self._scene.append_to_caption("\t\t")
+
+        self._scene.append_to_caption("\n")
+        vpython.checkbox(
+            bind=self._trail_checkbox_hook,
+            checked=DEFAULT_TRAILS, text='Trails')
+        self._scene.append_to_caption(
+            " <span class='helptext'>&nbspGraphically intensive</span>")
+        self._scene.append_to_caption("\n")
+
+        vpython.button(
+            text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
+        self._scene.append_to_caption(
+            f"<span class='helptext'>Dock to AYSE</span>\t")
+
         vpython.button(
             text=" Switch ", pos=self._scene.caption_anchor,
             disabled=True, bind=self._switch)
         self._scene.append_to_caption(
             f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
 
-        self._scene.append_to_caption(style.INPUT_CHEATSHEET)
-
-        self._scene.append_to_caption(style.VPYTHON_CSS)
-        self._scene.append_to_caption(style.VPYTHON_JS)
+        with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
+            self._scene.append_to_caption(footer.read())
     # end of _set_caption
 
     # TODO: create bind functions for target, ref, and NAV MODE
@@ -506,19 +496,6 @@ class FlightGui:
             caption="Warp",
             helptext="Speed of simulation"
         )
-
-        self._scene.append_to_caption("\n")
-        vpython.checkbox(
-            bind=self._trail_checkbox_hook,
-            checked=DEFAULT_TRAILS, text='Trails')
-        self._scene.append_to_caption(
-            " <span class='helptext'>&nbspGraphically intensive</span>")
-
-        self._scene.append_to_caption("\t\t\t")
-        vpython.button(
-            text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
-        self._scene.append_to_caption(
-            f"<span class='helptext'>Dock to AYSE</span>")
     # end of _set_menus
 
     def _undock(self):

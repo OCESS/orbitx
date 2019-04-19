@@ -23,7 +23,7 @@ from orbitx.graphics.flight_gui import FlightGui
 #
 # TL;DR the div_id variable is a bit magic, if you make a new wtext
 # before this, increment div_id by one.
-last_div_id = 0
+last_div_id = 1
 
 
 class Text:

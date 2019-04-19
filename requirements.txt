@@ -3,8 +3,9 @@ grpcio-tools
 protobuf
 six
 vpython>=7.4.7
-appmode
 numpy
 scipy
 autopep8
 flamegraph
+mypy
+mypy-protobuf
