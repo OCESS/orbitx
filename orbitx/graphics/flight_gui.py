@@ -28,6 +28,7 @@ from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
 from orbitx.graphics.sidebar_widgets import Text, Menu
+from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
 
@@ -94,7 +95,9 @@ class FlightGui:
 
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
-        self._set_habitat(common.HABITAT)
+
+        self._orbit_projection = OrbitProjection(self)
+        self._orbit_projection.show(True)
 
         self._set_caption()
 
@@ -210,12 +213,6 @@ class FlightGui:
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
 
-    def _set_habitat(self, entity_name: str) -> None:
-        try:
-            self._habitat = self._last_state[entity_name]
-        except IndexError:
-            log.error(f'Tried to set non-existent "{entity_name}"')
-
     def _clear_trails(self) -> None:
         for name, obj in self._displaybles.items():
             obj.clear_trail()
@@ -283,6 +280,8 @@ class FlightGui:
 
         for planet in self._last_state:
             self._spheres[planet.name].draw(planet)
+
+        self._orbit_projection.update()
 
         for wtext in self._wtexts:
             wtext.update()

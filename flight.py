@@ -249,6 +249,9 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
+    except Exception:
+        log.exception('Unexpected exception, exiting...')
+        raise
     finally:
         if cleanup_function is not None:
             cleanup_function()
