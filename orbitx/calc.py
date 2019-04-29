@@ -11,7 +11,8 @@ from orbitx import state
 G = 6.674e-11
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 OrbitCoords = collections.namedtuple(
-    'OrbitCoords', ['centre', 'major_axis', 'minor_axis', 'orientation'])
+    'OrbitCoords',
+    ['centre', 'major_axis', 'minor_axis', 'eccentricity'])
 
 
 def angle_to_vpy(angle: float) -> vpython.vector:
@@ -155,10 +156,9 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
 
     centre = (periapsis_coords + apoapsis_coords) / 2
     major_axis = np.linalg.norm(apoapsis_coords - periapsis_coords)
-    minor_axis = major_axis * math.sqrt(1 - e_mag**2)
-    angle = np.arctan2(-e[1], e[0])
+    minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
     return OrbitCoords(centre=centre, major_axis=major_axis,
-                       minor_axis=minor_axis, orientation=angle)
+                       minor_axis=minor_axis, eccentricity=e)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
