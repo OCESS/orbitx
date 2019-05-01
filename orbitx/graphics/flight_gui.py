@@ -97,7 +97,6 @@ class FlightGui:
         self._set_target(DEFAULT_TARGET)
 
         self._orbit_projection = OrbitProjection(self)
-        self._orbit_projection.show(True)
 
         self._set_caption()
 
@@ -306,6 +305,9 @@ class FlightGui:
             # instead of the camera centre. Revert that when we turn off trails
             self._set_origin(self._centre_menu._menu.selected)
 
+    def _orbits_checkbox_hook(self, selection: vpython.menu) -> None:
+        self._orbit_projection.show(selection.checked)
+
     def notify_time_acc_change(self, new_acc: int) -> None:
         new_acc_str = f'{int(new_acc):,}×'
         if new_acc_str == self._time_acc_menu._menu.selected:
@@ -431,6 +433,14 @@ class FlightGui:
             " <span class='helptext'>&nbspGraphically intensive</span>")
         self._scene.append_to_caption("\n")
 
+        vpython.checkbox(
+            bind=self._orbits_checkbox_hook,
+            checked=False, text='Orbit Projection')
+        self._scene.append_to_caption(
+            " <span class='helptext'>Attempt a simple projection of the " +
+            "spaceship around the reference</span>")
+        self._scene.append_to_caption("\n")
+
         vpython.button(
             text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
         self._scene.append_to_caption(
@@ -446,7 +456,6 @@ class FlightGui:
             self._scene.append_to_caption(footer.read())
     # end of _set_caption
 
-    # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self) -> None:
         """This creates dropped down menu which is used when set_caption."""
 

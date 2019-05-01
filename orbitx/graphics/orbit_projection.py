@@ -16,6 +16,7 @@ class OrbitProjection:
 
     def __init__(self, flight_gui: FlightGui):
         self._flight_gui = flight_gui
+        self._visible = False
 
         # There are two cases that we care about for a 2-body orbit, elliptical
         # or hyperbolic. Make a graphic for either case.
