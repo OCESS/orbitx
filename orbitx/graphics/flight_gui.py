@@ -277,11 +277,12 @@ class FlightGui:
         self._origin = self._last_state[self._origin.name]
         self._reference = self._last_state[self._reference.name]
         self._target = self._last_state[self._target.name]
+        self._last_state['Venus']
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
-        for planet in draw_state:
-            self._displaybles[planet.name].draw(planet)
+        for planet in self._last_state:
+            self._spheres[planet.name].draw(planet)
 
         for wtext in self._wtexts:
             wtext.update()
