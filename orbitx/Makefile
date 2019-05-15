@@ -3,8 +3,6 @@ build:
 
 install:
 	pip install -r ../requirements.txt
-	jupyter nbextension enable --py --sys-prefix appmode
-	jupyter serverextension enable --py --sys-prefix appmode
 
 test:
 	python ../test.py
