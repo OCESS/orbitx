@@ -32,9 +32,6 @@ MAX_THROTTLE = 1
 LAUNCH_SEPARATION = 0.5
 LAUNCH_BOOST_SPEED = 1.0
 
-# Thickness of orbit projections, relative to how zoomed-out the viewport.
-PROJECTION_THICKNESS = 0.005
-
 DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'
 

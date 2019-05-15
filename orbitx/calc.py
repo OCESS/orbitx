@@ -96,8 +96,7 @@ def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
     v = np.array([A.vx - B.vx, A.vy - B.vy])
     r = distance(A, B)
     mu = (B.mass + A.mass) * G
-    E = np.dot(v, v) / 2 - mu / r
-    return -mu / (2 * E)
+    return 1 / (2 / r - np.dot(v, v) / mu)
 
 
 def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
@@ -155,7 +154,7 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
     apoapsis_coords = A.pos - apoapsis(A, B) * e_unit
 
     centre = (periapsis_coords + apoapsis_coords) / 2
-    major_axis = np.linalg.norm(apoapsis_coords - periapsis_coords)
+    major_axis = 2 * semimajor_axis(A, B)
     minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
     return OrbitCoords(centre=centre, major_axis=major_axis,
                        minor_axis=minor_axis, eccentricity=e)

@@ -12,7 +12,10 @@ from orbitx.graphics.flight_gui import FlightGui
 class OrbitProjection:
     """A projection of the orbit of the active ship around the reference."""
     POINTS_IN_HYPERBOLA = 500
-    HYPERBOLA_RADIUS = 1e8
+    HYPERBOLA_RADIUS = 1e2
+
+    # Thickness of orbit projections, relative to how zoomed-out the viewport.
+    PROJECTION_THICKNESS = 0.005
 
     def __init__(self, flight_gui: FlightGui):
         self._flight_gui = flight_gui
@@ -49,7 +52,7 @@ class OrbitProjection:
         orb_params = calc.orbit_parameters(
             self._flight_gui.reference(), self._flight_gui.active_craft())
         thickness = min(
-            common.PROJECTION_THICKNESS * self._flight_gui._scene.range,
+            self.PROJECTION_THICKNESS * self._flight_gui._scene.range,
             0.1 * max(orb_params.major_axis, orb_params.minor_axis)
         )
         pos = orb_params.centre - self._flight_gui.origin().pos
@@ -79,12 +82,16 @@ class OrbitProjection:
             # https://en.wikipedia.org/wiki/File:Hyperbel-param-e.svg
             # I don't entirely get it either. I just do what works.
             self._hyperbola.origin = (
-                vpython.vector(pos[0], pos[1], 0) +
-                direction.norm() * orb_params.major_axis * np.sqrt(2)
+                vpython.vector(pos[0], pos[1], 0) -
+                direction.norm() * orb_params.major_axis
             )
+
+            # TODO check that I have major and minor axes right. With an
+            # existing hyperbolic object maybe?
+            #breakpoint()
             self._hyperbola.size = vpython.vector(
                 orb_params.minor_axis, orb_params.major_axis, 0)
-            self._hyperbola.up = -1 * direction
+            self._hyperbola.up = direction
             self._hyperbola.radius = thickness
             self._hyperbola.visible = True
 

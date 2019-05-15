@@ -336,7 +336,7 @@ class CalculationsTestCase(unittest.TestCase):
         if '-v' in sys.argv:
             common.enable_verbose_logging()
 
-    def test_orbital_parameters(self):
+    def test_elliptical_orbital_parameters(self):
         # Again, see
         # https://www.wolframalpha.com/input/?i=International+Space+Station
         # For these expected values
@@ -345,7 +345,7 @@ class CalculationsTestCase(unittest.TestCase):
         iss = physics_state[0]
         earth = physics_state[1]
 
-        # The semimajor axis is relatively close to expected.
+        # The semiaxes are relatively close to expected.
         self.assertAlmostEqual(
             calc.semimajor_axis(iss, earth), 6785e3, delta=0.01 * earth.r)
 
@@ -361,6 +361,33 @@ class CalculationsTestCase(unittest.TestCase):
         # The periapsis is relatively close to expected.
         self.assertAlmostEqual(
             calc.periapsis(iss, earth), 410.3e3, delta=0.01 * earth.r)
+
+    def test_hyperbolic_orbital_parameters(self):
+        # Unlike the elliptical test, this tests our favourite extra-solar
+        # visitor to make sure we can calculate Keplerian orbital
+        # characteristics from its orbital state vectors! That's right, we're
+        # talking about 'Oumuamua! The data in oumuamua.json is from
+        # https://ssd.jpl.nasa.gov/horizons.cgi by putting in "2017UI" and
+        # asking for the state vectors or orbital characteristics withh the Sun
+        # as the centre.
+        physics_state = common.load_savefile(common.savefile(
+            'tests/oumuamua.json'))
+        sun = physics_state[0]
+        oumuamua = physics_state[1]
+
+        expected_semimajor_axis = -239363336068.24213
+        self.assertAlmostEqual(
+            calc.semimajor_axis(oumuamua, sun), expected_semimajor_axis,
+            delta=abs(0.01 * expected_semimajor_axis))
+
+        self.assertAlmostEqual(
+            np.linalg.norm(calc.eccentricity(oumuamua, sun)),
+            1.0512457833243607, places=2)
+
+        expected_periapsis = 78989185420.15271
+        self.assertAlmostEqual(
+            calc.periapsis(sun, oumuamua) + oumuamua.r, expected_periapsis,
+            delta=0.01 * 78989185420.15271)
 
     def test_speeds(self):
         physics_state = common.load_savefile(common.savefile(
