@@ -105,6 +105,25 @@ for field in protos.Entity.DESCRIPTOR.fields:
 class PhysicsState:
     """The physical state of the system for use in solve_ivp and elsewhere.
 
+    The following operations are supported:
+
+    # Construction without a y-vector, taking all data from a PhysicalState
+    PhysicsState(None, protos.PhysicalState)
+
+    # Faster Construction from a y-vector and protos.PhysicalState
+    PhysicsState(ivp_solution.y, protos)
+
+    # Access of a single Entity in the PhysicsState, by index or Entity name
+    my_entity: Entity = PhysicsState[0]
+    my_entity: Entity = PhysicsState['Earth']
+
+    # Iteration over all Entitys in the PhysicsState
+    for entity in my_physics_state:
+        print(entity.name, entity.pos)
+
+    # Convert back to a protos.PhysicalState (this almost never happens)
+    my_physics_state.as_proto()
+
     Example usage:
     y = PhysicsState(physical_state, y_1d)
 
@@ -226,9 +245,10 @@ class PhysicsState:
         return self._y0
 
     def as_proto(self) -> protos.PhysicalState:
-        """Creates a protos.PhysicalState view into internal data at time t
+        """Creates a protos.PhysicalState view into all internal data.
 
-        Expensive. Consider one of the other accessors, which are faster."""
+        Expensive. Consider one of the other accessors, which are faster.
+        For example, if you want to iterate over all"""
         for entity_data, entity in zip(
                 self._y_entities(),
                 self._proto_state.entities):
@@ -247,8 +267,8 @@ class PhysicsState:
 
     def __iter__(self):
         """Implements `for entity in physics_state:` loops."""
-        for proto_entity in self._proto_state.entities:
-            yield Entity(proto_entity)
+        for i in range(0, self._n):
+            yield self.__getitem__(i)
 
     def __getitem__(self, index: Union[str, int]) -> Entity:
         """Returns a Entity view at a given name or index.
