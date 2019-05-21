@@ -61,6 +61,7 @@ class Displayable(metaclass=ABCMeta):
                 vpython_tris.append(vpython.triangle(vs=vpython_verts))
             return vpython.compound(
                 vpython_tris,
+                opacity=0,
                 pos=entity.screen_pos(self.flight_gui.origin()),
                 up=vpython.vector(0, 0, 1))
 

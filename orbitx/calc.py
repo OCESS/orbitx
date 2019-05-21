@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 from typing import List, Tuple
 import collections
+import math
 
 import vpython
 import numpy as np
@@ -8,6 +10,9 @@ from orbitx import state
 
 G = 6.674e-11
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
+OrbitCoords = collections.namedtuple(
+    'OrbitCoords',
+    ['centre', 'major_axis', 'minor_axis', 'eccentricity'])
 
 
 def angle_to_vpy(angle: float) -> vpython.vector:
@@ -30,7 +35,7 @@ def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> float:
 def orb_speed(habitat: state.Entity, reference: state.Entity) -> float:
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
-    return np.sqrt(
+    return math.sqrt(
         (reference.mass**2 * G) /
         ((habitat.mass + reference.mass) *
          distance(reference, habitat)))
@@ -91,28 +96,34 @@ def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
     v = np.array([A.vx - B.vx, A.vy - B.vy])
     r = distance(A, B)
     mu = (B.mass + A.mass) * G
-    E = np.dot(v, v) / 2 - mu / r
-    return -mu / (2 * E)
+    return 1 / (2 / r - np.dot(v, v) / mu)
 
 
-def eccentricity(A: state.Entity, B: state.Entity) -> float:
-    """Calculates the eccentricity - a defining feature of ellipses.
-    See https://en.wikipedia.org/wiki/Orbital_eccentricity for the equation."""
+def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
+    """Calculates the eccentricity vector - a defining feature of ellipses.
+    See https://space.stackexchange.com/a/1919 for the equation.
+
+    "Why don't you just find a scalar value instead of a vector?"
+    The direction of this eccentricity vector points to the periapsis,
+    through the two focii of the orbit ellipse, and from the apoapsis.
+    This allows us to do some vector math and project an orbit ellipse."""
     v = A.v - B.v
-    mu = (B.mass + A.mass) * G  # G(m + M)
-    E = np.dot(v, v) / 2 - mu / distance(A, B)  # v^2/2 - mu/dist
-    h = np.cross(A.pos - B.pos, v)  # r (cross) v
-    return np.sqrt(1 + (2 * E * np.dot(h, h)) / (mu**2))
+    r = A.pos - B.pos
+    mu = G * (B.mass + A.mass)
+    # e⃗ = [ (v*v - μ/r)r⃗  - (r⃗ ∙ v⃗)v⃗ ] / μ
+    return (
+        (np.linalg.norm(v)**2 - mu / np.linalg.norm(r)) * r - np.dot(r, v) * v
+    ) / mu
 
 
 def periapsis(A: state.Entity, B: state.Entity) -> float:
     """Calculates the lowest altitude in the orbit of A above B.
 
-    A negative means at some point in A's orbit, A will crash into
+    A negative periapsis means at some point in A's orbit, A will crash into
     the surface of B."""
     peri_distance = (
         semimajor_axis(A, B) *
-        (1 - eccentricity(A, B))
+        (1 - np.linalg.norm(eccentricity(A, B)))
     )
     return max(peri_distance - B.r, 0)
 
@@ -124,9 +135,29 @@ def apoapsis(A: state.Entity, B: state.Entity) -> float:
     be above the surface of B."""
     apo_distance = (
         semimajor_axis(A, B) *
-        (1 + eccentricity(A, B))
+        (1 + np.linalg.norm(eccentricity(A, B)))
     )
     return max(apo_distance - B.r, 0)
+
+
+def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
+    if B.mass > A.mass:
+        # Ensure A has the larger mass
+        return orbit_parameters(B, A)
+    # eccentricity is a vector pointing along the major axis of the ellipse of
+    # the orbit. i.e. From the orbited-body's centre towards the apoapsis.
+    e = eccentricity(B, A)
+    e_mag = np.linalg.norm(e)
+    e_unit = e / e_mag
+
+    periapsis_coords = A.pos + periapsis(A, B) * e_unit
+    apoapsis_coords = A.pos - apoapsis(A, B) * e_unit
+
+    centre = (periapsis_coords + apoapsis_coords) / 2
+    major_axis = 2 * semimajor_axis(A, B)
+    minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
+    return OrbitCoords(centre=centre, major_axis=major_axis,
+                       minor_axis=minor_axis, eccentricity=e)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
@@ -135,7 +166,6 @@ def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
     midpoint = (left + right) / 2
     midpoint_radial_dist = np.linalg.norm(midpoint)
     return radius * midpoint / midpoint_radial_dist
-# end of midpoint
 
 
 def _build_sphere_segment_vertices(

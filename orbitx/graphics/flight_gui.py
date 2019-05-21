@@ -28,6 +28,7 @@ from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
 from orbitx.graphics.sidebar_widgets import Text, Menu
+from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
 
@@ -94,7 +95,8 @@ class FlightGui:
 
         self._set_reference(DEFAULT_REFERENCE)
         self._set_target(DEFAULT_TARGET)
-        self._set_habitat(common.HABITAT)
+
+        self._orbit_projection = OrbitProjection(self)
 
         self._set_caption()
 
@@ -210,12 +212,6 @@ class FlightGui:
         except IndexError:
             log.error(f'Tried to set non-existent origin "{entity_name}"')
 
-    def _set_habitat(self, entity_name: str) -> None:
-        try:
-            self._habitat = self._last_state[entity_name]
-        except IndexError:
-            log.error(f'Tried to set non-existent "{entity_name}"')
-
     def _clear_trails(self) -> None:
         for name, obj in self._displaybles.items():
             obj.clear_trail()
@@ -277,12 +273,13 @@ class FlightGui:
         self._origin = self._last_state[self._origin.name]
         self._reference = self._last_state[self._reference.name]
         self._target = self._last_state[self._target.name]
-        self._last_state['Venus']
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
         for planet in self._last_state:
             self._spheres[planet.name].draw(planet)
+
+        self._orbit_projection.update()
 
         for wtext in self._wtexts:
             wtext.update()
@@ -306,6 +303,9 @@ class FlightGui:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
             self._set_origin(self._centre_menu._menu.selected)
+
+    def _orbits_checkbox_hook(self, selection: vpython.menu) -> None:
+        self._orbit_projection.show(selection.checked)
 
     def notify_time_acc_change(self, new_acc: int) -> None:
         new_acc_str = f'{int(new_acc):,}×'
@@ -432,6 +432,14 @@ class FlightGui:
             " <span class='helptext'>&nbspGraphically intensive</span>")
         self._scene.append_to_caption("\n")
 
+        vpython.checkbox(
+            bind=self._orbits_checkbox_hook,
+            checked=False, text='Orbit Projection')
+        self._scene.append_to_caption(
+            " <span class='helptext'>Attempt a simple projection of the " +
+            "spaceship around the reference</span>")
+        self._scene.append_to_caption("\n")
+
         vpython.button(
             text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
         self._scene.append_to_caption(
@@ -447,7 +455,6 @@ class FlightGui:
             self._scene.append_to_caption(footer.read())
     # end of _set_caption
 
-    # TODO: create bind functions for target, ref, and NAV MODE
     def _set_menus(self) -> None:
         """This creates dropped down menu which is used when set_caption."""
 
