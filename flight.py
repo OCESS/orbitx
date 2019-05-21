@@ -11,6 +11,7 @@ import argparse
 import copy
 import logging
 import os
+import pathlib
 import time
 import warnings
 import concurrent.futures
@@ -228,6 +229,23 @@ def mirroring_loop(args):
                     raise
 
 
+def scrape_git_revision():
+    """For ease in debugging, try to get some version information.
+    This should never throw a fatal error, it's just nice-to-know stuff."""
+    try:
+        git_dir = pathlib.Path('.git')
+        head_file = git_dir / 'HEAD'
+        with head_file.open() as f:
+            head_contents = f.readline().strip()
+            log.info(f'Contents of .git/HEAD: {head_contents}')
+        if head_contents.split()[0] == 'ref:':
+            hash_file = git_dir / head_contents.split()[1]
+            with hash_file.open() as f:
+                log.info(f'Current reference hash: {f.readline().strip()}')
+    except FileNotFoundError:
+        return
+    
+
 def main():
     """Delegate work to either lead_server_loop or mirroring_loop."""
     # vpython uses deprecated python features, but we shouldn't get a fatal
@@ -237,6 +255,8 @@ def main():
     # vpython generates other warnings, as well as its use of asyncio
     warnings.filterwarnings('ignore', category=ResourceWarning)
     warnings.filterwarnings('ignore', module='vpython|asyncio')
+
+    scrape_git_revision()
 
     args = parse_args()
     try:
