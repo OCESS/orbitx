@@ -47,16 +47,19 @@
 </table>
 
 <script>
-function show_hide_help() {
-    // If helptext is enabled, we have to "disable disabling it."
+function find_stylesheet(sheetname) {
     styleSheets = document.styleSheets;
     for (i = 0; i < styleSheets.length; ++i) {
-        console.log(styleSheets[i].title)
-        if (styleSheets[i].title == "disable_helptext") {
-            styleSheets[i].disabled =
-                document.getElementById("helptext_checkbox").checked
+        if (styleSheets[i].title == sheetname) {
+            return styleSheets[i]
         }
     }
+}
+
+function show_hide_help() {
+    // If helptext is enabled, we have to "disable disabling it."
+    find_stylesheet("disable_helptext").disabled =
+        document.getElementById("helptext_checkbox").checked
 }
 
 // Keep inputs deselected, so that keyboard input doesn't interfere with them.
@@ -72,7 +75,7 @@ for (var inp of document.querySelectorAll("input,select")) {
 </style>
 
 <style>
-* {
+body {
     background-color: black;
     color: white;
 }
@@ -129,5 +132,20 @@ input {
 }
 .helptext {
     font-size: 75%;
+}
+
+.error {
+    color: #D8000C;
+    background-color: #FFBABA;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 3px 3px 3px 3px;
+    width: 550px;
+    white-space: normal;
+    display: none; /* overriden on fatal shutdown */
+}
+
+.code {
+    font-family: monospace;
 }
 </style>

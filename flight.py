@@ -16,6 +16,7 @@ import time
 import warnings
 import concurrent.futures
 import urllib.parse
+from typing import Callable
 
 import grpc
 
@@ -26,7 +27,8 @@ from orbitx.graphics import flight_gui
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
-cleanup_function = None
+cleanup_function: Callable = None
+ungraceful_shutdown: Callable = None
 
 
 def parse_args():
@@ -145,9 +147,11 @@ def lead_server_loop(args):
 
     if not args.no_gui:
         global cleanup_function
+        global ungraceful_shutdown
         gui = flight_gui.FlightGui(
             physics_engine.get_state(), no_intro=args.no_intro)
         cleanup_function = gui.shutdown
+        ungraceful_shutdown = gui.ungraceful_shutdown
 
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
@@ -271,8 +275,11 @@ def main():
         pass
     except Exception:
         log.exception('Unexpected exception, exiting...')
+        if ungraceful_shutdown is not None:
+            ungraceful_shutdown()
         raise
     finally:
+        pass
         if cleanup_function is not None:
             cleanup_function()
 

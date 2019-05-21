@@ -8,6 +8,7 @@ Call FlightGui.pop_commands() to collect user input.
 
 import logging
 import signal
+import time
 import math
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, TypeVar
@@ -156,6 +157,12 @@ class FlightGui:
         except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
     # end of recentre_camera
+
+    def ungraceful_shutdown(self):
+        """Lets the user know that something bad happened."""
+        self._scene.caption += "<style>.error { display: block !important; }</style>"
+        print('called')
+        time.sleep(0.1)  # Let vpython send out this update
 
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
@@ -323,6 +330,19 @@ class FlightGui:
 
     def _set_caption(self) -> None:
         """Set and update the captions."""
+
+        self._scene.caption += """<div class='error'>
+        <p class='prose'>&#9888; Sorry, spacesimmer! OrbitX has crashed for
+        some reason.</p>
+
+        <p class='prose'>Any information that OrbitX has on the crash has been
+        saved to <span class='code'>orbitx/debug.log</span>. If you want to get
+        this problem fixed, send <span class='code'>orbitx/debug.log</span> to
+        Patrick Melanson along with a description of what was happening in the
+        program when it crashed.</p>
+
+        <p>Again, thank you for using OrbitX!</p>
+        </div>"""
 
         self._scene.caption += "<table>\n"
         self._wtexts.append(Text(
