@@ -79,11 +79,6 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     return np.linalg.norm(tangent_v)
 
 
-def pitch(entity: state.Entity) -> float:
-    """....."""
-    return np.degrees(entity.heading)
-
-
 def landing_acceleration(A: state.Entity, B: state.Entity) -> float:
     """....."""
     return 100
@@ -138,6 +133,15 @@ def apoapsis(A: state.Entity, B: state.Entity) -> float:
         (1 + np.linalg.norm(eccentricity(A, B)))
     )
     return max(apo_distance - B.r, 0)
+
+
+def pitch(A: state.Entity, B: state.Entity) -> float:
+    """The angle that A is facing, relative to the surface of B.
+    Should be 90 degrees when facing ccw prograde, 270 when facing
+    cw retrograde, and 0 when facing directly away from B."""
+    normal = A.pos - B.pos
+    normal_angle = np.arctan2(normal[1], normal[0])
+    return np.degrees(normal_angle - A.heading) % 360
 
 
 def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:

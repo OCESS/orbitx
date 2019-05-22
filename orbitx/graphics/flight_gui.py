@@ -425,6 +425,14 @@ class FlightGui:
 
         self._wtexts.append(Text(
             self,
+            "Pitch θ",
+            lambda: common.format_num(calc.pitch(
+                self.active_craft(), self.reference())) + "°",
+            "Horizontal speed of habitat across reference surface",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
             "Targ altitude",
             lambda: common.format_num(calc.altitude(
                 self.active_craft(), self.target())) + " m",
