@@ -386,7 +386,7 @@ class PhysicsState:
             return hab_index
 
 
-# A note about functions with the signature "(self, *, arg1=None, arg2=None"
+# A note about functions with the signature "(self, *, arg1=None, arg2=None)"
 # there are a lot of float parameters to the upcoming APIs, so I think it's
 # best for the callsite to have to specify what argument is what. For example,
 # habitat.fuel_cons(throttle=0.2)
