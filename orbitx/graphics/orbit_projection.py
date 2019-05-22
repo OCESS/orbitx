@@ -53,17 +53,16 @@ class OrbitProjection:
             self._flight_gui.reference(), self._flight_gui.active_craft())
         thickness = min(
             self.PROJECTION_THICKNESS * self._flight_gui._scene.range,
-            0.1 * max(orb_params.major_axis, orb_params.minor_axis)
+            abs(0.1 * max(orb_params.major_axis, orb_params.minor_axis))
         )
         pos = orb_params.centre - self._flight_gui.origin().pos
-        direction = vpython.vector(
-            orb_params.eccentricity[0], orb_params.eccentricity[1], 0)
+        direction = vpython.vector(*orb_params.eccentricity, 0)
         e_mag = np.linalg.norm(orb_params.eccentricity)
 
         if e_mag < 1:
             # Project an elliptical orbit
             self._hyperbola.visible = False
-            self._ring.pos = vpython.vector(pos[0], pos[1], 0)
+            self._ring.pos = vpython.vector(*pos, 0)
             # size.x is actually the thickness, confusingly.
             # size.y and size.z are the width and length of the ellipse.
             self._ring.size.y = orb_params.major_axis
@@ -82,8 +81,8 @@ class OrbitProjection:
             # https://en.wikipedia.org/wiki/File:Hyperbel-param-e.svg
             # I don't entirely get it either. I just do what works.
             self._hyperbola.origin = (
-                vpython.vector(pos[0], pos[1], 0) -
-                direction.norm() * orb_params.major_axis
+                vpython.vector(*pos, 0) +
+                direction.norm() * orb_params.major_axis / 2
             )
 
             # TODO check that I have major and minor axes right. With an
@@ -91,7 +90,7 @@ class OrbitProjection:
             #breakpoint()
             self._hyperbola.size = vpython.vector(
                 orb_params.minor_axis, orb_params.major_axis, 0)
-            self._hyperbola.up = direction
+            self._hyperbola.up = -direction
             self._hyperbola.radius = thickness
             self._hyperbola.visible = True
 

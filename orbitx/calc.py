@@ -146,15 +146,16 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
         return orbit_parameters(B, A)
     # eccentricity is a vector pointing along the major axis of the ellipse of
     # the orbit. i.e. From the orbited-body's centre towards the apoapsis.
-    e = eccentricity(B, A)
+    e = eccentricity(A, B)
     e_mag = np.linalg.norm(e)
     e_unit = e / e_mag
+    a = semimajor_axis(A, B)
 
-    periapsis_coords = A.pos + periapsis(A, B) * e_unit
-    apoapsis_coords = A.pos - apoapsis(A, B) * e_unit
+    periapsis_coords = A.pos + a * (1 + e_mag) * e_unit
+    apoapsis_coords = A.pos - a * (1 - e_mag) * e_unit
 
     centre = (periapsis_coords + apoapsis_coords) / 2
-    major_axis = 2 * semimajor_axis(A, B)
+    major_axis = 2 * a
     minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
     return OrbitCoords(centre=centre, major_axis=major_axis,
                        minor_axis=minor_axis, eccentricity=e)
