@@ -137,6 +137,15 @@ class PEngine:
         Use an argument to change habitat throttle or spinning, and simulation
         will restart with this new information."""
         requested_t = self._simtime(requested_t)
+
+        if command.ident == Request.TIME_ACC_SET:
+            # Immediately change the time acceleration, don't wait for the
+            # simulation to catch up. This deals with the case where we're at
+            # 100,000x time acc, and the program seems frozen for the user and
+            # they try lowering time acc. We should immediately be able to
+            # restart simulation at a lower time acc without any waiting.
+            requested_t = self._solutions[-1].t_max
+
         y0 = self.get_state(requested_t)
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
@@ -491,12 +500,11 @@ class PEngine:
             ivp_out = scipy.integrate.solve_ivp(
                 functools.partial(
                     self._derive, pass_through_state=proto_state),
-                [t, t + self._time_acceleration],
+                # np.sqrt is here to give a slower-than-linear step size growth
+                [t, t + np.sqrt(self._time_acceleration)],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
                 events=[altitude_event, hab_fuel_event],
-                # np.sqrt is here to give a slower-than-linear step size growth
-                max_step=np.sqrt(self._time_acceleration),
                 dense_output=True
             )
 
