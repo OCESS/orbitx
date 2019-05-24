@@ -271,6 +271,16 @@ class FlightGui:
             self._commands.append(Request(
                 ident=Request.HAB_THROTTLE_SET,
                 throttle_set=0.00))
+        elif k == '.':
+            try:
+                self._time_acc_menu._menu.index += 1
+                self._time_acc_dropdown_hook(self._time_acc_menu._menu)
+            except IndexError:
+                pass  # We're already at max time acceleration
+        elif k == ',':
+            if self._time_acc_menu._menu.index != 0:
+                self._time_acc_menu._menu.index -= 1
+                self._time_acc_dropdown_hook(self._time_acc_menu._menu)
     # end of _handle_keydown
 
     def draw(self, draw_state: state.PhysicsState) -> None:
@@ -291,12 +301,13 @@ class FlightGui:
         for wtext in self._wtexts:
             wtext.update()
 
-    def _recentre_dropdown_hook(self, selection: vpython.menu) -> None:
-        self._set_origin(selection.selected)
-        self.recentre_camera(selection.selected)
+    def _recentre_dropdown_hook(self, centre_menu: vpython.menu) -> None:
+        self._set_origin(centre_menu.selected)
+        self.recentre_camera(centre_menu.selected)
 
-    def _time_acc_dropdown_hook(self, selection: vpython.menu) -> None:
-        time_acc = int(selection.selected.replace(',', '').replace('×', ''))
+    def _time_acc_dropdown_hook(self, time_acc_menu: vpython.menu) -> None:
+        time_acc = int(
+            time_acc_menu.selected.replace(',', '').replace('×', ''))
         self._commands.append(Request(
             ident=Request.TIME_ACC_SET,
             time_acc_set=time_acc))
@@ -503,7 +514,7 @@ class FlightGui:
             caption="Reference",
             helptext=(
                 "Take position, velocity relative to this.")
-        )
+        )._menu.disabled = True
 
         Menu(
             self,
@@ -512,7 +523,7 @@ class FlightGui:
             selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
-        )
+        )._menu.disabled = True
 
         Menu(
             self,
@@ -521,7 +532,7 @@ class FlightGui:
             selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
-        )
+        )._menu.disabled = True
 
         self._time_acc_menu = Menu(
             self,
