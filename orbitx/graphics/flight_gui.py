@@ -7,14 +7,12 @@ Call FlightGui.pop_commands() to collect user input.
 """
 
 import logging
-import signal
 import time
-import math
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, TypeVar
+from typing import Dict, List, TypeVar
 
 import numpy as np
-import vpython                      # python 3D graphic library module
+import vpython
 
 # Forward typing declaration is needed for Displayable and subclasses
 FlightGui = TypeVar('FlightGui')  # noqa: E402
@@ -148,6 +146,7 @@ class FlightGui:
         """
         try:
             self._scene.range = self._displaybles[planet_name].relevant_range()
+            self._scene.forward = vpython.vector(0, 0, -1)
 
             self._scene.camera.follow(self._displaybles[planet_name].get_obj())
             self._set_origin(planet_name)
@@ -160,7 +159,8 @@ class FlightGui:
 
     def ungraceful_shutdown(self):
         """Lets the user know that something bad happened."""
-        self._scene.caption += "<style>.error { display: block !important; }</style>"
+        self._scene.caption += \
+            "<style>.error { display: block !important; }</style>"
         print('called')
         time.sleep(0.1)  # Let vpython send out this update
 
