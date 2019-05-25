@@ -3,6 +3,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Optional
 
 import google.protobuf.json_format
 
@@ -104,11 +105,13 @@ class GrpcServerContext:
         self._server.stop(0)
 
 
-def format_num(num: float) -> str:
+def format_num(num: Optional[float], unit: str) -> str:
     """This should be refactored with the Menu class after symposium."""
     # TODO: refactor this along with the Menu class
     # This return string will be at most 10 characters
-    return '{:,.5g}'.format(round(num))
+    if num is None:
+        return ''
+    return '{:,.5g}'.format(round(num)) + unit
 
 
 def load_savefile(file) -> 'state.PhysicsState':

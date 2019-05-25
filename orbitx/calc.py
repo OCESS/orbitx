@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import collections
 import math
 
@@ -79,9 +79,40 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     return np.linalg.norm(tangent_v)
 
 
-def landing_acceleration(A: state.Entity, B: state.Entity) -> float:
-    """....."""
-    return 100
+def engine_acceleration(habitat: state.Entity) -> float:
+    """Acceleration due to engine thrust."""
+    return np.linalg.norm(state.Habitat.thrust(
+        throttle=habitat.throttle, heading=habitat.heading) /
+        (habitat.mass + habitat.fuel))
+
+
+def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
+    """Constant acceleration required to slow to a stop at the surface of B.
+    If the the entities are landed, returns 0."""
+    if A.attached_to == B.name:
+        return None
+
+    # We check if the two entities will ever intersect, by looking at the
+    # scalar expansion of |pos + v*t| = r, and seeing if there are any
+    # real number values for t that will make that equation be true. Turns out
+    # we can find if there are real solutions by solving the scalar expansion:
+    # https://www.wolframalpha.com/input/?i=solve+sqrt((a+%2B+x*t)%5E2+%2B+(b+%2B+y*t)%5E2)+%3D+r+for+t
+    # (in the above equation [a, b] and [x, y] represent pos and v vectors)
+    # and checking if the value inside the square root is ever negative (which
+    # would mean there are only imaginary solutions) or if the denominator is 0
+    pos = A.pos - B.pos
+    x, y = pos
+    v = A.v - B.v
+    vx, vy = v
+    r = A.r + B.r
+    if (-x**2 * vy**2 + 2 * x * y * vx * vy -
+        y**2 * vx**2 + r**2 * vx**2 + r**2 * vy**2) < 0 or \
+            vx**2 + vy**2 == 0:
+        return None
+
+    # np.inner(vector, vector) is the squared norm, i.e. |vector|^2
+    return ((G * (A.mass + B.mass)) / np.inner(pos, pos) +
+            np.inner(v, v) / (2 * np.linalg.norm(A.pos - B.pos)))
 
 
 def semimajor_axis(A: state.Entity, B: state.Entity) -> float:

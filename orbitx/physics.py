@@ -241,7 +241,7 @@ class PEngine:
         log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in '
                  f' the future, {e1} and {e2}')
 
-        if (e2.attached_to is not "") or (e1.attached_to is not ""):
+        if e2.attached_to or e1.attached_to:
             log.info('Entities are attached, returning early')
             return e1, e2
 

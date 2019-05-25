@@ -75,7 +75,7 @@ class Habitat(Displayable):
         self._label = self._create_label()
         self._label.text_function = lambda entity: (
             f'{entity.name}\n'
-            f'Fuel: {common.format_num(entity.fuel)} kg' +
+            f'Fuel: {common.format_num(entity.fuel, " kg")}' +
             ('\nDocked' if entity.attached_to == common.AYSE else
              '\nLanded' if entity.attached_to else '')
         )

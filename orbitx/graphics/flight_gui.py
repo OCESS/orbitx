@@ -360,7 +360,7 @@ class FlightGui:
             self,
             "Orbit speed",
             lambda: common.format_num(calc.orb_speed(
-                self.active_craft(), self.reference())) + " m/s",
+                self.active_craft(), self.reference()), " m/s"),
             "Speed required for circular orbit at current altitude",
             new_section=False))
 
@@ -368,7 +368,7 @@ class FlightGui:
             self,
             "Periapsis",
             lambda: common.format_num(calc.periapsis(
-                self.active_craft(), self.reference())) + " m",
+                self.active_craft(), self.reference()), " m"),
             "Lowest altitude in naïve orbit around reference",
             new_section=False))
 
@@ -376,7 +376,7 @@ class FlightGui:
             self,
             "Apoapsis",
             lambda: common.format_num(calc.apoapsis(
-                self.active_craft(), self.reference())) + " m",
+                self.active_craft(), self.reference()), " m"),
             "Highest altitude in naïve orbit around reference",
             new_section=False))
 
@@ -384,7 +384,7 @@ class FlightGui:
             self,
             "HRT phase θ",
             lambda: '{:.0f}'.format(calc.phase_angle(
-                self.active_craft(), self.reference(), self.target())) + "°",
+                self.active_craft(), self.reference(), self.target()), "°"),
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
@@ -397,8 +397,16 @@ class FlightGui:
 
         self._wtexts.append(Text(
             self,
+            "Engine Acceleration",
+            lambda: common.format_num(
+                calc.engine_acceleration(self.active_craft()), " m/s/s"),
+            "Acceleration due to craft's engine thrust",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
             "Fuel ",
-            lambda: common.format_num(self.active_craft().fuel) + " kg",
+            lambda: common.format_num(self.active_craft().fuel, " kg"),
             "Remaining fuel of habitat",
             new_section=False))
 
@@ -406,7 +414,7 @@ class FlightGui:
             self,
             "Ref altitude",
             lambda: common.format_num(calc.altitude(
-                self.active_craft(), self.reference())) + " m",
+                self.active_craft(), self.reference()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
@@ -414,7 +422,7 @@ class FlightGui:
             self,
             "Ref speed",
             lambda: common.format_num(calc.speed(
-                self.active_craft(), self.reference())) + " m/s",
+                self.active_craft(), self.reference()), " m/s"),
             "Speed of habitat above reference surface",
             new_section=False))
 
@@ -422,7 +430,7 @@ class FlightGui:
             self,
             "Vertical speed",
             lambda: common.format_num(calc.v_speed(
-                self.active_craft(), self.reference())) + " m/s ",
+                self.active_craft(), self.reference()), " m/s "),
             "Vertical speed of habitat towards/away reference surface",
             new_section=False))
 
@@ -430,7 +438,7 @@ class FlightGui:
             self,
             "Horizontal speed",
             lambda: common.format_num(calc.h_speed(
-                self.active_craft(), self.reference())) + " m/s ",
+                self.active_craft(), self.reference()), " m/s "),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
@@ -438,7 +446,7 @@ class FlightGui:
             self,
             "Pitch θ",
             lambda: common.format_num(calc.pitch(
-                self.active_craft(), self.reference())) + "°",
+                self.active_craft(), self.reference()), "°"),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
@@ -446,7 +454,7 @@ class FlightGui:
             self,
             "Targ altitude",
             lambda: common.format_num(calc.altitude(
-                self.active_craft(), self.target())) + " m",
+                self.active_craft(), self.target()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
@@ -454,8 +462,17 @@ class FlightGui:
             self,
             "Targ speed",
             lambda: common.format_num(calc.speed(
-                self.active_craft(), self.target())) + " m/s",
+                self.active_craft(), self.target()), " m/s"),
             "Speed of habitat above target surface",
+            new_section=False))
+
+        self._wtexts.append(Text(
+            self,
+            "Landing acc",
+            lambda: (common.format_num(calc.landing_acceleration(
+                self.active_craft(), self.target()), " m/s/s") or
+                "no vertical landing"),
+            "Constant engine acc to land during vertical descent to target",
             new_section=False))
 
         # TODO add pitch and stopping acceleration fields after symposium
