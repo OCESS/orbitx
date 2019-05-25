@@ -514,7 +514,7 @@ class FlightGui:
             caption="Reference",
             helptext=(
                 "Take position, velocity relative to this.")
-        )._menu.disabled = True
+        )
 
         Menu(
             self,
@@ -523,7 +523,7 @@ class FlightGui:
             selected=DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
-        )._menu.disabled = True
+        )
 
         Menu(
             self,
