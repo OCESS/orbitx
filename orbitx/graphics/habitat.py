@@ -29,9 +29,9 @@ class Habitat(Displayable):
         scene.select()
 
         body = vpython.cylinder(
-            pos=vector(0, 0, 0), axis=vector(-5, 0, 0), radius=7)
+            pos=vector(0, 0, 0), axis=vector(-5, 0, 0), radius=10)
         head = vpython.cone(
-            pos=vector(0, 0, 0), axis=vector(3, 0, 0), radius=7)
+            pos=vector(0, 0, 0), axis=vector(3, 0, 0), radius=10)
         wing = vpython.triangle(
             v0=vertex(0, 0, 0), v1=vertex(-5, 30, 0), v2=vertex(-5, -30, 0))
         wing2 = vpython.triangle(
@@ -43,7 +43,6 @@ class Habitat(Displayable):
         hab.radius = self._entity.r / 2
         hab.shininess = 0.1
         hab.length = self._entity.r * 2
-        hab.height = self._entity.r
         hab.color = vpython.color.cyan
         old_scene.select()
         return hab
