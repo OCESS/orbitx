@@ -19,10 +19,13 @@ def angle_to_vpy(angle: float) -> vpython.vector:
     return vpython.vector(np.cos(angle), np.sin(angle), 0)
 
 
-def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> float:
+def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> \
+        Optional[float]:
     """The orbital phase angle, between A-B-C, of the angle at B.
     i.e. the angle between the ref-hab vector and the ref-targ vector."""
     # Code from Newton Excel Bach blog, 2014, "the angle between two vectors"
+    if B.name == C.name:
+        return None
     AB = A.pos - B.pos
     CB = C.pos - B.pos
 

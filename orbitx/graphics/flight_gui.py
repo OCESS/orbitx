@@ -383,8 +383,9 @@ class FlightGui:
         self._wtexts.append(Text(
             self,
             "HRT phase θ",
-            lambda: '{:.0f}'.format(calc.phase_angle(
-                self.active_craft(), self.reference(), self.target()), "°"),
+            lambda: common.format_num(calc.phase_angle(
+                self.active_craft(), self.reference(), self.target()), "°") or
+            'Same ref and targ',
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
