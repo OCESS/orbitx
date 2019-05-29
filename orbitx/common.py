@@ -25,8 +25,12 @@ FRAMERATE = 100
 
 DEFAULT_TIME_ACC = 1
 
-MIN_THROTTLE = -1
-MAX_THROTTLE = 1
+DEFAULT_CENTRE = HABITAT
+DEFAULT_REFERENCE = EARTH
+DEFAULT_TARGET = AYSE
+
+MIN_THROTTLE = -1.00  # -100%
+MAX_THROTTLE = 1  # 100%
 
 # A small positive distance and speed, respectively, that is added to a ship
 # that is undocking.
@@ -119,6 +123,20 @@ def load_savefile(file) -> 'state.PhysicsState':
         data = f.read()
     read_state = protos.PhysicalState()
     google.protobuf.json_format.Parse(data, read_state)
+
+    # Try to set some sane defaults
+    if read_state.craft == '':
+        for entity in read_state.entities:
+            if entity.artificial:
+                # The first artificial object will be the controlled craft.
+                read_state.craft = entity.name
+                break
+    if read_state.time_acc == 0:
+        read_state.time_acc = DEFAULT_TIME_ACC
+    if read_state.reference == '':
+        read_state.reference = DEFAULT_REFERENCE
+    if read_state.target == '':
+        read_state.target = DEFAULT_TARGET
     return state.PhysicsState(None, read_state)
 
 

@@ -1,5 +1,6 @@
 {
     "timestamp": 0.0,
+    "craft": "Habitat",
     "entities": [
         {
             "name": "Habitat",

@@ -31,10 +31,6 @@ from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
 
-DEFAULT_CENTRE = common.HABITAT
-DEFAULT_REFERENCE = common.EARTH
-DEFAULT_TARGET = common.AYSE
-
 G = 6.674e-11
 
 PLANET_SHININIESS = 0.3
@@ -76,7 +72,7 @@ class FlightGui:
         self._scene.autoscale = False
         self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
-        self._set_origin(DEFAULT_CENTRE)
+        self._set_origin(common.DEFAULT_CENTRE)
 
         for planet in draw_state:
             obj: Displayable
@@ -92,8 +88,8 @@ class FlightGui:
             self._spheres[planet.name] = obj
             obj.make_trail(DEFAULT_TRAILS)
 
-        self._set_reference(DEFAULT_REFERENCE)
-        self._set_target(DEFAULT_TARGET)
+        self._set_reference(draw_state.reference)
+        self._set_target(draw_state.target)
 
         self._orbit_projection = OrbitProjection(self)
 
@@ -105,7 +101,7 @@ class FlightGui:
             while self._scene.range > 600000:
                 vpython.rate(100)
                 self._scene.range = self._scene.range * 0.92
-        self.recentre_camera(DEFAULT_CENTRE)
+        self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
 
     def _init_minimap_canvas(self) -> vpython.canvas:
@@ -519,7 +515,7 @@ class FlightGui:
             self,
             choices=list(self._spheres),
             bind=self._recentre_dropdown_hook,
-            selected=DEFAULT_CENTRE,
+            selected=common.DEFAULT_CENTRE,
             caption="Centre",
             helptext="Focus of camera"
         )
@@ -528,7 +524,8 @@ class FlightGui:
             self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_reference(selection.selected),
-            selected=DEFAULT_REFERENCE,
+            # TODO: the reference is already set by default, just use that ref.
+            selected=common.DEFAULT_REFERENCE,
             caption="Reference",
             helptext=(
                 "Take position, velocity relative to this.")
@@ -538,7 +535,7 @@ class FlightGui:
             self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_target(selection.selected),
-            selected=DEFAULT_TARGET,
+            selected=common.DEFAULT_TARGET,
             caption="Target",
             helptext="For use by NAV mode"
         )

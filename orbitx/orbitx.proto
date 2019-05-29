@@ -91,4 +91,8 @@ message Entity {
 message PhysicalState {
     repeated Entity entities = 1;
     double timestamp = 2;
+    int64 time_acc = 3;
+    string craft = 4;
+    string reference = 5;
+    string target = 6;
 }

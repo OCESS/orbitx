@@ -149,42 +149,39 @@ class PEngine:
         y0 = self.get_state(requested_t)
         log.info(f'Got command for simtime t={requested_t}: {command}')
 
-        control_craft_index = y0.control_craft_index()
-
-        def launch(craft_index: int):
-            nonlocal y0
+        def launch_craft(y0: state.PhysicsState):
             # Make sure that we're slightly above the surface of an attachee
             # before un-attaching two entities
-            attached_to = y0.AttachedTo
-            if craft_index in attached_to.keys():
-                ship = y0[craft_index]
-                attachee = y0[attached_to[craft_index]]
+            craft = y0[y0.craft]
+            if craft.attached_to:
+                attachee = y0[craft.attached_to]
 
-                norm = ship.pos - attachee.pos
+                norm = craft.pos - attachee.pos
                 unit_norm = norm / np.linalg.norm(norm)
-                ship.pos = attachee.pos + unit_norm * (
-                    common.LAUNCH_SEPARATION + attachee.r + ship.r)
-                ship.v += unit_norm * common.LAUNCH_BOOST_SPEED
-                ship.attached_to = ''
+                craft.pos = attachee.pos + unit_norm * (
+                    common.LAUNCH_SEPARATION + attachee.r + craft.r)
+                craft.v += unit_norm * common.LAUNCH_BOOST_SPEED
+                craft.attached_to = ''
 
-                y0[craft_index] = ship
+                y0[y0.craft] = craft
 
         if command.ident == Request.HAB_SPIN_CHANGE:
-            if control_craft_index not in y0.AttachedTo:
-                hab = y0[control_craft_index]
-                hab.spin += state.Habitat.spin_change(
+            craft = y0[y0.craft]
+            if not craft.attached_to:
+                # TODO: on the next line, not every craft is a hab.
+                craft.spin += state.Habitat.spin_change(
                     requested_spin_change=command.spin_change)
-                y0[control_craft_index] = hab
+                y0[y0.craft] = craft
         elif command.ident == Request.HAB_THROTTLE_CHANGE:
-            launch(control_craft_index)
-            hab = y0[control_craft_index]
-            hab.throttle += command.throttle_change
-            y0[control_craft_index] = hab
+            launch_craft(y0)
+            craft = y0[y0.craft]
+            craft.throttle += command.throttle_change
+            y0[y0.craft] = craft
         elif command.ident == Request.HAB_THROTTLE_SET:
-            launch(control_craft_index)
-            hab = y0[control_craft_index]
-            hab.throttle = command.throttle_set
-            y0[control_craft_index] = hab
+            launch_craft(y0)
+            craft = y0[y0.craft]
+            craft.throttle = command.throttle_set
+            y0[y0.craft] = craft
         elif command.ident == Request.TIME_ACC_SET:
             assert command.time_acc_set > 0
             self._time_acceleration = command.time_acc_set
@@ -198,7 +195,8 @@ class PEngine:
             y0[common.HABITAT] = hab
             y0[common.AYSE] = ayse
         elif command.ident == Request.UNDOCK:
-            launch(y0._name_to_index(common.HABITAT))
+            y0.craft = common.HABITAT
+            launch_craft(y0)
 
         # Have to restart simulation when any controls are changed
         self._restart_simulation(requested_t, y0)

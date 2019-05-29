@@ -376,14 +376,41 @@ class PhysicsState:
     def Broken(self):
         return self._y_components()[9]
 
-    def control_craft_index(self) -> int:
-        """TODO: replace this with a field in the protobuf."""
-        hab_index = self._name_to_index(common.HABITAT)
+    @property
+    def time_acc(self) -> int:
+        """Returns the time acceleration, e.g. 1x or 50x."""
+        return self._proto_state.time_acc
 
-        if self[hab_index].attached_to == common.AYSE:
-            return self._name_to_index(common.AYSE)
-        else:
-            return hab_index
+    @time_acc.setter
+    def time_acc(self, new_acc: int):
+        self._proto_state.time_acc = new_acc
+
+    @property
+    def craft(self) -> str:
+        """Returns the currently-controlled craft."""
+        return self._proto_state.craft
+
+    @craft.setter
+    def craft(self, name: str):
+        self._proto_state.craft = name
+
+    @property
+    def reference(self) -> str:
+        """Returns current reference of the physics system, shown in GUI."""
+        return self._proto_state.reference
+
+    @reference.setter
+    def reference(self, name: str):
+        self._proto_state.reference = name
+
+    @property
+    def target(self) -> str:
+        """Returns landing/docking target, shown in GUI."""
+        return self._proto_state.target
+
+    @target.setter
+    def target(self, name: str):
+        self._proto_state.target = name
 
 
 # A note about functions with the signature "(self, *, arg1=None, arg2=None)"
