@@ -55,6 +55,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
             text=self._label_text(entity))
 
     def draw_landing_graphic(self, entity: state.Entity) -> None:
+        log.debug(f'drawing landing graphic for {entity.name}')
         """Draw something that simulates a flat surface at near zoom levels."""
         def graphic(size: float):
             # Iterate over a list of Point 3-tuples, each representing the
@@ -84,7 +85,6 @@ class ThreeDeeObj(metaclass=ABCMeta):
         self._small_landing_graphic = graphic(5000)
         self._large_landing_graphic = graphic(
             entity.r * np.tan(np.degrees(30)))
-    # end of draw_small_landing_graphic
 
     def _update_landing_graphic(
         self, graphic: vpython.compound,
@@ -116,7 +116,6 @@ class ThreeDeeObj(metaclass=ABCMeta):
         y_intercept = -slope * self.LANDING_GRAPHIC_TRANSPARENT_ALTITUDE
         opacity = slope * (axis.mag - entity.r) + y_intercept
         graphic.opacity = max(0, min(opacity, 1))
-    # end of _update_small_landing_graphic
 
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible

@@ -58,11 +58,10 @@ class FlightGui:  # type: ignore
             Path('data', 'textures') if texture_path is None else texture_path
         )
         self._commands: list = []
-        self._spheres: dict = {}
         self.pause_label: vpython.label = vpython.label(
             text="Simulation Paused.", visible=False)
 
-        self._displaybles: Dict[str, ThreeDeeObj] = {}
+        self._3dobjs: Dict[str, ThreeDeeObj] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
         self._wtexts: List[Text] = []
@@ -82,11 +81,14 @@ class FlightGui:  # type: ignore
                 obj = Star(planet, self.origin(), self.texture_path)
             else:
                 obj = Planet(planet, self.origin(), self.texture_path)
-            self._displaybles[planet.name] = obj
-            self._spheres[planet.name] = obj
+            self._3dobjs[planet.name] = obj
             obj.make_trail(DEFAULT_TRAILS)
 
         self._orbit_projection = OrbitProjection(self)
+        self._3dobjs[draw_state.reference].draw_landing_graphic(
+            draw_state.reference_entity())
+        self._3dobjs[draw_state.target].draw_landing_graphic(
+            draw_state.target_entity())
 
         self._set_caption()
 
@@ -125,10 +127,10 @@ class FlightGui:  # type: ignore
         entity should be reset every time when making a scene.center update.
         """
         try:
-            self._scene.range = self._displaybles[planet_name].relevant_range()
+            self._scene.range = self._3dobjs[planet_name].relevant_range()
             self._scene.forward = vpython.vector(0, 0, -1)
 
-            self._scene.camera.follow(self._displaybles[planet_name]._obj)
+            self._scene.camera.follow(self._3dobjs[planet_name]._obj)
             self._set_origin(planet_name)
 
         except KeyError:
@@ -173,10 +175,10 @@ class FlightGui:  # type: ignore
             self._time_acc_menu._menu.selected = new_acc_str
 
         elif request.ident == Request.REFERENCE_UPDATE:
-            assert request.reference in self._spheres.keys()
+            assert request.reference in self._3dobjs.keys()
             self._reference_menu._menu.selected = request.reference
         elif request.ident == Request.TARGET_UPDATE:
-            assert request.target in self._spheres.keys()
+            assert request.target in self._3dobjs.keys()
             self._target_menu._menu.selected = request.target
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
@@ -185,7 +187,7 @@ class FlightGui:  # type: ignore
         k = evt.key
         if k == 'l':
             self._show_label = not self._show_label
-            for name, obj in self._displaybles.items():
+            for name, obj in self._3dobjs.items():
                 obj._show_hide_label()
         elif k == 'p':
             self._pause = not self._pause
@@ -248,7 +250,7 @@ class FlightGui:  # type: ignore
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
         for planet in draw_state:
-            self._spheres[planet.name].draw(planet, draw_state, self.origin())
+            self._3dobjs[planet.name].draw(planet, draw_state, self.origin())
 
         self._orbit_projection.update(draw_state, self.origin())
 
@@ -259,7 +261,7 @@ class FlightGui:  # type: ignore
         try:
             self._commands.append(Request(
                 ident=Request.REFERENCE_UPDATE, reference=entity_name))
-            self._displaybles[entity_name].draw_landing_graphic(
+            self._3dobjs[entity_name].draw_landing_graphic(
                 self._state[entity_name])
             if self._show_trails:
                 self._clear_trails()
@@ -270,7 +272,7 @@ class FlightGui:  # type: ignore
         try:
             self._commands.append(Request(
                 ident=Request.TARGET_UPDATE, target=entity_name))
-            self._displaybles[entity_name].draw_landing_graphic(
+            self._3dobjs[entity_name].draw_landing_graphic(
                 self._state[entity_name])
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
@@ -294,7 +296,7 @@ class FlightGui:  # type: ignore
             log.error(f'Tried to set non-existent origin "{entity_name}"')
 
     def _clear_trails(self) -> None:
-        for name, obj in self._displaybles.items():
+        for name, obj in self._3dobjs.items():
             obj.clear_trail()
 
     def _recentre_dropdown_hook(self, centre_menu: vpython.menu) -> None:
@@ -310,7 +312,7 @@ class FlightGui:  # type: ignore
 
     def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
         self._show_trails = selection.checked
-        for name, obj in self._displaybles.items():
+        for name, obj in self._3dobjs.items():
             obj.make_trail(selection.checked)
 
         if not self._show_trails:
@@ -520,7 +522,7 @@ class FlightGui:  # type: ignore
 
         self._centre_menu = Menu(
             self,
-            choices=list(self._spheres),
+            choices=list(self._3dobjs),
             bind=self._recentre_dropdown_hook,
             selected=common.DEFAULT_CENTRE,
             caption="Centre",
@@ -529,7 +531,7 @@ class FlightGui:  # type: ignore
 
         self._reference_menu = Menu(
             self,
-            choices=list(self._spheres),
+            choices=list(self._3dobjs),
             bind=lambda selection: self._set_reference(selection.selected),
             # TODO: the reference is already set by default, just use that ref.
             selected=self._state.reference,
@@ -540,7 +542,7 @@ class FlightGui:  # type: ignore
 
         self._target_menu = Menu(
             self,
-            choices=list(self._spheres),
+            choices=list(self._3dobjs),
             bind=lambda selection: self._set_target(selection.selected),
             selected=self._state.target,
             caption="Target",

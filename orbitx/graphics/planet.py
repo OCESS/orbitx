@@ -18,7 +18,7 @@ class Planet(ThreeDeeObj):
             axis=calc.angle_to_vpy(entity.heading),
             up=vpython.vector(0, 0, 1),
             # So the planet doesn't intersect the landing graphic
-            radius=entity.r * 0.95,
+            radius=entity.r * 0.9,
             make_trail=True,
             retain=10000,
             texture=texture,
