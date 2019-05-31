@@ -17,7 +17,7 @@ from orbitx import state
 from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 
-SOLUTION_CACHE_SIZE = 5
+SOLUTION_CACHE_SIZE = 10
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
