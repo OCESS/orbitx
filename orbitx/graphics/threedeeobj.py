@@ -1,9 +1,8 @@
 import logging
-import math
 from abc import ABCMeta
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import vpython
 import numpy as np
@@ -11,36 +10,49 @@ import numpy as np
 from orbitx import calc
 from orbitx import common
 from orbitx import state
-from orbitx.graphics.flight_gui import FlightGui
 
 log = logging.getLogger()
 
 
-class Displayable(metaclass=ABCMeta):
-    PLANET_SHININIESS = 0.3
+class ThreeDeeObj(metaclass=ABCMeta):
+
+    @abstractmethod
+    def _create_obj(self,
+                    entity: state.Entity, origin: state.Entity,
+                    texture: Optional[str]
+                    ) -> Union[vpython.sphere, vpython.compound]:
+        """Create a 3D object, like a planet, a star, or a spaceship, using
+        vpython and return it. It will be rotated etc. elsewhere, don't worry
+        about that. Just make a cool object!"""
+        pass
+
+    @abstractmethod
+    def _label_text(self, entity: state.Entity) -> str:
+        """Return text that should be put in the label for a 3d object.
+        This method is evaluated every frame using the newest physics data."""
+        pass
+
+    # When creating a new 3D object, usually you don't have to worry about
+    # anything below here. All you have to do is override the three above
+    # methods in your derived class.
+    # Sometimes you'll want to do something special, e.g. AYSE disables
+    # landing graphics being drawn by overriding draw_landing_graphic below
+    # to be a no-op, which you can do. But most of the time, it's not needed.
+
     LANDING_GRAPHIC_OPAQUE_ALTITUDE = 100_000
     LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
 
-    def __init__(self, entity: state.Entity, flight_gui: FlightGui) -> None:
-        self._obj: vpython.sphere
-        self._label: vpython.label
-        self._small_landing_graphic: vpython.compound
-        self._texture: Optional[str]
+    def __init__(self, entity: state.Entity,
+                 origin: state.Entity, texture_path: Path) -> None:
+        texture_path = texture_path / (entity.name + '.jpg')
 
-        self._entity = entity
-        self.flight_gui = flight_gui
-
-        texture = self.flight_gui.texture_path / (self._entity.name + '.jpg')
-        self._texture = str(texture) if texture.is_file() else None
+        texture = str(texture_path) if texture_path.is_file() else None
+        self._obj = self._create_obj(entity, origin, texture)
         self._small_landing_graphic: Optional[vpython.compound] = None
         self._large_landing_graphic: Optional[vpython.compound] = None
-    # end of __init__
-
-    def _create_label(self) -> vpython.label:
-        return vpython.label(
-            pos=self._entity.screen_pos(self.flight_gui.origin()),
-            xoffset=0, yoffset=10, height=16,
-            border=4, font='sans')
+        self._label = vpython.label(
+            pos=self._obj.pos, xoffset=10, yoffset=10, border=4, font='sans',
+            text=self._label_text(entity))
 
     def draw_landing_graphic(self, entity: state.Entity) -> None:
         """Draw something that simulates a flat surface at near zoom levels."""
@@ -62,7 +74,7 @@ class Displayable(metaclass=ABCMeta):
             return vpython.compound(
                 vpython_tris,
                 opacity=0,
-                pos=entity.screen_pos(self.flight_gui.origin()),
+                pos=self._obj.pos,
                 up=vpython.vector(0, 0, 1))
 
         # We have to have to sizes because we want our landing graphic to be
@@ -75,7 +87,8 @@ class Displayable(metaclass=ABCMeta):
     # end of draw_small_landing_graphic
 
     def _update_landing_graphic(
-        self, graphic: vpython.compound, entity: state.Entity
+        self, graphic: vpython.compound,
+        entity: state.Entity, craft: state.Entity
     ) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
@@ -86,15 +99,14 @@ class Displayable(metaclass=ABCMeta):
             return
 
         axis = vpython.vector(
-            self.flight_gui.active_craft().x - entity.x,
-            self.flight_gui.active_craft().y - entity.y,
+            craft.x - entity.x,
+            craft.y - entity.y,
             0
         )
 
         graphic.axis = vpython.vector(-axis.y, axis.x, 0).norm()
         graphic.pos = (
-            entity.screen_pos(self.flight_gui.origin()) +
-            axis.norm() * (entity.r - graphic.width / 2)
+            self._obj.pos + axis.norm() * (entity.r - graphic.width / 2)
         )
 
         # Make the graphic transparent when far, but opaque when close.
@@ -109,40 +121,30 @@ class Displayable(metaclass=ABCMeta):
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible
 
-    def _update_obj(self, entity: state.Entity) -> None:
-        self._entity = entity
+    def _update_obj(self, entity: state.Entity,
+                    state: state.PhysicsState, origin: state.Entity) -> None:
         # update planet objects
-        self._obj.pos = entity.screen_pos(self.flight_gui.origin())
-        if entity.name == common.AYSE:
-            self._obj.axis = calc.angle_to_vpy(self._entity.heading + np.pi)
-        else:
-            self._obj.axis = calc.angle_to_vpy(self._entity.heading)
+        self._obj.pos = entity.screen_pos(origin)
+        self._obj.axis = calc.angle_to_vpy(entity.heading)
 
         # update label objects
-        self._label.text = self._label.text_function(entity)
-        self._label.pos = entity.screen_pos(self.flight_gui.origin())
+        self._label.text = self._label_text(entity)
+        self._label.pos = entity.screen_pos(origin)
         # update landing graphic objects
-        self._update_landing_graphic(self._small_landing_graphic, entity)
-        self._update_landing_graphic(self._large_landing_graphic, entity)
-    # end of _update_obj
+        self._update_landing_graphic(self._small_landing_graphic,
+                                     entity, state.craft_entity())
+        self._update_landing_graphic(self._large_landing_graphic,
+                                     entity, state.craft_entity())
 
-    def get_obj(self):  # -> (any of vpython.sphere, vpython.compound)
-        return self._obj
-    # end of get_obj
+    def pos(self) -> vpython.vector:
+        return self._obj.pos
 
     def relevant_range(self) -> float:
         return self._obj.radius * 2
-    # end of relevant_range
 
-    @abstractmethod
-    def _draw_labels(self) -> None:
-        pass
-    # end of _draw_labels
-
-    @abstractmethod
-    def draw(self, entity: state.Entity) -> None:
-        pass
-    # end of draw
+    def draw(self, entity: state.Entity,
+             state: state.PhysicsState, origin: state.Entity):
+        self._update_obj(entity, state, origin)
 
     def clear_trail(self) -> None:
         self._obj.clear_trail()
@@ -150,4 +152,3 @@ class Displayable(metaclass=ABCMeta):
     def make_trail(self, trails: bool) -> None:
         self.clear_trail()
         self._obj.make_trail = trails
-# end of class Displayable

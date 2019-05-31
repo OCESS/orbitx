@@ -66,14 +66,14 @@ class PEngine:
         self._solutions_cond = threading.Condition()
         self._solutions: collections.deque
         self._last_monotime: float = time.monotonic()
-        self._time_acceleration: float = common.DEFAULT_TIME_ACC
         self._simthread_exception: Optional[Exception] = None
+        self._last_physical_state: state.protos.PhysicalState
 
         self.set_state(physical_state)
 
     def set_time_acceleration(self, time_acceleration, requested_t=None):
         """Change the speed at which this PEngine simulates at."""
-        self.handle_command(Request(
+        self.handle_request(Request(
             ident=Request.TIME_ACC_SET, time_acc_set=time_acceleration))
 
     def _simtime(self, requested_t=None, *, peek_time=False):
@@ -93,7 +93,9 @@ class PEngine:
             if not peek_time:
                 self._last_monotime = time.monotonic()
             requested_t = (
-                self._last_simtime + time_elapsed * self._time_acceleration)
+                self._last_simtime +
+                time_elapsed * self._last_physical_state.time_acc
+            )
 
         if not peek_time:
             with self._solutions_cond:
@@ -115,7 +117,7 @@ class PEngine:
         self._simthread = threading.Thread(
             target=self._simthread_target,
             args=(t0, y0),
-            name=f'simthread t={round(t0)} acc={self._time_acceleration}',
+            name=f'simthread t={round(t0)} acc={y0.time_acc}',
             daemon=True
         )
         self._stopping_simthread = False
@@ -131,14 +133,17 @@ class PEngine:
         # Fork self._simthread into the background.
         self._simthread.start()
 
-    def handle_command(self, command, requested_t=None):
+    def handle_request(self, request: Request, requested_t=None):
         """Interface to set habitat controls.
 
         Use an argument to change habitat throttle or spinning, and simulation
         will restart with this new information."""
+        if request.ident == Request.NOOP:
+            # We don't care about these requests
+            return
         requested_t = self._simtime(requested_t)
 
-        if command.ident == Request.TIME_ACC_SET:
+        if request.ident == Request.TIME_ACC_SET:
             # Immediately change the time acceleration, don't wait for the
             # simulation to catch up. This deals with the case where we're at
             # 100,000x time acc, and the program seems frozen for the user and
@@ -147,13 +152,12 @@ class PEngine:
             requested_t = self._solutions[-1].t_max
 
         y0 = self.get_state(requested_t)
-        log.info(f'Got command for simtime t={requested_t}: {command}')
 
         def launch_craft(y0: state.PhysicsState):
             # Make sure that we're slightly above the surface of an attachee
             # before un-attaching two entities
             craft = y0[y0.craft]
-            if craft.attached_to:
+            if craft.landed():
                 attachee = y0[craft.attached_to]
 
                 norm = craft.pos - attachee.pos
@@ -165,60 +169,52 @@ class PEngine:
 
                 y0[y0.craft] = craft
 
-        if command.ident == Request.HAB_SPIN_CHANGE:
+        if request.ident == Request.HAB_SPIN_CHANGE:
             craft = y0[y0.craft]
-            if not craft.attached_to:
+            if not craft.landed():
                 # TODO: on the next line, not every craft is a hab.
                 craft.spin += state.Habitat.spin_change(
-                    requested_spin_change=command.spin_change)
+                    requested_spin_change=request.spin_change)
                 y0[y0.craft] = craft
-        elif command.ident == Request.HAB_THROTTLE_CHANGE:
+        elif request.ident == Request.HAB_THROTTLE_CHANGE:
             launch_craft(y0)
             craft = y0[y0.craft]
-            craft.throttle += command.throttle_change
+            craft.throttle += request.throttle_change
             y0[y0.craft] = craft
-        elif command.ident == Request.HAB_THROTTLE_SET:
+        elif request.ident == Request.HAB_THROTTLE_SET:
             launch_craft(y0)
             craft = y0[y0.craft]
-            craft.throttle = command.throttle_set
+            craft.throttle = request.throttle_set
             y0[y0.craft] = craft
-        elif command.ident == Request.TIME_ACC_SET:
-            assert command.time_acc_set > 0
-            self._time_acceleration = command.time_acc_set
-        elif command.ident == Request.ENGINEERING_UPDATE:
+        elif request.ident == Request.TIME_ACC_SET:
+            assert request.time_acc_set > 0
+            y0.time_acc = request.time_acc_set
+        elif request.ident == Request.ENGINEERING_UPDATE:
             state.Habitat.engine.max_thrust = \
-                command.engineering_update.max_thrust
+                request.engineering_update.max_thrust
             hab = y0[common.HABITAT]
             ayse = y0[common.AYSE]
-            hab.fuel = command.engineering_update.hab_fuel
-            ayse.fuel = command.engineering_update.ayse_fuel
+            hab.fuel = request.engineering_update.hab_fuel
+            ayse.fuel = request.engineering_update.ayse_fuel
             y0[common.HABITAT] = hab
             y0[common.AYSE] = ayse
-        elif command.ident == Request.UNDOCK:
-            y0.craft = common.HABITAT
+        elif request.ident == Request.UNDOCK:
+            habitat = y0[common.HABITAT]
+            habitat.attached_to = ''
+            y0[common.HABITAT] = habitat
             launch_craft(y0)
+        elif request.ident == Request.REFERENCE_UPDATE:
+            y0.reference = request.reference
+        elif request.ident == Request.TARGET_UPDATE:
+            y0.target = request.target
 
-        # Have to restart simulation when any controls are changed
-        self._restart_simulation(requested_t, y0)
+        self.set_state(y0)
 
     def set_state(self, physical_state: state.PhysicsState):
         self._artificials = np.where(
             np.array([
                 entity.artificial
                 for entity in physical_state]) >= 1)[0]
-        try:
-            self._hab_index = [
-                entity.name for entity in physical_state
-            ].index(common.HABITAT)
-        except ValueError:
-            self._hab_index = 0
-
-        try:
-            self._spacestation_index = [
-                entity.name for entity in physical_state
-            ].index(common.AYSE)
-        except ValueError:
-            self._spacestation_index = 0
 
         # We keep track of the PhysicalState because our simulation only
         # simulates things that change like position and velocity, not things
@@ -239,6 +235,7 @@ class PEngine:
         log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in '
                  f' the future, {e1} and {e2}')
 
+        # TODO: does this break three-body collisions? e.g. both Hab and AYSE
         if e2.attached_to or e1.attached_to:
             log.info('Entities are attached, returning early')
             return e1, e2
@@ -452,18 +449,6 @@ class PEngine:
             Xa[index] += centripetal_acc[0]
             Ya[index] += centripetal_acc[1]
 
-        # for futur spacestation code
-        # if y.Fuel[self._spacestation_index] > 0:
-        #    # We have fuel remaining, calculate thrust
-        #    throttle = y.Throttle[self._spacestation_index]
-        #    fuel_cons[self._spacestation_index] = \
-        #        -state.Habitat.fuel_cons(throttle=throttle)
-        #    hab_eng_acc_x, hab_eng_acc_y = state.Habitat.acceleration(
-        #        throttle=throttle,
-        #        heading=y.Heading[self._spacestation_index])
-        #    Xa[self._spacestation_index] += hab_eng_acc_x
-        #    Ya[self._spacestation_index] += hab_eng_acc_y
-
         return np.concatenate((
             y.VX, y.VY, Xa, Ya, y.Spin,
             zeros, fuel_cons, zeros, zeros, zeros
@@ -476,7 +461,7 @@ class PEngine:
         # what the current time is in the simulation. Every call to
         # get_state(), self._timetime_of_last_request is incremented by the
         # amount of time that passed since the last call to get_state(),
-        # factoring in self._time_acceleration.
+        # factoring in time_acc
         #
         # self._solutions is a fixed-size queue of ODE solutions.
         # Each element has an attribute, t_max, which describes the largest
@@ -499,7 +484,7 @@ class PEngine:
                 functools.partial(
                     self._derive, pass_through_state=proto_state),
                 # np.sqrt is here to give a slower-than-linear step size growth
-                [t, t + np.sqrt(self._time_acceleration)],
+                [t, t + np.sqrt(y.time_acc)],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
                 events=[altitude_event, hab_fuel_event],
@@ -559,7 +544,7 @@ class Event:
 
     # Implement this in an event subclass
     def __call___(self, t: float, y_1d: np.ndarray) -> float:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class HabFuelEvent(Event):

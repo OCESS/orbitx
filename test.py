@@ -118,7 +118,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             throttle = 1
             t_delta = 5
 
-            physics_engine.handle_command(
+            physics_engine.handle_request(
                 network.Request(
                     ident=network.Request.HAB_THROTTLE_SET,
                     throttle_set=throttle),

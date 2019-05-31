@@ -11,12 +11,12 @@ import argparse
 import copy
 import logging
 import os
-import pathlib
+from pathlib import Path
 import time
 import warnings
 import concurrent.futures
 import urllib.parse
-from typing import Callable
+from typing import Callable, Optional
 
 import grpc
 
@@ -27,8 +27,8 @@ from orbitx.graphics import flight_gui
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
-cleanup_function: Callable = None
-ungraceful_shutdown: Callable = None
+cleanup_function: Optional[Callable] = None
+ungraceful_shutdown: Optional[Callable] = None
 
 
 def parse_args():
@@ -177,11 +177,12 @@ def lead_server_loop(args):
             # If we have any commands, process them so the simthread has as
             # much time as possible to regenerate solutions before next update
             for command in user_commands:
-                if command.ident != network.Request.NOOP:
-                    physics_engine.handle_command(command)
-                    if not args.no_gui:
-                        gui.notify_time_acc_change(
-                            physics_engine._time_acceleration)
+                if command.ident == network.Request.NOOP:
+                    continue
+                log.info(f'Got command: {command}')
+                physics_engine.handle_request(command)
+                if not args.no_gui:
+                    gui.handle_request(command)
 
             if not args.no_gui:
                 gui.draw(state)
@@ -237,7 +238,7 @@ def scrape_git_revision():
     """For ease in debugging, try to get some version information.
     This should never throw a fatal error, it's just nice-to-know stuff."""
     try:
-        git_dir = pathlib.Path('.git')
+        git_dir = Path('.git')
         head_file = git_dir / 'HEAD'
         with head_file.open() as f:
             head_contents = f.readline().strip()
@@ -248,7 +249,7 @@ def scrape_git_revision():
                 log.info(f'Current reference hash: {f.readline().strip()}')
     except FileNotFoundError:
         return
-    
+
 
 def main():
     """Delegate work to either lead_server_loop or mirroring_loop."""

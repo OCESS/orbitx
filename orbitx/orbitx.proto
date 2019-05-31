@@ -26,6 +26,8 @@ message Command {
         TIME_ACC_SET = 4;
         ENGINEERING_UPDATE = 5;
         UNDOCK = 6;
+        REFERENCE_UPDATE = 7;
+        TARGET_UPDATE = 8;
     }
 
     message EngineeringUpdate {
@@ -42,6 +44,8 @@ message Command {
         double throttle_set = 4;
         double time_acc_set = 5;
         EngineeringUpdate engineering_update = 6;
+        string reference = 7;
+        string target = 8;
     }
 }
 
@@ -91,7 +95,7 @@ message Entity {
 message PhysicalState {
     repeated Entity entities = 1;
     double timestamp = 2;
-    int64 time_acc = 3;
+    double time_acc = 3;
     string craft = 4;
     string reference = 5;
     string target = 6;

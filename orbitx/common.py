@@ -124,13 +124,6 @@ def load_savefile(file) -> 'state.PhysicsState':
     read_state = protos.PhysicalState()
     google.protobuf.json_format.Parse(data, read_state)
 
-    # Try to set some sane defaults
-    if read_state.craft == '':
-        for entity in read_state.entities:
-            if entity.artificial:
-                # The first artificial object will be the controlled craft.
-                read_state.craft = entity.name
-                break
     if read_state.time_acc == 0:
         read_state.time_acc = DEFAULT_TIME_ACC
     if read_state.reference == '':

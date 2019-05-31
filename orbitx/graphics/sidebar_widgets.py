@@ -35,7 +35,7 @@ class Text:
         global last_div_id
         self._wtext = vpython.wtext(text=text_gen())
         self._text_gen = text_gen
-        flight_gui._scene.caption += f"""
+        vpython.canvas.get_selected().caption += f"""
         <tr {"class='newsection'" if new_section else ""}>
             <td>
                 {caption}
@@ -62,6 +62,7 @@ class Menu:
             choices=choices,
             bind=bind,
             selected=selected)
-        flight_gui._scene.append_to_caption(f"&nbsp;<b>{caption}</b>&nbsp;")
-        flight_gui._scene.append_to_caption(
+        vpython.canvas.get_selected().append_to_caption(
+            f"&nbsp;<b>{caption}</b>&nbsp;")
+        vpython.canvas.get_selected().append_to_caption(
             f"<span class='helptext'>{helptext}</span>\n")

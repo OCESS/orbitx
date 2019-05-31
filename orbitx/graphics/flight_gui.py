@@ -14,14 +14,14 @@ from typing import Dict, List, TypeVar
 import numpy as np
 import vpython
 
-# Forward typing declaration is needed for Displayable and subclasses
+# Forward typing declaration is needed for ThreeDeeObj and subclasses
 FlightGui = TypeVar('FlightGui')  # noqa: E402
 
 from orbitx import common
 from orbitx import calc
 from orbitx import state
 from orbitx.network import Request
-from orbitx.graphics.displayable import Displayable
+from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.spacestation import SpaceStation
@@ -33,11 +33,10 @@ log = logging.getLogger()
 
 G = 6.674e-11
 
-PLANET_SHININIESS = 0.3
 DEFAULT_TRAILS = False
 
 
-class FlightGui:
+class FlightGui:  # type: ignore
 
     def __init__(
         self,
@@ -47,13 +46,13 @@ class FlightGui:
     ) -> None:
         assert len(draw_state) >= 1
 
-        self._last_state = draw_state
-        self._minimap_canvas = self._init_minimap_canvas()
+        self._state = draw_state
         # create a vpython canvas object
         self._scene: vpython.canvas = self._init_canvas()
         self._show_label: bool = True
         self._show_trails: bool = False
         self._pause: bool = False
+        self._origin: state.Entity
         self.pause_label: vpython.label = None
         self.texture_path: Path = (
             Path('data', 'textures') if texture_path is None else texture_path
@@ -63,11 +62,10 @@ class FlightGui:
         self.pause_label: vpython.label = vpython.label(
             text="Simulation Paused.", visible=False)
 
-        self._displaybles: Dict[str, Displayable] = {}
+        self._displaybles: Dict[str, ThreeDeeObj] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
         self._wtexts: List[Text] = []
-        ################################################################
 
         self._scene.autoscale = False
         self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
@@ -75,21 +73,18 @@ class FlightGui:
         self._set_origin(common.DEFAULT_CENTRE)
 
         for planet in draw_state:
-            obj: Displayable
+            obj: ThreeDeeObj
             if planet.name == common.HABITAT:
-                obj = Habitat(planet, self, self._scene, self._minimap_canvas)
+                obj = Habitat(planet, self.origin(), self.texture_path)
             elif planet.name == common.AYSE:
-                obj = SpaceStation(planet, self)
+                obj = SpaceStation(planet, self.origin(), self.texture_path)
             elif planet.name == common.SUN:
-                obj = Star(planet, self)
+                obj = Star(planet, self.origin(), self.texture_path)
             else:
-                obj = Planet(planet, self)
+                obj = Planet(planet, self.origin(), self.texture_path)
             self._displaybles[planet.name] = obj
             self._spheres[planet.name] = obj
             obj.make_trail(DEFAULT_TRAILS)
-
-        self._set_reference(draw_state.reference)
-        self._set_target(draw_state.target)
 
         self._orbit_projection = OrbitProjection(self)
 
@@ -103,17 +98,6 @@ class FlightGui:
                 self._scene.range = self._scene.range * 0.92
         self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
-
-    def _init_minimap_canvas(self) -> vpython.canvas:
-        """Create a small sidebar scene showing the hab's orientation.
-        This scene is filled in when the habitat is created."""
-        # Make sure that the main canvas is still the default canvas.
-        main_canvas = vpython.canvas.get_selected()
-        miniamp_canvas = vpython.canvas(
-            width=200, height=150, userspin=False, userzoom=False,
-            up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
-        main_canvas.select()
-        return miniamp_canvas
 
     def _init_canvas(self) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
@@ -144,7 +128,7 @@ class FlightGui:
             self._scene.range = self._displaybles[planet_name].relevant_range()
             self._scene.forward = vpython.vector(0, 0, -1)
 
-            self._scene.camera.follow(self._displaybles[planet_name].get_obj())
+            self._scene.camera.follow(self._displaybles[planet_name]._obj)
             self._set_origin(planet_name)
 
         except KeyError:
@@ -164,66 +148,36 @@ class FlightGui:
         """Stops any threads vpython has started. Call on exit."""
         vpython.no_notebook.stop_server()
 
-    def reference(self) -> state.Entity:
-        return self._reference
-
-    def target(self) -> state.Entity:
-        return self._target
-
     def origin(self) -> state.Entity:
         if self._show_trails:
-            return self._reference
+            return self._state.reference_entity()
         else:
             return self._origin
-
-    def active_craft(self) -> state.Entity:
-        return self._last_state[common.HABITAT]
-
-    def _set_reference(self, entity_name: str) -> None:
-        try:
-            self._reference = self._last_state[entity_name]
-            self._displaybles[entity_name].draw_landing_graphic(
-                self._reference)
-            if self._show_trails:
-                self._clear_trails()
-        except IndexError:
-            log.error(f'Tried to set non-existent reference "{entity_name}"')
-
-    def _set_target(self, entity_name: str) -> None:
-        try:
-            self._target = self._last_state[entity_name]
-            self._displaybles[entity_name].draw_landing_graphic(
-                self._target)
-        except IndexError:
-            log.error(f'Tried to set non-existent target "{entity_name}"')
-
-    def _set_origin(self, entity_name: str) -> None:
-        """Set origin position for rendering universe and reset the trails.
-
-        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
-        scene center being approximately 1e11 (planets position), origin
-        entity should be reset every time when making a scene.center update.
-        """
-        if self._show_trails:
-            # The user is expecting to see trails relative to the reference.
-            # We don't usually have this behaviour because if the reference is
-            # far enough from the camera centre, we get graphical glitches.
-            entity_name = self._reference.name
-
-        try:
-            self._origin = self._last_state[entity_name]
-        except IndexError:
-            log.error(f'Tried to set non-existent origin "{entity_name}"')
-
-    def _clear_trails(self) -> None:
-        for name, obj in self._displaybles.items():
-            obj.clear_trail()
 
     def pop_commands(self) -> list:
         """Take gathered user input and send it off."""
         old_commands = self._commands
         self._commands = []
         return old_commands
+
+    def handle_request(self, request: Request) -> None:
+        """Called by the main loop, basically to update HRT and time acc."""
+        if request not in [Request.TIME_ACC_SET,
+                           Request.REFERENCE_UPDATE, Request.TARGET_UPDATE]:
+            # These are the only ones we care about
+            return
+
+        if request.ident == Request.TIME_ACC_SET:
+            new_acc_str = f'{int(request.time_acc_set):,}×'
+            assert new_acc_str in self._time_acc_menu._menu._choices
+            self._time_acc_menu._menu.selected = new_acc_str
+
+        elif request.ident == Request.REFERENCE_UPDATE:
+            assert request.reference in self._spheres.keys()
+            self._reference_menu._menu.selected = request.reference
+        elif request.ident == Request.TARGET_UPDATE:
+            assert request.target in self._spheres.keys()
+            self._target_menu._menu.selected = request.target
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
         """Called in a non-main thread by vpython when it gets key input."""
@@ -280,22 +234,68 @@ class FlightGui:
     # end of _handle_keydown
 
     def draw(self, draw_state: state.PhysicsState) -> None:
-        self._last_state = draw_state
+        self._state = draw_state
+
+        new_acc_str = f'{int(draw_state.time_acc):,}×'
+        if new_acc_str not in self._time_acc_menu._menu._choices:
+            raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
+        if new_acc_str != self._time_acc_menu._menu.selected:
+            self._time_acc_menu._menu.selected = new_acc_str
+
         # Have to reset origin, reference, and target with new positions
-        self._habitat = self._last_state[common.HABITAT]
-        self._origin = self._last_state[self._origin.name]
-        self._reference = self._last_state[self._reference.name]
-        self._target = self._last_state[self._target.name]
+        self._origin = draw_state[self._origin.name]
         if self._pause:
             self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
-        for planet in self._last_state:
-            self._spheres[planet.name].draw(planet)
+        for planet in draw_state:
+            self._spheres[planet.name].draw(planet, draw_state, self.origin())
 
-        self._orbit_projection.update()
+        self._orbit_projection.update(draw_state, self.origin())
 
         for wtext in self._wtexts:
             wtext.update()
+
+    def _set_reference(self, entity_name: str) -> None:
+        try:
+            self._commands.append(Request(
+                ident=Request.REFERENCE_UPDATE, reference=entity_name))
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._state[entity_name])
+            if self._show_trails:
+                self._clear_trails()
+        except IndexError:
+            log.error(f'Tried to set non-existent reference "{entity_name}"')
+
+    def _set_target(self, entity_name: str) -> None:
+        try:
+            self._commands.append(Request(
+                ident=Request.TARGET_UPDATE, target=entity_name))
+            self._displaybles[entity_name].draw_landing_graphic(
+                self._state[entity_name])
+        except IndexError:
+            log.error(f'Tried to set non-existent target "{entity_name}"')
+
+    def _set_origin(self, entity_name: str) -> None:
+        """Set origin position for rendering universe and reset the trails.
+
+        Because GPU(Graphics Processing Unit) cannot deal with extreme case of
+        scene center being approximately 1e11 (planets position), origin
+        entity should be reset every time when making a scene.center update.
+        """
+        if self._show_trails:
+            # The user is expecting to see trails relative to the reference.
+            # We don't usually have this behaviour because if the reference is
+            # far enough from the camera centre, we get graphical glitches.
+            entity_name = self._state.reference
+
+        try:
+            self._origin = self._state[entity_name]
+        except IndexError:
+            log.error(f'Tried to set non-existent origin "{entity_name}"')
+
+    def _clear_trails(self) -> None:
+        for name, obj in self._displaybles.items():
+            obj.clear_trail()
 
     def _recentre_dropdown_hook(self, centre_menu: vpython.menu) -> None:
         self._set_origin(centre_menu.selected)
@@ -320,15 +320,6 @@ class FlightGui:
 
     def _orbits_checkbox_hook(self, selection: vpython.menu) -> None:
         self._orbit_projection.show(selection.checked)
-
-    def notify_time_acc_change(self, new_acc: int) -> None:
-        new_acc_str = f'{int(new_acc):,}×'
-        if new_acc_str == self._time_acc_menu._menu.selected:
-            return
-        if new_acc_str not in self._time_acc_menu._menu._choices:
-            log.error(f'"{new_acc_str}" not a valid time acceleration')
-            return
-        self._time_acc_menu._menu.selected = new_acc_str
 
     def rate(self, framerate: int) -> None:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
@@ -356,7 +347,8 @@ class FlightGui:
             self,
             "Orbit speed",
             lambda: common.format_num(calc.orb_speed(
-                self.active_craft(), self.reference()), " m/s"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m/s"),
             "Speed required for circular orbit at current altitude",
             new_section=False))
 
@@ -364,7 +356,8 @@ class FlightGui:
             self,
             "Periapsis",
             lambda: common.format_num(calc.periapsis(
-                self.active_craft(), self.reference()), " m"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m"),
             "Lowest altitude in naïve orbit around reference",
             new_section=False))
 
@@ -372,46 +365,53 @@ class FlightGui:
             self,
             "Apoapsis",
             lambda: common.format_num(calc.apoapsis(
-                self.active_craft(), self.reference()), " m"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m"),
             "Highest altitude in naïve orbit around reference",
             new_section=False))
 
         self._wtexts.append(Text(
             self,
+            # The H in HRT stands for Habitat, even though craft is more
+            # general and covers AYSE, but HRT is the familiar triple name and
+            # the Hawking III says trans rights.
             "HRT phase θ",
             lambda: common.format_num(calc.phase_angle(
-                self.active_craft(), self.reference(), self.target()), "°") or
-            'Same ref and targ',
+                self._state.craft_entity(),
+                self._state.reference_entity(),
+                self._state.target_entity()), "°") or
+            "Same ref and targ",
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
         self._wtexts.append(Text(
             self,
             "Throttle",
-            lambda: "{:.1%}".format(self.active_craft().throttle),
+            lambda: "{:.1%}".format(self._state.craft_entity().throttle),
             "Percentage of habitat's maximum rated engines",
             new_section=True))
 
         self._wtexts.append(Text(
             self,
             "Engine Acceleration",
-            lambda: common.format_num(
-                calc.engine_acceleration(self.active_craft()), " m/s/s"),
+            lambda: common.format_num(calc.engine_acceleration(
+                self._state.craft_entity()), " m/s/s"),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
         self._wtexts.append(Text(
             self,
             "Fuel ",
-            lambda: common.format_num(self.active_craft().fuel, " kg"),
-            "Remaining fuel of habitat",
+            lambda: common.format_num(self._state.craft_entity(
+            ).fuel, " kg"), "Remaining fuel of habitat",
             new_section=False))
 
         self._wtexts.append(Text(
             self,
             "Ref altitude",
             lambda: common.format_num(calc.altitude(
-                self.active_craft(), self.reference()), " m"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
@@ -419,7 +419,8 @@ class FlightGui:
             self,
             "Ref speed",
             lambda: common.format_num(calc.speed(
-                self.active_craft(), self.reference()), " m/s"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m/s"),
             "Speed of habitat above reference surface",
             new_section=False))
 
@@ -427,7 +428,8 @@ class FlightGui:
             self,
             "Vertical speed",
             lambda: common.format_num(calc.v_speed(
-                self.active_craft(), self.reference()), " m/s "),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m/s "),
             "Vertical speed of habitat towards/away reference surface",
             new_section=False))
 
@@ -435,7 +437,8 @@ class FlightGui:
             self,
             "Horizontal speed",
             lambda: common.format_num(calc.h_speed(
-                self.active_craft(), self.reference()), " m/s "),
+                self._state.craft_entity(),
+                self._state.reference_entity()), " m/s "),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
@@ -443,7 +446,8 @@ class FlightGui:
             self,
             "Pitch θ",
             lambda: common.format_num(calc.pitch(
-                self.active_craft(), self.reference()), "°"),
+                self._state.craft_entity(),
+                self._state.reference_entity()), "°"),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
@@ -451,7 +455,8 @@ class FlightGui:
             self,
             "Targ altitude",
             lambda: common.format_num(calc.altitude(
-                self.active_craft(), self.target()), " m"),
+                self._state.craft_entity(),
+                self._state.target_entity()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
@@ -459,16 +464,18 @@ class FlightGui:
             self,
             "Targ speed",
             lambda: common.format_num(calc.speed(
-                self.active_craft(), self.target()), " m/s"),
+                self._state.craft_entity(),
+                self._state.target_entity()), " m/s"),
             "Speed of habitat above target surface",
             new_section=False))
 
         self._wtexts.append(Text(
             self,
             "Landing acc",
-            lambda: (common.format_num(calc.landing_acceleration(
-                self.active_craft(), self.target()), " m/s/s") or
-                "no vertical landing"),
+            lambda: common.format_num(calc.landing_acceleration(
+                self._state.craft_entity(),
+                self._state.target_entity()), " m/s/s") or
+            "no vertical landing",
             "Constant engine acc to land during vertical descent to target",
             new_section=False))
 
@@ -496,7 +503,7 @@ class FlightGui:
         vpython.button(
             text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
         self._scene.append_to_caption(
-            f"<span class='helptext'>Dock to AYSE</span>\t")
+            f"<span class='helptext'>Undock from AYSE</span>\t")
 
         vpython.button(
             text=" Switch ", pos=self._scene.caption_anchor,
@@ -520,24 +527,24 @@ class FlightGui:
             helptext="Focus of camera"
         )
 
-        Menu(
+        self._reference_menu = Menu(
             self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_reference(selection.selected),
             # TODO: the reference is already set by default, just use that ref.
-            selected=common.DEFAULT_REFERENCE,
+            selected=self._state.reference,
             caption="Reference",
             helptext=(
-                "Take position, velocity relative to this.")
+                "Take position, velocity relative to this")
         )
 
-        Menu(
+        self._target_menu = Menu(
             self,
             choices=list(self._spheres),
             bind=lambda selection: self._set_target(selection.selected),
-            selected=common.DEFAULT_TARGET,
+            selected=self._state.target,
             caption="Target",
-            helptext="For use by NAV mode"
+            helptext="Entity to land or dock with"
         )
 
         Menu(

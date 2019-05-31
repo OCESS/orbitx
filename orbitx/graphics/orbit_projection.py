@@ -5,7 +5,7 @@ import numpy as np
 import vpython
 
 from orbitx import calc
-from orbitx import common
+from orbitx import state
 from orbitx.graphics.flight_gui import FlightGui
 
 
@@ -43,19 +43,19 @@ class OrbitProjection:
         self._hyperbola.visible = False
         self._hyperbola.rotate(math.degrees(90), axis=vpython.vector(0, 1, 0))
 
-    def update(self):
+    def update(self, state: state.PhysicsState, origin: state.Entity):
         if not self._visible:
             self._hyperbola.visible = False
             self._ring.visible = False
             return
 
         orb_params = calc.orbit_parameters(
-            self._flight_gui.reference(), self._flight_gui.active_craft())
+            state.reference_entity(), state.craft_entity())
         thickness = min(
-            self.PROJECTION_THICKNESS * self._flight_gui._scene.range,
+            self.PROJECTION_THICKNESS * vpython.canvas.get_selected().range,
             abs(0.1 * max(orb_params.major_axis, orb_params.minor_axis))
         )
-        pos = orb_params.centre - self._flight_gui.origin().pos
+        pos = orb_params.centre - origin.pos
         direction = vpython.vector(*orb_params.eccentricity, 0)
         e_mag = np.linalg.norm(orb_params.eccentricity)
 
@@ -87,7 +87,6 @@ class OrbitProjection:
 
             # TODO check that I have major and minor axes right. With an
             # existing hyperbolic object maybe?
-            #breakpoint()
             self._hyperbola.size = vpython.vector(
                 orb_params.minor_axis, orb_params.major_axis, 0)
             self._hyperbola.up = -direction
