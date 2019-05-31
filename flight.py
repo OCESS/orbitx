@@ -181,8 +181,6 @@ def lead_server_loop(args):
                     continue
                 log.info(f'Got command: {command}')
                 physics_engine.handle_request(command)
-                if not args.no_gui:
-                    gui.handle_request(command)
 
             if not args.no_gui:
                 gui.draw(state)

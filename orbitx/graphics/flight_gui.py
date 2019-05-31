@@ -9,13 +9,10 @@ Call FlightGui.pop_commands() to collect user input.
 import logging
 import time
 from pathlib import Path
-from typing import Dict, List, TypeVar
+from typing import Dict, List
 
 import numpy as np
 import vpython
-
-# Forward typing declaration is needed for ThreeDeeObj and subclasses
-FlightGui = TypeVar('FlightGui')  # noqa: E402
 
 from orbitx import common
 from orbitx import calc
@@ -36,7 +33,7 @@ G = 6.674e-11
 DEFAULT_TRAILS = False
 
 
-class FlightGui:  # type: ignore
+class FlightGui:
 
     def __init__(
         self,
@@ -84,13 +81,13 @@ class FlightGui:  # type: ignore
             self._3dobjs[planet.name] = obj
             obj.make_trail(DEFAULT_TRAILS)
 
-        self._orbit_projection = OrbitProjection(self)
+        self._orbit_projection = OrbitProjection()
         self._3dobjs[draw_state.reference].draw_landing_graphic(
             draw_state.reference_entity())
         self._3dobjs[draw_state.target].draw_landing_graphic(
             draw_state.target_entity())
 
-        self._set_caption()
+        self._sidebar = Sidebar(self)
 
         # Add an animation when launching the program
         #   to describe the solar system and the current location
@@ -162,25 +159,6 @@ class FlightGui:  # type: ignore
         self._commands = []
         return old_commands
 
-    def handle_request(self, request: Request) -> None:
-        """Called by the main loop, basically to update HRT and time acc."""
-        if request not in [Request.TIME_ACC_SET,
-                           Request.REFERENCE_UPDATE, Request.TARGET_UPDATE]:
-            # These are the only ones we care about
-            return
-
-        if request.ident == Request.TIME_ACC_SET:
-            new_acc_str = f'{int(request.time_acc_set):,}×'
-            assert new_acc_str in self._time_acc_menu._menu._choices
-            self._time_acc_menu._menu.selected = new_acc_str
-
-        elif request.ident == Request.REFERENCE_UPDATE:
-            assert request.reference in self._3dobjs.keys()
-            self._reference_menu._menu.selected = request.reference
-        elif request.ident == Request.TARGET_UPDATE:
-            assert request.target in self._3dobjs.keys()
-            self._target_menu._menu.selected = request.target
-
     def _handle_keydown(self, evt: vpython.event_return) -> None:
         """Called in a non-main thread by vpython when it gets key input."""
 
@@ -225,24 +203,26 @@ class FlightGui:  # type: ignore
                 throttle_set=0.00))
         elif k == '.':
             try:
-                self._time_acc_menu._menu.index += 1
-                self._time_acc_dropdown_hook(self._time_acc_menu._menu)
+                self._sidebar.time_acc_menu._menu.index += 1
+                self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
             except IndexError:
                 pass  # We're already at max time acceleration
         elif k == ',':
-            if self._time_acc_menu._menu.index != 0:
-                self._time_acc_menu._menu.index -= 1
-                self._time_acc_dropdown_hook(self._time_acc_menu._menu)
+            if self._sidebar.time_acc_menu._menu.index != 0:
+                self._sidebar.time_acc_menu._menu.index -= 1
+                self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
     # end of _handle_keydown
 
     def draw(self, draw_state: state.PhysicsState) -> None:
         self._state = draw_state
 
         new_acc_str = f'{int(draw_state.time_acc):,}×'
-        if new_acc_str not in self._time_acc_menu._menu._choices:
+        if new_acc_str not in self._sidebar.time_acc_menu._menu._choices:
             raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
-        if new_acc_str != self._time_acc_menu._menu.selected:
-            self._time_acc_menu._menu.selected = new_acc_str
+        if new_acc_str != self._sidebar.time_acc_menu._menu.selected:
+            self._sidebar.time_acc_menu._menu.selected = new_acc_str
+        self._sidebar.reference_menu.selected = draw_state.reference
+        self._sidebar.target_menu.selected = draw_state.target
 
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
@@ -254,8 +234,7 @@ class FlightGui:  # type: ignore
 
         self._orbit_projection.update(draw_state, self.origin())
 
-        for wtext in self._wtexts:
-            wtext.update()
+        self._sidebar.update(draw_state)
 
     def _set_reference(self, entity_name: str) -> None:
         try:
@@ -318,7 +297,7 @@ class FlightGui:  # type: ignore
         if not self._show_trails:
             # Turning on trails set our camera origin to be the reference,
             # instead of the camera centre. Revert that when we turn off trails
-            self._set_origin(self._centre_menu._menu.selected)
+            self._set_origin(self._sidebar.centre_menu._menu.selected)
 
     def _orbits_checkbox_hook(self, selection: vpython.menu) -> None:
         self._orbit_projection.show(selection.checked)
@@ -326,12 +305,21 @@ class FlightGui:  # type: ignore
     def rate(self, framerate: int) -> None:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
-    # end of rate
 
-    def _set_caption(self) -> None:
-        """Set and update the captions."""
+    def _undock(self):
+        self._commands.append(Request(ident=Request.UNDOCK))
 
-        self._scene.caption += """<div class='error'>
+    def _switch(self):
+        print("switch")
+# end of class FlightGui
+
+
+class Sidebar:
+    def __init__(self, flight_gui: FlightGui):
+        """Create the sidebar caption."""
+        self._parent = flight_gui
+
+        vpython.canvas.get_selected().caption += """<div class='error'>
         <p class='prose'>&#9888; Sorry, spacesimmer! OrbitX has crashed for
         some reason.</p>
 
@@ -344,234 +332,209 @@ class FlightGui:  # type: ignore
         <p>Again, thank you for using OrbitX!</p>
         </div>"""
 
-        self._scene.caption += "<table>\n"
+        self._create_wtexts()
+
+        self._create_menus()
+
+        vpython.canvas.get_selected().append_to_caption("\n")
+        vpython.checkbox(
+            bind=self._parent._trail_checkbox_hook,
+            checked=DEFAULT_TRAILS, text='Trails')
+        vpython.canvas.get_selected().append_to_caption(
+            " <span class='helptext'>&nbspGraphically intensive</span>")
+        vpython.canvas.get_selected().append_to_caption("\n")
+
+        vpython.checkbox(
+            bind=self._parent._orbits_checkbox_hook,
+            checked=False, text='Orbit Projection')
+        vpython.canvas.get_selected().append_to_caption(
+            " <span class='helptext'>Attempt a simple projection of the " +
+            "spaceship around the reference</span>")
+        vpython.canvas.get_selected().append_to_caption("\n")
+
+        vpython.button(
+            text="Undock", bind=self._parent._undock)
+        vpython.canvas.get_selected().append_to_caption(
+            f"<span class='helptext'>Undock from AYSE</span>\t")
+
+        vpython.button(
+            text=" Switch ", bind=self._parent._switch, disabled=True)
+        vpython.canvas.get_selected().append_to_caption(
+            f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
+
+        with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
+            vpython.canvas.get_selected().append_to_caption(footer.read())
+
+    def _create_wtexts(self):
+        vpython.canvas.get_selected().caption += "<table>\n"
+        self._wtexts: List[Text] = []
+
         self._wtexts.append(Text(
-            self,
             "Orbit speed",
-            lambda: common.format_num(calc.orb_speed(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m/s"),
+            lambda state: common.format_num(calc.orb_speed(
+                state.craft_entity(),
+                state.reference_entity()), " m/s"),
             "Speed required for circular orbit at current altitude",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Periapsis",
-            lambda: common.format_num(calc.periapsis(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m"),
+            lambda state: common.format_num(calc.periapsis(
+                state.craft_entity(),
+                state.reference_entity()), " m"),
             "Lowest altitude in naïve orbit around reference",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Apoapsis",
-            lambda: common.format_num(calc.apoapsis(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m"),
+            lambda state: common.format_num(calc.apoapsis(
+                state.craft_entity(),
+                state.reference_entity()), " m"),
             "Highest altitude in naïve orbit around reference",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             # The H in HRT stands for Habitat, even though craft is more
             # general and covers AYSE, but HRT is the familiar triple name and
             # the Hawking III says trans rights.
             "HRT phase θ",
-            lambda: common.format_num(calc.phase_angle(
-                self._state.craft_entity(),
-                self._state.reference_entity(),
-                self._state.target_entity()), "°") or
+            lambda state: common.format_num(calc.phase_angle(
+                state.craft_entity(),
+                state.reference_entity(),
+                state.target_entity()), "°") or
             "Same ref and targ",
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Throttle",
-            lambda: "{:.1%}".format(self._state.craft_entity().throttle),
+            lambda state: "{:.1%}".format(state.craft_entity().throttle),
             "Percentage of habitat's maximum rated engines",
             new_section=True))
 
         self._wtexts.append(Text(
-            self,
             "Engine Acceleration",
-            lambda: common.format_num(calc.engine_acceleration(
-                self._state.craft_entity()), " m/s/s"),
+            lambda state: common.format_num(calc.engine_acceleration(
+                state.craft_entity()), " m/s/s"),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Fuel ",
-            lambda: common.format_num(self._state.craft_entity(
+            lambda state: common.format_num(state.craft_entity(
             ).fuel, " kg"), "Remaining fuel of habitat",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Ref altitude",
-            lambda: common.format_num(calc.altitude(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m"),
+            lambda state: common.format_num(calc.altitude(
+                state.craft_entity(),
+                state.reference_entity()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
         self._wtexts.append(Text(
-            self,
             "Ref speed",
-            lambda: common.format_num(calc.speed(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m/s"),
+            lambda state: common.format_num(calc.speed(
+                state.craft_entity(),
+                state.reference_entity()), " m/s"),
             "Speed of habitat above reference surface",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Vertical speed",
-            lambda: common.format_num(calc.v_speed(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m/s "),
+            lambda state: common.format_num(calc.v_speed(
+                state.craft_entity(),
+                state.reference_entity()), " m/s "),
             "Vertical speed of habitat towards/away reference surface",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Horizontal speed",
-            lambda: common.format_num(calc.h_speed(
-                self._state.craft_entity(),
-                self._state.reference_entity()), " m/s "),
+            lambda state: common.format_num(calc.h_speed(
+                state.craft_entity(),
+                state.reference_entity()), " m/s "),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Pitch θ",
-            lambda: common.format_num(calc.pitch(
-                self._state.craft_entity(),
-                self._state.reference_entity()), "°"),
+            lambda state: common.format_num(calc.pitch(
+                state.craft_entity(),
+                state.reference_entity()), "°"),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Targ altitude",
-            lambda: common.format_num(calc.altitude(
-                self._state.craft_entity(),
-                self._state.target_entity()), " m"),
+            lambda state: common.format_num(calc.altitude(
+                state.craft_entity(),
+                state.target_entity()), " m"),
             "Altitude of habitat above reference surface",
             new_section=True))
 
         self._wtexts.append(Text(
-            self,
             "Targ speed",
-            lambda: common.format_num(calc.speed(
-                self._state.craft_entity(),
-                self._state.target_entity()), " m/s"),
+            lambda state: common.format_num(calc.speed(
+                state.craft_entity(),
+                state.target_entity()), " m/s"),
             "Speed of habitat above target surface",
             new_section=False))
 
         self._wtexts.append(Text(
-            self,
             "Landing acc",
-            lambda: common.format_num(calc.landing_acceleration(
-                self._state.craft_entity(),
-                self._state.target_entity()), " m/s/s") or
+            lambda state: common.format_num(calc.landing_acceleration(
+                state.craft_entity(),
+                state.target_entity()), " m/s/s") or
             "no vertical landing",
             "Constant engine acc to land during vertical descent to target",
             new_section=False))
 
-        # TODO add pitch and stopping acceleration fields after symposium
-        self._scene.caption += "</table>"
+        vpython.canvas.get_selected().caption += "</table>"
+    # end of _create_wtexts
 
-        self._set_menus()
-
-        self._scene.append_to_caption("\n")
-        vpython.checkbox(
-            bind=self._trail_checkbox_hook,
-            checked=DEFAULT_TRAILS, text='Trails')
-        self._scene.append_to_caption(
-            " <span class='helptext'>&nbspGraphically intensive</span>")
-        self._scene.append_to_caption("\n")
-
-        vpython.checkbox(
-            bind=self._orbits_checkbox_hook,
-            checked=False, text='Orbit Projection')
-        self._scene.append_to_caption(
-            " <span class='helptext'>Attempt a simple projection of the " +
-            "spaceship around the reference</span>")
-        self._scene.append_to_caption("\n")
-
-        vpython.button(
-            text="Undock", pos=self._scene.caption_anchor, bind=self._undock)
-        self._scene.append_to_caption(
-            f"<span class='helptext'>Undock from AYSE</span>\t")
-
-        vpython.button(
-            text=" Switch ", pos=self._scene.caption_anchor,
-            disabled=True, bind=self._switch)
-        self._scene.append_to_caption(
-            f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
-
-        with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
-            self._scene.append_to_caption(footer.read())
-    # end of _set_caption
-
-    def _set_menus(self) -> None:
-        """This creates dropped down menu which is used when set_caption."""
-
-        self._centre_menu = Menu(
-            self,
-            choices=list(self._3dobjs),
-            bind=self._recentre_dropdown_hook,
-            selected=common.DEFAULT_CENTRE,
+    def _create_menus(self):
+        self.centre_menu = Menu(
+            choices=list(self._parent._3dobjs),
+            bind=self._parent._recentre_dropdown_hook,
             caption="Centre",
             helptext="Focus of camera"
         )
+        self.centre_menu._menu.selected = common.DEFAULT_CENTRE
 
-        self._reference_menu = Menu(
-            self,
-            choices=list(self._3dobjs),
-            bind=lambda selection: self._set_reference(selection.selected),
-            # TODO: the reference is already set by default, just use that ref.
-            selected=self._state.reference,
+        self.reference_menu = Menu(
+            choices=list(self._parent._3dobjs),
+            bind=lambda selection:
+                self._parent._set_reference(selection.selected),
             caption="Reference",
             helptext=(
                 "Take position, velocity relative to this")
         )
 
-        self._target_menu = Menu(
-            self,
-            choices=list(self._3dobjs),
-            bind=lambda selection: self._set_target(selection.selected),
-            selected=self._state.target,
+        self.target_menu = Menu(
+            choices=list(self._parent._3dobjs),
+            bind=lambda selection:
+                self._parent._set_target(selection.selected),
             caption="Target",
             helptext="Entity to land or dock with"
         )
 
         Menu(
-            self,
             choices=['deprt ref'],
             bind=lambda selection: log.error(f"Unimplemented: {selection}"),
-            selected='deprt ref',
             caption="NAV mode",
             helptext="Automatically points habitat"
         )._menu.disabled = True
 
-        self._time_acc_menu = Menu(
-            self,
+        self.time_acc_menu = Menu(
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
-            bind=self._time_acc_dropdown_hook,
-            selected='1×',
+            bind=self._parent._time_acc_dropdown_hook,
             caption="Warp",
             helptext="Speed of simulation"
         )
-    # end of _set_menus
+    # end of _create_menus
 
-    def _undock(self):
-        self._commands.append(Request(ident=Request.UNDOCK))
-
-    def _switch(self):
-        print("switch")
-# end of class FlightGui
+    def update(self, state: state.PhysicsState):
+        for wtext in self._wtexts:
+            wtext.update(state)

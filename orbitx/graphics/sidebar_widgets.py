@@ -2,7 +2,7 @@ from typing import List, Callable
 
 import vpython
 
-from orbitx.graphics.flight_gui import FlightGui
+from orbitx.state import PhysicsState
 
 
 # There's a bit of magic here. Normally, vpython.wtext will make a
@@ -27,13 +27,13 @@ last_div_id = 1
 
 
 class Text:
-    def __init__(self, flight_gui: FlightGui,
+    def __init__(self,
                  caption: str,
-                 text_gen: Callable[[], str],
+                 text_gen: Callable[[PhysicsState], str],
                  helptext: str, *,
                  new_section: bool):
         global last_div_id
-        self._wtext = vpython.wtext(text=text_gen())
+        self._wtext = vpython.wtext()
         self._text_gen = text_gen
         vpython.canvas.get_selected().caption += f"""
         <tr {"class='newsection'" if new_section else ""}>
@@ -48,20 +48,19 @@ class Text:
 
         last_div_id += 1
 
-    def update(self):
-        self._wtext.text = self._text_gen()
+    def update(self, state: PhysicsState):
+        self._wtext.text = self._text_gen(state)
 
 
 class Menu:
     """Instantiate this to add a drop-down menu to the sidebar."""
 
-    def __init__(self, flight_gui: FlightGui,
-                 choices: List[str], bind: Callable, selected: str,
+    def __init__(self,
+                 choices: List[str], bind: Callable,
                  caption: str, helptext: str):
         self._menu = vpython.menu(
             choices=choices,
-            bind=bind,
-            selected=selected)
+            bind=bind)
         vpython.canvas.get_selected().append_to_caption(
             f"&nbsp;<b>{caption}</b>&nbsp;")
         vpython.canvas.get_selected().append_to_caption(

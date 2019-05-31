@@ -6,7 +6,6 @@ import vpython
 
 from orbitx import calc
 from orbitx import state
-from orbitx.graphics.flight_gui import FlightGui
 
 
 class OrbitProjection:
@@ -17,8 +16,7 @@ class OrbitProjection:
     # Thickness of orbit projections, relative to how zoomed-out the viewport.
     PROJECTION_THICKNESS = 0.005
 
-    def __init__(self, flight_gui: FlightGui):
-        self._flight_gui = flight_gui
+    def __init__(self):
         self._visible = False
 
         # There are two cases that we care about for a 2-body orbit, elliptical
