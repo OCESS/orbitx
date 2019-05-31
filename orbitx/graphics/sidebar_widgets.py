@@ -64,4 +64,4 @@ class Menu:
         vpython.canvas.get_selected().append_to_caption(
             f"&nbsp;<b>{caption}</b>&nbsp;")
         vpython.canvas.get_selected().append_to_caption(
-            f"<span class='helptext'>{helptext}</span>\n")
+            f"<span class='helptext'>{helptext}</span><br/>\n")
