@@ -23,7 +23,7 @@ from orbitx.graphics.planet import Planet
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
-from orbitx.graphics.sidebar_widgets import Text, Menu
+from orbitx.graphics.sidebar_widgets import Button, Checkbox, Menu, Text
 from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
@@ -103,8 +103,8 @@ class FlightGui:
         _scene = vpython.canvas(
             title='<title>OrbitX</title>',
             align='right',
-            width=800,
-            height=800,
+            width=900,
+            height=750,
             center=vpython.vector(0, 0, 0),
             up=vpython.vector(0.1, 0.1, 1),
             forward=vpython.vector(0, 0, -1),
@@ -168,7 +168,7 @@ class FlightGui:
             for name, obj in self._3dobjs.items():
                 obj._show_hide_label()
         elif k == 'p':
-            self._pause = not self._pause
+            self.toggle_pause()
         elif k == 'a':
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
@@ -306,11 +306,18 @@ class FlightGui:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
 
+    def toggle_pause(self):
+        """Toggles whether the FlightGui considers itself paused."""
+        self._pause = not self._pause
+
     def _undock(self):
         self._commands.append(Request(ident=Request.UNDOCK))
 
-    def _switch(self):
-        print("switch")
+    def _save_hook(self, textbox: vpython.winput):
+        log.debug(textbox.text)
+
+    def _load_hook(self, textbox: vpython.winput):
+        log.debug(textbox.text)
 # end of class FlightGui
 
 
@@ -336,31 +343,27 @@ class Sidebar:
 
         self._create_menus()
 
-        vpython.canvas.get_selected().append_to_caption("\n")
-        vpython.checkbox(
-            bind=self._parent._trail_checkbox_hook,
-            checked=DEFAULT_TRAILS, text='Trails')
-        vpython.canvas.get_selected().append_to_caption(
-            " <span class='helptext'>&nbspGraphically intensive</span>")
-        vpython.canvas.get_selected().append_to_caption("\n")
+        Button(self._parent._undock, "Undock", "Undock from AYSE")
 
-        vpython.checkbox(
-            bind=self._parent._orbits_checkbox_hook,
-            checked=False, text='Orbit Projection')
-        vpython.canvas.get_selected().append_to_caption(
-            " <span class='helptext'>Attempt a simple projection of the " +
-            "spaceship around the reference</span>")
+        Button(self._parent.toggle_pause, "Pause", "Pause simulation")
+
+        vpython.canvas.get_selected().append_to_caption("<br/>")
+
+        # If you change the order of these, note that the placeholder text
+        # is set in footer.html
+        vpython.winput(bind=self._parent._save_hook, type='string')
         vpython.canvas.get_selected().append_to_caption("\n")
+        vpython.winput(bind=self._parent._load_hook, type='string')
+        vpython.canvas.get_selected().append_to_caption("<br/>")
 
-        vpython.button(
-            text="Undock", bind=self._parent._undock)
-        vpython.canvas.get_selected().append_to_caption(
-            f"<span class='helptext'>Undock from AYSE</span>\t")
-
-        vpython.button(
-            text=" Switch ", bind=self._parent._switch, disabled=True)
-        vpython.canvas.get_selected().append_to_caption(
-            f"<span class='helptext'>Switch constrol to AYSE/Habitat</span>")
+        Checkbox(
+            self._parent._trail_checkbox_hook,
+            DEFAULT_TRAILS, 'Trails',
+            "Graphically intensive")
+        Checkbox(
+            self._parent._orbits_checkbox_hook,
+            False, 'Orbit Projection',
+            "Simple projection of hab around reference")
 
         with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
             vpython.canvas.get_selected().append_to_caption(footer.read())
@@ -496,6 +499,7 @@ class Sidebar:
     def _create_menus(self):
         self.centre_menu = Menu(
             choices=list(self._parent._3dobjs),
+            selected=common.DEFAULT_CENTRE,
             bind=self._parent._recentre_dropdown_hook,
             caption="Centre",
             helptext="Focus of camera"
@@ -504,6 +508,7 @@ class Sidebar:
 
         self.reference_menu = Menu(
             choices=list(self._parent._3dobjs),
+            selected=common.DEFAULT_REFERENCE,
             bind=lambda selection:
                 self._parent._set_reference(selection.selected),
             caption="Reference",
@@ -513,6 +518,7 @@ class Sidebar:
 
         self.target_menu = Menu(
             choices=list(self._parent._3dobjs),
+            selected=common.DEFAULT_TARGET,
             bind=lambda selection:
                 self._parent._set_target(selection.selected),
             caption="Target",
@@ -521,6 +527,7 @@ class Sidebar:
 
         Menu(
             choices=['deprt ref'],
+            selected='deprt ref',
             bind=lambda selection: log.error(f"Unimplemented: {selection}"),
             caption="NAV mode",
             helptext="Automatically points habitat"
@@ -529,6 +536,7 @@ class Sidebar:
         self.time_acc_menu = Menu(
             choices=[f'{n:,}×' for n in
                      [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
+            selected='1×',
             bind=self._parent._time_acc_dropdown_hook,
             caption="Warp",
             helptext="Speed of simulation"

@@ -56,12 +56,31 @@ class Menu:
     """Instantiate this to add a drop-down menu to the sidebar."""
 
     def __init__(self,
-                 choices: List[str], bind: Callable,
+                 choices: List[str], selected: str, bind: Callable,
                  caption: str, helptext: str):
         self._menu = vpython.menu(
-            choices=choices,
-            bind=bind)
+            choices=choices, selected=selected, bind=bind)
         vpython.canvas.get_selected().append_to_caption(
             f"&nbsp;<b>{caption}</b>&nbsp;")
         vpython.canvas.get_selected().append_to_caption(
             f"<span class='helptext'>{helptext}</span><br/>\n")
+
+
+class Checkbox:
+    """Instantiate this to add a toggling checkbox to the sidebar."""
+
+    def __init__(
+            self, bind: Callable, checked: bool, text: str, helptext: str):
+        self._checkbox = vpython.checkbox(
+            text=text, bind=bind, checked=checked)
+        vpython.canvas.get_selected().append_to_caption(
+            f"&nbsp<span class='helptext'>{helptext}</span>\n")
+
+
+class Button:
+    """For something that can always be activated, as opposed to toggled."""
+
+    def __init__(self, bind: Callable, text: str, helptext: str):
+        vpython.button(text=text, bind=bind)
+        vpython.canvas.get_selected().append_to_caption(
+            f"<span class='helptext'>{helptext}</span>\n")

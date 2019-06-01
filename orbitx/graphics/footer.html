@@ -131,9 +131,15 @@ td.num {
 select {
     width: 100px;
 }
-input {
-    width: 100px !important;
+input[type=checkbox] {
+    width: 20px !important;
     height: unset !important;
+}
+input[type=text] {
+    height: unset !important;
+}
+button {
+    width: 100px;
 }
 .helptext {
     font-size: 75%;
@@ -154,3 +160,10 @@ input {
     font-family: monospace;
 }
 </style>
+
+<script>
+    // Set placeholder text for save and load text boxes
+    var text_inputs = document.querySelectorAll('input[type=text]')
+    text_inputs[0].placeholder = 'Save...'
+    text_inputs[1].placeholder = 'Load...'
+</script>
