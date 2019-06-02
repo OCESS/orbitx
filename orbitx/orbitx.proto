@@ -28,6 +28,7 @@ message Command {
         UNDOCK = 6;
         REFERENCE_UPDATE = 7;
         TARGET_UPDATE = 8;
+        LOAD_SAVEFILE = 9;
     }
 
     message EngineeringUpdate {
@@ -46,6 +47,7 @@ message Command {
         EngineeringUpdate engineering_update = 6;
         string reference = 7;
         string target = 8;
+        string loadfile = 9;
     }
 }
 

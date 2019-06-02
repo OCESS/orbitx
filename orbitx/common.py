@@ -80,7 +80,7 @@ def enable_verbose_logging():
     print_handler.setLevel(logging.DEBUG)
 
 
-def savefile(name):
+def savefile(name: str) -> Path:
     return PROGRAM_PATH / 'data' / 'saves' / name
 
 
@@ -118,7 +118,8 @@ def format_num(num: Optional[float], unit: str) -> str:
     return '{:,.5g}'.format(round(num)) + unit
 
 
-def load_savefile(file) -> 'state.PhysicsState':
+def load_savefile(file: Path) -> state.PhysicsState:
+    logging.getLogger().info(f'Loading savefile {file.resolve()}')
     with open(file, 'r') as f:
         data = f.read()
     read_state = protos.PhysicalState()
@@ -133,10 +134,11 @@ def load_savefile(file) -> 'state.PhysicsState':
     return state.PhysicsState(None, read_state)
 
 
-def write_savefile(physical_state, file):
+def write_savefile(state: state.PhysicsState, file: Path):
+    logging.getLogger().info(f'Saving to savefile {file.resolve()}')
     with open(file, 'w') as outfile:
         outfile.write(
-            google.protobuf.json_format.MessageToJson(physical_state))
+            google.protobuf.json_format.MessageToJson(state.as_proto()))
 
 
 def start_profiling():

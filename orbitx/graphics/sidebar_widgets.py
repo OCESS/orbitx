@@ -81,6 +81,6 @@ class Button:
     """For something that can always be activated, as opposed to toggled."""
 
     def __init__(self, bind: Callable, text: str, helptext: str):
-        vpython.button(text=text, bind=bind)
+        self._button = vpython.button(text=text, bind=bind)
         vpython.canvas.get_selected().append_to_caption(
             f"<span class='helptext'>{helptext}</span>\n")

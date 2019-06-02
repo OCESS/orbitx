@@ -207,6 +207,8 @@ class PEngine:
             y0.reference = request.reference
         elif request.ident == Request.TARGET_UPDATE:
             y0.target = request.target
+        elif request.ident == Request.LOAD_SAVEFILE:
+            y0 = common.load_savefile(common.savefile(request.loadfile))
 
         self.set_state(y0)
 

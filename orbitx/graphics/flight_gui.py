@@ -134,7 +134,6 @@ class FlightGui:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
         except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
-    # end of recentre_camera
 
     def ungraceful_shutdown(self):
         """Lets the user know that something bad happened."""
@@ -161,6 +160,10 @@ class FlightGui:
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
         """Called in a non-main thread by vpython when it gets key input."""
+        if self._pause:
+            # The user could be entering in things in the text fields, so just
+            # wait until they're not paused.
+            return
 
         k = evt.key
         if k == 'l':
@@ -309,15 +312,21 @@ class FlightGui:
     def toggle_pause(self):
         """Toggles whether the FlightGui considers itself paused."""
         self._pause = not self._pause
+        #self._sidebar._save_box.disabled = not self._pause
+        #self._sidebar._load_box.disabled = not self._pause
 
     def _undock(self):
         self._commands.append(Request(ident=Request.UNDOCK))
 
     def _save_hook(self, textbox: vpython.winput):
-        log.debug(textbox.text)
+        save = common.savefile(textbox.text)
+        common.write_savefile(self._state, save)
+        textbox.text = 'File saved!'
 
     def _load_hook(self, textbox: vpython.winput):
-        log.debug(textbox.text)
+        self._commands.append(Request(
+            ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
+        textbox.text = 'File loaded!'
 # end of class FlightGui
 
 
@@ -343,18 +352,8 @@ class Sidebar:
 
         self._create_menus()
 
-        Button(self._parent._undock, "Undock", "Undock from AYSE")
-
-        Button(self._parent.toggle_pause, "Pause", "Pause simulation")
-
-        vpython.canvas.get_selected().append_to_caption("<br/>")
-
-        # If you change the order of these, note that the placeholder text
-        # is set in footer.html
-        vpython.winput(bind=self._parent._save_hook, type='string')
-        vpython.canvas.get_selected().append_to_caption("\n")
-        vpython.winput(bind=self._parent._load_hook, type='string')
-        vpython.canvas.get_selected().append_to_caption("<br/>")
+        self._undock_button = Button(
+            self._parent._undock, "Undock", "Undock from AYSE")
 
         Checkbox(
             self._parent._trail_checkbox_hook,
@@ -362,8 +361,29 @@ class Sidebar:
             "Graphically intensive")
         Checkbox(
             self._parent._orbits_checkbox_hook,
-            False, 'Orbit Projection',
-            "Simple projection of hab around reference")
+            False, 'Orbit',
+            "Simple projection of hab around reference. "
+            "Hyperbola not accurate sorry :(")
+
+        vpython.canvas.get_selected().append_to_caption("<br/>")
+
+        # If you change the order of these, note that the placeholder text
+        # is set in footer.html
+        self._save_box = vpython.winput(
+            bind=self._parent._save_hook, type='string')
+        #self._save_box.disabled = True
+        vpython.canvas.get_selected().append_to_caption("\n")
+        self._load_box = vpython.winput(
+            bind=self._parent._load_hook, type='string')
+        #self._load_box.disabled = True
+        vpython.canvas.get_selected().append_to_caption("\n")
+        vpython.canvas.get_selected().append_to_caption(
+            "<span class='helptext'>Filename to save under data/saves/</span>")
+        vpython.canvas.get_selected().append_to_caption("\n")
+
+        Checkbox(self._parent.toggle_pause, False, "Pause",
+                 "Pause simulation. Can only save/load when paused.")
+        vpython.canvas.get_selected().append_to_caption("<br/>")
 
         with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
             vpython.canvas.get_selected().append_to_caption(footer.read())
@@ -546,3 +566,6 @@ class Sidebar:
     def update(self, state: state.PhysicsState):
         for wtext in self._wtexts:
             wtext.update(state)
+
+        self._undock_button._button.disabled = not (
+            state[common.HABITAT].attached_to == common.AYSE)

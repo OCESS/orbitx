@@ -142,7 +142,7 @@ def lead_server_loop(args):
 
     log.info(f'Loading save at {args.data_location.path}')
     physics_engine = physics.PEngine(
-        common.load_savefile(args.data_location.path)
+        common.load_savefile(Path(args.data_location.path))
     )
 
     if not args.no_gui:
