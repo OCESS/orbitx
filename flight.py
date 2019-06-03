@@ -54,7 +54,7 @@ def parse_args():
         ))
 
     parser.add_argument('data_location', type=str, nargs='?',
-                        default=('file:' + str(common.savefile('OCESS.json'))),
+                        default=('file:OCESS.json'),
                         help=(
                             'Where flight data is located. Accepts arguments'
                             ' of the form '
@@ -62,7 +62,7 @@ def parse_args():
                             'or "file:path/to/save.json" or '
                             '"file:/absolute/path/to/save.json". '
                             'See help text for details. Defaults to '
-                            'file:../data/saves/OCESS.json.'
+                            'file:OCESS.json. Paths are relative to data/saves'
                         ))
 
     parser.add_argument('--serve-on-port', type=int, metavar='PORT',
