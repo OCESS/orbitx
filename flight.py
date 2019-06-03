@@ -84,9 +84,6 @@ def parse_args():
     parser.add_argument('--profile', action='store_true', default=False,
                         help='Generating profiling reports, for a flamegraph.')
 
-    # parser.add_argument('--sseg', action='store_true', default=False,
-    #             help='Draw sphere segments. Might be slow at startup!')
-
     args, unknown = parser.parse_known_args()
     if unknown:
         log.warning(f'Got unrecognized args: {unknown}')
