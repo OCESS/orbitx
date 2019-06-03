@@ -8,6 +8,7 @@ Call FlightGui.pop_commands() to collect user input.
 
 import logging
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -50,13 +51,15 @@ class FlightGui:
         self._show_trails: bool = False
         self._pause: bool = False
         self._origin: state.Entity
-        self.pause_label: vpython.label = None
         self.texture_path: Path = (
             Path('data', 'textures') if texture_path is None else texture_path
         )
-        self._commands: list = []
-        self.pause_label: vpython.label = vpython.label(
-            text="Simulation Paused.", visible=False)
+        self._commands: List[Request] = []
+        self._pause_label = vpython.label(
+            text="Simulation paused; saving and loading enabled.\n"
+            "When finished, unpause by clicking the 'Pause' checkbox.",
+            xoffset=0, yoffset=200, line=False, height=25, border=20,
+            opacity=1, visible=False)
 
         self._3dobjs: Dict[str, ThreeDeeObj] = {}
         # remove vpython ambient lighting
@@ -171,7 +174,7 @@ class FlightGui:
             for name, obj in self._3dobjs.items():
                 obj._show_hide_label()
         elif k == 'p':
-            self.toggle_pause()
+            self.set_pause(True)
         elif k == 'a':
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
@@ -220,17 +223,17 @@ class FlightGui:
         self._state = draw_state
 
         new_acc_str = f'{int(draw_state.time_acc):,}×'
-        if new_acc_str not in self._sidebar.time_acc_menu._menu._choices:
+        if draw_state.time_acc == 0:
+            pass
+        elif new_acc_str not in self._sidebar.time_acc_menu._menu._choices:
             raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
-        if new_acc_str != self._sidebar.time_acc_menu._menu.selected:
+        elif new_acc_str != self._sidebar.time_acc_menu._menu.selected:
             self._sidebar.time_acc_menu._menu.selected = new_acc_str
         self._sidebar.reference_menu.selected = draw_state.reference
         self._sidebar.target_menu.selected = draw_state.target
 
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
-        if self._pause:
-            self._scene.pause("Simulation is paused. \n Press 'p' to continue")
 
         for planet in draw_state:
             self._3dobjs[planet.name].draw(planet, draw_state, self.origin())
@@ -309,11 +312,20 @@ class FlightGui:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
 
-    def toggle_pause(self):
+    def set_pause(self, pause: bool):
         """Toggles whether the FlightGui considers itself paused."""
-        self._pause = not self._pause
-        #self._sidebar._save_box.disabled = not self._pause
-        #self._sidebar._load_box.disabled = not self._pause
+        self._pause = pause
+        self._pause_label.visible = self._pause
+        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
+        # is resolved before re-enabling the next two lines.
+        # self._sidebar._save_box.disabled = not self._pause
+        # self._sidebar._load_box.disabled = not self._pause
+        if self._pause:
+            self._commands.append(Request(
+                ident=Request.TIME_ACC_SET, time_acc_set=0))
+        else:
+            # If we're unpausing, use the selected time acc value.
+            self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
 
     def _undock(self):
         self._commands.append(Request(ident=Request.UNDOCK))
@@ -371,17 +383,18 @@ class Sidebar:
         # is set in footer.html
         self._save_box = vpython.winput(
             bind=self._parent._save_hook, type='string')
-        #self._save_box.disabled = True
+        # self._save_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         self._load_box = vpython.winput(
             bind=self._parent._load_hook, type='string')
-        #self._load_box.disabled = True
+        # self._load_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         vpython.canvas.get_selected().append_to_caption(
             "<span class='helptext'>Filename to save under data/saves/</span>")
         vpython.canvas.get_selected().append_to_caption("\n")
 
-        Checkbox(self._parent.toggle_pause, False, "Pause",
+        Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
+                 False, "Pause",
                  "Pause simulation. Can only save/load when paused.")
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
@@ -392,6 +405,12 @@ class Sidebar:
         vpython.canvas.get_selected().caption += "<table>\n"
         self._wtexts: List[Text] = []
 
+        self._wtexts.append(Text(
+            "Simulation time",
+            lambda state: datetime.fromtimestamp(
+                state.timestamp, common.TIMEZONE).strftime('%x %X'),
+            "Current time in simulation",
+            new_section=False))
         self._wtexts.append(Text(
             "Orbit speed",
             lambda state: common.format_num(calc.orb_speed(

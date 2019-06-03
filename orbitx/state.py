@@ -327,7 +327,7 @@ class PhysicsState:
         ]).astype(self.DTYPE)
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> float:
         return self._proto_state.timestamp
 
     @timestamp.setter

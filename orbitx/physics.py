@@ -66,6 +66,7 @@ class PEngine:
         self._solutions_cond = threading.Condition()
         self._solutions: collections.deque
         self._last_monotime: float = time.monotonic()
+        self._simthread: Optional[threading.Thread] = None
         self._simthread_exception: Optional[Exception] = None
         self._last_physical_state: state.protos.PhysicalState
 
@@ -105,7 +106,7 @@ class PEngine:
         return requested_t
 
     def _stop_simthread(self):
-        if hasattr(self, '_simthread'):
+        if self._simthread is not None:
             with self._solutions_cond:
                 self._stopping_simthread = True
                 self._solutions_cond.notify_all()
@@ -114,13 +115,9 @@ class PEngine:
     def _restart_simulation(self, t0: float, y0: state.PhysicsState) -> None:
         self._stop_simthread()
 
-        self._simthread = threading.Thread(
-            target=self._simthread_target,
-            args=(t0, y0),
-            name=f'simthread t={round(t0)} acc={y0.time_acc}',
-            daemon=True
-        )
-        self._stopping_simthread = False
+        if y0.time_acc == 0:
+            # We've paused the simulation. Don't start a new simthread
+            return
 
         # We don't need to synchronize self._last_simtime or
         # self._solutions here, because we just stopped the background
@@ -129,6 +126,14 @@ class PEngine:
 
         # Essentially just a cache of ODE solutions.
         self._solutions = collections.deque(maxlen=SOLUTION_CACHE_SIZE)
+
+        self._simthread = threading.Thread(
+            target=self._simthread_target,
+            args=(t0, y0),
+            name=f'simthread t={round(t0)} acc={y0.time_acc}',
+            daemon=True
+        )
+        self._stopping_simthread = False
 
         # Fork self._simthread into the background.
         self._simthread.start()
@@ -142,6 +147,7 @@ class PEngine:
             # We don't care about these requests
             return
         requested_t = self._simtime(requested_t)
+        log.info(f'Got command at simtime={requested_t}')
 
         if request.ident == Request.TIME_ACC_SET:
             # Immediately change the time acceleration, don't wait for the
@@ -149,7 +155,7 @@ class PEngine:
             # 100,000x time acc, and the program seems frozen for the user and
             # they try lowering time acc. We should immediately be able to
             # restart simulation at a lower time acc without any waiting.
-            requested_t = self._solutions[-1].t_max
+            requested_t = min(self._solutions[-1].t_max, requested_t)
 
         y0 = self.get_state(requested_t)
 
@@ -187,7 +193,7 @@ class PEngine:
             craft.throttle = request.throttle_set
             y0[y0.craft] = craft
         elif request.ident == Request.TIME_ACC_SET:
-            assert request.time_acc_set > 0
+            assert request.time_acc_set >= 0
             y0.time_acc = request.time_acc_set
         elif request.ident == Request.ENGINEERING_UPDATE:
             state.Habitat.engine.max_thrust = \

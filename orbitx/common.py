@@ -1,6 +1,7 @@
 """Common code and class interfaces."""
 
 import logging
+import pytz
 import sys
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,8 @@ MAX_THROTTLE = 1  # 100%
 # that is undocking.
 LAUNCH_SEPARATION = 0.5
 LAUNCH_BOOST_SPEED = 1.0
+
+TIMEZONE = pytz.timezone('Canada/Eastern')
 
 DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'
