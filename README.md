@@ -87,11 +87,11 @@ Read `ARCHITECTURE.md` for a description of OrbitX's architecture.
 
 ## Screens
 
+![The most recent iteration of the OrbitX GUI](https://user-images.githubusercontent.com/1498589/58850124-1d1b8700-865b-11e9-8be6-4f0013b11a2a.png)
+
 ![The entire solar system, with circle segments showing the paths of planets](https://user-images.githubusercontent.com/1498589/48948260-e1f90800-ef01-11e8-9835-f5f472604720.PNG)
 
 ![The Jupiter system, with sinusoidal paths of Jovian moons around Jupiter](https://user-images.githubusercontent.com/1498589/48948270-ea514300-ef01-11e8-8f23-4010e6fb7bd3.PNG)
-
-![The Jupiter system again](https://user-images.githubusercontent.com/1498589/48948274-ec1b0680-ef01-11e8-9074-aef5748d60f5.PNG)
 
 ![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](https://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
 
