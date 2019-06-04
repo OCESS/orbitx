@@ -227,10 +227,11 @@ class FlightGui:
             pass
         elif new_acc_str not in self._sidebar.time_acc_menu._menu._choices:
             raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
-        elif new_acc_str != self._sidebar.time_acc_menu._menu.selected:
+        else:
             self._sidebar.time_acc_menu._menu.selected = new_acc_str
         self._sidebar.reference_menu.selected = draw_state.reference
         self._sidebar.target_menu.selected = draw_state.target
+        self._sidebar.navmode_menu.selected = draw_state.navmode.name
 
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
@@ -339,6 +340,11 @@ class FlightGui:
         self._commands.append(Request(
             ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
         textbox.text = 'File loaded!'
+
+    def _navmode_hook(self, menu: vpython.menu):
+        self._commands.append(Request(
+            ident=Request.NAVMODE_SET,
+            navmode=state.Navmode[menu.selected].value))
 # end of class FlightGui
 
 
@@ -501,9 +507,9 @@ class Sidebar:
 
         self._wtexts.append(Text(
             "Pitch θ",
-            lambda state: common.format_num(calc.pitch(
+            lambda state: common.format_num(np.degrees(calc.pitch(
                 state.craft_entity(),
-                state.reference_entity()), "°"),
+                state.reference_entity())) % 360, "°"),
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
@@ -564,13 +570,13 @@ class Sidebar:
             helptext="Entity to land or dock with"
         )
 
-        Menu(
-            choices=['deprt ref'],
-            selected='deprt ref',
-            bind=lambda selection: log.error(f"Unimplemented: {selection}"),
+        self.navmode_menu = Menu(
+            choices=[item.name for item in state.Navmode],
+            selected=state.Navmode(0).name,
+            bind=self._parent._navmode_hook,
             caption="NAV mode",
             helptext="Automatically points habitat"
-        )._menu.disabled = True
+        )
 
         self.time_acc_menu = Menu(
             choices=[f'{n:,}×' for n in

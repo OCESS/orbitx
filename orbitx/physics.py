@@ -176,6 +176,9 @@ class PEngine:
                 y0[y0.craft] = craft
 
         if request.ident == Request.HAB_SPIN_CHANGE:
+            if y0.navmode != state.Navmode['Manual']:
+                # We're in autopilot, ignore this command
+                return
             craft = y0[y0.craft]
             if not craft.landed():
                 # TODO: on the next line, not every craft is a hab.
@@ -215,6 +218,12 @@ class PEngine:
             y0.target = request.target
         elif request.ident == Request.LOAD_SAVEFILE:
             y0 = common.load_savefile(common.savefile(request.loadfile))
+        elif request.ident == Request.NAVMODE_SET:
+            y0.navmode = state.Navmode(request.navmode)
+            if y0.navmode == state.Navmode['Manual']:
+                craft = y0[y0.craft]
+                craft.spin = 0
+                y0[y0.craft] = craft
 
         self.set_state(y0)
 
@@ -382,13 +391,13 @@ class PEngine:
         return newest_state
 
     def _simthread_target(self, t, y):
-        log.debug('simthread started')
+        log.info('simthread started')
         try:
             self._run_simulation(t, y)
         except Exception as e:
             log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
-        log.debug('simthread exited')
+        log.info('simthread exited')
 
     def _derive(self, t: float, y_1d: np.ndarray,
                 pass_through_state: PhysicalState) -> np.ndarray:
@@ -430,11 +439,17 @@ class PEngine:
                 Xa[index] += hab_eng_acc_x
                 Ya[index] += hab_eng_acc_y
 
+        if y.navmode != state.Navmode['Manual']:
+            craft = y.craft_entity()
+            craft.spin = navmode_spin(y)
+            y[y.craft] = craft
+
         # Keep attached entities glued together
         attached_to = y.AttachedTo
         for index in attached_to:
             if attached_to[index] in self._artificials:
                 y.Spin[index] = y[attached_to[index]].spin
+
             attached = y[index]
             attachee = y[attached_to[index]]
 
@@ -525,14 +540,14 @@ class PEngine:
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
-                log.debug(f'Got event: {ivp_out.t_events}')
+                log.info(f'Got event: {ivp_out.t_events}')
                 if len(ivp_out.t_events[0]):
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
                     y = self._collision_decision(t, y, altitude_event)
                 elif len(ivp_out.t_events[1]):
-                    log.debug(f'Got fuel empty at {t}')
+                    log.info(f'Got fuel empty at {t}')
 
                     for index in self._artificials:
                         artificial = y[index]
@@ -611,3 +626,71 @@ class AltitudeEvent(Event):
         else:
             # solve_ivp invocation, return scalar
             return np.min(alt_matrix)
+
+
+def navmode_heading(flight_state: state.PhysicsState) -> float:
+    """
+    Returns the heading that the craft should be facing in current navmode.
+
+    Don't call this with Manual navmode.
+    If the navmode is relative to the reference, and the reference is set to
+    the craft, this will return the craft's current heading as a sane default.
+    """
+    navmode = flight_state.navmode
+    craft = flight_state.craft_entity()
+    ref = flight_state.reference_entity()
+    targ = flight_state.target_entity()
+    requested_vector: np.ndarray
+
+    if navmode == state.Navmode['Manual']:
+        raise ValueError('Autopilot requested for manual navmode')
+    elif navmode.name == 'CCW Prograde':
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        normal = craft.pos - ref.pos
+        requested_vector = np.array([-normal[1], normal[0]])
+    elif navmode == state.Navmode['CW Retrograde']:
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        normal = craft.pos - ref.pos
+        requested_vector = np.array([normal[1], -normal[0]])
+    elif navmode == state.Navmode['Depart Reference']:
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        requested_vector = craft.pos - ref.pos
+    elif navmode == state.Navmode['Approach Target']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = targ.pos - craft.pos
+    elif navmode == state.Navmode['Pro Targ Velocity']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = craft.v - targ.v
+    elif navmode == state.Navmode['Anti Targ Velocity']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = targ.v - craft.v
+    else:
+        raise ValueError(f'Got an unexpected NAVMODE: {flight_state.navmode}')
+
+    return np.arctan2(requested_vector[1], requested_vector[0])
+
+
+def navmode_spin(flight_state: state.PhysicsState) -> float:
+    """Returns a spin that will orient the craft according to the navmode."""
+
+    craft = flight_state.craft_entity()
+    requested_heading = navmode_heading(flight_state)
+    ccw_distance = (requested_heading - craft.heading) % np.radians(360)
+    cw_distance = (craft.heading - requested_heading) % np.radians(360)
+    if ccw_distance < cw_distance:
+        heading_difference = ccw_distance
+    else:
+        heading_difference = -cw_distance
+    if abs(heading_difference) < common.AUTOPILOT_FINE_CONTROL_RADIUS:
+        # The unit analysis doesn't work out here I'm sorry. Basically,
+        # the closer we are to the target heading, the slower we adjust.
+        return heading_difference
+    else:
+        # We can spin at most common.AUTOPILOT_SPEED
+        return np.sign(heading_difference) * common.AUTOPILOT_SPEED

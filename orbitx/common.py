@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import numpy
 import google.protobuf.json_format
 
 from orbitx import orbitx_pb2 as protos
@@ -32,6 +33,13 @@ DEFAULT_TARGET = AYSE
 
 MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1  # 100%
+
+# The max speed at which the autopilot will spin the craft
+AUTOPILOT_SPEED = numpy.radians(20)
+
+# The margin on either side of the target heading that the autopilot will slow
+# down its adjustments
+AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
 # A small positive distance and speed, respectively, that is added to a ship
 # that is undocking.
@@ -121,7 +129,7 @@ def format_num(num: Optional[float], unit: str) -> str:
     return '{:,.5g}'.format(round(num)) + unit
 
 
-def load_savefile(file: Path) -> state.PhysicsState:
+def load_savefile(file: Path) -> 'state.PhysicsState':
     logging.getLogger().info(f'Loading savefile {file.resolve()}')
     with open(file, 'r') as f:
         data = f.read()
@@ -137,7 +145,7 @@ def load_savefile(file: Path) -> state.PhysicsState:
     return state.PhysicsState(None, read_state)
 
 
-def write_savefile(state: state.PhysicsState, file: Path):
+def write_savefile(state: 'state.PhysicsState', file: Path):
     logging.getLogger().info(f'Saving to savefile {file.resolve()}')
     with open(file, 'w') as outfile:
         outfile.write(

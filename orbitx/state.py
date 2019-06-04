@@ -6,6 +6,7 @@ online, but mainly they're helpful for serializing data over the network."""
 
 import copy
 import logging
+from enum import Enum
 from typing import List, Dict, Optional, Union
 
 import numpy as np
@@ -15,6 +16,13 @@ from orbitx import orbitx_pb2 as protos
 from orbitx import common
 
 log = logging.getLogger()
+
+
+# Make sure this is in sync with the corresponding enum in orbitx.proto!
+Navmode = Enum('Navmode', zip([  # type: ignore
+    'Manual', 'CCW Prograde', 'CW Retrograde', 'Depart Reference',
+    'Approach Target', 'Pro Targ Velocity', 'Anti Targ Velocity'
+], protos.Navmode.values()))
 
 
 class Entity:
@@ -435,6 +443,14 @@ class PhysicsState:
     @target.setter
     def target(self, name: str):
         self._proto_state.target = name
+
+    @property
+    def navmode(self) -> Navmode:
+        return Navmode(self._proto_state.navmode)
+
+    @navmode.setter
+    def navmode(self, navmode: Navmode):
+        self._proto_state.navmode = navmode.value
 
 
 # A note about functions with the signature "(self, *, arg1=None, arg2=None)"

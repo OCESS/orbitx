@@ -16,6 +16,16 @@ service StateServer {
     rpc get_physical_state (Command) returns (PhysicalState) {}
 }
 
+// Keep this in sync with the corresponding enum in state.py!
+enum Navmode {
+    MANUAL = 0;
+    CCW_PROG = 1;
+    CW_RETRO = 2;
+    DEPRT_REF = 3;
+    APP_TARG = 4;
+    PRO_VTRG = 5;
+    RETR_VTRG = 6;
+}
 
 message Command {
     enum Idents {
@@ -29,6 +39,7 @@ message Command {
         REFERENCE_UPDATE = 7;
         TARGET_UPDATE = 8;
         LOAD_SAVEFILE = 9;
+        NAVMODE_SET = 10;
     }
 
     message EngineeringUpdate {
@@ -48,6 +59,7 @@ message Command {
         string reference = 7;
         string target = 8;
         string loadfile = 9;
+        Navmode navmode = 10;
     }
 }
 
@@ -101,4 +113,5 @@ message PhysicalState {
     string craft = 4;
     string reference = 5;
     string target = 6;
+    Navmode navmode = 7;
 }
