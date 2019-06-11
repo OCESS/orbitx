@@ -522,7 +522,7 @@ class ReactionWheel(object):
 
 class Habitat():
     """Static class implementing hab engine and reaction wheel constraints."""
-    engine = Engine(max_fuel_cons=4.8, max_thrust=432222)
+    engine = Engine(max_fuel_cons=5, max_thrust=4375000)
     rw = ReactionWheel(max_spin_change=1)
 
     @classmethod
