@@ -901,6 +901,8 @@
         THRUSTy = THRUSTy + (Av * COS(Sangle + (vernA / RAD)))
        
         '### This is calculations for atmospheric drag
+        '### For the Earth, B = 0, 4
+        '### P(0 4 5 8 9 10) = 4 , 5.9799997772894D+24 , 6288000, 1.28, 6.7, 465
         Are = 0
         IF atm = 40 AND Ztel(16) <> 3.141593 THEN Are = 0: GOTO 319
         difX = Vx(atm) - Vx(28) + VwindX

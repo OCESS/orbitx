@@ -64,6 +64,8 @@ class Entity:
     attached_to: str
     broken: bool
     artificial: bool
+    atmosphere_thickness: float
+    atmosphere_scaling: float
 
     def screen_pos(self, origin: 'Entity') -> vpython.vector:
         """The on-screen position of this entity, relative to the origin."""
@@ -152,6 +154,10 @@ class PhysicsState:
     filled if it's being called more than once a second while OrbitX is running
     normally.
     """
+
+    class NoEntityError(ValueError):
+        """Raised when an entity is not found."""
+        pass
 
     # For if an entity is not attached to anything
     NO_INDEX = -1
@@ -408,10 +414,15 @@ class PhysicsState:
     def craft(self) -> str:
         """Returns the currently-controlled craft.
         Not actually backed by any stored field, just a calculation."""
+        entity_names = self._entity_names()
+        if common.HABITAT not in entity_names and \
+                common.AYSE not in entity_names:
+            raise self.NoEntityError('No craft found')
+        if common.AYSE not in entity_names:
+            return common.HABITAT
+
         hab_index = self._name_to_index(common.HABITAT)
         ayse_index = self._name_to_index(common.AYSE)
-        if hab_index == self.NO_INDEX or ayse_index == self.NO_INDEX:
-            return ''
         if self._y_components()[8][hab_index] == ayse_index:
             # Habitat is docked with AYSE, AYSE is active craft
             return common.AYSE

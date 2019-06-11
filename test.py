@@ -33,6 +33,8 @@ class PhysicsEngine:
 
 
 class PhysicsEngineTestCase(unittest.TestCase):
+    """Test the motion of the simulated system is correct."""
+
     def setUp(self):
         if '-v' in sys.argv:
             common.enable_verbose_logging()
@@ -240,6 +242,17 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 final['Earth'].r + final['Habitat'].r,
                 delta=1)
 
+    def test_drag(self):
+        """Test that drag is small but noticeable during unpowered flight."""
+        atmosphere_save = common.load_savefile(common.savefile(
+            'tests/atmosphere.json'))
+        # The habitat starts 1 km in the air, the same speed as the Earth.
+
+        hab = atmosphere_save.craft_entity()
+        hab.vy += 10
+        atmosphere_save[atmosphere_save.craft] = hab
+        self.assertEqual(0, np.linalg.norm(calc.drag(atmosphere_save)))
+
 
 class EntityTestCase(unittest.TestCase):
     """Tests that state.Entity properly proxies underlying proto."""
@@ -326,7 +339,9 @@ class PhysicsStateTestCase(unittest.TestCase):
 
 
 class CalculationsTestCase(unittest.TestCase):
-    """The file tests/gui-test.json encodes the position of the Earth and the
+    """Tests instantaneous orbit parameter calculations.
+
+    The file tests/gui-test.json encodes the position of the Earth and the
     ISS, with all possitions offset by a billion metres along the x and y axes.
     https://www.wolframalpha.com/input/?i=International+Space+Station
     describes the orbital parameters of the ISS, all numbers in this test are

@@ -6,6 +6,7 @@ import math
 import vpython
 import numpy as np
 
+from orbitx import common
 from orbitx import state
 
 G = 6.674e-11
@@ -309,3 +310,136 @@ def _polar_to_cartesian(ang, hyp):
 
 def _f_to_a(f, M):
     return np.divide(f, M)
+
+
+def navmode_heading(flight_state: state.PhysicsState) -> float:
+    """
+    Returns the heading that the craft should be facing in current navmode.
+
+    Don't call this with Manual navmode.
+    If the navmode is relative to the reference, and the reference is set to
+    the craft, this will return the craft's current heading as a sane default.
+    """
+    navmode = flight_state.navmode
+    craft = flight_state.craft_entity()
+    ref = flight_state.reference_entity()
+    targ = flight_state.target_entity()
+    requested_vector: np.ndarray
+
+    if navmode == state.Navmode['Manual']:
+        raise ValueError('Autopilot requested for manual navmode')
+    elif navmode.name == 'CCW Prograde':
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        normal = craft.pos - ref.pos
+        requested_vector = np.array([-normal[1], normal[0]])
+    elif navmode == state.Navmode['CW Retrograde']:
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        normal = craft.pos - ref.pos
+        requested_vector = np.array([normal[1], -normal[0]])
+    elif navmode == state.Navmode['Depart Reference']:
+        if flight_state.reference == flight_state.craft:
+            return craft.heading
+        requested_vector = craft.pos - ref.pos
+    elif navmode == state.Navmode['Approach Target']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = targ.pos - craft.pos
+    elif navmode == state.Navmode['Pro Targ Velocity']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = craft.v - targ.v
+    elif navmode == state.Navmode['Anti Targ Velocity']:
+        if flight_state.target == flight_state.craft:
+            return craft.heading
+        requested_vector = targ.v - craft.v
+    else:
+        raise ValueError(f'Got an unexpected NAVMODE: {flight_state.navmode}')
+
+    return np.arctan2(requested_vector[1], requested_vector[0])
+
+
+def navmode_spin(flight_state: state.PhysicsState) -> float:
+    """Returns a spin that will orient the craft according to the navmode."""
+
+    craft = flight_state.craft_entity()
+    requested_heading = navmode_heading(flight_state)
+    ccw_distance = (requested_heading - craft.heading) % np.radians(360)
+    cw_distance = (craft.heading - requested_heading) % np.radians(360)
+    if ccw_distance < cw_distance:
+        heading_difference = ccw_distance
+    else:
+        heading_difference = -cw_distance
+    if abs(heading_difference) < common.AUTOPILOT_FINE_CONTROL_RADIUS:
+        # The unit analysis doesn't work out here I'm sorry. Basically,
+        # the closer we are to the target heading, the slower we adjust.
+        return heading_difference
+    else:
+        # We can spin at most common.AUTOPILOT_SPEED
+        return np.sign(heading_difference) * common.AUTOPILOT_SPEED
+
+
+def drag(flight_state: state.PhysicsState) -> np.ndarray:
+    craft = flight_state.craft_entity()
+
+    closest_atmosphere: Optional[state.Entity] = None
+    closest_exponential = -np.inf
+    previous_distance_sq = np.inf
+
+    for entity in flight_state:
+        if entity.atmosphere_scaling == 0 or entity.atmosphere_thickness == 0:
+            # Entity has no atmosphere
+            continue
+
+        displacement = entity.pos - craft.pos
+        distance_sq = np.inner(displacement, displacement)
+        # np.inner is the same as the magnitude squared
+        # https://stackoverflow.com/a/35213951
+        # We use the squared distance because it's much faster to calculate.
+        if distance_sq < previous_distance_sq:
+            # Entity has an atmosphere but is too far away
+            exponential = (
+                -altitude(craft, entity) / 1000 / entity.atmosphere_scaling)
+            if exponential > -20:
+                previous_distance_sq = distance_sq
+                closest_atmosphere = entity
+                closest_exponential = exponential
+
+    if closest_atmosphere is None:
+        return np.array([0, 0])
+
+    wind = craft.v - closest_atmosphere.v
+    if np.inner(wind, wind) < 0.01:
+        # The craft is stationary
+        return np.array([0, 0])
+    wind_angle = np.arctan2(wind[1], wind[0])
+
+    # I know I've said this about other pieces of code, but I really have no
+    # idea how this code works. I just lifted it from OrbitV because I couldn't
+    # find simple atmospheric drag models.
+    # Also sorry, unit analysis doesn't work inside this function.
+    # TODO: how does this work outside of the atmosphere?
+    # TODO: disabled while I figure out if this only works during telemetry
+    i_know_what_this_aoa_code_does = False
+    if i_know_what_this_aoa_code_does:
+        aoa = wind_angle - pitch(craft, closest_atmosphere)
+        aoa = np.sign(np.sign(np.cos(aoa)) - 1)
+        aoa = aoa**3
+        if aoa > 0.5:
+            aoa = 1 - aoa
+        aoa_vector = -abs(aoa) * np.array([
+            np.sin(wind_angle + (np.pi / 2) * np.sign(aoa)),
+            np.cos(wind_angle + (np.pi / 2) * np.sign(aoa))
+        ])
+        return aoa_vector
+
+    # This exponential-form equation seems to be the barometric formula:
+    # https://en.wikipedia.org/wiki/Barometric_formula
+    pressure = (
+        closest_atmosphere.atmosphere_thickness *
+        np.exp(closest_exponential)
+    )
+
+    drag_acc = pressure * np.linalg.norm(wind)**2 * common.DRAG_PROFILE
+    return drag_acc * (wind / np.linalg.norm(wind))

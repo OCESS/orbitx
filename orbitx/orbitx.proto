@@ -87,6 +87,8 @@ message Entity {
     string attached_to = 12; // another entity this entity is attached to
     bool broken = 13;
     bool artificial = 14;
+    double atmosphere_thickness = 15;
+    double atmosphere_scaling = 16;
 }
 
 // To use this in python code, think of `entities` as a list, except to add an

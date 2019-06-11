@@ -366,8 +366,8 @@ class PEngine:
             self._last_simtime = requested_t
             self._solutions_cond.wait_for(
                 lambda:
-                len(self._solutions) != 0 and
-                self._solutions[-1].t_max >= requested_t or
+                (len(self._solutions) != 0 and
+                 self._solutions[-1].t_max >= requested_t) or
                 self._simthread_exception is not None
             )
 
@@ -397,7 +397,10 @@ class PEngine:
         except Exception as e:
             log.exception('simthread got exception, forwarding to main thread')
             self._simthread_exception = e
-        log.info('simthread exited')
+            with self._solutions_cond:
+                self._solutions_cond.notify_all()
+        finally:
+            log.info('simthread exited')
 
     def _derive(self, t: float, y_1d: np.ndarray,
                 pass_through_state: PhysicalState) -> np.ndarray:
@@ -441,8 +444,16 @@ class PEngine:
 
         if y.navmode != state.Navmode['Manual']:
             craft = y.craft_entity()
-            craft.spin = navmode_spin(y)
+            craft.spin = calc.navmode_spin(y)
             y[y.craft] = craft
+
+        try:
+            craft_index = y._name_to_index(y.craft)
+            drag_acc = calc.drag(y)
+            Xa[craft_index] -= drag_acc[0]
+            Ya[craft_index] -= drag_acc[1]
+        except state.PhysicsState.NoEntityError:
+            pass
 
         # Keep attached entities glued together
         attached_to = y.AttachedTo
@@ -458,19 +469,21 @@ class PEngine:
             Xa[index] = Xa[attached_to[index]]
             Ya[index] = Ya[attached_to[index]]
 
-            # We also add velocity and centripetal acceleration that comes
-            # from being attached to the surface of a spinning object.
-            norm = attached.pos - attachee.pos
-            unit_norm = norm / np.linalg.norm(norm)
-            # The unit tangent is perpendicular to the unit normal vector
-            unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
-            # These two lines courtesy of wikipedia "Circular motion"
-            circular_velocity = unit_tang * attachee.spin * attachee.r
-            centripetal_acc = unit_norm * attachee.spin ** 2 * attachee.r
-            attached.v += circular_velocity
-            y[index] = attached
-            Xa[index] += centripetal_acc[0]
-            Ya[index] += centripetal_acc[1]
+            fixed_atmosphere = False
+            if fixed_atmosphere:
+                # We also add velocity and centripetal acceleration that comes
+                # from being attached to the surface of a spinning object.
+                norm = attached.pos - attachee.pos
+                unit_norm = norm / np.linalg.norm(norm)
+                # The unit tangent is perpendicular to the unit normal vector
+                unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
+                # These two lines courtesy of wikipedia "Circular motion"
+                circular_velocity = unit_tang * attachee.spin * attachee.r
+                centripetal_acc = unit_norm * attachee.spin ** 2 * attachee.r
+                attached.v += circular_velocity
+                y[index] = attached
+                Xa[index] += centripetal_acc[0]
+                Ya[index] += centripetal_acc[1]
 
         return np.concatenate((
             y.VX, y.VY, Xa, Ya, y.Spin,
@@ -626,71 +639,3 @@ class AltitudeEvent(Event):
         else:
             # solve_ivp invocation, return scalar
             return np.min(alt_matrix)
-
-
-def navmode_heading(flight_state: state.PhysicsState) -> float:
-    """
-    Returns the heading that the craft should be facing in current navmode.
-
-    Don't call this with Manual navmode.
-    If the navmode is relative to the reference, and the reference is set to
-    the craft, this will return the craft's current heading as a sane default.
-    """
-    navmode = flight_state.navmode
-    craft = flight_state.craft_entity()
-    ref = flight_state.reference_entity()
-    targ = flight_state.target_entity()
-    requested_vector: np.ndarray
-
-    if navmode == state.Navmode['Manual']:
-        raise ValueError('Autopilot requested for manual navmode')
-    elif navmode.name == 'CCW Prograde':
-        if flight_state.reference == flight_state.craft:
-            return craft.heading
-        normal = craft.pos - ref.pos
-        requested_vector = np.array([-normal[1], normal[0]])
-    elif navmode == state.Navmode['CW Retrograde']:
-        if flight_state.reference == flight_state.craft:
-            return craft.heading
-        normal = craft.pos - ref.pos
-        requested_vector = np.array([normal[1], -normal[0]])
-    elif navmode == state.Navmode['Depart Reference']:
-        if flight_state.reference == flight_state.craft:
-            return craft.heading
-        requested_vector = craft.pos - ref.pos
-    elif navmode == state.Navmode['Approach Target']:
-        if flight_state.target == flight_state.craft:
-            return craft.heading
-        requested_vector = targ.pos - craft.pos
-    elif navmode == state.Navmode['Pro Targ Velocity']:
-        if flight_state.target == flight_state.craft:
-            return craft.heading
-        requested_vector = craft.v - targ.v
-    elif navmode == state.Navmode['Anti Targ Velocity']:
-        if flight_state.target == flight_state.craft:
-            return craft.heading
-        requested_vector = targ.v - craft.v
-    else:
-        raise ValueError(f'Got an unexpected NAVMODE: {flight_state.navmode}')
-
-    return np.arctan2(requested_vector[1], requested_vector[0])
-
-
-def navmode_spin(flight_state: state.PhysicsState) -> float:
-    """Returns a spin that will orient the craft according to the navmode."""
-
-    craft = flight_state.craft_entity()
-    requested_heading = navmode_heading(flight_state)
-    ccw_distance = (requested_heading - craft.heading) % np.radians(360)
-    cw_distance = (craft.heading - requested_heading) % np.radians(360)
-    if ccw_distance < cw_distance:
-        heading_difference = ccw_distance
-    else:
-        heading_difference = -cw_distance
-    if abs(heading_difference) < common.AUTOPILOT_FINE_CONTROL_RADIUS:
-        # The unit analysis doesn't work out here I'm sorry. Basically,
-        # the closer we are to the target heading, the slower we adjust.
-        return heading_difference
-    else:
-        # We can spin at most common.AUTOPILOT_SPEED
-        return np.sign(heading_difference) * common.AUTOPILOT_SPEED

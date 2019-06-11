@@ -41,6 +41,8 @@ AUTOPILOT_SPEED = numpy.radians(20)
 # down its adjustments
 AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
+DRAG_PROFILE = 0.0002
+
 # A small positive distance and speed, respectively, that is added to a ship
 # that is undocking.
 LAUNCH_SEPARATION = 0.5
