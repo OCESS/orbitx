@@ -251,7 +251,9 @@ class PhysicsEngineTestCase(unittest.TestCase):
         hab = atmosphere_save.craft_entity()
         hab.vy += 10
         atmosphere_save[atmosphere_save.craft] = hab
-        self.assertEqual(0, np.linalg.norm(calc.drag(atmosphere_save)))
+        drag = np.linalg.norm(calc.drag(atmosphere_save))
+        self.assertLess(0.025, drag)
+        self.assertGreater(0.035, drag)
 
 
 class EntityTestCase(unittest.TestCase):

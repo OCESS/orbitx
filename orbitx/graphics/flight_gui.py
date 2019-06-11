@@ -468,6 +468,13 @@ class Sidebar:
             new_section=False))
 
         self._wtexts.append(Text(
+            "Drag",
+            lambda state: common.format_num(np.linalg.norm(calc.drag(state)),
+                                            " m/s/s"),
+            "Atmospheric drag acting on the craft",
+            new_section=False))
+
+        self._wtexts.append(Text(
             "Fuel ",
             lambda state: common.format_num(state.craft_entity(
             ).fuel, " kg"), "Remaining fuel of habitat",
