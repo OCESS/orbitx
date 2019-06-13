@@ -159,22 +159,6 @@ class PEngine:
 
         y0 = self.get_state(requested_t)
 
-        def launch_craft(y0: state.PhysicsState):
-            # Make sure that we're slightly above the surface of an attachee
-            # before un-attaching two entities
-            craft = y0[y0.craft]
-            if craft.landed():
-                attachee = y0[craft.attached_to]
-
-                norm = craft.pos - attachee.pos
-                unit_norm = norm / np.linalg.norm(norm)
-                craft.pos = attachee.pos + unit_norm * (
-                    common.LAUNCH_SEPARATION + attachee.r + craft.r)
-                craft.v += unit_norm * common.LAUNCH_BOOST_SPEED
-                craft.attached_to = ''
-
-                y0[y0.craft] = craft
-
         if request.ident == Request.HAB_SPIN_CHANGE:
             if y0.navmode != state.Navmode['Manual']:
                 # We're in autopilot, ignore this command
@@ -186,12 +170,10 @@ class PEngine:
                     requested_spin_change=request.spin_change)
                 y0[y0.craft] = craft
         elif request.ident == Request.HAB_THROTTLE_CHANGE:
-            launch_craft(y0)
             craft = y0[y0.craft]
             craft.throttle += request.throttle_change
             y0[y0.craft] = craft
         elif request.ident == Request.HAB_THROTTLE_SET:
-            launch_craft(y0)
             craft = y0[y0.craft]
             craft.throttle = request.throttle_set
             y0[y0.craft] = craft
@@ -209,9 +191,17 @@ class PEngine:
             y0[common.AYSE] = ayse
         elif request.ident == Request.UNDOCK:
             habitat = y0[common.HABITAT]
-            habitat.attached_to = ''
-            y0[common.HABITAT] = habitat
-            launch_craft(y0)
+
+            if habitat.attached_to == common.AYSE:
+                ayse = y0[common.AYSE]
+                habitat.attached_to = ''
+
+                norm = habitat.pos - ayse.pos
+                unit_norm = norm / np.linalg.norm(norm)
+                habitat.v += unit_norm * 1  # Give a 1 m/s push
+
+                y0[common.HABITAT] = habitat
+
         elif request.ident == Request.REFERENCE_UPDATE:
             y0.reference = request.reference
         elif request.ident == Request.TARGET_UPDATE:
@@ -424,7 +414,7 @@ class PEngine:
                                                 current_y_of_system)
         """
         y = state.PhysicsState(y_1d, pass_through_state)
-        Xa, Ya = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
+        Ax, Ay = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
@@ -439,8 +429,8 @@ class PEngine:
                         throttle=entity.throttle, heading=entity.heading) /
                     (entity.mass + entity.fuel)
                 )
-                Xa[index] += hab_eng_acc_x
-                Ya[index] += hab_eng_acc_y
+                Ax[index] += hab_eng_acc_x
+                Ay[index] += hab_eng_acc_y
 
         if y.navmode != state.Navmode['Manual']:
             craft = y.craft_entity()
@@ -450,24 +440,23 @@ class PEngine:
         try:
             craft_index = y._name_to_index(y.craft)
             drag_acc = calc.drag(y)
-            Xa[craft_index] -= drag_acc[0]
-            Ya[craft_index] -= drag_acc[1]
+            Ax[craft_index] -= drag_acc[0]
+            Ay[craft_index] -= drag_acc[1]
         except state.PhysicsState.NoEntityError:
             pass
 
         # Keep attached entities glued together
         attached_to = y.AttachedTo
         for index in attached_to:
-            if attached_to[index] in self._artificials:
-                y.Spin[index] = y[attached_to[index]].spin
-
             attached = y[index]
             attachee = y[attached_to[index]]
 
+            attached.spin = attachee.spin
+
             # If we're attached to something, make sure we move in lockstep.
             attached.v = attachee.v
-            Xa[index] = Xa[attached_to[index]]
-            Ya[index] = Ya[attached_to[index]]
+            Ax[index] = Ax[attached_to[index]]
+            Ay[index] = Ay[attached_to[index]]
 
             fixed_atmosphere = False
             if fixed_atmosphere:
@@ -482,11 +471,11 @@ class PEngine:
                 centripetal_acc = unit_norm * attachee.spin ** 2 * attachee.r
                 attached.v += circular_velocity
                 y[index] = attached
-                Xa[index] += centripetal_acc[0]
-                Ya[index] += centripetal_acc[1]
+                Ax[index] += centripetal_acc[0]
+                Ay[index] += centripetal_acc[1]
 
         return np.concatenate((
-            y.VX, y.VY, Xa, Ya, y.Spin,
+            y.VX, y.VY, Ax, Ay, y.Spin,
             zeros, fuel_cons, zeros, zeros, zeros
         ), axis=None)
 
@@ -515,6 +504,7 @@ class PEngine:
             # and hopefully a bit farther past the end of that interval.
             hab_fuel_event = HabFuelEvent(y)
             altitude_event = AltitudeEvent(y, self.R)
+            liftoff_event = LiftoffEvent(y)
 
             ivp_out = scipy.integrate.solve_ivp(
                 functools.partial(
@@ -523,7 +513,7 @@ class PEngine:
                 [t, t + np.sqrt(y.time_acc)],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
-                events=[altitude_event, hab_fuel_event],
+                events=[altitude_event, hab_fuel_event, liftoff_event],
                 dense_output=True
             )
 
@@ -559,7 +549,7 @@ class PEngine:
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
                     y = self._collision_decision(t, y, altitude_event)
-                elif len(ivp_out.t_events[1]):
+                if len(ivp_out.t_events[1]):
                     log.info(f'Got fuel empty at {t}')
 
                     for index in self._artificials:
@@ -571,6 +561,12 @@ class PEngine:
                         # the event function
                         artificial.fuel = 0
                         y[index] = artificial
+                if len(ivp_out.t_events[2]):
+                    craft = y.craft_entity()
+                    log.info('We have liftoff of the '
+                             f'{craft.name} from {craft.attached_to} at {t}')
+                    craft.attached_to = ''
+                    y[y.craft] = craft
 
 
 class Event:
@@ -639,3 +635,41 @@ class AltitudeEvent(Event):
         else:
             # solve_ivp invocation, return scalar
             return np.min(alt_matrix)
+
+
+class LiftoffEvent(Event):
+    def __init__(self, initial_state: state.PhysicsState):
+        self.initial_state = initial_state
+
+    def __call__(self, t, y_1d) -> float:
+        """Return 0 when the craft is landed but thrusting enough to lift off,
+        and a positive value otherwise."""
+        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
+        # This calculates the position of the craftattached object, one
+        # second in the future. If the position is sufficiently far away
+        # from the attached body, separate the two bodies.
+        try:
+            craft = y.craft_entity()
+        except state.PhysicsState.NoEntityError:
+            # There is no craft, return early.
+            return np.inf
+
+        if not craft.landed():
+            # We don't have to lift off because we already lifted off.
+            return np.inf
+
+        planet = y[craft.attached_to]
+        if planet.artificial:
+            # If we're attached to another satellite, undocking is governed
+            # by other mechanisms. Ignore this.
+            return np.inf
+
+        thrust = np.linalg.norm(state.Habitat.thrust(
+            throttle=craft.throttle, heading=craft.heading))
+        pos = craft.pos - planet.pos
+        # This is the G(m1*m2)/r^2 formula
+        weight = common.G * craft.mass * planet.mass / np.inner(pos, pos)
+
+        # This should be positive when the craft isn't thrusting enough, and
+        # zero when it is thrusting enough.
+        return max(0, common.LAUNCH_TWR - thrust / weight)

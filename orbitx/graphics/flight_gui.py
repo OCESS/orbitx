@@ -29,8 +29,6 @@ from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
 
-G = 6.674e-11
-
 DEFAULT_TRAILS = False
 
 
@@ -142,7 +140,6 @@ class FlightGui:
         """Lets the user know that something bad happened."""
         self._scene.caption += \
             "<style>.error { display: block !important; }</style>"
-        print('called')
         time.sleep(0.1)  # Let vpython send out this update
 
     def shutdown(self):

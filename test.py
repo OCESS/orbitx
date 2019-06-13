@@ -15,8 +15,6 @@ from orbitx import state
 
 log = logging.getLogger()
 
-G = 6.67408e-11
-
 
 class PhysicsEngine:
     """Ensures that the simthread is always shut down on test exit/failure."""
@@ -101,14 +99,14 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(G * initial[1].mass /
+                             round(common.G * initial[1].mass /
                                    (y0.X[0] - y0.X[1])**2))
             self.assertAlmostEqual(dy.VY[0], 0)
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(G * initial[0].mass /
+                             round(common.G * initial[0].mass /
                                    (y0.X[1] - y0.X[0])**2))
             self.assertAlmostEqual(dy.VY[1], 0)
 
@@ -172,36 +170,39 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(G * physics_state[1].mass /
+                             round(common.G * physics_state[1].mass /
                                    (y0.X[0] - y0.X[1])**2))
             self.assertEqual(round(abs(dy.VY[0])),
-                             round(G * physics_state[2].mass /
+                             round(common.G * physics_state[2].mass /
                                    (y0.Y[0] - y0.Y[2])**2))
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(G * physics_state[0].mass /
+                             round(common.G * physics_state[0].mass /
                                    (y0.X[1] - y0.X[0])**2 +
 
-                                   np.sqrt(2) * G * physics_state[2].mass /
+                                   np.sqrt(2) * common.G *
+                                   physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2
                                    ))
             self.assertEqual(round(abs(dy.VY[1])),
-                             round(np.sqrt(2) * G * physics_state[2].mass /
+                             round(np.sqrt(2) * common.G *
+                                   physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2))
 
             self.assertAlmostEqual(dy.X[2], y0.VX[2])
             self.assertAlmostEqual(dy.Y[2], y0.VY[2])
             self.assertEqual(round(abs(dy.VX[2])),
-                             round(np.sqrt(2) * G * physics_state[2].mass /
+                             round(np.sqrt(2) * common.G *
+                                   physics_state[2].mass /
                                    (y0.X[1] - y0.X[2])**2))
             self.assertEqual(round(abs(dy.VY[2])),
                              round(
-                             G * physics_state[0].mass /
+                             common.G * physics_state[0].mass /
                              (y0.Y[2] - y0.Y[0])**2 +
 
-                             np.sqrt(2) * G * physics_state[1].mass /
+                             np.sqrt(2) * common.G * physics_state[1].mass /
                              (y0.Y[2] - y0.Y[1])**2
                              ))
 

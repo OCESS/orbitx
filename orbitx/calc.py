@@ -9,7 +9,6 @@ import numpy as np
 from orbitx import common
 from orbitx import state
 
-G = 6.674e-11
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 OrbitCoords = collections.namedtuple(
     'OrbitCoords',
@@ -40,7 +39,7 @@ def orb_speed(habitat: state.Entity, reference: state.Entity) -> float:
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
     return math.sqrt(
-        (reference.mass**2 * G) /
+        (reference.mass**2 * common.G) /
         ((habitat.mass + reference.mass) *
          distance(reference, habitat)))
 
@@ -115,7 +114,7 @@ def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
         return None
 
     # np.inner(vector, vector) is the squared norm, i.e. |vector|^2
-    return ((G * (A.mass + B.mass)) / np.inner(pos, pos) +
+    return ((common.G * (A.mass + B.mass)) / np.inner(pos, pos) +
             np.inner(v, v) / (2 * np.linalg.norm(A.pos - B.pos)))
 
 
@@ -125,7 +124,7 @@ def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
     on the wikipedia article for semi-major axes."""
     v = np.array([A.vx - B.vx, A.vy - B.vy])
     r = distance(A, B)
-    mu = (B.mass + A.mass) * G
+    mu = (B.mass + A.mass) * common.G
     return 1 / (2 / r - np.dot(v, v) / mu)
 
 
@@ -139,7 +138,7 @@ def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
     This allows us to do some vector math and project an orbit ellipse."""
     v = A.v - B.v
     r = A.pos - B.pos
-    mu = G * (B.mass + A.mass)
+    mu = common.G * (B.mass + A.mass)
     # e⃗ = [ (v*v - μ/r)r⃗  - (r⃗ ∙ v⃗)v⃗ ] / μ
     return (
         (np.linalg.norm(v)**2 - mu / np.linalg.norm(r)) * r - np.dot(r, v) * v
@@ -283,13 +282,13 @@ def grav_acc(X, Y, M):
 
 
 def _force(MM, X, Y):
-    G = 6.674e-11
+    common.G = 6.674e-11
     D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
-    # Calculate G * m1*m2/d^2 for each object pair.
+    # Calculate common.G * m1*m2/d^2 for each object pair.
     # In the diagonal case, i.e. an object paired with itself, force = 0.
     force_matrix = np.divide(MM, np.where(D2 != 0, D2, 1))
     np.fill_diagonal(force_matrix, 0)
-    return G * force_matrix
+    return common.G * force_matrix
 
 
 def _force_sum(_force):

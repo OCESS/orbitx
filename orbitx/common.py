@@ -43,10 +43,12 @@ AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
 DRAG_PROFILE = 0.0002
 
-# A small positive distance and speed, respectively, that is added to a ship
-# that is undocking.
-LAUNCH_SEPARATION = 0.5
-LAUNCH_BOOST_SPEED = 1.0
+G = 6.674e-11
+
+# The thrust-weight ratio required for liftoff. Realistically, the TWR only has
+# to be greater than 1 to lift off, but we want to make sure there aren't any
+# possible collisions that will set the engines to 0 again.
+LAUNCH_TWR = 1.05
 
 TIMEZONE = pytz.timezone('Canada/Eastern')
 
