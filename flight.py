@@ -254,7 +254,7 @@ def main():
     warnings.filterwarnings('once', category=DeprecationWarning)
     # vpython generates other warnings, as well as its use of asyncio
     warnings.filterwarnings('ignore', category=ResourceWarning)
-    warnings.filterwarnings('ignore', module='vpython|asyncio')
+    warnings.filterwarnings('ignore', module='vpython|asyncio|autobahn')
 
     scrape_git_revision()
 
