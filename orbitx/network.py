@@ -3,12 +3,13 @@
 import logging
 import threading
 import queue
-from typing import List, Union
+from typing import List
 
 import grpc
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
+from orbitx import state
 
 log = logging.getLogger()
 
@@ -85,19 +86,19 @@ class StateClient:
     calling code.
 
     Usage:
-        with StateClient('localhost', 28430) as physical_state_getter:
+        with StateClient('localhost', 28430) as physics_state_getter:
             while True:
-                physical_state = physical_state_getter()
+                physics_state = physical_state_getter()
     """
 
     def __init__(self, cnc_address, cnc_port):
         self.cnc_location = f'{cnc_address}:{cnc_port}'
 
     def _get_physical_state(
-            self, command: protos.Command = None) -> protos.PhysicalState:
+            self, command: Request = None) -> state.PhysicsState:
         if command is None:
-            command = protos.Command(ident=protos.Command.NOOP)
-        return self.stub.get_physical_state(command)
+            command = Request(ident=protos.Command.NOOP)
+        return state.PhysicsState(None, self.stub.get_physical_state(command))
 
     def __enter__(self):
         self.channel = grpc.insecure_channel(self.cnc_location)

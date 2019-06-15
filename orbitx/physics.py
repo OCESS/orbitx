@@ -181,8 +181,10 @@ class PEngine:
             assert request.time_acc_set >= 0
             y0.time_acc = request.time_acc_set
         elif request.ident == Request.ENGINEERING_UPDATE:
+            # Multiply this value by 100, because OrbitV considers engines at
+            # 100% to be 100x the maximum thrust.
             state.Habitat.engine.max_thrust = \
-                request.engineering_update.max_thrust
+                100 * request.engineering_update.max_thrust
             hab = y0[common.HABITAT]
             ayse = y0[common.AYSE]
             hab.fuel = request.engineering_update.hab_fuel

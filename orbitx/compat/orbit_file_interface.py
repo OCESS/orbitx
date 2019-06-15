@@ -47,7 +47,7 @@ def write_state_to_osbackup(
         _write_double(timestamp.second, osbackup)
 
         osbackup.seek(24, SEEK_CUR)
-        _write_int('Module' in names, osbackup)
+        _write_int('Module' in orbitx_state._entity_names(), osbackup)
         # These next two variables are technically AYSEdist and OCESSdist
         # but they're used for engineering to determine if you can load fuel
         # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
@@ -62,13 +62,13 @@ def write_state_to_osbackup(
 
 def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     global _last_orbitsse_modified_time
-    command = protos.Command(ident=protos.Command.ENGINEERING_UPDATE)
+    command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
 
-        orbitsse_modified_time = orbitsse.stat().st_mtime
+        orbitsse_modified_time = orbitsse_path.stat().st_mtime
         if orbitsse_modified_time == _last_orbitsse_modified_time:
             # We've already seen this version of ORBITSSE.RND, return early.
-            return protos.Command(ident=protos.Command.NOOP)
+            return network.Request(ident=network.Request.NOOP)
         else:
             _last_orbitsse_modified_time = orbitsse_modified_time
 

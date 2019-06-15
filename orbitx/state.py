@@ -128,7 +128,7 @@ class PhysicsState:
     PhysicsState(None, protos.PhysicalState)
 
     # Faster Construction from a y-vector and protos.PhysicalState
-    PhysicsState(ivp_solution.y, protos)
+    PhysicsState(ivp_solution.y, protos.PhysicalState)
 
     # Access of a single Entity in the PhysicsState, by index or Entity name
     my_entity: Entity = PhysicsState[0]
