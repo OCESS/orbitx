@@ -107,8 +107,8 @@ class FlightGui:
             width=900,
             height=750,
             center=vpython.vector(0, 0, 0),
-            up=vpython.vector(0.1, 0.1, 1),
-            forward=vpython.vector(0, 0, -1),
+            up=common.DEFAULT_UP,
+            forward=common.DEFAULT_FORWARD,
             autoscale=True
         )
         _scene.autoscale = False
@@ -126,7 +126,8 @@ class FlightGui:
         """
         try:
             self._scene.range = self._3dobjs[planet_name].relevant_range()
-            self._scene.forward = vpython.vector(0, 0, -1)
+            self._scene.forward = common.DEFAULT_FORWARD
+            self._scene.up = common.DEFAULT_UP
 
             self._scene.camera.follow(self._3dobjs[planet_name]._obj)
             self._set_origin(planet_name)
@@ -226,9 +227,6 @@ class FlightGui:
             raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
         else:
             self._sidebar.time_acc_menu._menu.selected = new_acc_str
-        self._sidebar.reference_menu.selected = draw_state.reference
-        self._sidebar.target_menu.selected = draw_state.target
-        self._sidebar.navmode_menu.selected = draw_state.navmode.name
 
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
@@ -592,9 +590,12 @@ class Sidebar:
         )
     # end of _create_menus
 
-    def update(self, state: state.PhysicsState):
+    def update(self, draw_state: state.PhysicsState):
+        self.reference_menu.selected = draw_state.reference
+        self.target_menu.selected = draw_state.target
+        self.navmode_menu.selected = draw_state.navmode.name
         for wtext in self._wtexts:
-            wtext.update(state)
+            wtext.update(draw_state)
 
         self._undock_button._button.disabled = not (
-            state[common.HABITAT].landed_on == common.AYSE)
+            draw_state[common.HABITAT].landed_on == common.AYSE)

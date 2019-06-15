@@ -44,7 +44,7 @@ class Habitat(ThreeDeeObj):
         main_scene = vpython.canvas.get_selected()
         self._minimap_canvas = vpython.canvas(
             width=200, height=150, userspin=False, userzoom=False,
-            up=vpython.vector(0.1, 0.1, 1), forward=vpython.vector(0, 0, -1))
+            up=common.DEFAULT_UP, forward=common.DEFAULT_FORWARD)
 
         self._small_habitat = self._create_hab(entity)
         self._ref_arrow = vpython.arrow(color=vpython.color.gray(0.5))

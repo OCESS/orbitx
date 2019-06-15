@@ -8,6 +8,7 @@ from typing import Optional
 
 import numpy
 import google.protobuf.json_format
+import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import state
@@ -30,6 +31,10 @@ DEFAULT_TIME_ACC = 1
 DEFAULT_CENTRE = HABITAT
 DEFAULT_REFERENCE = EARTH
 DEFAULT_TARGET = AYSE
+
+# Graphics-related constants
+DEFAULT_UP = vpython.vector(0, 0.1, 1)
+DEFAULT_FORWARD = vpython.vector(0, 0, -1)
 
 MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1  # 100%
