@@ -2,11 +2,9 @@
 
 import struct
 from datetime import datetime
-from os import stat, SEEK_CUR, SEEK_SET
+from os import SEEK_CUR, SEEK_SET
 from pathlib import Path
 from typing import List
-
-from numpy.linalg import norm
 
 from orbitx import common
 from orbitx import state
@@ -53,10 +51,9 @@ def write_state_to_osbackup(
         # These next two variables are technically AYSEdist and OCESSdist
         # but they're used for engineering to determine if you can load fuel
         # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
-        # engineering if we're attached, but don't tell it any more deets.
-        _write_single(150 if hab.attached_to == common.AYSE else 1000, osbackup)
-        _write_single(
-            150 if hab.attached_to == common.EARTH else 1000, osbackup)
+        # engineering if we're landed, but don't tell it any more deets.
+        _write_single(150 if hab.landed_on == common.AYSE else 1000, osbackup)
+        _write_single(150 if hab.landed_on == common.EARTH else 1000, osbackup)
 
         osbackup.seek(24, SEEK_CUR)
         # pressure = cvs(mid$(inpSTR$,k,4)):k=k+4
@@ -68,7 +65,7 @@ def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     command = protos.Command(ident=protos.Command.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
 
-        orbitsse_modified_time = stat(orbitsse.fileno()).st_mtime
+        orbitsse_modified_time = orbitsse.stat().st_mtime
         if orbitsse_modified_time == _last_orbitsse_modified_time:
             # We've already seen this version of ORBITSSE.RND, return early.
             return protos.Command(ident=protos.Command.NOOP)

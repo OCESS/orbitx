@@ -597,4 +597,4 @@ class Sidebar:
             wtext.update(state)
 
         self._undock_button._button.disabled = not (
-            state[common.HABITAT].attached_to == common.AYSE)
+            state[common.HABITAT].landed_on == common.AYSE)

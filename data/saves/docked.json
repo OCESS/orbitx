@@ -10,7 +10,7 @@
       "mass": 2750.0,
       "heading": 3.143166952855379,
       "fuel": 9987.296560287474,
-      "attachedTo": "AYSE",
+      "landedOn": "AYSE",
       "artificial": true
     },
     {

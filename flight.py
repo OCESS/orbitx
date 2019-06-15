@@ -269,10 +269,34 @@ def main():
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
         pass
-    except Exception:
-        log.exception('Unexpected exception, exiting...')
+    except Exception as e:
+        log.error('Unexpected exception, exiting...')
         if ungraceful_shutdown is not None:
             ungraceful_shutdown()
+
+        if isinstance(e, (AttributeError, ValueError)):
+            proto_file = Path('orbitx', 'orbitx.proto')
+            generated_file = Path('orbitx', 'orbitx_pb2.py')
+            if not generated_file.is_file():
+                log.warning('================================================')
+                log.warning(f'{proto_file} does not exist.')
+            elif proto_file.stat().st_mtime > generated_file.stat().st_mtime:
+                log.warning('================================================')
+                log.warning(f'{proto_file} is newer than {generated_file}.')
+            else:
+                # We thought that generated protobuf definitions were out of
+                # date, but it doesn't actually look like that's the case.
+                # Raise the exception normally.
+                raise
+
+            log.warning('A likely fix for this fatal exception is to run the')
+            log.warning('`build` target of orbitx/Makefile, or at least')
+            log.warning('copy-pasting the contents of the `build` target and')
+            log.warning('running it in your shell.')
+            log.warning('You\'ll have to do this every time you change')
+            log.warning(str(proto_file))
+            log.warning('================================================')
+
         raise
     finally:
         pass

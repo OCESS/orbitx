@@ -61,7 +61,7 @@ class Habitat(ThreeDeeObj):
         return (
             f'{entity.name}\n'
             f'Fuel: {common.format_num(entity.fuel, " kg")}' +
-            ('\nDocked' if entity.attached_to == common.AYSE else
+            ('\nDocked' if entity.landed_on == common.AYSE else
              '\nLanded' if entity.landed() else '')
         )
 

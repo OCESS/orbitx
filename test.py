@@ -278,7 +278,7 @@ class EntityTestCase(unittest.TestCase):
         test_field(pe, 'spin', 5)
         test_field(pe, 'fuel', 5)
         test_field(pe, 'throttle', 5)
-        test_field(pe, 'attached_to', 'other_test')
+        test_field(pe, 'landed_on', 'other_test')
         test_field(pe, 'broken', True)
         test_field(pe, 'artificial', True)
 
@@ -296,16 +296,16 @@ class PhysicsStateTestCase(unittest.TestCase):
             protos.Entity(
                 name='Second', mass=101, r=201, artificial=True,
                 x=11, y=21, vx=31, vy=41, heading=2, spin=51, fuel=61,
-                throttle=71, attached_to='First', broken=True)
+                throttle=71, landed_on='First', broken=True)
         ]
     )
 
     def test_attatched_to(self):
-        """Test that the special .attached_to field is properly set."""
+        """Test that the special .landed_on field is properly set."""
         ps = state.PhysicsState(None, self.physical_state)
-        self.assertEqual(ps['First'].attached_to, '')
-        self.assertEqual(ps['Second'].attached_to, 'First')
-        self.assertEqual(ps.AttachedTo, {1: 0})
+        self.assertEqual(ps['First'].landed_on, '')
+        self.assertEqual(ps['Second'].landed_on, 'First')
+        self.assertEqual(ps.LandedOn, {1: 0})
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
@@ -318,13 +318,13 @@ class PhysicsStateTestCase(unittest.TestCase):
             70, 80,   # spin
             90, 100,  # fuel
             0, 0,     # throttle
-            1, -1,    # only First is attached to Second
+            1, -1,    # only First is landed on Second
             0, 1      # Second is broken
         ])
 
         ps = state.PhysicsState(y0, self.physical_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
-        self.assertEqual(ps['First'].attached_to, 'Second')
+        self.assertEqual(ps['First'].landed_on, 'Second')
 
         proto_state = ps.as_proto()
         proto_state.timestamp = 50
@@ -336,9 +336,9 @@ class PhysicsStateTestCase(unittest.TestCase):
         """Test __getitem__ and __setitem__."""
         ps = state.PhysicsState(None, self.physical_state)
         entity = ps[0]
-        entity.attached_to = 'Second'
+        entity.landed_on = 'Second'
         ps[0] = entity
-        self.assertEqual(ps[0].attached_to, 'Second')
+        self.assertEqual(ps[0].landed_on, 'Second')
 
 
 class CalculationsTestCase(unittest.TestCase):

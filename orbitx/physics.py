@@ -192,9 +192,9 @@ class PEngine:
         elif request.ident == Request.UNDOCK:
             habitat = y0[common.HABITAT]
 
-            if habitat.attached_to == common.AYSE:
+            if habitat.landed_on == common.AYSE:
                 ayse = y0[common.AYSE]
-                habitat.attached_to = ''
+                habitat.landed_on = ''
 
                 norm = habitat.pos - ayse.pos
                 unit_norm = norm / np.linalg.norm(norm)
@@ -243,8 +243,9 @@ class PEngine:
                  f' the future, {e1} and {e2}')
 
         # TODO: does this break three-body collisions? e.g. both Hab and AYSE
-        if e2.attached_to or e1.attached_to:
-            log.info('Entities are attached, returning early')
+        # or does it even get triggered at all?
+        if e2.landed_on or e1.landed_on:
+            log.info('Entities are landed, returning early')
             return e1, e2
 
         if e1.artificial:
@@ -283,7 +284,7 @@ class PEngine:
             return
 
         log.info(f'Docking {e1.name} on {e2.name}')
-        e1.attached_to = e2.name
+        e1.landed_on = e2.name
 
         # Currently does nothing
         e1.broken = bool(
@@ -333,7 +334,7 @@ class PEngine:
 
         log.info(f'Landing {e1.name} on {e2.name}')
         assert e2.artificial is False
-        e1.attached_to = e2.name
+        e1.landed_on = e2.name
 
         # Currently does nothing
         e1.broken = bool(
@@ -396,7 +397,7 @@ class PEngine:
                 pass_through_state: PhysicalState) -> np.ndarray:
         """
         y_1d =
-         [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, AttachedTo, Broken]
+         [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken]
         returns the derivative of y_1d, i.e.
         [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0]
         (zeroed-out fields are changed elsewhere)
@@ -445,32 +446,32 @@ class PEngine:
         except state.PhysicsState.NoEntityError:
             pass
 
-        # Keep attached entities glued together
-        attached_to = y.AttachedTo
-        for index in attached_to:
-            attached = y[index]
-            attachee = y[attached_to[index]]
+        # Keep landed entities glued together
+        landed_on = y.LandedOn
+        for index in landed_on:
+            lander = y[index]
+            ground = y[landed_on[index]]
 
-            attached.spin = attachee.spin
+            lander.spin = ground.spin
 
-            # If we're attached to something, make sure we move in lockstep.
-            attached.v = attachee.v
-            Ax[index] = Ax[attached_to[index]]
-            Ay[index] = Ay[attached_to[index]]
+            # If we're landed on something, make sure we move in lockstep.
+            lander.v = ground.v
+            Ax[index] = Ax[landed_on[index]]
+            Ay[index] = Ay[landed_on[index]]
 
             fixed_atmosphere = False
             if fixed_atmosphere:
                 # We also add velocity and centripetal acceleration that comes
-                # from being attached to the surface of a spinning object.
-                norm = attached.pos - attachee.pos
+                # from being landed on the surface of a spinning object.
+                norm = lander.pos - ground.pos
                 unit_norm = norm / np.linalg.norm(norm)
                 # The unit tangent is perpendicular to the unit normal vector
                 unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
                 # These two lines courtesy of wikipedia "Circular motion"
-                circular_velocity = unit_tang * attachee.spin * attachee.r
-                centripetal_acc = unit_norm * attachee.spin ** 2 * attachee.r
-                attached.v += circular_velocity
-                y[index] = attached
+                circular_velocity = unit_tang * ground.spin * ground.r
+                centripetal_acc = unit_norm * ground.spin ** 2 * ground.r
+                lander.v += circular_velocity
+                y[index] = lander
                 Ax[index] += centripetal_acc[0]
                 Ay[index] += centripetal_acc[1]
 
@@ -564,12 +565,13 @@ class PEngine:
                 if len(ivp_out.t_events[2]):
                     craft = y.craft_entity()
                     log.info('We have liftoff of the '
-                             f'{craft.name} from {craft.attached_to} at {t}')
-                    craft.attached_to = ''
+                             f'{craft.name} from {craft.landed_on} at {t}')
+                    craft.landed_on = ''
                     y[y.craft] = craft
 
 
 class Event:
+    """Implements an event function. See numpy documentation for solve_ivp."""
     # These two fields tell scipy to stop simulation when __call__ returns 0
     terminal = True
     direction = -1
@@ -589,7 +591,7 @@ class HabFuelEvent(Event):
         for index, entity in enumerate(y._proto_state.entities):
             if entity.artificial and y.Throttle[index] != 0:
                 return y.Fuel[index]
-        return 1
+        return np.inf
 
 
 class AltitudeEvent(Event):
@@ -599,11 +601,8 @@ class AltitudeEvent(Event):
 
     def __call__(self, t, y_1d, return_pair=False
                  ) -> Union[float, Tuple[int, int]]:
-        """An event function. See numpy documentation for solve_ivp.
-
-        Returns a scalar, with 0 indicating a collision and a sign change
-            indicating a collision has happened.
-        """
+        """Returns a scalar, with 0 indicating a collision and a sign change
+        indicating a collision has happened."""
         y = state.PhysicsState(y_1d, self.initial_state._proto_state)
         n = len(self.initial_state)
         # 2xN of (x, y) positions
@@ -617,12 +616,12 @@ class AltitudeEvent(Event):
         # For each pair of objects that have collisions disabled between
         # them, also set their altitude to be inf
 
-        # If there are any entities attached to any other entities, ignore
-        # both the attachee and the attached entity.
-        attached_to = y.AttachedTo
-        for index in attached_to:
-            alt_matrix[index, attached_to[index]] = np.inf
-            alt_matrix[attached_to[index], index] = np.inf
+        # If there are any entities landed on any other entities, ignore
+        # both the landed and the landee entity.
+        landed_on = y.LandedOn
+        for index in landed_on:
+            alt_matrix[index, landed_on[index]] = np.inf
+            alt_matrix[landed_on[index], index] = np.inf
 
         if return_pair:
             # Returns the actual pair of indicies instead of a scalar.
@@ -645,9 +644,6 @@ class LiftoffEvent(Event):
         """Return 0 when the craft is landed but thrusting enough to lift off,
         and a positive value otherwise."""
         y = state.PhysicsState(y_1d, self.initial_state._proto_state)
-        # This calculates the position of the craftattached object, one
-        # second in the future. If the position is sufficiently far away
-        # from the attached body, separate the two bodies.
         try:
             craft = y.craft_entity()
         except state.PhysicsState.NoEntityError:
@@ -658,9 +654,9 @@ class LiftoffEvent(Event):
             # We don't have to lift off because we already lifted off.
             return np.inf
 
-        planet = y[craft.attached_to]
+        planet = y[craft.landed_on]
         if planet.artificial:
-            # If we're attached to another satellite, undocking is governed
+            # If we're docked with another satellite, undocking is governed
             # by other mechanisms. Ignore this.
             return np.inf
 

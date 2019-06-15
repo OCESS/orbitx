@@ -92,7 +92,7 @@ def engine_acceleration(habitat: state.Entity) -> float:
 def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
     """Constant acceleration required to slow to a stop at the surface of B.
     If the the entities are landed, returns 0."""
-    if A.attached_to == B.name:
+    if A.landed_on == B.name:
         return None
 
     # We check if the two entities will ever intersect, by looking at the

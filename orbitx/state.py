@@ -61,7 +61,7 @@ class Entity:
     spin: float
     fuel: float
     throttle: float
-    attached_to: str
+    landed_on: str
     broken: bool
     artificial: bool
     atmosphere_thickness: float
@@ -96,7 +96,7 @@ class Entity:
 
     def landed(self) -> bool:
         """Convenient and more elegant check to see if the entity is landed."""
-        return self.attached_to != ''
+        return self.landed_on != ''
 
 
 for field in protos.Entity.DESCRIPTOR.fields:
@@ -159,7 +159,7 @@ class PhysicsState:
         """Raised when an entity is not found."""
         pass
 
-    # For if an entity is not attached to anything
+    # For if an entity is not landed to anything
     NO_INDEX = -1
 
     # Number of different kinds of variables in the internal y vector. The
@@ -212,8 +212,8 @@ class PhysicsState:
             # Internally translate string names to indices, otherwise
             # our entire y vector will turn into a string vector oh no.
             # Note this will be converted to floats, not integer indices.
-            AttachedTo = np.array([
-                self._name_to_index(entity.attached_to)
+            LandedOn = np.array([
+                self._name_to_index(entity.landed_on)
                 for entity in proto_state.entities
             ])
 
@@ -223,7 +223,7 @@ class PhysicsState:
 
             self._y0: np.ndarray = np.concatenate((
                 X, Y, VX, VY, Heading, Spin,
-                Fuel, Throttle, AttachedTo, Broken
+                Fuel, Throttle, LandedOn, Broken
             ), axis=0).astype(self.DTYPE)
         else:
             self._y0: np.ndarray = y.astype(self.DTYPE)
@@ -276,9 +276,9 @@ class PhysicsState:
 
             entity.x, entity.y, entity.vx, entity.vy, entity.heading, \
                 entity.spin, entity.fuel, entity.throttle, \
-                attached_index, broken = entity_data
+                landed_index, broken = entity_data
 
-            entity.attached_to = self._index_to_name(attached_index)
+            entity.landed_on = self._index_to_name(landed_index)
             entity.broken = bool(broken)
         return copy.deepcopy(self._proto_state)
 
@@ -307,10 +307,10 @@ class PhysicsState:
 
         entity.x, entity.y, entity.vx, entity.vy, entity.heading, \
             entity.spin, entity.fuel, entity.throttle, \
-            attached_index, broken = \
+            landed_index, broken = \
             self._y_entities()[i]
 
-        entity.attached_to = self._index_to_name(attached_index)
+        entity.landed_on = self._index_to_name(landed_index)
         entity.broken = bool(broken)
         return Entity(entity)
 
@@ -333,11 +333,11 @@ class PhysicsState:
 
         self._proto_state.entities[i].CopyFrom(val.proto)
 
-        attached_index = self._name_to_index(val.attached_to)
+        landed_index = self._name_to_index(val.landed_on)
 
         self._y_entities()[i] = np.array([
             val.x, val.y, val.vx, val.vy, val.heading, val.spin, val.fuel,
-            val.throttle, attached_index, val.broken
+            val.throttle, landed_index, val.broken
         ]).astype(self.DTYPE)
 
     @property
@@ -381,17 +381,17 @@ class PhysicsState:
         return self._y_components()[7]
 
     @property
-    def AttachedTo(self) -> Dict[int, int]:
-        """Returns a mapping from index to index of entity attachments.
+    def LandedOn(self) -> Dict[int, int]:
+        """Returns a mapping from index to index of entity landings.
 
-        If the 0th entity is attached to the 2nd entity, 0 -> 2 will be mapped.
+        If the 0th entity is landed on the 2nd entity, 0 -> 2 will be mapped.
         """
-        attach_map = {}
-        for attached, attachee in enumerate(
+        landed_map = {}
+        for landed, landee in enumerate(
                 self._y_components()[8]):
-            if int(attachee) != self.NO_INDEX:
-                attach_map[attached] = int(attachee)
-        return attach_map
+            if int(landee) != self.NO_INDEX:
+                landed_map[landed] = int(landee)
+        return landed_map
 
     @property
     def Broken(self):

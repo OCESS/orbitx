@@ -76,7 +76,7 @@ print_formatter = logging.Formatter(
 # When changing output streams, consider that jupyter appmode, which is an easy
 # way to give demos, will only show the stdout and not the stderr of a process.
 print_handler = logging.StreamHandler(stream=sys.stdout)
-print_handler.setLevel(logging.ERROR)
+print_handler.setLevel(logging.WARNING)
 print_handler.setFormatter(print_formatter)
 
 logfile_handler = logging.FileHandler(DEBUG_LOGFILE, mode='w', delay=True)

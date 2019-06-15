@@ -84,7 +84,7 @@ message Entity {
     double spin = 9; // the 'angular velocity'
     double fuel = 10; // only spaceships have fuel
     double throttle = 11;
-    string attached_to = 12; // another entity this entity is attached to
+    string landed_on = 12; // another entity this entity is landed on
     bool broken = 13;
     bool artificial = 14;
     double atmosphere_thickness = 15;
