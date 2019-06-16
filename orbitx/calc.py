@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import List, Optional, Tuple
 import collections
+import logging
 import math
 
 import vpython
@@ -8,6 +9,8 @@ import numpy as np
 
 from orbitx import common
 from orbitx import state
+
+log = logging.getLogger()
 
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 OrbitCoords = collections.namedtuple(
@@ -66,20 +69,29 @@ def v_speed(A: state.Entity, B: state.Entity) -> float:
     and positive when the habitat is rising."""
     normal = A.pos - B.pos
     normal = normal / np.linalg.norm(normal)
-    radial_v = np.dot(normal, A.v - B.v)
-    return np.linalg.norm(radial_v)
+    v = A.v - B.v
+    radial_v = np.dot(normal, v)
+    normal_angle = np.arctan2(normal[1], normal[0])
+    v_angle = np.arctan2(v[1], v[0])
+    angle_diff = (normal_angle - v_angle) % (2 * np.pi) - np.pi
+    return radial_v * np.sign(angle_diff)
 
 
 def h_speed(A: state.Entity, B: state.Entity) -> float:
     """Tangential velocity of the habitat relative to planet_name.
 
-    Always returns a positive number of m/s, of how fast the habitat is
-    moving side-to-side relative to the reference surface."""
+    Always returns a scalar m/s, of how fast the habitat is
+    moving side-to-side relative to the reference surface. A positive
+    sign for prograde movement, and negative for retrograde."""
     normal = A.pos - B.pos
     normal = normal / np.linalg.norm(normal)
-    tangent = np.array([normal[1], -normal[0]])
-    tangent_v = np.dot(tangent, A.v - B.v)
-    return np.linalg.norm(tangent_v)
+    v = A.v - B.v
+    tangent = np.array([-normal[1], normal[0]])
+    tangent_v = np.dot(tangent, v)
+    normal_angle = np.arctan2(normal[1], normal[0])
+    v_angle = np.arctan2(v[1], v[0])
+    angle_diff = (normal_angle - v_angle) % (2 * np.pi) - np.pi
+    return tangent_v * np.sign(angle_diff)
 
 
 def engine_acceleration(habitat: state.Entity) -> float:
@@ -197,6 +209,18 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
     minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
     return OrbitCoords(centre=centre, major_axis=major_axis,
                        minor_axis=minor_axis, eccentricity=e)
+
+
+def rotational_speed(A: state.Entity, B: state.Entity) -> np.array:
+    """Returns the velocity of A that would make A geostationary above B.
+    In other words, uses the Wikipedia page on Circular Motion to determine
+    A's velocity if it wants to keep its current altitude and angular position
+    around B. Used, for example, to figure out how fast A is moving if it is
+    landed on B's surface."""
+    norm = A.pos - B.pos
+    tang = np.asarray([-norm[1], norm[0]])
+    unit_tang = tang / np.linalg.norm(tang)
+    return B.v + unit_tang * B.spin * np.linalg.norm(norm)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
@@ -397,10 +421,11 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
         # https://stackoverflow.com/a/35213951
         # We use the squared distance because it's much faster to calculate.
         if distance_sq < previous_distance_sq:
-            # Entity has an atmosphere but is too far away
+            # We found a closer planet with an atmosphere
             exponential = (
                 -altitude(craft, entity) / 1000 / entity.atmosphere_scaling)
             if exponential > -20:
+                # Entity has an atmosphere but is too far away
                 previous_distance_sq = distance_sq
                 closest_atmosphere = entity
                 closest_exponential = exponential
@@ -408,7 +433,8 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
     if closest_atmosphere is None:
         return np.array([0, 0])
 
-    wind = craft.v - closest_atmosphere.v
+    air_v = rotational_speed(craft, closest_atmosphere)
+    wind = craft.v - air_v
     if np.inner(wind, wind) < 0.01:
         # The craft is stationary
         return np.array([0, 0])

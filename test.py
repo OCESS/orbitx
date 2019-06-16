@@ -253,8 +253,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
         hab.vy += 10
         atmosphere_save[atmosphere_save.craft] = hab
         drag = np.linalg.norm(calc.drag(atmosphere_save))
-        self.assertLess(0.025, drag)
-        self.assertGreater(0.035, drag)
+        self.assertLess(59, drag)
+        self.assertGreater(60, drag)
 
 
 class EntityTestCase(unittest.TestCase):
@@ -414,7 +414,7 @@ class CalculationsTestCase(unittest.TestCase):
         earth = physics_state[1]
 
         self.assertAlmostEqual(calc.h_speed(iss, earth), 7665, delta=10)
-        self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=10)
+        self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=0.1)
 
 
 if __name__ == '__main__':

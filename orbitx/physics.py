@@ -347,7 +347,7 @@ class PEngine:
         e1.heading = np.arctan2(norm[1], norm[0])
         e1.throttle = 0
         e1.spin = e2.spin
-        e1.v = e2.v
+        e1.v = calc.rotational_speed(e1, e2)
 
     def get_state(self, requested_t=None) -> state.PhysicsState:
         """Return the latest physical state of the simulation."""
@@ -416,6 +416,10 @@ class PEngine:
                                                 current_t_of_system,
                                                 current_y_of_system)
         """
+        # Note: we create this y as a PhysicsState for convenience, but if you
+        # set any values of y, the changes will be discarded! The only way they
+        # will be propagated out of this function is by numpy using the return
+        # value of this function as a derivative, as explained above.
         y = state.PhysicsState(y_1d, pass_through_state)
         Ax, Ay = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
@@ -451,31 +455,19 @@ class PEngine:
         # Keep landed entities glued together
         landed_on = y.LandedOn
         for index in landed_on:
+            # If we're landed on something, make sure we move in lockstep.
             lander = y[index]
             ground = y[landed_on[index]]
 
             lander.spin = ground.spin
+            lander.v = calc.rotational_speed(lander, ground)
+            y[index] = lander
 
-            # If we're landed on something, make sure we move in lockstep.
-            lander.v = ground.v
-            Ax[index] = Ax[landed_on[index]]
-            Ay[index] = Ay[landed_on[index]]
-
-            fixed_atmosphere = False
-            if fixed_atmosphere:
-                # We also add velocity and centripetal acceleration that comes
-                # from being landed on the surface of a spinning object.
-                norm = lander.pos - ground.pos
-                unit_norm = norm / np.linalg.norm(norm)
-                # The unit tangent is perpendicular to the unit normal vector
-                unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
-                # These two lines courtesy of wikipedia "Circular motion"
-                circular_velocity = unit_tang * ground.spin * ground.r
-                centripetal_acc = unit_norm * ground.spin ** 2 * ground.r
-                lander.v += circular_velocity
-                y[index] = lander
-                Ax[index] += centripetal_acc[0]
-                Ay[index] += centripetal_acc[1]
+            # We also centripetal acceleration that comes
+            # from being landed on the surface of a spinning object.
+            centripetal_acc = (lander.pos - ground.pos) * ground.spin ** 2
+            Ax[index] = Ax[landed_on[index]] - centripetal_acc[0]
+            Ay[index] = Ay[landed_on[index]] - centripetal_acc[1]
 
         return np.concatenate((
             y.VX, y.VY, Ax, Ay, y.Spin,

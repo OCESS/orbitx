@@ -331,8 +331,6 @@ class PhysicsState:
         val.throttle = max(common.MIN_THROTTLE, val.throttle)
         val.throttle = min(common.MAX_THROTTLE, val.throttle)
 
-        self._proto_state.entities[i].CopyFrom(val.proto)
-
         landed_index = self._name_to_index(val.landed_on)
 
         self._y_entities()[i] = np.array([
