@@ -295,44 +295,31 @@ def grav_acc(X, Y, M):
     Y = Y.reshape(1, -1)
     M = M.reshape(1, -1)
     MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
-    ang = _angle_matrix(X, Y)
-    FORCE = _force(MM, X, Y)
-    Xf, Yf = _polar_to_cartesian(ang, FORCE)
-    Xf = _force_sum(Xf)
-    Yf = _force_sum(Yf)
-    Xa = _f_to_a(Xf, M)
-    Ya = _f_to_a(Yf, M)
-    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
+    # Also get the pairwise x and y differences for each pair of entities
+    Xd_matrix = X - X.transpose()
+    Yd_matrix = Y - Y.transpose()
 
-def _force(MM, X, Y):
-    common.G = 6.674e-11
-    D2 = np.square(X - X.transpose()) + np.square(Y - Y.transpose())
-    # Calculate common.G * m1*m2/d^2 for each object pair.
+    # And this is the pairwise distance between each entity
+    D2_matrix = np.square(Xd_matrix) + np.square(Yd_matrix)
+
+    # A matrix of all the angles between entities
+    ang_matrix = np.arctan2(Yd_matrix, Xd_matrix)
+
+    # Calculate G * m1*m2/d^2 for each object pair.
     # In the diagonal case, i.e. an object paired with itself, force = 0.
-    force_matrix = np.divide(MM, np.where(D2 != 0, D2, 1))
+    force_matrix = common.G * np.divide(
+        MM, np.where(D2_matrix != 0, D2_matrix, 1))
     np.fill_diagonal(force_matrix, 0)
-    return common.G * force_matrix
 
+    # Sum up all the gravitational force acting on an object.
+    Xf = np.sum(np.multiply(np.cos(ang_matrix), force_matrix).T, 0)
+    Yf = np.sum(np.multiply(np.sin(ang_matrix), force_matrix).T, 0)
 
-def _force_sum(_force):
-    return np.sum(_force, 0)
-
-
-def _angle_matrix(X, Y):
-    Xd = X - X.transpose()
-    Yd = Y - Y.transpose()
-    return np.arctan2(Yd, Xd)
-
-
-def _polar_to_cartesian(ang, hyp):
-    X = np.multiply(np.cos(ang), hyp)
-    Y = np.multiply(np.sin(ang), hyp)
-    return X.T, Y.T
-
-
-def _f_to_a(f, M):
-    return np.divide(f, M)
+    # And find the resultant acceleration.
+    Xa = np.divide(Xf, M)
+    Ya = np.divide(Yf, M)
+    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
 
 
 def navmode_heading(flight_state: state.PhysicsState) -> float:
@@ -407,30 +394,33 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
     craft = flight_state.craft_entity()
 
     closest_atmosphere: Optional[state.Entity] = None
-    closest_exponential = -np.inf
-    previous_distance_sq = np.inf
+    closest_distance = np.inf
+    closest_exponential = np.inf
 
-    for entity in flight_state:
-        if entity.atmosphere_scaling == 0 or entity.atmosphere_thickness == 0:
-            # Entity has no atmosphere
-            continue
+    atmosphere_indices = flight_state.Atmospheres
+    if not atmosphere_indices:
+        # There are no entities with atmospheres
+        return np.array([0, 0])
 
-        displacement = entity.pos - craft.pos
-        distance_sq = np.inner(displacement, displacement)
+    for index in atmosphere_indices:
+        atmosphere = flight_state[index]
+        distance = np.linalg.norm(atmosphere.pos - craft.pos)
         # np.inner is the same as the magnitude squared
         # https://stackoverflow.com/a/35213951
         # We use the squared distance because it's much faster to calculate.
-        if distance_sq < previous_distance_sq:
+        if distance < closest_distance:
             # We found a closer planet with an atmosphere
             exponential = (
-                -altitude(craft, entity) / 1000 / entity.atmosphere_scaling)
+                -(distance - craft.r - atmosphere.r) / 1000 /
+                atmosphere.atmosphere_scaling)
             if exponential > -20:
-                # Entity has an atmosphere but is too far away
-                previous_distance_sq = distance_sq
-                closest_atmosphere = entity
+                # Entity has an atmosphere and it's close enough to be relevant
+                closest_distance = distance
+                closest_atmosphere = atmosphere
                 closest_exponential = exponential
 
     if closest_atmosphere is None:
+        # No atmospheres were close enough to be relevant
         return np.array([0, 0])
 
     air_v = rotational_speed(craft, closest_atmosphere)
