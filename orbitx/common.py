@@ -1,6 +1,8 @@
 """Common code and class interfaces."""
 
+import atexit
 import logging
+import os
 import pytz
 import sys
 from pathlib import Path
@@ -23,6 +25,8 @@ EARTH = 'Earth'
 
 DEFAULT_LEAD_SERVER_HOST = 'localhost'
 DEFAULT_LEAD_SERVER_PORT = 28430
+
+TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
 FRAMERATE = 100
 
@@ -57,7 +61,6 @@ LAUNCH_TWR = 1.05
 
 TIMEZONE = pytz.timezone('Canada/Eastern')
 
-DEBUG_LOGFILE = 'debug.log'
 PERF_FILE = 'flamegraph-data.log'
 
 # Set up a logger.
@@ -73,7 +76,7 @@ debug_formatter = logging.Formatter(
 )
 
 print_formatter = logging.Formatter(
-    '{levelname}:\t{message}',  # Less information clutter, for stdout/stderr
+    '{levelname} {module}.{funcName}:\t{message}',
     datefmt='%X',  # The timestamp is just the time of day
     style='{'
 )
@@ -84,7 +87,17 @@ print_handler = logging.StreamHandler(stream=sys.stdout)
 print_handler.setLevel(logging.WARNING)
 print_handler.setFormatter(print_formatter)
 
-logfile_handler = logging.FileHandler(DEBUG_LOGFILE, mode='w', delay=True)
+
+def print_handler_cleanup():
+    logfile_handler.close()
+    os.remove(logfile_handler.baseFilename)
+
+
+# The logfile will be deleted on program exit, unless this is unregistered.
+atexit.register(print_handler_cleanup)
+
+logfile_handler = logging.FileHandler(
+    f'debug-{os.getpid()}.log', mode='w', delay=True)
 logfile_handler.setLevel(logging.DEBUG)
 logfile_handler.setFormatter(debug_formatter)
 
@@ -95,8 +108,6 @@ logging.getLogger().addHandler(logfile_handler)
 
 def enable_verbose_logging():
     """Enables logging of all messages to stdout, from DEBUG upwards"""
-    import warnings
-    warnings.resetwarnings()
     print_handler.setLevel(logging.DEBUG)
 
 

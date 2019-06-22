@@ -8,6 +8,7 @@ modules, and receives updates from networked modules.
 """
 
 import argparse
+import atexit
 import copy
 import logging
 import os
@@ -16,7 +17,7 @@ import time
 import warnings
 import concurrent.futures
 import urllib.parse
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 import grpc
 
@@ -28,7 +29,7 @@ import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 cleanup_function: Optional[Callable] = None
-ungraceful_shutdown: Optional[Callable] = None
+ungraceful_shutdown_handler: Optional[Callable] = None
 
 
 def parse_args():
@@ -144,11 +145,12 @@ def lead_server_loop(args):
 
     if not args.no_gui:
         global cleanup_function
-        global ungraceful_shutdown
-        gui = flight_gui.FlightGui(
-            physics_engine.get_state(), no_intro=args.no_intro)
+        global ungraceful_shutdown_handler
+        gui = flight_gui.FlightGui(physics_engine.get_state(),
+                                   intro=(not args.no_intro),
+                                   running_as_mirror=False)
         cleanup_function = gui.shutdown
-        ungraceful_shutdown = gui.ungraceful_shutdown
+        ungraceful_shutdown_handler = gui.ungraceful_shutdown
 
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
@@ -162,7 +164,7 @@ def lead_server_loop(args):
         if args.profile:
             common.start_profiling()
         while True:
-            user_commands = []
+            user_commands: List[network.Request] = []
             state = physics_engine.get_state()
             state_server.notify_state_change(
                 copy.deepcopy(state._proto_state))
@@ -190,46 +192,56 @@ def mirroring_loop(args):
     """Main, 'while True'-style loop for a mirroring client. Blocking.
     See help text for CLI arguments for the difference between mirroring and
     serving."""
-    currently_mirroring = True
+    time_of_last_network_update = 0
+    networking = True  # Whether data is requested over the network
 
-    log.info('Connecting to CnC server...')
+    log.info(f'Connecting to lead server {args.data_location.geturl()}.')
     with network.StateClient(
         args.data_location.hostname, args.data_location.port
     ) as mirror_state:
-        log.info(f'Querying lead server {args.data_location.geturl()}')
         state = mirror_state()
         physics_engine = physics.PEngine(state)
 
         if not args.no_gui:
-            log.info('Initializing graphics (thanks sean)...')
-            gui = flight_gui.FlightGui(state)
+            gui = flight_gui.FlightGui(state,
+                                       intro=(not args.no_intro),
+                                       running_as_mirror=True)
             global cleanup_function
             cleanup_function = gui.shutdown
 
         while True:
-            try:
-                if currently_mirroring:
-                    state = mirror_state()
-                    physics_engine.set_state(state)
-                else:
-                    state = physics_engine.get_state()
+            if not args.no_gui:
+                old_networking = networking
+                networking = gui.lead_server_communication_requested()
+                if old_networking != networking:
+                    log.info(
+                        'Flight mirror is now ' +
+                        ('networking' if networking else 'not networking') +
+                        ' with the lead flight server at ' +
+                        mirror_state.cnc_location)
 
-                if not args.no_gui:
-                    gui.draw(state)
-                    gui.rate(common.FRAMERATE)
-                    if gui.closed:
-                        break
-                else:
-                    time.sleep(1 / common.FRAMERATE)
-            except KeyboardInterrupt:
-                # TODO: hacky solution to turn off mirroring right now is a ^C
-                if currently_mirroring:
-                    currently_mirroring = False
-                else:
-                    raise
+            if (networking and
+                time.monotonic() - time_of_last_network_update >
+                    common.TIME_BETWEEN_NETWORK_UPDATES):
+                state = mirror_state()
+                physics_engine.set_state(state)
+                time_of_last_network_update = time.monotonic()
+            else:
+                state = physics_engine.get_state()
+
+            if not args.no_gui:
+                gui.draw(state)
+                if not networking:
+                    # When we're not networking, allow user input.
+                    user_commands = args.pop_commands()
+                    for request in user_commands:
+                        physics_engine.handle_request(request)
+                gui.rate(common.FRAMERATE)
+            else:
+                time.sleep(1 / common.FRAMERATE)
 
 
-def scrape_git_revision():
+def log_git_info():
     """For ease in debugging, try to get some version information.
     This should never throw a fatal error, it's just nice-to-know stuff."""
     try:
@@ -256,7 +268,7 @@ def main():
     warnings.filterwarnings('ignore', category=ResourceWarning)
     warnings.filterwarnings('ignore', module='vpython|asyncio|autobahn')
 
-    scrape_git_revision()
+    log_git_info()
 
     args = parse_args()
     try:
@@ -270,9 +282,10 @@ def main():
         # the user.
         pass
     except Exception as e:
-        log.error('Unexpected exception, exiting...')
-        if ungraceful_shutdown is not None:
-            ungraceful_shutdown()
+        log.exception('Unexpected exception, exiting...')
+        atexit.unregister(common.print_handler_cleanup)
+        if ungraceful_shutdown_handler is not None:
+            ungraceful_shutdown_handler()
 
         if isinstance(e, (AttributeError, ValueError)):
             proto_file = Path('orbitx', 'orbitx.proto')
@@ -299,7 +312,6 @@ def main():
 
         raise
     finally:
-        pass
         if cleanup_function is not None:
             cleanup_function()
 

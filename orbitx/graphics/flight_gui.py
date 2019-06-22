@@ -6,12 +6,14 @@ Call FlightGui.draw() in the main loop to update positions in the GUI.
 Call FlightGui.pop_commands() to collect user input.
 """
 
+import json
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+import google
 import numpy as np
 import vpython
 
@@ -37,21 +39,21 @@ class FlightGui:
     def __init__(
         self,
         draw_state: state.PhysicsState,
-        texture_path: Path = None,
-        no_intro: bool = False
+        *,
+        running_as_mirror: bool,
+        intro: bool
     ) -> None:
         assert len(draw_state) >= 1
 
         self._state = draw_state
-        # create a vpython canvas object
-        self._scene: vpython.canvas = self._init_canvas()
+        # create a vpython canvas, onto which all 3D and HTML drawing happens.
+        self._scene = self._init_canvas()
+
         self._show_label: bool = True
         self._show_trails: bool = False
         self._pause: bool = False
         self._origin: state.Entity
-        self.texture_path: Path = (
-            Path('data', 'textures') if texture_path is None else texture_path
-        )
+        self.texture_path: Path = Path('data', 'textures')
         self._commands: List[Request] = []
         self._pause_label = vpython.label(
             text="Simulation paused; saving and loading enabled.\n"
@@ -63,9 +65,6 @@ class FlightGui:
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
         self._wtexts: List[Text] = []
-
-        self._scene.autoscale = False
-        self._scene.range = 696000000.0 * 15000  # Sun radius * 15000
 
         self._set_origin(common.DEFAULT_CENTRE)
 
@@ -88,11 +87,12 @@ class FlightGui:
         self._3dobjs[draw_state.target].draw_landing_graphic(
             draw_state.target_entity())
 
-        self._sidebar = Sidebar(self)
+        self._sidebar = Sidebar(self, running_as_mirror)
+        self._scene.bind('keydown', self._handle_keydown)
 
-        # Add an animation when launching the program
-        #   to describe the solar system and the current location
-        if not no_intro:
+        # Add an animation when launching the program to describe the solar
+        # system and the current location
+        if intro:
             while self._scene.range > 600000:
                 vpython.rate(100)
                 self._scene.range = self._scene.range * 0.92
@@ -112,7 +112,6 @@ class FlightGui:
             autoscale=True
         )
         _scene.autoscale = False
-        _scene.bind('keydown', self._handle_keydown)
         # Show all planets in solar system
         _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
@@ -164,6 +163,9 @@ class FlightGui:
         if self._pause:
             # The user could be entering in things in the text fields, so just
             # wait until they're not paused.
+            return
+        if self.lead_server_communication_requested():
+            # We shouldn't be generating any commands, ignore this.
             return
 
         k = evt.key
@@ -328,23 +330,43 @@ class FlightGui:
 
     def _save_hook(self, textbox: vpython.winput):
         save = common.savefile(textbox.text)
-        common.write_savefile(self._state, save)
-        textbox.text = 'File saved!'
+        try:
+            common.write_savefile(self._state, save)
+            textbox.text = 'File saved!'
+        except OSError:
+            log.exception('Exception during file saving')
+            textbox.text = 'Error writing file!'
 
     def _load_hook(self, textbox: vpython.winput):
-        self._commands.append(Request(
-            ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
-        textbox.text = 'File loaded!'
+        try:
+            self._commands.append(Request(
+                ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
+            textbox.text = 'File loaded!'
+        except (FileNotFoundError, OSError):
+            log.exception('Exception during file loading')
+            textbox.text = 'File not found!'
+        except (google.protobuf.json_format.ParseError,
+                json.decoder.JSONDecodeError):
+            log.exception('Exception parsing loadfile')
+            textbox.text = 'File undreadable!'
 
     def _navmode_hook(self, menu: vpython.menu):
         self._commands.append(Request(
             ident=Request.NAVMODE_SET,
             navmode=state.Navmode[menu.selected].value))
+
+    def lead_server_communication_requested(self) -> bool:
+        # This should only be called when this FlightGui is the frontend of a
+        # mirror server. This will probably throw an AttributeError otherwise.
+        if self._sidebar.follow_lead_checkbox is None:
+            # We're not even running in mirror mode you absolute cheese
+            return False
+        return self._sidebar.follow_lead_checkbox._checkbox.checked
 # end of class FlightGui
 
 
 class Sidebar:
-    def __init__(self, flight_gui: FlightGui):
+    def __init__(self, flight_gui: FlightGui, running_as_mirror: bool):
         """Create the sidebar caption."""
         self._parent = flight_gui
 
@@ -354,7 +376,8 @@ class Sidebar:
 
         <p class='prose'>Any information that OrbitX has on the crash has been
         saved to <span class='code'>orbitx/debug.log</span>. If you want to get
-        this problem fixed, send <span class='code'>orbitx/debug.log</span> to
+        this problem fixed, send the newest file that looks like
+        <span class='code'>orbitx/debug-12345.log</span> to
         Patrick Melanson along with a description of what was happening in the
         program when it crashed.</p>
 
@@ -377,6 +400,18 @@ class Sidebar:
             False, 'Orbit',
             "Simple projection of hab around reference. "
             "Hyperbola not accurate sorry :(")
+
+        self.follow_lead_checkbox: Optional[Checkbox]
+        if running_as_mirror:
+            self.follow_lead_checkbox = Checkbox(
+                lambda _: None,  # FlightGui will poll this checkbox
+                True, 'Follow lead server',
+                "Check to keep this mirror program in sync with the "
+                "mirror://[host]:[port] OrbitX lead server specified at "
+                "startup"
+            )
+        else:
+            self.follow_lead_checkbox = None
 
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
