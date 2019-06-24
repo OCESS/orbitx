@@ -166,8 +166,7 @@ def lead_server_loop(args):
         while True:
             user_commands: List[network.Request] = []
             state = physics_engine.get_state()
-            state_server.notify_state_change(
-                copy.deepcopy(state._proto_state))
+            state_server.notify_state_change(state.as_proto())
 
             if not args.no_gui:
                 user_commands += gui.pop_commands()
@@ -218,7 +217,7 @@ def mirroring_loop(args):
                         'Flight mirror is now ' +
                         ('networking' if networking else 'not networking') +
                         ' with the lead flight server at ' +
-                        mirror_state.cnc_location)
+                        args.data_location.netloc)
 
             if (networking and
                 time.monotonic() - time_of_last_network_update >
@@ -233,7 +232,7 @@ def mirroring_loop(args):
                 gui.draw(state)
                 if not networking:
                     # When we're not networking, allow user input.
-                    user_commands = args.pop_commands()
+                    user_commands = gui.pop_commands()
                     for request in user_commands:
                         physics_engine.handle_request(request)
                 gui.rate(common.FRAMERATE)

@@ -384,7 +384,6 @@ class PEngine:
         return newest_state
 
     def _simthread_target(self, t, y):
-        log.info('simthread started')
         try:
             self._run_simulation(t, y)
         except Exception as e:
@@ -392,8 +391,6 @@ class PEngine:
             self._simthread_exception = e
             with self._solutions_cond:
                 self._solutions_cond.notify_all()
-        finally:
-            log.info('simthread exited')
 
     def _derive(self, t: float, y_1d: np.ndarray,
                 pass_through_state: PhysicalState) -> np.ndarray:

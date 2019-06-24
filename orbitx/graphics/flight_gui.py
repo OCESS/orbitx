@@ -388,14 +388,14 @@ class Sidebar:
 
         self._create_menus()
 
-        self._undock_button = Button(
+        self.undock_button = Button(
             self._parent._undock, "Undock", "Undock from AYSE")
 
-        Checkbox(
+        self.trails_checkbox = Checkbox(
             self._parent._trail_checkbox_hook,
             DEFAULT_TRAILS, 'Trails',
             "Graphically intensive")
-        Checkbox(
+        self.orbits_checkbox = Checkbox(
             self._parent._orbits_checkbox_hook,
             False, 'Orbit',
             "Simple projection of hab around reference. "
@@ -404,7 +404,7 @@ class Sidebar:
         self.follow_lead_checkbox: Optional[Checkbox]
         if running_as_mirror:
             self.follow_lead_checkbox = Checkbox(
-                lambda _: None,  # FlightGui will poll this checkbox
+                lambda checkbox: self._disable_inputs(checkbox.checked),
                 True, 'Follow lead server',
                 "Check to keep this mirror program in sync with the "
                 "mirror://[host]:[port] OrbitX lead server specified at "
@@ -436,6 +436,15 @@ class Sidebar:
 
         with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
             vpython.canvas.get_selected().append_to_caption(footer.read())
+
+    def _disable_inputs(self, disabled: bool):
+        """Enable or disable all inputs, except for networking checkbox."""
+        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
+        for input_form in [
+            self.centre_menu, self.reference_menu, self.target_menu,
+                self.navmode_menu, self.time_acc_menu, self.undock_button]:
+            # input_form.disabled = disabled
+            pass
 
     def _create_wtexts(self):
         vpython.canvas.get_selected().caption += "<table>\n"
@@ -632,5 +641,5 @@ class Sidebar:
         for wtext in self._wtexts:
             wtext.update(draw_state)
 
-        self._undock_button._button.disabled = not (
+        self.undock_button._button.disabled = not (
             draw_state[common.HABITAT].landed_on == common.AYSE)
