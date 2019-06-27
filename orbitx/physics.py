@@ -147,7 +147,8 @@ class PEngine:
             # We don't care about these requests
             return
         requested_t = self._simtime(requested_t)
-        log.info(f'Got command at simtime={requested_t}')
+        log.info(
+            f'Got {Request.Idents.Name(request.ident)}, simtime={requested_t}')
 
         if request.ident == Request.TIME_ACC_SET:
             # Immediately change the time acceleration, don't wait for the

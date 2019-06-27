@@ -214,9 +214,8 @@ def mirroring_loop(args):
                 networking = gui.lead_server_communication_requested()
                 if old_networking != networking:
                     log.info(
-                        'Flight mirror is now ' +
-                        ('networking' if networking else 'not networking') +
-                        ' with the lead flight server at ' +
+                        ('STARTED' if networking else 'STOPPED') +
+                        ' networking with the lead flight server at ' +
                         args.data_location.netloc)
 
             if (networking and

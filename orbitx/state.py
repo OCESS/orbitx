@@ -274,7 +274,9 @@ class PhysicsState:
         """Creates a protos.PhysicalState view into all internal data.
 
         Expensive. Consider one of the other accessors, which are faster.
-        For example, if you want to iterate over all"""
+        For example, if you want to iterate over all elements, use __iter__
+        by doing
+        for entity in my_physics_state: print(entity.name)"""
         constructed_protobuf = protos.PhysicalState()
         constructed_protobuf.CopyFrom(self._proto_state)
         for entity_data, entity in zip(

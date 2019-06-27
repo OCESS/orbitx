@@ -47,7 +47,7 @@ class FlightGui:
 
         self._state = draw_state
         # create a vpython canvas, onto which all 3D and HTML drawing happens.
-        self._scene = self._init_canvas()
+        self._scene = self._init_canvas(running_as_mirror)
 
         self._show_label: bool = True
         self._show_trails: bool = False
@@ -99,10 +99,12 @@ class FlightGui:
         self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
 
-    def _init_canvas(self) -> vpython.canvas:
+    def _init_canvas(self, running_as_mirror) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
         _scene = vpython.canvas(
-            title='<title>OrbitX</title>',
+            title='<title>OrbitX ' +
+                  ("Mirror" if running_as_mirror else "Lead") +
+                  '</title>',
             align='right',
             width=900,
             height=750,
@@ -401,18 +403,6 @@ class Sidebar:
             "Simple projection of hab around reference. "
             "Hyperbola not accurate sorry :(")
 
-        self.follow_lead_checkbox: Optional[Checkbox]
-        if running_as_mirror:
-            self.follow_lead_checkbox = Checkbox(
-                lambda checkbox: self._disable_inputs(checkbox.checked),
-                True, 'Follow lead server',
-                "Check to keep this mirror program in sync with the "
-                "mirror://[host]:[port] OrbitX lead server specified at "
-                "startup"
-            )
-        else:
-            self.follow_lead_checkbox = None
-
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
         # If you change the order of these, note that the placeholder text
@@ -433,6 +423,18 @@ class Sidebar:
                  False, "Pause",
                  "Pause simulation. Can only save/load when paused.")
         vpython.canvas.get_selected().append_to_caption("<br/>")
+
+        self.follow_lead_checkbox: Optional[Checkbox]
+        if running_as_mirror:
+            self.follow_lead_checkbox = Checkbox(
+                lambda checkbox: self._disable_inputs(checkbox.checked),
+                True, 'Follow lead server',
+                "Check to keep this mirror program in sync with the "
+                "mirror://[host]:[port] OrbitX lead server specified at "
+                "startup"
+            )
+        else:
+            self.follow_lead_checkbox = None
 
         with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
             vpython.canvas.get_selected().append_to_caption(footer.read())
@@ -635,9 +637,9 @@ class Sidebar:
     # end of _create_menus
 
     def update(self, draw_state: state.PhysicsState):
-        self.reference_menu.selected = draw_state.reference
-        self.target_menu.selected = draw_state.target
-        self.navmode_menu.selected = draw_state.navmode.name
+        self.reference_menu._menu.selected = draw_state.reference
+        self.target_menu._menu.selected = draw_state.target
+        self.navmode_menu._menu.selected = draw_state.navmode.name
         for wtext in self._wtexts:
             wtext.update(draw_state)
 
