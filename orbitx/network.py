@@ -92,18 +92,10 @@ class StateClient:
     """
 
     def __init__(self, cnc_address, cnc_port):
-        self.cnc_location = f'{cnc_address}:{cnc_port}'
+        self.channel = grpc.insecure_channel(f'{cnc_address}:{cnc_port}')
+        self.stub = grpc_stubs.StateServerStub(self.channel)
 
-    def _get_physical_state(
-            self, command: Request = None) -> state.PhysicsState:
+    def get_state(self, command: Request = None) -> state.PhysicsState:
         if command is None:
             command = Request(ident=protos.Command.NOOP)
         return state.PhysicsState(None, self.stub.get_physical_state(command))
-
-    def __enter__(self):
-        self.channel = grpc.insecure_channel(self.cnc_location)
-        self.stub = grpc_stubs.StateServerStub(self.channel)
-        return self._get_physical_state
-
-    def __exit__(self, *args):
-        self.channel.close()

@@ -127,19 +127,6 @@ else:
     PROGRAM_PATH = Path(sys.path[0])
 
 
-class GrpcServerContext:
-    """Context manager for a GRPC server."""
-
-    def __init__(self, server):
-        self._server = server
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, *args):
-        self._server.stop(0)
-
-
 def format_num(num: Optional[float], unit: str) -> str:
     """This should be refactored with the Menu class after symposium."""
     # TODO: refactor this along with the Menu class

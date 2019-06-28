@@ -40,8 +40,7 @@ class FlightGui:
         self,
         draw_state: state.PhysicsState,
         *,
-        running_as_mirror: bool,
-        intro: bool
+        running_as_mirror: bool
     ) -> None:
         assert len(draw_state) >= 1
 
@@ -57,7 +56,7 @@ class FlightGui:
         self._commands: List[Request] = []
         self._pause_label = vpython.label(
             text="Simulation paused; saving and loading enabled.\n"
-            "When finished, unpause by clicking the 'Pause' checkbox.",
+                 "When finished, unpause by clicking the 'Pause' checkbox.",
             xoffset=0, yoffset=200, line=False, height=25, border=20,
             opacity=1, visible=False)
 
@@ -92,10 +91,9 @@ class FlightGui:
 
         # Add an animation when launching the program to describe the solar
         # system and the current location
-        if intro:
-            while self._scene.range > 600000:
-                vpython.rate(100)
-                self._scene.range = self._scene.range * 0.92
+        while self._scene.range > 600000:
+            vpython.rate(100)
+            self._scene.range = self._scene.range * 0.92
         self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
 
