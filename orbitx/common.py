@@ -90,7 +90,10 @@ print_handler.setFormatter(print_formatter)
 
 def print_handler_cleanup():
     logfile_handler.close()
-    os.remove(logfile_handler.baseFilename)
+    try:
+        os.remove(logfile_handler.baseFilename)
+    except FileNotFoundError:
+        pass
 
 
 # The logfile will be deleted on program exit, unless this is unregistered.

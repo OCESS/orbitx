@@ -10,12 +10,12 @@ modules, and receives updates from networked modules.
 import argparse
 import atexit
 import logging
-import sys
 import warnings
 from pathlib import Path
 
 from orbitx import common
-from orbitx.variants import compat, lead, mirror
+from orbitx.graphics import launcher
+from orbitx.programs import compat, lead, mirror
 
 log = logging.getLogger()
 
@@ -57,8 +57,9 @@ def main():
     parser.add_argument('--profile', action='store_true', default=False,
                         help='Generating profiling reports, for a flamegraph.')
 
-    # Use the argument parsers that each variant defines
-    subparsers = parser.add_subparsers(help='Which OrbitX variant to run')
+    # Use the argument parsers that each program defines
+    subparsers = parser.add_subparsers(help='Which OrbitX program to run',
+                                       dest='program')
     lead_subparser = subparsers.add_parser(
         'lead', help='Lead flight server', add_help=False,
         parents=[lead.argument_parser])
@@ -80,7 +81,12 @@ def main():
         common.enable_verbose_logging()
 
     try:
-        args.main_loop(args)
+        if args.program is None:
+            # A program was specified, ask the user which program to run.
+            main_loop = launcher.get_user_selection()
+            main_loop(args)
+        else:
+            args.main_loop(args)
     except KeyboardInterrupt:
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.
