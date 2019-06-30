@@ -11,7 +11,9 @@ from orbitx.graphics import flight_gui
 log = logging.getLogger()
 
 
-argument_parser = argparse.ArgumentParser()
+description = 'Mirror description'
+
+argument_parser = argparse.ArgumentParser('mirror', description=description)
 argument_parser.add_argument(
     'lead_server', type=str, nargs='?', default='localhost',
     help=(
@@ -33,36 +35,38 @@ def main(args: argparse.Namespace):
     gui = flight_gui.FlightGui(state, running_as_mirror=True)
     atexit.register(gui.shutdown)
 
-    try:
-        while True:
-            old_networking = networking
-            networking = gui.lead_server_communication_requested()
-            if old_networking != networking:
-                log.info(
-                    ('STARTED' if networking else 'STOPPED') +
-                    ' networking with the lead flight server at ' +
-                    args.lead_server)
+    while True:
+        old_networking = networking
+        networking = gui.lead_server_communication_requested()
+        if old_networking != networking:
+            log.info(
+                ('STARTED' if networking else 'STOPPED') +
+                ' networking with the lead flight server at ' +
+                args.lead_server)
 
-            if (networking and
-                time.monotonic() - time_of_last_network_update >
-                    common.TIME_BETWEEN_NETWORK_UPDATES):
-                # Our state is stale, get the latest update
-                # TODO: what if this fails? Set networking to False?
-                state = lead_server_connection.get_state()
-                physics_engine.set_state(state)
-                time_of_last_network_update = time.monotonic()
-            else:
-                state = physics_engine.get_state()
+        if (networking and
+            time.monotonic() - time_of_last_network_update >
+                common.TIME_BETWEEN_NETWORK_UPDATES):
+            # Our state is stale, get the latest update
+            # TODO: what if this fails? Set networking to False?
+            state = lead_server_connection.get_state()
+            physics_engine.set_state(state)
+            time_of_last_network_update = time.monotonic()
+        else:
+            state = physics_engine.get_state()
 
-            gui.draw(state)
-            if not networking:
-                # When we're not networking, allow user input.
-                user_commands = gui.pop_commands()
-                for request in user_commands:
-                    physics_engine.handle_request(request)
-            gui.rate(common.FRAMERATE)
-    except KeyboardInterrupt:
-        raise
-    except Exception:
-        gui.ungraceful_shutdown()
-        raise
+        gui.draw(state)
+        if not networking:
+            # When we're not networking, allow user input.
+            user_commands = gui.pop_commands()
+            for request in user_commands:
+                physics_engine.handle_request(request)
+        gui.rate(common.FRAMERATE)
+
+
+Mirror = common.Program(
+    name='Mirror',
+    description=description,
+    main=main,
+    argparser=argument_parser
+)

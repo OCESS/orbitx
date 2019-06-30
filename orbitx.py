@@ -10,12 +10,17 @@ modules, and receives updates from networked modules.
 import argparse
 import atexit
 import logging
+import time
 import warnings
 from pathlib import Path
 
+import vpython
+
 from orbitx import common
 from orbitx.graphics import launcher
-from orbitx.programs import compat, lead, mirror
+from orbitx.programs.lead import Lead
+from orbitx.programs.mirror import Mirror
+from orbitx.programs.compat import Compat
 
 log = logging.getLogger()
 
@@ -37,6 +42,50 @@ def log_git_info():
         return
 
 
+def vpython_error_message():
+    """Lets the user know that something bad happened.
+    Note, if there's no vpython canvas, this vpython code has no effect."""
+    error_message = (
+        "<p>&#9888; Sorry, spacesimmer! OrbitX has crashed for "
+        "some reason.</p>"
+
+        "<p>Any information that OrbitX has on the crash has "
+        "been saved to <span class='code'>orbitx/debug.log</span>. If you "
+        "want to get this problem fixed, send the contents of the log file "
+        "<blockquote>" +
+        # Double-escape backslashes, vpython will choke on them otherwise.
+        common.logfile_handler.baseFilename.replace('\\', '\\\\') +
+        "</blockquote>"
+        "Patrick Melanson along with a description of what was happening in "
+        "the program when it crashed.</p>"
+
+        "<p>Again, thank you for using OrbitX!</p>"
+    )
+    vpython.canvas.get_selected().append_to_caption(f"""<script>
+        if (document.querySelector('div.error') == null) {{
+            error_div = document.createElement('div');
+            error_div.className = 'error';
+            error_div.innerHTML = "{error_message}";
+            document.querySelector('body').prepend(error_div);
+        }}
+    </script>""")
+    vpython.canvas.get_selected().append_to_caption("""<style>
+        .error {
+            color: #D8000C;
+            background-color: #FFBABA;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px 3px 3px 3px;
+            width: 550px;
+        }
+        blockquote {
+            font-family: monospace;
+        }
+    </style>""")
+
+    time.sleep(0.1)  # Let vpython send out this update
+
+
 def main():
     """Delegate work to one of the OrbitX programs."""
 
@@ -50,7 +99,7 @@ def main():
 
     log_git_info()
 
-    parser = argparse.ArgumentParser(prog='orbitx')
+    parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to both logfile and output.')
 
@@ -60,20 +109,12 @@ def main():
     # Use the argument parsers that each program defines
     subparsers = parser.add_subparsers(help='Which OrbitX program to run',
                                        dest='program')
-    lead_subparser = subparsers.add_parser(
-        'lead', help='Lead flight server', add_help=False,
-        parents=[lead.argument_parser])
-    lead_subparser.set_defaults(main_loop=lead.main)
 
-    mirror_subparser = subparsers.add_parser(
-        'mirror', help='Mirror a lead flight server', add_help=False,
-        parents=[mirror.argument_parser])
-    mirror_subparser.set_defaults(main_loop=mirror.main)
-
-    compat_subparser = subparsers.add_parser(
-        'compat', help='Compatibility layer for OrbitV', add_help=False,
-        parents=[compat.argument_parser])
-    compat_subparser.set_defaults(main_loop=compat.main)
+    for program in [Lead, Mirror, Compat]:
+        subparser = subparsers.add_parser(
+            program.argparser.prog,
+            add_help=False, parents=[program.argparser])
+        subparser.set_defaults(main_loop=program.main)
 
     args = parser.parse_args()
 
@@ -83,8 +124,12 @@ def main():
     try:
         if args.program is None:
             # A program was specified, ask the user which program to run.
-            main_loop = launcher.get_user_selection()
-            main_loop(args)
+            program = launcher.Launcher().get_user_selection()
+
+            # We got the user's choice, emulate the corresponding subparser
+            # being run.
+            args = parser.parse_args([program.argparser.prog])
+            program.main(args)
         else:
             args.main_loop(args)
     except KeyboardInterrupt:
@@ -94,6 +139,8 @@ def main():
     except Exception as e:
         log.exception('Unexpected exception, exiting...')
         atexit.unregister(common.print_handler_cleanup)
+
+        vpython_error_message()
 
         if isinstance(e, (AttributeError, ValueError)):
             proto_file = Path('orbitx', 'orbitx.proto')

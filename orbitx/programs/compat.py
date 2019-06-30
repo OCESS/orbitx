@@ -17,7 +17,10 @@ from orbitx import orbitv_file_interface
 
 log = logging.getLogger()
 
-argument_parser = argparse.ArgumentParser()
+
+description = 'Compat description'
+
+argument_parser = argparse.ArgumentParser('compat', description=description)
 argument_parser.add_argument(
     "--engineering", default="orbit-files/",
     help=(
@@ -51,3 +54,11 @@ def main(args: argparse.Namespace):
     except grpc.RpcError as err:
         log.info(
             f'Got response code {err.code()} from orbitx, shutting down')
+
+
+Compat = common.Program(
+    name='Compat',
+    description=description,
+    main=main,
+    argparser=argument_parser
+)

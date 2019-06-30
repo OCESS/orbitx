@@ -136,12 +136,6 @@ class FlightGui:
         except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
 
-    def ungraceful_shutdown(self):
-        """Lets the user know that something bad happened."""
-        self._scene.caption += \
-            "<style>.error { display: block !important; }</style>"
-        time.sleep(0.1)  # Let vpython send out this update
-
     def shutdown(self):
         """Stops any threads vpython has started. Call on exit."""
         vpython.no_notebook.stop_server()
@@ -369,20 +363,6 @@ class Sidebar:
     def __init__(self, flight_gui: FlightGui, running_as_mirror: bool):
         """Create the sidebar caption."""
         self._parent = flight_gui
-
-        vpython.canvas.get_selected().caption += """<div class='error'>
-        <p class='prose'>&#9888; Sorry, spacesimmer! OrbitX has crashed for
-        some reason.</p>
-
-        <p class='prose'>Any information that OrbitX has on the crash has been
-        saved to <span class='code'>orbitx/debug.log</span>. If you want to get
-        this problem fixed, send the newest file that looks like
-        <span class='code'>orbitx/debug-12345.log</span> to
-        Patrick Melanson along with a description of what was happening in the
-        program when it crashed.</p>
-
-        <p>Again, thank you for using OrbitX!</p>
-        </div>"""
 
         self._create_wtexts()
 

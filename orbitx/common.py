@@ -1,12 +1,13 @@
 """Common code and class interfaces."""
 
+import argparse
 import atexit
 import logging
 import os
 import pytz
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Callable, NamedTuple, Optional
 
 import numpy
 import google.protobuf.json_format
@@ -99,6 +100,7 @@ def print_handler_cleanup():
 # The logfile will be deleted on program exit, unless this is unregistered.
 atexit.register(print_handler_cleanup)
 
+# TODO: put logs in a directory
 logfile_handler = logging.FileHandler(
     f'debug-{os.getpid()}.log', mode='w', delay=True)
 logfile_handler.setLevel(logging.DEBUG)
@@ -176,3 +178,10 @@ def start_profiling():
         fd=open(PERF_FILE, 'w'),
         filter=r'(simthread|MainThread)'
     )
+
+
+class Program(NamedTuple):
+    main: Callable[[argparse.Namespace], None]
+    name: str
+    description: str
+    argparser: argparse.ArgumentParser

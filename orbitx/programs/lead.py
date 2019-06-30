@@ -16,7 +16,15 @@ import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
-argument_parser = argparse.ArgumentParser()
+description = """This program gives you piloting control of the Habitat, as it
+    simulates the Habitat in spaceflight.<br />
+    While this lead flight server is running, one or more mirror programs
+    can connect and provide a read-only copy of the state of this lead
+    flight server."""
+
+argument_parser = argparse.ArgumentParser(
+    'lead',
+    description=description.replace('<br />', '\n'))
 argument_parser.add_argument(
     'loadfile', type=str, nargs='?', default='OCESS.json',
     help=(
@@ -39,17 +47,17 @@ def main(args: argparse.Namespace):
 
     log.info(f'Loading save at {loadfile}')
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
-
-    gui = flight_gui.FlightGui(physics_engine.get_state(),
-                               running_as_mirror=False)
-    atexit.register(gui.shutdown)
-
+    initial_state = physics_engine.get_state()
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     atexit.register(lambda: server.stop(grace=2))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{common.DEFAULT_LEAD_SERVER_PORT}')
+    state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
+
+    gui = flight_gui.FlightGui(initial_state, running_as_mirror=False)
+    atexit.register(gui.shutdown)
 
     if args.profile:
         common.start_profiling()
@@ -73,9 +81,14 @@ def main(args: argparse.Namespace):
 
             gui.draw(state)
             gui.rate(common.FRAMERATE)
-    except KeyboardInterrupt:
-        raise
     except Exception:
-        gui.ungraceful_shutdown()
-        server.stop(grace=0)
+        server.stop(grace=1)
         raise
+
+
+Lead = common.Program(
+    name='Lead Flight Server',
+    description=description,
+    main=main,
+    argparser=argument_parser
+)

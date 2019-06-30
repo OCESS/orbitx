@@ -1,8 +1,6 @@
 """
 This modules in this subpackage implement the different OrbitX programs.
-Each submodule contains:
-- a main(args) function that will run a while-True loop and block.
-- an argument_parser with any program-specific CLI arguments.
+Each submodule implements a common.Program.
 
 - programs.compat implements a compatibility server with OrbitV,
     reading OrbitV binary files and sending network updates to OrbitX
