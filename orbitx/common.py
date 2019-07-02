@@ -184,3 +184,4 @@ class Program(NamedTuple):
     name: str
     description: str
     argparser: argparse.ArgumentParser
+    headless: bool

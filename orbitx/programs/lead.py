@@ -93,5 +93,6 @@ Lead = common.Program(
     name=name,
     description=description,
     main=main,
-    argparser=argument_parser
+    argparser=argument_parser,
+    headless=False
 )

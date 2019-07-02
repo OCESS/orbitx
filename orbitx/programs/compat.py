@@ -47,13 +47,14 @@ def main(args: argparse.Namespace):
 
     try:
         while True:
+            print('loop')
             update = \
                 orbitv_file_interface.read_update_from_orbitsse(orbitsse)
             state = orbitx_connection.get_state(update)
             orbitv_file_interface.write_state_to_osbackup(state, osbackup)
             time.sleep(1)
     except grpc.RpcError as err:
-        log.info(
+        log.error(
             f'Got response code {err.code()} from orbitx, shutting down')
 
 
@@ -61,5 +62,6 @@ Compat = common.Program(
     name='Compat',
     description=description,
     main=main,
-    argparser=argument_parser
+    argparser=argument_parser,
+    headless=True
 )

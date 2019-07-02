@@ -47,7 +47,7 @@ def write_state_to_osbackup(
         _write_double(timestamp.second, osbackup)
 
         osbackup.seek(24, SEEK_CUR)
-        _write_int('Module' in orbitx_state._entity_names(), osbackup)
+        _write_int('Module' in orbitx_state._entity_names, osbackup)
         # These next two variables are technically AYSEdist and OCESSdist
         # but they're used for engineering to determine if you can load fuel
         # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell

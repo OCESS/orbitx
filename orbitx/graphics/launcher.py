@@ -14,6 +14,7 @@ class Launcher:
     def __init__(self):
         # When the user clicks a button, this will be set.
         self._user_args: Optional[List[str]] = None
+        self._program: Optional[Program] = None
 
         canvas = vpython.canvas(width=1, height=1)
 
@@ -123,6 +124,7 @@ class Launcher:
                 user_args.append(field.arg.option_strings[0])
             user_args.append(field.text)
         self._user_args = user_args
+        self._program = program
 
     def get_args(self) -> List[str]:
         while self._user_args is None:
@@ -132,3 +134,6 @@ class Launcher:
         vpython.canvas.get_selected().caption = ''
 
         return self._user_args
+
+    def get_program(self) -> Program:
+        return self._program
