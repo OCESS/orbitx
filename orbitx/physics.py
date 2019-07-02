@@ -84,7 +84,7 @@ class PEngine:
                    for internal log messages, and False for external APIs.
         """
         # During runtime, strange things will happen if you mix calling
-        # this with None (like in flight.py) or with values (like in test.py)
+        # this with None (like from orbitx.py) or with values (like in test.py)
 
         if requested_t is None:
             time_elapsed = max(

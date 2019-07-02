@@ -19,7 +19,7 @@ $VPY_DIR = python -c "$VPY_DIR_SCRIPT"
 # Use pyinstaller to make an executable in dist/
 pyinstaller `
 	--noconfirm `
-	../flight.py `
+	../orbitx.py `
 	-n orbitx `
 	'--add-data' '../data;data' `
 	'--add-data' "$VPY_DIR;vpython"

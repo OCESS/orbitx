@@ -70,12 +70,8 @@ make format   # run this to automatically format code
 
 ## Running
 
-`orbitx/flight.py` Is an executable python scripts. Run `orbitx/flight.py --help` for
-help on running the program. The sparknotes version is, run:
-
-```
-orbitx/flight.py --gui
-``` 
+`orbitx.py` Is an executable python script. Run `python orbitx.py --help` for
+the CLI args, or just run `python orbitx.py` for a graphical launcher.
 
 If you get errors, make sure you have the pip packages in `requirements.txt`
 installed. If the setup instructions completed without errors, this is as easy
@@ -94,7 +90,5 @@ Read `ARCHITECTURE.md` for a description of OrbitX's architecture.
 ![The Jupiter system, with sinusoidal paths of Jovian moons around Jupiter](https://user-images.githubusercontent.com/1498589/48948270-ea514300-ef01-11e8-8f23-4010e6fb7bd3.PNG)
 
 ![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](https://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
-
-![The Habitat, braking from a circular orbit and falling to Earth and bouncing a couple times](https://user-images.githubusercontent.com/1498589/48987874-5d201100-f0f0-11e8-868c-40ce756b6548.png)
 
 ![A representation of the new habitat design](https://user-images.githubusercontent.com/1498589/51934439-96674c80-23d1-11e9-98a0-9a0213eef2ea.png)

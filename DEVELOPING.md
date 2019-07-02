@@ -42,7 +42,7 @@ In general, your editing workflow will go like this:
 
 1. Edit a `.py` file somehow
 2. (Optional) use the tools described in this guide to check your code
-3. Run `python flight.py` and see if your changes worked
+3. Run `python orbitx.py` and see if your changes worked
 4. (Optional) Run `python test.py` and see if everything still works
 
 Importantly, use whatever text editor you feel comfortable with for step 1!
