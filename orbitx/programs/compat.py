@@ -18,7 +18,8 @@ from orbitx import orbitv_file_interface
 log = logging.getLogger()
 
 
-description = 'Compat description'
+description = """Communicates between a running OrbitV engineering program and
+a running OrbitX Lead Flight Server."""
 
 argument_parser = argparse.ArgumentParser('compat', description=description)
 argument_parser.add_argument(
@@ -29,7 +30,7 @@ argument_parser.add_argument(
 )
 argument_parser.add_argument("--piloting", default=(
     f"localhost"),
-    help="network address of piloting client")
+    help="network name of piloting client")
 
 
 def main(args: argparse.Namespace):

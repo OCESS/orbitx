@@ -11,7 +11,11 @@ from orbitx.graphics import flight_gui
 log = logging.getLogger()
 
 
-description = 'Mirror description'
+name = "Mirror Client"
+
+description = """Connect to a running Lead Flight Server and follow along with
+its simulation state. While this Mirror is running, you can pause network
+updates and take control of the Habitat."""
 
 argument_parser = argparse.ArgumentParser('mirror', description=description)
 argument_parser.add_argument(
@@ -65,7 +69,7 @@ def main(args: argparse.Namespace):
 
 
 Mirror = common.Program(
-    name='Mirror',
+    name=name,
     description=description,
     main=main,
     argparser=argument_parser

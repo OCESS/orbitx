@@ -4,6 +4,7 @@ from typing import List, Optional
 import vpython
 
 from orbitx.common import Program
+from orbitx.graphics import sidebar_widgets
 from orbitx.programs.lead import Lead
 from orbitx.programs.mirror import Mirror
 from orbitx.programs.compat import Compat
@@ -27,6 +28,13 @@ class Launcher:
             h1,h2,h3 {
                 line-height: 1.2em;
             }
+            .description {
+                font-size: 80%;
+                font-stretch: condensed;
+            }
+            .argname {
+                font-weight: bold;
+            }
         </style>""")
 
         # Set up some buttons asking what program the user wants to run.
@@ -36,11 +44,15 @@ class Launcher:
         canvas.append_to_caption("""<h2>
             Select a program to launch
         </h2>""")
+        canvas.append_to_caption("<input type='checkbox' id='description_checkbox'>"
+            "Show descriptions"
+        "</input>")
 
         for program in [Lead, Mirror, Compat]:
             canvas.append_to_caption("<hr />")
             canvas.append_to_caption(f"<h3>{program.name}</h3>")
             canvas.append_to_caption(f"<p>{program.description}</p>")
+
             text_fields: List[vpython.winput] = []
             vpython.button(
                 text=program.name,
@@ -49,7 +61,13 @@ class Launcher:
                 if '--help' in arg.option_strings:
                     # This is the default help action, ignore it.
                     continue
-                canvas.append_to_caption(arg.dest + ":&nbsp;")
+                canvas.append_to_caption(
+                    "<br class='description' style='display:none' />")
+                canvas.append_to_caption(
+                    f"<span class='argname'>{arg.dest}:</span>")
+                canvas.append_to_caption(
+                    "<span class='description' style='display:none'>"
+                    f" {arg.help}</span>&nbsp;")
                 arg_field = vpython.winput(
                     # The bind is a no-op, we'll poll the .text attribute.
                     type='string', bind=lambda _: None, text=arg.default
@@ -60,10 +78,11 @@ class Launcher:
                 arg_field.arg = arg
 
                 text_fields.append(arg_field)
+                sidebar_widgets.last_div_id += 1
 
         # Suppress vpython styling.
         canvas.append_to_caption("""<script>
-            styled_elements = document.querySelectorAll("div,button");
+            styled_elements = document.querySelectorAll("div,button,input");
             for (const element of styled_elements) {
                 element.style = null
             }
@@ -82,6 +101,15 @@ class Launcher:
                     }
                 });
             }
+
+            description_checkbox = document.querySelector('#description_checkbox');
+            description_checkbox.addEventListener('change', function(event) {
+                console.log(event);
+                descriptions = document.getElementsByClassName("description");
+                for (const element of descriptions) {
+                    element.style.display = event.target.checked ? "initial" : "none";
+                }
+            })
         </script>""")
 
         # This is needed to launch vpython.
@@ -89,11 +117,12 @@ class Launcher:
         vpython.canvas.get_selected().delete()
 
     def _set_args(self, program: Program, arg_fields: List[vpython.winput]):
-        self._user_args = [program.argparser.prog]
+        user_args = [program.argparser.prog]
         for field in arg_fields:
             if field.arg.option_strings:
-                self._user_args.append(field.arg.option_strings[0])
-            self._user_args.append(field.text)
+                user_args.append(field.arg.option_strings[0])
+            user_args.append(field.text)
+        self._user_args = user_args
 
     def get_args(self) -> List[str]:
         while self._user_args is None:

@@ -16,6 +16,9 @@ import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
+
+name = "Lead Flight Server"
+
 description = """This program gives you piloting control of the Habitat, as it
     simulates the Habitat in spaceflight.<br />
     While this lead flight server is running, one or more mirror programs
@@ -87,7 +90,7 @@ def main(args: argparse.Namespace):
 
 
 Lead = common.Program(
-    name='Lead Flight Server',
+    name=name,
     description=description,
     main=main,
     argparser=argument_parser
