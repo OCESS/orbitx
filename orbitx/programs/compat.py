@@ -28,12 +28,12 @@ argument_parser.add_argument(
         "containing OSbackup.RND and ORBITSSE.RND")
 )
 argument_parser.add_argument("--piloting", default=(
-    f"{common.DEFAULT_LEAD_SERVER_HOST}:{common.DEFAULT_LEAD_SERVER_PORT}"),
-    help="address:port of piloting client")
+    f"localhost"),
+    help="network address of piloting client")
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(*args.piloting.split(':'))
+    orbitx_connection = network.StateClient(args.piloting, common.DEFAULT_PORT)
     assert Path(args.engineering).exists
 
     osbackup = Path(args.engineering) / 'OSbackup.RND'

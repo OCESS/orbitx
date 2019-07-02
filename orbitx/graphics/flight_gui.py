@@ -8,7 +8,6 @@ Call FlightGui.pop_commands() to collect user input.
 
 import json
 import logging
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional

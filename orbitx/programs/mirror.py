@@ -28,7 +28,7 @@ def main(args: argparse.Namespace):
 
     log.info(f'Connecting to lead server {args.lead_server}.')
     lead_server_connection = network.StateClient(
-        args.lead_server, common.DEFAULT_LEAD_SERVER_PORT)
+        args.lead_server, common.DEFAULT_PORT)
     state = lead_server_connection.get_state()
     physics_engine = physics.PEngine(state)
 

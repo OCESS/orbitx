@@ -123,15 +123,11 @@ def main():
 
     try:
         if args.program is None:
-            # A program was specified, ask the user which program to run.
-            program = launcher.Launcher().get_user_selection()
+            # No CLI args were specified, get the needed information from the
+            # user using a graphical launcher interface.
+            args = parser.parse_args(launcher.Launcher().get_args())
 
-            # We got the user's choice, emulate the corresponding subparser
-            # being run.
-            args = parser.parse_args([program.argparser.prog])
-            program.main(args)
-        else:
-            args.main_loop(args)
+        args.main_loop(args)
     except KeyboardInterrupt:
         # We're expecting ctrl-C will end the program, hide the exception from
         # the user.

@@ -52,7 +52,7 @@ def main(args: argparse.Namespace):
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     atexit.register(lambda: server.stop(grace=2))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
-    server.add_insecure_port(f'[::]:{common.DEFAULT_LEAD_SERVER_PORT}')
+    server.add_insecure_port(f'[::]:{common.DEFAULT_PORT}')
     state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
 
