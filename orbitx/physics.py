@@ -112,9 +112,7 @@ class PEngine:
                 self._solutions_cond.notify_all()
             self._simthread.join()
 
-    def _restart_simulation(self, t0: float, y0: state.PhysicsState) -> None:
-        self._stop_simthread()
-
+    def _start_simthread(self, t0: float, y0: state.PhysicsState) -> None:
         if y0.time_acc == 0:
             # We've paused the simulation. Don't start a new simthread
             return
@@ -221,6 +219,8 @@ class PEngine:
         self.set_state(y0)
 
     def set_state(self, physical_state: state.PhysicsState):
+        self._stop_simthread()
+
         self._artificials = np.where(
             np.array([
                 entity.artificial
@@ -234,7 +234,7 @@ class PEngine:
         self.R = np.array([entity.r for entity in physical_state])
         self.M = np.array([entity.mass for entity in physical_state])
 
-        self._restart_simulation(physical_state.timestamp, physical_state)
+        self._start_simthread(physical_state.timestamp, physical_state)
 
     def _collision_decision(self, t, y, altitude_event):
         e1_index, e2_index = altitude_event(
@@ -388,7 +388,7 @@ class PEngine:
         try:
             self._run_simulation(t, y)
         except Exception as e:
-            log.exception('simthread got exception, forwarding to main thread')
+            log.error(f'simthread got exception {repr(e)}.')
             self._simthread_exception = e
             with self._solutions_cond:
                 self._solutions_cond.notify_all()

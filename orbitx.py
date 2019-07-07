@@ -11,7 +11,7 @@ import argparse
 import atexit
 import logging
 import os
-import signal
+import sys
 import time
 import warnings
 from pathlib import Path
@@ -139,7 +139,8 @@ def main():
                 def onClose(self, wasClean, code, reason):
                     old_kill = os.kill
                     os.kill = lambda pid, sig: \
-                        log.info('Intercepted an os.kill call on vpython shutdown.')
+                        log.info(
+                            'Intercepted an os.kill call on vpython shutdown.')
                     old_handler(self, wasClean, code, reason)
                     os.kill = old_kill
 
@@ -171,8 +172,7 @@ def main():
             else:
                 # We thought that generated protobuf definitions were out of
                 # date, but it doesn't actually look like that's the case.
-                # Raise the exception normally.
-                raise
+                sys.exit(1)
 
             log.warning('A likely fix for this fatal exception is to run the')
             log.warning('`build` target of orbitx/Makefile, or at least')
@@ -182,7 +182,9 @@ def main():
             log.warning(str(proto_file))
             log.warning('================================================')
 
-        raise
+        # We don't exit by allowing the exception to be uncaught, because then
+        # it would be printed again unneccessarily.
+        sys.exit(1)
 
 
 if __name__ == '__main__':

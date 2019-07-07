@@ -18,7 +18,7 @@ from orbitx import orbitv_file_interface
 log = logging.getLogger()
 
 
-description = """Communicates between a running OrbitV engineering program and
+description = """Communicate between a running OrbitV engineering program and
 a running OrbitX Lead Flight Server."""
 
 argument_parser = argparse.ArgumentParser('compat', description=description)
@@ -47,7 +47,6 @@ def main(args: argparse.Namespace):
 
     try:
         while True:
-            print('loop')
             update = \
                 orbitv_file_interface.read_update_from_orbitsse(orbitsse)
             state = orbitx_connection.get_state(update)
@@ -59,7 +58,7 @@ def main(args: argparse.Namespace):
 
 
 Compat = common.Program(
-    name='Compat',
+    name='Compatibility',
     description=description,
     main=main,
     argparser=argument_parser,
