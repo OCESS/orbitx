@@ -23,6 +23,7 @@ HABITAT = 'Habitat'
 AYSE = 'AYSE'
 SUN = 'Sun'
 EARTH = 'Earth'
+MODULE = 'Module'
 
 DEFAULT_PORT = 28430
 

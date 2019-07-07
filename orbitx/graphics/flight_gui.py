@@ -23,6 +23,7 @@ from orbitx.network import Request
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
 from orbitx.graphics.habitat import Habitat
+from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
 from orbitx.graphics.sidebar_widgets import Button, Checkbox, Menu, Text
@@ -48,7 +49,7 @@ class FlightGui:
         self._scene = self._init_canvas(running_as_mirror)
 
         self._show_label: bool = True
-        self._show_trails: bool = False
+        self._show_trails: bool = DEFAULT_TRAILS
         self._pause: bool = False
         self._origin: state.Entity
         self.texture_path: Path = Path('data', 'textures')
@@ -66,18 +67,8 @@ class FlightGui:
 
         self._set_origin(common.DEFAULT_CENTRE)
 
-        for planet in draw_state:
-            obj: ThreeDeeObj
-            if planet.name == common.HABITAT:
-                obj = Habitat(planet, self.origin(), self.texture_path)
-            elif planet.name == common.AYSE:
-                obj = SpaceStation(planet, self.origin(), self.texture_path)
-            elif planet.name == common.SUN:
-                obj = Star(planet, self.origin(), self.texture_path)
-            else:
-                obj = Planet(planet, self.origin(), self.texture_path)
-            self._3dobjs[planet.name] = obj
-            obj.make_trail(DEFAULT_TRAILS)
+        for entity in draw_state:
+            self._3dobjs[entity.name] = self._build_threedeeobj(entity)
 
         self._orbit_projection = OrbitProjection()
         self._3dobjs[draw_state.reference].draw_landing_graphic(
@@ -114,6 +105,21 @@ class FlightGui:
         # Show all planets in solar system
         _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
+
+    def _build_threedeeobj(self, entity: state.Entity) -> ThreeDeeObj:
+        obj: ThreeDeeObj
+        if entity.name == common.HABITAT:
+            obj = Habitat(entity, self.origin(), self.texture_path)
+        elif entity.name == common.AYSE:
+            obj = SpaceStation(entity, self.origin(), self.texture_path)
+        elif entity.name == common.SUN:
+            obj = Star(entity, self.origin(), self.texture_path)
+        elif entity.name == common.MODULE:
+            obj = ScienceModule(entity, self.origin(), self.texture_path)
+        else:
+            obj = Planet(entity, self.origin(), self.texture_path)
+        obj.make_trail(self._show_trails)
+        return obj
 
     def recentre_camera(self, planet_name: str) -> None:
         """Change camera to focus on different object
@@ -226,8 +232,20 @@ class FlightGui:
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
 
-        for planet in draw_state:
-            self._3dobjs[planet.name].draw(planet, draw_state, self.origin())
+        try:
+            for entity in draw_state:
+                self._3dobjs[entity.name].draw(
+                    entity, draw_state, self.origin())
+        except KeyError as e:
+            # If we find an entity that doesn't have an associated 3dobj, try
+            # once to make a corresponding 3dobj. Note, if we get another
+            # KeyError in this block, we won't catch the new KeyError.
+            missing_entity = draw_state[e.args[0]]
+            self._3dobjs[missing_entity.name] = \
+                self._build_threedeeobj(missing_entity)
+            for entity in draw_state:
+                self._3dobjs[entity.name].draw(
+                    entity, draw_state, self.origin())
 
         self._orbit_projection.update(draw_state, self.origin())
 
@@ -275,18 +293,39 @@ class FlightGui:
         for name, obj in self._3dobjs.items():
             obj.clear_trail()
 
-    def _recentre_dropdown_hook(self, centre_menu: vpython.menu) -> None:
+    def _recentre_dropdown_hook(self, centre_menu: vpython.menu):
+        if centre_menu.selected not in self._3dobjs:
+            # The requested entity doesn't exist yet.
+            centre_menu.selected = self._origin.name
+            return
+
         self._set_origin(centre_menu.selected)
         self.recentre_camera(centre_menu.selected)
 
-    def _time_acc_dropdown_hook(self, time_acc_menu: vpython.menu) -> None:
+    def _reference_dropdown_hook(self, reference_menu: vpython.menu):
+        if reference_menu.selected not in self._3dobjs:
+            # The requested entity doesn't exist yet.
+            reference_menu.selected = self._origin.name
+            return
+
+        self._set_reference(reference_menu.selected)
+
+    def _target_dropdown_hook(self, target_menu: vpython.menu):
+        if target_menu.selected not in self._3dobjs:
+            # The requested entity doesn't exist yet.
+            target_menu.selected = self._origin.name
+            return
+
+        self._set_target(target_menu.selected)
+
+    def _time_acc_dropdown_hook(self, time_acc_menu: vpython.menu):
         time_acc = int(
             time_acc_menu.selected.replace(',', '').replace('×', ''))
         self._commands.append(Request(
             ident=Request.TIME_ACC_SET,
             time_acc_set=time_acc))
 
-    def _trail_checkbox_hook(self, selection: vpython.menu) -> None:
+    def _trail_checkbox_hook(self, selection: vpython.menu):
         self._show_trails = selection.checked
         for name, obj in self._3dobjs.items():
             obj.make_trail(selection.checked)
@@ -567,8 +606,14 @@ class Sidebar:
     # end of _create_wtexts
 
     def _create_menus(self):
+        # We can't change the choices in each vpython menu after creation, but
+        # the Module (and in the future maybe other objects) can be created.
+        # Have them in the choices list at the beginning, and handle when they
+        # are selected without the corresponding entity existing yet.
+        entity_names = list(self._parent._3dobjs) + [common.MODULE]
+
         self.centre_menu = Menu(
-            choices=list(self._parent._3dobjs),
+            choices=entity_names,
             selected=common.DEFAULT_CENTRE,
             bind=self._parent._recentre_dropdown_hook,
             caption="Centre",
@@ -577,20 +622,17 @@ class Sidebar:
         self.centre_menu._menu.selected = common.DEFAULT_CENTRE
 
         self.reference_menu = Menu(
-            choices=list(self._parent._3dobjs),
+            choices=entity_names,
             selected=common.DEFAULT_REFERENCE,
-            bind=lambda selection:
-                self._parent._set_reference(selection.selected),
+            bind=self._parent._reference_dropdown_hook,
             caption="Reference",
-            helptext=(
-                "Take position, velocity relative to this")
+            helptext="Take position, velocity relative to this"
         )
 
         self.target_menu = Menu(
-            choices=list(self._parent._3dobjs),
+            choices=entity_names,
             selected=common.DEFAULT_TARGET,
-            bind=lambda selection:
-                self._parent._set_target(selection.selected),
+            bind=self._parent._target_dropdown_hook,
             caption="Target",
             helptext="Entity to land or dock with"
         )

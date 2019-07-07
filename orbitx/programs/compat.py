@@ -35,6 +35,7 @@ argument_parser.add_argument("--piloting", default=(
 
 def main(args: argparse.Namespace):
     orbitx_connection = network.StateClient(args.piloting, common.DEFAULT_PORT)
+    print(f'Connected to OrbitX lead server: {args.piloting}')
     assert Path(args.engineering).exists
 
     osbackup = Path(args.engineering) / 'OSbackup.RND'

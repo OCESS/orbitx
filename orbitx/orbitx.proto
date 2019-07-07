@@ -6,17 +6,23 @@
 // field. This is used for backwards compatibility purposes.
 syntax = "proto3";
 
+// These protobuf objects are good for serializing this data to other things,
+// like JSON or over the network. GRPC requires protobufs as well!
+// Google 'protobuf python generated code reference' for more examples of
+// protobuf APIs.
+// The main thing to keep in mind is that this file will _generate_ python code
+// used by other modules.
+// You usually don't have to care about this! Just use the wrappers for these
+// protobuf messages in state.py.
 
 // Keep state in sync with all clients
 // This is a GRPC protobuf definition, not just plain protobuf code.
+// Look in network.py to see how this is used.
 service StateServer {
-    // Sync physical entities
-    // There needs to be an input, but there currently isn't any reason to have
-    // an input. So for now, we just put something in here (ClientId).
     rpc get_physical_state (Command) returns (PhysicalState) {}
 }
 
-// Keep this in sync with the corresponding enum in state.py!
+// Keep this enum in sync with the corresponding enum in state.py!
 enum Navmode {
     MANUAL = 0;
     CCW_PROG = 1;
@@ -27,6 +33,10 @@ enum Navmode {
     RETR_VTRG = 6;
 }
 
+
+// This message is how we communicate between different parts of OrbitX. For
+// example, the GUI might send this to the physics engine in the same process,
+// or a different program on another computer might send this over the network.
 message Command {
     enum Idents {
         NOOP = 0;
@@ -42,10 +52,23 @@ message Command {
         NAVMODE_SET = 10;
     }
 
+    enum ModuleState {
+        // The state of the detachable module. This is changed by OrbitV ENG,
+        // but has to be represented in OrbitV and OrbitX flight.
+        // This enum has values of 10, 20, 30 unlike other enums because
+        // we don't want to confuse the numerical value of this enum with the
+        // numerical value that OrbitV assigns to these states; [0, 1, 2].
+        UNSET = 0;
+        NO_MODULE = 10;
+        DOCKED_MODULE = 20;
+        DETACHED_MODULE = 30;
+    }
+
     message EngineeringUpdate {
         double max_thrust = 1;
         double hab_fuel = 2;
         double ayse_fuel = 3;
+        ModuleState module_state = 4;
     }
 
     Idents ident = 1;
@@ -63,15 +86,7 @@ message Command {
     }
 }
 
-// To use this object in python code, you can do things like:
-// entity1 = Entity()
-// entity1.name = 'bob'
-// or,
-// entity2 = Entity(name='bob')
-// entity1 == entity2
-// This protobuf object is good for serializing this data to other things,
-// like JSON or over the network. GRPC requires protobufs as well!
-// Google 'protobuf python generated code reference' for more examples.
+// This is wrapped by state.py.
 message Entity {
     string name = 1;
     double x = 2;

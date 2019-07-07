@@ -190,6 +190,23 @@ class PEngine:
             ayse.fuel = request.engineering_update.ayse_fuel
             y0[common.HABITAT] = hab
             y0[common.AYSE] = ayse
+
+            if request.engineering_update.module_state == \
+                Request.DETACHED_MODULE and \
+                common.MODULE not in y0._entity_names and \
+                    not hab.landed():
+                # If the Habitat is freely floating and engineering asks us to
+                # detach the Module, spawn in the Module.
+                module = state.Entity(state.protos.Entity(
+                    name=common.MODULE, mass=100, r=10, artificial=True))
+                module.pos = hab.pos - (module.r + hab.r) * \
+                    np.array([np.cos(hab.heading), np.sin(hab.heading)])
+                module.v = calc.rotational_speed(module, hab)
+
+                y0_proto = y0.as_proto()
+                y0_proto.entities.extend([module.proto])
+                y0 = state.PhysicsState(None, y0_proto)
+
         elif request.ident == Request.UNDOCK:
             habitat = y0[common.HABITAT]
 

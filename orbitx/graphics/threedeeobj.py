@@ -48,6 +48,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
 
         texture = str(texture_path) if texture_path.is_file() else None
         self._obj = self._create_obj(entity, origin, texture)
+        assert self._obj is not None
+
         self._small_landing_graphic: Optional[vpython.compound] = None
         self._large_landing_graphic: Optional[vpython.compound] = None
         self._label = vpython.label(

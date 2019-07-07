@@ -84,6 +84,19 @@ def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     command.engineering_update.max_thrust = Zvar[1]
     command.engineering_update.hab_fuel = Zvar[2]
     command.engineering_update.ayse_fuel = Zvar[3]
+
+    mod_state = round(Zvar[6])
+    if mod_state == 0:
+        command.engineering_update.module_state = network.Request.NO_MODULE
+    elif mod_state == 1:
+        command.engineering_update.module_state = network.Request.DOCKED_MODULE
+    elif mod_state == 2:
+        command.engineering_update.module_state = \
+            network.Request.DETACHED_MODULE
+    else:
+        raise ValueError(
+            f'OrbitV engineering wrote an invalid module flag: {mod_state}')
+
     return command
 
 
