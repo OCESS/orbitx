@@ -218,8 +218,8 @@ class PEngine:
 
                 norm = habitat.pos - ayse.pos
                 unit_norm = norm / np.linalg.norm(norm)
-                habitat.v += unit_norm * 1  # Give a 1 m/s push
-                habitat.spin = ayse.spin
+                #habitat.v += unit_norm * 1  # Give a 1 m/s push
+                #habitat.spin = ayse.spin
 
                 y0[common.HABITAT] = habitat
 
@@ -241,6 +241,7 @@ class PEngine:
     def set_state(self, physical_state: state.PhysicsState):
         self._stop_simthread()
 
+        physical_state = _reconcile_entity_motions(physical_state)
         self._artificials = np.where(
             np.array([
                 entity.artificial
@@ -255,120 +256,6 @@ class PEngine:
         self.M = np.array([entity.mass for entity in physical_state])
 
         self._start_simthread(physical_state.timestamp, physical_state)
-
-    def _collision_decision(self, t, y, altitude_event):
-        e1_index, e2_index = altitude_event(
-            t, y.y0(), return_pair=True)
-        e1 = y[e1_index]
-        e2 = y[e2_index]
-
-        log.info(f'Collision {t - self._simtime(peek_time=True)} seconds in '
-                 f' the future, {e1} and {e2}')
-
-        # TODO: does this break three-body collisions? e.g. both Hab and AYSE
-        # or does it even get triggered at all?
-        if e2.landed_on or e1.landed_on:
-            log.info('Entities are landed, returning early')
-            return e1, e2
-
-        if e1.artificial:
-            if e2.artificial:
-                if e2.dockable:
-                    self._docking(e1, e2, e2_index)
-                elif e1.dockable:
-                    self._docking(e2, e1, e1_index)
-                else:
-                    self._bounce(e1, e2)
-            else:
-                self._land(e1, e2)
-        elif e2.artificial:
-            self._land(e2, e1)
-        else:
-            self._bounce(e1, e2)
-
-        y[e1_index] = e1
-        y[e2_index] = e2
-        return y
-
-    def _docking(self, e1, e2, e2_index):
-        # e1 is an artificial object
-        # if 2 artificial object to be docked on (spacespation)
-
-        norm = e1.pos - e2.pos
-        collision_angle = np.arctan2(norm[1], norm[0])
-        collision_angle = collision_angle % (2 * np.pi)
-
-        ANGLE_MIN = (e2.heading + 0.7 * np.pi) % (2 * np.pi)
-        ANGLE_MAX = (e2.heading + 1.3 * np.pi) % (2 * np.pi)
-
-        if collision_angle < ANGLE_MIN or collision_angle > ANGLE_MAX:
-            # add damage ?
-            self._bounce(e1, e2)
-            return
-
-        log.info(f'Docking {e1.name} on {e2.name}')
-        e1.landed_on = e2.name
-
-        # Currently does nothing
-        e1.broken = bool(
-            np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
-
-        # set right heading for future takeoff
-        e2_opposite = e2.heading + np.pi
-        e1.pos = e2.pos + (e1.r + e2.r) * \
-            np.array([np.cos(e2_opposite), np.sin(e2_opposite)])
-        e1.heading = (e2_opposite) % (2 * np.pi)
-        e1.throttle = 0
-        e1.spin = e2.spin
-        e1.v = e2.v
-
-    def _bounce(self, e1, e2):
-        # Resolve a collision by:
-        # 1. calculating positions and velocities of the two entities
-        # 2. do a 1D collision calculation along the normal between the two
-        # 3. recombine the velocity vectors
-        log.info(f'Bouncing {e1.name} and {e2.name}')
-        norm = e1.pos - e2.pos
-        unit_norm = norm / np.linalg.norm(norm)
-        # The unit tangent is perpendicular to the unit normal vector
-        unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
-
-        # Calculate both normal and tangent velocities for both entities
-        v1n = scipy.dot(unit_norm, e1.v)
-        v1t = scipy.dot(unit_tang, e1.v)
-        v2n = scipy.dot(unit_norm, e2.v)
-        v2t = scipy.dot(unit_tang, e2.v)
-
-        # Use https://en.wikipedia.org/wiki/Elastic_collision
-        # to find the new normal velocities (a 1D collision)
-        new_v1n = ((v1n * (e1.mass - e2.mass) + 2 * e2.mass * v2n) /
-                   (e1.mass + e2.mass))
-        new_v2n = ((v2n * (e2.mass - e1.mass) + 2 * e1.mass * v1n) /
-                   (e1.mass + e2.mass))
-
-        # Calculate new velocities
-        e1.v = new_v1n * unit_norm + v1t * unit_tang
-        e2.v = new_v2n * unit_norm + v2t * unit_tang
-
-    def _land(self, e1, e2):
-        # e1 is an artificial object
-        # if 2 artificial object collide (habitat, spacespation)
-        # or small astroid collision (need deletion), handle later
-
-        log.info(f'Landing {e1.name} on {e2.name}')
-        assert e2.artificial is False
-        e1.landed_on = e2.name
-
-        # Currently does nothing
-        e1.broken = bool(
-            np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
-
-        # set right heading for future takeoff
-        norm = e1.pos - e2.pos
-        e1.heading = np.arctan2(norm[1], norm[0])
-        e1.throttle = 0
-        e1.spin = e2.spin
-        e1.v = calc.rotational_speed(e1, e2)
 
     def get_state(self, requested_t=None) -> state.PhysicsState:
         """Return the latest physical state of the simulation."""
@@ -443,6 +330,7 @@ class PEngine:
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
+        # Engine thrust and fuel consumption
         for index in self._artificials:
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
@@ -465,35 +353,32 @@ class PEngine:
                 Ax[index] += eng_acc[0]
                 Ay[index] += eng_acc[1]
 
-        if y.navmode != state.Navmode['Manual']:
-            craft = y.craft_entity()
-            craft.spin = calc.navmode_spin(y)
-            y[y.craft] = craft
-
+        # Drag effects
         try:
             craft_index = y._name_to_index(y.craft)
             drag_acc = calc.drag(y)
             Ax[craft_index] -= drag_acc[0]
             Ay[craft_index] -= drag_acc[1]
         except state.PhysicsState.NoEntityError:
+            # The craft lookup failed, so there's no craft probably.
             pass
 
-        # Keep landed entities glued together
+        # Centripetal acceleration to keep landed entities glued to each other.
         landed_on = y.LandedOn
         for index in landed_on:
-            # If we're landed on something, make sure we move in lockstep.
             lander = y[index]
             ground = y[landed_on[index]]
 
-            lander.spin = ground.spin
-            lander.v = calc.rotational_speed(lander, ground)
-            y[index] = lander
-
-            # We also centripetal acceleration that comes
-            # from being landed on the surface of a spinning object.
             centripetal_acc = (lander.pos - ground.pos) * ground.spin ** 2
             Ax[index] = Ax[landed_on[index]] - centripetal_acc[0]
             Ay[index] = Ay[landed_on[index]] - centripetal_acc[1]
+
+        # Sets velocity and spin of a couple more entities.
+        # If you want to set the acceleration of an entity, do it above and
+        # keep that logic in _derive. If you want to set the velocity and spin
+        # or any other fields that an Entity has, you should put that logic in
+        # this _reconcile_entity_motions helper.
+        y = _reconcile_entity_motions(y)
 
         return np.concatenate((
             y.VX, y.VY, Ax, Ay, y.Spin,
@@ -569,7 +454,8 @@ class PEngine:
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
-                    y = self._collision_decision(t, y, altitude_event)
+                    y = _collision_decision(t, y, altitude_event)
+                    y = _reconcile_entity_motions(y)
                 if len(ivp_out.t_events[1]):
                     log.info(f'Got fuel empty at {t}')
 
@@ -688,3 +574,141 @@ class LiftoffEvent(Event):
         # This should be positive when the craft isn't thrusting enough, and
         # zero when it is thrusting enough.
         return max(0, common.LAUNCH_TWR - thrust / weight)
+
+
+
+def _reconcile_entity_motions(y: state.PhysicsState) -> state.PhysicsState:
+    """Idempotent helper that sets velocities and spins of some entities.
+    This is in its own function because it has a couple calling points."""
+    # Navmode auto-rotation
+    if y.navmode != state.Navmode['Manual']:
+        craft = y.craft_entity()
+        craft.spin = calc.navmode_spin(y)
+        y[y.craft] = craft
+
+    # Keep landed entities glued together
+    landed_on = y.LandedOn
+    for index in landed_on:
+        # If we're landed on something, make sure we move in lockstep.
+        lander = y[index]
+        ground = y[landed_on[index]]
+
+        lander.spin = ground.spin
+        lander.v = calc.rotational_speed(lander, ground)
+        y[index] = lander
+
+    return y
+
+
+def _collision_decision(t, y, altitude_event):
+    e1_index, e2_index = altitude_event(
+        t, y.y0(), return_pair=True)
+    e1 = y[e1_index]
+    e2 = y[e2_index]
+
+    log.info(f'Collision at t={t} betwixt {e1} and {e2}')
+
+    # TODO: does this break three-body collisions? e.g. both Hab and AYSE
+    # or does it even get triggered at all?
+    if e2.landed_on or e1.landed_on:
+        log.info('Entities are landed, returning early')
+        return e1, e2
+
+    if e1.artificial:
+        if e2.artificial:
+            if e2.dockable:
+                _docking(e1, e2, e2_index)
+            elif e1.dockable:
+                _docking(e2, e1, e1_index)
+            else:
+                _bounce(e1, e2)
+        else:
+            _land(e1, e2)
+    elif e2.artificial:
+        _land(e2, e1)
+    else:
+        _bounce(e1, e2)
+
+    y[e1_index] = e1
+    y[e2_index] = e2
+    return y
+
+def _docking(e1, e2, e2_index):
+    # e1 is an artificial object
+    # if 2 artificial object to be docked on (spacespation)
+
+    norm = e1.pos - e2.pos
+    collision_angle = np.arctan2(norm[1], norm[0])
+    collision_angle = collision_angle % (2 * np.pi)
+
+    ANGLE_MIN = (e2.heading + 0.7 * np.pi) % (2 * np.pi)
+    ANGLE_MAX = (e2.heading + 1.3 * np.pi) % (2 * np.pi)
+
+    if collision_angle < ANGLE_MIN or collision_angle > ANGLE_MAX:
+        # add damage ?
+        _bounce(e1, e2)
+        return
+
+    log.info(f'Docking {e1.name} on {e2.name}')
+    e1.landed_on = e2.name
+
+    # Currently does nothing
+    e1.broken = bool(
+        np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
+
+    # set right heading for future takeoff
+    e2_opposite = e2.heading + np.pi
+    e1.pos = e2.pos + (e1.r + e2.r) * \
+        np.array([np.cos(e2_opposite), np.sin(e2_opposite)])
+    e1.heading = (e2_opposite) % (2 * np.pi)
+    e1.throttle = 0
+    e1.spin = e2.spin
+    e1.v = e2.v
+
+def _bounce(e1, e2):
+    # Resolve a collision by:
+    # 1. calculating positions and velocities of the two entities
+    # 2. do a 1D collision calculation along the normal between the two
+    # 3. recombine the velocity vectors
+    log.info(f'Bouncing {e1.name} and {e2.name}')
+    norm = e1.pos - e2.pos
+    unit_norm = norm / np.linalg.norm(norm)
+    # The unit tangent is perpendicular to the unit normal vector
+    unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
+
+    # Calculate both normal and tangent velocities for both entities
+    v1n = scipy.dot(unit_norm, e1.v)
+    v1t = scipy.dot(unit_tang, e1.v)
+    v2n = scipy.dot(unit_norm, e2.v)
+    v2t = scipy.dot(unit_tang, e2.v)
+
+    # Use https://en.wikipedia.org/wiki/Elastic_collision
+    # to find the new normal velocities (a 1D collision)
+    new_v1n = ((v1n * (e1.mass - e2.mass) + 2 * e2.mass * v2n) /
+               (e1.mass + e2.mass))
+    new_v2n = ((v2n * (e2.mass - e1.mass) + 2 * e1.mass * v1n) /
+               (e1.mass + e2.mass))
+
+    # Calculate new velocities
+    e1.v = new_v1n * unit_norm + v1t * unit_tang
+    e2.v = new_v2n * unit_norm + v2t * unit_tang
+
+def _land(e1, e2):
+    # e1 is an artificial object
+    # if 2 artificial object collide (habitat, spacespation)
+    # or small astroid collision (need deletion), handle later
+
+    log.info(f'Landing {e1.name} on {e2.name}')
+    assert e2.artificial is False
+    e1.landed_on = e2.name
+
+    # Currently does nothing
+    e1.broken = bool(
+        np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
+
+    # set right heading for future takeoff
+    norm = e1.pos - e2.pos
+    e1.heading = np.arctan2(norm[1], norm[0])
+    e1.throttle = 0
+    e1.spin = e2.spin
+    e1.v = calc.rotational_speed(e1, e2)
