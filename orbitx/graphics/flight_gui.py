@@ -662,5 +662,6 @@ class Sidebar:
         for wtext in self._wtexts:
             wtext.update(draw_state)
 
-        self.undock_button._button.disabled = not (
-            draw_state[common.HABITAT].landed_on == common.AYSE)
+        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
+        # self.undock_button._button.disabled = not (
+            # draw_state[common.HABITAT].landed_on == common.AYSE)

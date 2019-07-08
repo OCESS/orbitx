@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 import warnings
-from typing import Optional, Tuple, Union
+from typing import NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import scipy.integrate
@@ -23,17 +23,18 @@ warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
 
-# Note on variable naming:
-# a lowercase single letter, like `x`, is likely a scalar
-# an uppercase single letter, like `X`, is likely a 1D row vector of scalars
-# `y` is either the y position, or a vector of the form [X, Y, DX, DY]. i.e. 2D
-# `y_1d` specifically is the 1D row vector flattened version of the above `y`
-#     2D y vector, which is required by `solve_ivp` inputs and outputs
 
-# Note on the np.array family of functions:
-# https://stackoverflow.com/a/52103839/1333978
-# Basically, it can sometimes be important in this module whether a call to
-# np.array() is copying something, or changing the dtype, etc.
+class Spacecraft(NamedTuple):
+    """Represents the capabilities of different craft."""
+    fuel_cons: float  # Fuel consumption in kg/s at 100% engines
+    thrust: float  # Thrust in N at 100% engines
+
+
+# These numbers taken from orbit5vm.bas.
+craft_capabilities = {
+    common.HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000),
+    common.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9)
+}
 
 
 class PEngine:
@@ -182,8 +183,9 @@ class PEngine:
         elif request.ident == Request.ENGINEERING_UPDATE:
             # Multiply this value by 100, because OrbitV considers engines at
             # 100% to be 100x the maximum thrust.
-            state.Habitat.engine.max_thrust = \
-                100 * request.engineering_update.max_thrust
+            craft_capabilities[common.HABITAT] = \
+                craft_capabilities[common.HABITAT]._replace(
+                    thrust=100 * request.engineering_update.max_thrust)
             hab = y0[common.HABITAT]
             ayse = y0[common.AYSE]
             hab.fuel = request.engineering_update.hab_fuel
@@ -217,6 +219,7 @@ class PEngine:
                 norm = habitat.pos - ayse.pos
                 unit_norm = norm / np.linalg.norm(norm)
                 habitat.v += unit_norm * 1  # Give a 1 m/s push
+                habitat.spin = ayse.spin
 
                 y0[common.HABITAT] = habitat
 
@@ -312,11 +315,11 @@ class PEngine:
 
         # set right heading for future takeoff
         e2_opposite = e2.heading + np.pi
-        e1.pos = [np.cos(e2_opposite) * e2.r + e2.pos[0],
-                  np.sin(e2_opposite) * e2.r + e2.pos[1]]
+        e1.pos = e2.pos + (e1.r + e2.r) * \
+            np.array([np.cos(e2_opposite), np.sin(e2_opposite)])
         e1.heading = (e2_opposite) % (2 * np.pi)
         e1.throttle = 0
-        e1.spin = 0
+        e1.spin = e2.spin
         e1.v = e2.v
 
     def _bounce(self, e1, e2):
@@ -444,15 +447,23 @@ class PEngine:
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
                 entity = y[index]
-                fuel_cons[index] = -state.Habitat.fuel_cons(
-                    throttle=entity.throttle)
-                hab_eng_acc_x, hab_eng_acc_y = (
-                    state.Habitat.thrust(
-                        throttle=entity.throttle, heading=entity.heading) /
-                    (entity.mass + entity.fuel)
-                )
-                Ax[index] += hab_eng_acc_x
-                Ay[index] += hab_eng_acc_y
+                capability = craft_capabilities[entity.name]
+
+                fuel_cons[index] = -abs(capability.fuel_cons * entity.throttle)
+                eng_thrust = capability.thrust * entity.throttle * np.array(
+                    [np.cos(entity.heading), np.sin(entity.heading)])
+                mass = entity.mass + entity.fuel
+
+                if entity.name == common.AYSE and \
+                        y[common.HABITAT].landed_on == common.AYSE:
+                    # It's bad that this is hardcoded, but it's also the only
+                    # place that this comes up so IMO it's not too bad.
+                    hab = y[common.HABITAT]
+                    mass += hab.mass + hab.fuel
+
+                eng_acc = eng_thrust / mass
+                Ax[index] += eng_acc[0]
+                Ay[index] += eng_acc[1]
 
         if y.navmode != state.Navmode['Manual']:
             craft = y.craft_entity()
@@ -669,8 +680,7 @@ class LiftoffEvent(Event):
             # by other mechanisms. Ignore this.
             return np.inf
 
-        thrust = np.linalg.norm(state.Habitat.thrust(
-            throttle=craft.throttle, heading=craft.heading))
+        thrust = craft_capabilities[craft.name].thrust * craft.throttle
         pos = craft.pos - planet.pos
         # This is the G(m1*m2)/r^2 formula
         weight = common.G * craft.mass * planet.mass / np.inner(pos, pos)
