@@ -186,3 +186,14 @@ class Program(NamedTuple):
     description: str
     argparser: argparse.ArgumentParser
     headless: bool
+
+
+def remove_vpython_css():
+    """Remove the inline per-element styling that vpython adds."""
+    vpython.canvas.get_selected().append_to_caption("""<script>
+        for (const element of document.querySelectorAll("div,button,input")) {
+            float_backup = element.style.float;
+            element.style = null;
+            element.style.float = float_backup;
+        }
+    </script>""")

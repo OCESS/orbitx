@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import vpython
 
-from orbitx.common import Program
+from orbitx import common
 from orbitx.graphics import sidebar_widgets
 from orbitx.programs.lead import Lead
 from orbitx.programs.mirror import Mirror
@@ -14,7 +14,7 @@ class Launcher:
     def __init__(self):
         # When the user clicks a button, this will be set.
         self._user_args: Optional[List[str]] = None
-        self._program: Optional[Program] = None
+        self._program: Optional[common.Program] = None
 
         canvas = vpython.canvas(width=1, height=1)
 
@@ -81,13 +81,11 @@ class Launcher:
                 text_fields.append(arg_field)
                 sidebar_widgets.last_div_id += 1
 
-        # Suppress vpython styling.
-        canvas.append_to_caption("""<script>
-            styled_elements = document.querySelectorAll("div,button,input");
-            for (const element of styled_elements) {
-                element.style = null
-            }
+        common.remove_vpython_css()
 
+        # Make clicking the per-program launch button also submit all the args
+        # that the user has entered.
+        canvas.append_to_caption("""<script>
             buttons = document.querySelectorAll("button");
             for (const element of buttons) {
                 element.addEventListener('mousedown', function(ev) {
@@ -117,7 +115,7 @@ class Launcher:
         vpython.sphere()
         vpython.canvas.get_selected().delete()
 
-    def _set_args(self, program: Program, arg_fields: List[vpython.winput]):
+    def _set_args(self, program: common.Program, arg_fields: List[vpython.winput]):
         user_args = [program.argparser.prog]
         for field in arg_fields:
             if field.arg.option_strings:
@@ -135,5 +133,6 @@ class Launcher:
 
         return self._user_args
 
-    def get_program(self) -> Program:
+    def get_program(self) -> common.Program:
+        assert self._program is not None
         return self._program

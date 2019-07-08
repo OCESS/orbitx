@@ -361,12 +361,11 @@ class FlightGui:
         self._commands.append(Request(ident=Request.UNDOCK))
 
     def _save_hook(self, textbox: vpython.winput):
-        save = common.savefile(textbox.text)
         try:
-            common.write_savefile(self._state, save)
+            common.write_savefile(self._state, common.savefile(textbox.text))
             textbox.text = 'File saved!'
         except OSError:
-            log.exception('Exception during file saving')
+            log.exception('Caught exception during file saving')
             textbox.text = 'Error writing file!'
 
     def _load_hook(self, textbox: vpython.winput):
@@ -374,7 +373,8 @@ class FlightGui:
             self._commands.append(Request(
                 ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
             textbox.text = 'File loaded!'
-        except (FileNotFoundError, OSError):
+        except OSError:
+            # TODO: these exceptions will never happen.
             log.exception('Exception during file loading')
             textbox.text = 'File not found!'
         except (google.protobuf.json_format.ParseError,
@@ -432,7 +432,7 @@ class Sidebar:
         # self._load_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         vpython.canvas.get_selected().append_to_caption(
-            "<span class='helptext'>Filename to save under data/saves/</span>")
+            "<span class='helptext'>Filename to save/load under data/saves/</span>")
         vpython.canvas.get_selected().append_to_caption("\n")
 
         Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
@@ -451,6 +451,8 @@ class Sidebar:
             )
         else:
             self.follow_lead_checkbox = None
+
+        common.remove_vpython_css()
 
         with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
             vpython.canvas.get_selected().append_to_caption(footer.read())
