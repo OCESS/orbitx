@@ -9,6 +9,7 @@ Call FlightGui.pop_commands() to collect user input.
 import json
 import logging
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -32,6 +33,12 @@ from orbitx.graphics.orbit_projection import OrbitProjection
 log = logging.getLogger()
 
 DEFAULT_TRAILS = False
+
+class MiscCommand(Enum):
+    UNSELECTED = 'Command'
+    UNDOCK = 'Undock'
+    IGNITE_SRBS = 'Ignite SRBs'
+    DEPLOY_PARACHUTE = 'Deploy Parachute'
 
 
 class FlightGui:
@@ -357,9 +364,6 @@ class FlightGui:
             # If we're unpausing, use the selected time acc value.
             self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
 
-    def _undock(self):
-        self._commands.append(Request(ident=Request.UNDOCK))
-
     def _save_hook(self, textbox: vpython.winput):
         try:
             common.write_savefile(self._state, common.savefile(textbox.text))
@@ -387,6 +391,10 @@ class FlightGui:
             ident=Request.NAVMODE_SET,
             navmode=state.Navmode[menu.selected].value))
 
+    def _misc_command_hook(self, menu: vpython.menu):
+        if menu.selected == MiscCommand.UNDOCK.value:
+            self._commands.append(Request(ident=Request.UNDOCK))
+
     def lead_server_communication_requested(self) -> bool:
         # This should only be called when this FlightGui is the frontend of a
         # mirror server. This will probably throw an AttributeError otherwise.
@@ -404,11 +412,9 @@ class Sidebar:
 
         self._create_wtexts()
 
-        self._create_menus()
-
-        self.undock_button = Button(
-            self._parent._undock, "Undock", "Undock from AYSE")
-
+        Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
+                 False, "Pause",
+                 "Pause simulation. Can only save/load when paused.")
         self.trails_checkbox = Checkbox(
             self._parent._trail_checkbox_hook,
             DEFAULT_TRAILS, 'Trails',
@@ -418,8 +424,9 @@ class Sidebar:
             False, 'Orbit',
             "Simple projection of hab around reference. "
             "Hyperbola not accurate sorry :(")
-
         vpython.canvas.get_selected().append_to_caption("<br/>")
+
+        self._create_menus()
 
         # If you change the order of these, note that the placeholder text
         # is set in footer.html
@@ -434,10 +441,6 @@ class Sidebar:
         vpython.canvas.get_selected().append_to_caption(
             "<span class='helptext'>Filename to save/load under data/saves/</span>")
         vpython.canvas.get_selected().append_to_caption("\n")
-
-        Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
-                 False, "Pause",
-                 "Pause simulation. Can only save/load when paused.")
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
         self.follow_lead_checkbox: Optional[Checkbox]
@@ -460,11 +463,11 @@ class Sidebar:
     def _disable_inputs(self, disabled: bool):
         """Enable or disable all inputs, except for networking checkbox."""
         # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
-        for input_form in [
-            self.centre_menu, self.reference_menu, self.target_menu,
-                self.navmode_menu, self.time_acc_menu, self.undock_button]:
-            # input_form.disabled = disabled
-            pass
+        # for input_form in [
+        #     self.centre_menu, self.reference_menu, self.target_menu,
+        #         self.navmode_menu, self.time_acc_menu, self.undock_button]:
+        #     # input_form.disabled = disabled
+        #     pass
 
     def _create_wtexts(self):
         vpython.canvas.get_selected().caption += "<table>\n"
@@ -654,6 +657,14 @@ class Sidebar:
             bind=self._parent._time_acc_dropdown_hook,
             caption="Warp",
             helptext="Speed of simulation"
+        )
+
+        self._misc_menu = Menu(
+            choices=[command.value for command in MiscCommand],
+            selected=MiscCommand.UNSELECTED.value,
+            bind=self._parent._misc_command_hook,
+            caption="Command",
+            helptext="Select elements in this menu to issue other commands"
         )
     # end of _create_menus
 
