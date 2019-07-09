@@ -18,6 +18,7 @@ from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 
 SOLUTION_CACHE_SIZE = 10
+UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
@@ -155,9 +156,16 @@ class PEngine:
             # 100,000x time acc, and the program seems frozen for the user and
             # they try lowering time acc. We should immediately be able to
             # restart simulation at a lower time acc without any waiting.
-            requested_t = min(self._solutions[-1].t_max, requested_t)
+            if len(self._solutions) == 0:
+                # We haven't even simulated any solutions yet.
+                requested_t = self._last_physical_state.timestamp
+            else:
+                requested_t = min(self._solutions[-1].t_max, requested_t)
 
-        y0 = self.get_state(requested_t)
+        if len(self._solutions) == 0:
+            y0 = state.PhysicsState(None, self._last_physical_state)
+        else:
+            y0 = self.get_state(requested_t)
 
         if request.ident == Request.HAB_SPIN_CHANGE:
             if y0.navmode != state.Navmode['Manual']:
@@ -218,8 +226,8 @@ class PEngine:
 
                 norm = habitat.pos - ayse.pos
                 unit_norm = norm / np.linalg.norm(norm)
-                #habitat.v += unit_norm * 1  # Give a 1 m/s push
-                #habitat.spin = ayse.spin
+                habitat.v += unit_norm * UNDOCK_PUSH
+                habitat.spin = ayse.spin
 
                 y0[common.HABITAT] = habitat
 
@@ -266,7 +274,9 @@ class PEngine:
         with self._solutions_cond:
             self._last_simtime = requested_t
             self._solutions_cond.wait_for(
+                # Wait until we're paused, there's a solution, or an exception.
                 lambda:
+                self._last_physical_state.time_acc == 0 or
                 (len(self._solutions) != 0 and
                  self._solutions[-1].t_max >= requested_t) or
                 self._simthread_exception is not None
@@ -276,20 +286,29 @@ class PEngine:
             if self._simthread_exception is not None:
                 raise self._simthread_exception
 
-            # We can't integrate backwards, so if integration has gone
-            # beyond what we need, fail early.
-            assert requested_t >= self._solutions[0].t_min
+            if self._last_physical_state.time_acc == 0:
+                # We're paused, so there are no solutions being generated.
+                # Exit this 'with' block and release our _solutions_cond lock.
+                pass
+            else:
+                # We can't integrate backwards, so if integration has gone
+                # beyond what we need, fail early.
+                assert requested_t >= self._solutions[0].t_min
 
-            for soln in self._solutions:
-                if soln.t_min <= requested_t and requested_t <= soln.t_max:
-                    solution = soln
+                for soln in self._solutions:
+                    if soln.t_min <= requested_t and requested_t <= soln.t_max:
+                        solution = soln
 
-        newest_state = state.PhysicsState(
-            solution(requested_t), self._last_physical_state
-        )
-        newest_state.timestamp = requested_t
-
-        return newest_state
+        if self._last_physical_state.time_acc == 0:
+            # We're paused, so return the only state we have.
+            return state.PhysicsState(None, self._last_physical_state)
+        else:
+            # We have a solution, return it.
+            newest_state = state.PhysicsState(
+                solution(requested_t), self._last_physical_state
+            )
+            newest_state.timestamp = requested_t
+            return newest_state
 
     def _simthread_target(self, t, y):
         try:
@@ -576,7 +595,6 @@ class LiftoffEvent(Event):
         return max(0, common.LAUNCH_TWR - thrust / weight)
 
 
-
 def _reconcile_entity_motions(y: state.PhysicsState) -> state.PhysicsState:
     """Idempotent helper that sets velocities and spins of some entities.
     This is in its own function because it has a couple calling points."""
@@ -633,6 +651,7 @@ def _collision_decision(t, y, altitude_event):
     y[e2_index] = e2
     return y
 
+
 def _docking(e1, e2, e2_index):
     # e1 is an artificial object
     # if 2 artificial object to be docked on (spacespation)
@@ -665,6 +684,7 @@ def _docking(e1, e2, e2_index):
     e1.spin = e2.spin
     e1.v = e2.v
 
+
 def _bounce(e1, e2):
     # Resolve a collision by:
     # 1. calculating positions and velocities of the two entities
@@ -692,6 +712,7 @@ def _bounce(e1, e2):
     # Calculate new velocities
     e1.v = new_v1n * unit_norm + v1t * unit_tang
     e2.v = new_v2n * unit_norm + v2t * unit_tang
+
 
 def _land(e1, e2):
     # e1 is an artificial object

@@ -20,7 +20,7 @@
         <td>Rotate View</td>
     </tr>
     <tr>
-        <td>W/S</td>
+        <td>w/s</td>
         <td>Throttle Up/Down (press shift for fine control)</td>
     </tr>
     <tr>
@@ -32,22 +32,17 @@
         <td>Set engines to 0%</td>
     </tr>
     <tr>
-        <td>A/D</td>
+        <td>a/d</td>
         <td>Rotate Habitat</td>
     </tr>
     <tr>
-        <td>L</td>
+        <td>l</td>
         <td>Toggle labels</td>
     </tr>
     <tr>
         <td>. or ,</td>
         <td>Increase or decrease time acceleration</td>
     </tr>
-    <!-- re-enable this when we've fixed pausing
-    <tr>
-        <td>P</td>
-        <td>Pause simulation</td>
-    </tr>-->
 </table>
 
 <script>
@@ -133,9 +128,11 @@ input[type=checkbox] {
 input[type=text] {
     height: unset !important;
 }
-button {
-    width: 100px;
+span {
+    /* vpython changes this colour when disabling/enabling. Don't let it. */
+    color: white !important;
 }
+
 .helptext {
     font-size: 80%;
     font-stretch: narrow;
@@ -153,11 +150,12 @@ text_inputs[0].placeholder = 'Pause sim to';
 text_inputs[1].placeholder = 'save and load';
 
 document.querySelector(
-    '#pause_checkbox_anchor + input[type="checkbox"]').addEventListener('click',
+    '#pause_anchor + select').addEventListener('change',
         function (ev) {
-            // When the pause checkbox is clicked, remove the explanatory
-            // placeholder text.
-            text_inputs[0].placeholder = 'Save...';
-            text_inputs[1].placeholder = 'Load...';
+            // When paused, remove the explanatory placeholder text.
+            if (ev.target.value == 'Pause') {
+                text_inputs[0].placeholder = 'Save...';
+                text_inputs[1].placeholder = 'Load...';
+            }
 });
 </script>

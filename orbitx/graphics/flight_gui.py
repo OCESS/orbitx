@@ -6,14 +6,12 @@ Call FlightGui.draw() in the main loop to update positions in the GUI.
 Call FlightGui.pop_commands() to collect user input.
 """
 
-import json
 import logging
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import google
 import numpy as np
 import vpython
 
@@ -27,18 +25,27 @@ from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
-from orbitx.graphics.sidebar_widgets import Button, Checkbox, Menu, Text
+from orbitx.graphics.sidebar_widgets import Checkbox, Menu, Text
 from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
 
 DEFAULT_TRAILS = False
 
+
 class MiscCommand(Enum):
     UNSELECTED = 'Command'
     UNDOCK = 'Undock'
     IGNITE_SRBS = 'Ignite SRBs'
     DEPLOY_PARACHUTE = 'Deploy Parachute'
+
+
+# If you change the 'Pause' element of this dict, change the corresponding
+# JS code in footer.html also.
+TIME_ACC_TO_STR = {
+    0: 'Pause', 1: '1×', 5: '5×', 10: '10×', 50: '50×',
+    100: '100×', 1_000: '1,000×', 10_000: '10,000×', 100_000: '100,000×'}
+STR_TO_TIME_ACC = {v: k for k, v in TIME_ACC_TO_STR.items()}
 
 
 class FlightGui:
@@ -57,11 +64,11 @@ class FlightGui:
 
         self._show_label: bool = True
         self._show_trails: bool = DEFAULT_TRAILS
-        self._pause: bool = False
+        self._paused: bool = False
         self._origin: state.Entity
         self.texture_path: Path = Path('data', 'textures')
         self._commands: List[Request] = []
-        self._pause_label = vpython.label(
+        self._paused_label = vpython.label(
             text="Simulation paused; saving and loading enabled.\n"
                  "When finished, unpause by clicking the 'Pause' checkbox.",
             xoffset=0, yoffset=200, line=False, height=25, border=20,
@@ -166,7 +173,7 @@ class FlightGui:
 
     def _handle_keydown(self, evt: vpython.event_return) -> None:
         """Called in a non-main thread by vpython when it gets key input."""
-        if self._pause:
+        if self._paused:
             # The user could be entering in things in the text fields, so just
             # wait until they're not paused.
             return
@@ -179,8 +186,6 @@ class FlightGui:
             self._show_label = not self._show_label
             for name, obj in self._3dobjs.items():
                 obj._show_hide_label()
-        elif k == 'p':
-            self.set_pause(True)
         elif k == 'a':
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
@@ -227,14 +232,6 @@ class FlightGui:
 
     def draw(self, draw_state: state.PhysicsState) -> None:
         self._state = draw_state
-
-        new_acc_str = f'{int(draw_state.time_acc):,}×'
-        if draw_state.time_acc == 0:
-            pass
-        elif new_acc_str not in self._sidebar.time_acc_menu._menu._choices:
-            raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
-        else:
-            self._sidebar.time_acc_menu._menu.selected = new_acc_str
 
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
@@ -326,13 +323,19 @@ class FlightGui:
         self._set_target(target_menu.selected)
 
     def _time_acc_dropdown_hook(self, time_acc_menu: vpython.menu):
-        time_acc = int(
-            time_acc_menu.selected.replace(',', '').replace('×', ''))
+        time_acc = STR_TO_TIME_ACC[time_acc_menu.selected]
         self._commands.append(Request(
             ident=Request.TIME_ACC_SET,
             time_acc_set=time_acc))
 
-    def _trail_checkbox_hook(self, selection: vpython.menu):
+        if self._paused and time_acc != 0:
+            # We are unpausing.
+            self.pause(False)
+        if not self._paused and time_acc == 0:
+            # We are pausing.
+            self.pause(True)
+
+    def trail_checkbox_hook(self, selection: vpython.menu):
         self._show_trails = selection.checked
         for name, obj in self._3dobjs.items():
             obj.make_trail(selection.checked)
@@ -349,18 +352,14 @@ class FlightGui:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
 
-    def set_pause(self, pause: bool):
-        """Toggles whether the FlightGui considers itself paused."""
-        self._pause = pause
-        self._pause_label.visible = self._pause
-        self._sidebar._save_box.disabled = not self._pause
-        self._sidebar._load_box.disabled = not self._pause
-        if self._pause:
-            self._commands.append(Request(
-                ident=Request.TIME_ACC_SET, time_acc_set=0))
-        else:
-            # If we're unpausing, use the selected time acc value.
-            self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
+    def pause(self, pause: bool):
+        """Sets whether the FlightGui considers itself paused.
+        This doesn't effect physics simulation at all."""
+        self._paused = pause
+        self._paused_label.visible = self._paused
+        self._sidebar._disable_inputs(pause)
+        self._sidebar._save_box.disabled = not self._paused
+        self._sidebar._load_box.disabled = not self._paused
 
     def _save_hook(self, textbox: vpython.winput):
         try:
@@ -371,18 +370,16 @@ class FlightGui:
             textbox.text = 'Error writing file!'
 
     def _load_hook(self, textbox: vpython.winput):
-        try:
+        full_path = common.savefile(textbox.text)
+        if full_path.is_file():
             self._commands.append(Request(
                 ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))
             textbox.text = 'File loaded!'
-        except OSError:
-            # TODO: these exceptions will never happen.
-            log.exception('Exception during file loading')
+            # The file we loaded will have a non-zero time acc, unpause.
+            self.pause(False)
+        else:
+            log.warning(f'Ignored non-existent loadfile: {full_path}')
             textbox.text = 'File not found!'
-        except (google.protobuf.json_format.ParseError,
-                json.decoder.JSONDecodeError):
-            log.exception('Exception parsing loadfile')
-            textbox.text = 'File undreadable!'
 
     def _navmode_hook(self, menu: vpython.menu):
         self._commands.append(Request(
@@ -410,14 +407,8 @@ class Sidebar:
 
         self._create_wtexts()
 
-        # This div is referenced in footer.html to locate the pause checkbox.
-        vpython.canvas.get_selected().append_to_caption(
-            '<div id="pause_checkbox_anchor"></div>')
-        Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
-                 False, "Pause",
-                 "Pause simulation. Can only save/load when paused.")
         self.trails_checkbox = Checkbox(
-            self._parent._trail_checkbox_hook,
+            self._parent.trail_checkbox_hook,
             DEFAULT_TRAILS, 'Trails',
             "Graphically intensive")
         self.orbits_checkbox = Checkbox(
@@ -440,7 +431,8 @@ class Sidebar:
         self._load_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         vpython.canvas.get_selected().append_to_caption(
-            "<span class='helptext'>Filename to save/load under data/saves/</span>")
+            "<span class='helptext'>"
+            "Filename to save/load under data/saves/</span>")
         vpython.canvas.get_selected().append_to_caption("\n")
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
@@ -463,10 +455,12 @@ class Sidebar:
 
     def _disable_inputs(self, disabled: bool):
         """Enable or disable all inputs, except for networking checkbox."""
-        for input_form in [
+        for menu in [
             self.centre_menu, self.reference_menu, self.target_menu,
-                self.navmode_menu, self.time_acc_menu, self.misc_menu]:
-            input_form.disabled = disabled
+                self.navmode_menu, self.misc_menu]:
+            menu._menu.disabled = disabled
+        for checkbox in [self.trails_checkbox, self.orbits_checkbox]:
+            checkbox._checkbox.disabled = disabled
 
     def _create_wtexts(self):
         vpython.canvas.get_selected().caption += "<table>\n"
@@ -649,10 +643,12 @@ class Sidebar:
             helptext="Automatically points habitat"
         )
 
+        # This div is referenced in footer.html to locate the pause menu.
+        vpython.canvas.get_selected().append_to_caption(
+            '<div id="pause_anchor"></div>')
         self.time_acc_menu = Menu(
-            choices=[f'{n:,}×' for n in
-                     [1, 5, 10, 50, 100, 1_000, 10_000, 100_000]],
-            selected='1×',
+            choices=list(TIME_ACC_TO_STR.values()),
+            selected=TIME_ACC_TO_STR[1],
             bind=self._parent._time_acc_dropdown_hook,
             caption="Warp",
             helptext="Speed of simulation"
@@ -671,5 +667,20 @@ class Sidebar:
         self.reference_menu._menu.selected = draw_state.reference
         self.target_menu._menu.selected = draw_state.target
         self.navmode_menu._menu.selected = draw_state.navmode.name
+
+        time_acc = int(draw_state.time_acc)
+        new_acc_str = TIME_ACC_TO_STR[time_acc]
+        if new_acc_str not in self.time_acc_menu._menu._choices:
+            raise ValueError(f'"{new_acc_str}" not a valid time acceleration')
+        else:
+            self.time_acc_menu._menu.selected = new_acc_str
+
+        if self._parent._paused and time_acc != 0:
+            # We are unpausing.
+            self._parent.pause(False)
+        if not self._parent._paused and time_acc == 0:
+            # We are pausing.
+            self._parent.pause(True)
+
         for wtext in self._wtexts:
             wtext.update(draw_state)

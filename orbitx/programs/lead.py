@@ -59,13 +59,13 @@ def main(args: argparse.Namespace):
     state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
 
-    gui = flight_gui.FlightGui(initial_state, running_as_mirror=False)
-    atexit.register(gui.shutdown)
-
-    if args.profile:
-        common.start_profiling()
-
     try:
+        gui = flight_gui.FlightGui(initial_state, running_as_mirror=False)
+        atexit.register(gui.shutdown)
+
+        if args.profile:
+            common.start_profiling()
+
         while True:
             user_commands: List[network.Request] = []
             state = physics_engine.get_state()
