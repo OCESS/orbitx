@@ -353,10 +353,8 @@ class FlightGui:
         """Toggles whether the FlightGui considers itself paused."""
         self._pause = pause
         self._pause_label.visible = self._pause
-        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
-        # is resolved before re-enabling the next two lines.
-        # self._sidebar._save_box.disabled = not self._pause
-        # self._sidebar._load_box.disabled = not self._pause
+        self._sidebar._save_box.disabled = not self._pause
+        self._sidebar._load_box.disabled = not self._pause
         if self._pause:
             self._commands.append(Request(
                 ident=Request.TIME_ACC_SET, time_acc_set=0))
@@ -412,6 +410,9 @@ class Sidebar:
 
         self._create_wtexts()
 
+        # This div is referenced in footer.html to locate the pause checkbox.
+        vpython.canvas.get_selected().append_to_caption(
+            '<div id="pause_checkbox_anchor"></div>')
         Checkbox(lambda checkbox: self._parent.set_pause(checkbox.checked),
                  False, "Pause",
                  "Pause simulation. Can only save/load when paused.")
@@ -432,11 +433,11 @@ class Sidebar:
         # is set in footer.html
         self._save_box = vpython.winput(
             bind=self._parent._save_hook, type='string')
-        # self._save_box.disabled = True
+        self._save_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         self._load_box = vpython.winput(
             bind=self._parent._load_hook, type='string')
-        # self._load_box.disabled = True
+        self._load_box.disabled = True
         vpython.canvas.get_selected().append_to_caption("\n")
         vpython.canvas.get_selected().append_to_caption(
             "<span class='helptext'>Filename to save/load under data/saves/</span>")
@@ -462,12 +463,10 @@ class Sidebar:
 
     def _disable_inputs(self, disabled: bool):
         """Enable or disable all inputs, except for networking checkbox."""
-        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
-        # for input_form in [
-        #     self.centre_menu, self.reference_menu, self.target_menu,
-        #         self.navmode_menu, self.time_acc_menu, self.undock_button]:
-        #     # input_form.disabled = disabled
-        #     pass
+        for input_form in [
+            self.centre_menu, self.reference_menu, self.target_menu,
+                self.navmode_menu, self.time_acc_menu, self.misc_menu]:
+            input_form.disabled = disabled
 
     def _create_wtexts(self):
         vpython.canvas.get_selected().caption += "<table>\n"
@@ -659,7 +658,7 @@ class Sidebar:
             helptext="Speed of simulation"
         )
 
-        self._misc_menu = Menu(
+        self.misc_menu = Menu(
             choices=[command.value for command in MiscCommand],
             selected=MiscCommand.UNSELECTED.value,
             bind=self._parent._misc_command_hook,
@@ -674,7 +673,3 @@ class Sidebar:
         self.navmode_menu._menu.selected = draw_state.navmode.name
         for wtext in self._wtexts:
             wtext.update(draw_state)
-
-        # TODO: wait until https://github.com/vpython/vpython-jupyter/issues/2
-        # self.undock_button._button.disabled = not (
-            # draw_state[common.HABITAT].landed_on == common.AYSE)
