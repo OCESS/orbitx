@@ -38,6 +38,7 @@ class Habitat(ThreeDeeObj):
                     texture: Optional[str]
                     ) -> vpython.compound:
         """Creates the habitat, and also a new minimap scene and habitat."""
+        self._srb_time = -1
         habitat = self._create_hab(entity)
         habitat.pos = entity.screen_pos(origin)
 
@@ -62,11 +63,14 @@ class Habitat(ThreeDeeObj):
             f'{entity.name}\n'
             f'Fuel: {common.format_num(entity.fuel, " kg")}' +
             ('\nDocked' if entity.landed_on == common.AYSE else
-             '\nLanded' if entity.landed() else '')
+             '\nLanded' if entity.landed() else '') +
+            (f'\nSRB time: {self._srb_time}' if self._srb_time > 0 else '')
         )
 
     def draw(self, entity: state.Entity,
              state: state.PhysicsState, origin: state.Entity):
+        # Hacky sorry
+        self._srb_time = state.srb_time
         self._update_obj(entity, state, origin)
         same = state.reference == entity.name
         default = vpython.vector(0, 0, -1)

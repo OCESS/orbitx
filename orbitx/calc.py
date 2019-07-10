@@ -94,11 +94,20 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     return tangent_v * np.sign(angle_diff)
 
 
-def engine_acceleration(habitat: state.Entity) -> float:
+def heading_vector(heading: float) -> np.ndarray:
+    return np.array([np.cos(heading), np.sin(heading)])
+
+
+def engine_acceleration(state: state.PhysicsState) -> float:
     """Acceleration due to engine thrust."""
-    return np.linalg.norm(state.Habitat.thrust(
-        throttle=habitat.throttle, heading=habitat.heading) /
-        (habitat.mass + habitat.fuel))
+    craft = state.craft_entity()
+    if craft.name == common.HABITAT and state.srb_time > 0:
+        srb_thrust = common.SRB_THRUST
+    else:
+        srb_thrust = 0
+
+    return (common.craft_capabilities[craft.name].thrust * craft.throttle +
+            srb_thrust) / (craft.mass + craft.fuel)
 
 
 def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
@@ -192,7 +201,7 @@ def pitch(A: state.Entity, B: state.Entity) -> float:
 
 def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
     if B.mass > A.mass:
-        # Ensure A has the larger mass
+        # Ensure A has the larger mass.
         return orbit_parameters(B, A)
     # eccentricity is a vector pointing along the major axis of the ellipse of
     # the orbit. i.e. From the orbited-body's centre towards the apoapsis.
@@ -456,5 +465,8 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
         np.exp(closest_exponential)
     )
 
-    drag_acc = pressure * np.linalg.norm(wind)**2 * common.DRAG_PROFILE
+    drag_profile = common.HAB_DRAG_PROFILE
+    if flight_state.parachute_deployed:
+        drag_profile += common.PARACHUTE_DRAG_PROFILE
+    drag_acc = pressure * np.linalg.norm(wind)**2 * drag_profile
     return drag_acc * (wind / np.linalg.norm(wind))

@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 import warnings
-from typing import NamedTuple, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import scipy.integrate
@@ -18,24 +18,10 @@ from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 
 SOLUTION_CACHE_SIZE = 10
-UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
-
-
-class Spacecraft(NamedTuple):
-    """Represents the capabilities of different craft."""
-    fuel_cons: float  # Fuel consumption in kg/s at 100% engines
-    thrust: float  # Thrust in N at 100% engines
-
-
-# These numbers taken from orbit5vm.bas.
-craft_capabilities = {
-    common.HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000),
-    common.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9)
-}
 
 
 class PEngine:
@@ -173,9 +159,7 @@ class PEngine:
                 return
             craft = y0[y0.craft]
             if not craft.landed():
-                # TODO: on the next line, not every craft is a hab.
-                craft.spin += state.Habitat.spin_change(
-                    requested_spin_change=request.spin_change)
+                craft.spin += request.spin_change
                 y0[y0.craft] = craft
         elif request.ident == Request.HAB_THROTTLE_CHANGE:
             craft = y0[y0.craft]
@@ -191,8 +175,8 @@ class PEngine:
         elif request.ident == Request.ENGINEERING_UPDATE:
             # Multiply this value by 100, because OrbitV considers engines at
             # 100% to be 100x the maximum thrust.
-            craft_capabilities[common.HABITAT] = \
-                craft_capabilities[common.HABITAT]._replace(
+            common.craft_capabilities[common.HABITAT] = \
+                common.craft_capabilities[common.HABITAT]._replace(
                     thrust=100 * request.engineering_update.max_thrust)
             hab = y0[common.HABITAT]
             ayse = y0[common.AYSE]
@@ -210,7 +194,7 @@ class PEngine:
                 module = state.Entity(state.protos.Entity(
                     name=common.MODULE, mass=100, r=10, artificial=True))
                 module.pos = hab.pos - (module.r + hab.r) * \
-                    np.array([np.cos(hab.heading), np.sin(hab.heading)])
+                    calc.heading_vector(hab.heading)
                 module.v = calc.rotational_speed(module, hab)
 
                 y0_proto = y0.as_proto()
@@ -226,7 +210,7 @@ class PEngine:
 
                 norm = habitat.pos - ayse.pos
                 unit_norm = norm / np.linalg.norm(norm)
-                habitat.v += unit_norm * UNDOCK_PUSH
+                habitat.v += unit_norm * common.UNDOCK_PUSH
                 habitat.spin = ayse.spin
 
                 y0[common.HABITAT] = habitat
@@ -243,6 +227,11 @@ class PEngine:
                 craft = y0[y0.craft]
                 craft.spin = 0
                 y0[y0.craft] = craft
+        elif request.ident == Request.PARACHUTE:
+            y0.parachute_deployed = request.deploy_parachute
+        elif request.ident == Request.IGNITE_SRBS:
+            if round(y0.srb_time) == common.SRB_FULL:
+                y0.srb_time = common.SRB_BURNTIME
 
         self.set_state(y0)
 
@@ -323,9 +312,10 @@ class PEngine:
                 pass_through_state: PhysicalState) -> np.ndarray:
         """
         y_1d =
-         [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken]
+         [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
+         SRB_time_left (this is just a single element, not an n-array)
         returns the derivative of y_1d, i.e.
-        [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0]
+        [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant
         (zeroed-out fields are changed elsewhere)
 
         !!!!!!!!!!! IMPORTANT !!!!!!!!!!!
@@ -354,11 +344,11 @@ class PEngine:
             if y[index].fuel > 0:
                 # We have fuel remaining, calculate thrust
                 entity = y[index]
-                capability = craft_capabilities[entity.name]
+                capability = common.craft_capabilities[entity.name]
 
                 fuel_cons[index] = -abs(capability.fuel_cons * entity.throttle)
-                eng_thrust = capability.thrust * entity.throttle * np.array(
-                    [np.cos(entity.heading), np.sin(entity.heading)])
+                eng_thrust = capability.thrust * entity.throttle * \
+                    calc.heading_vector(entity.heading)
                 mass = entity.mass + entity.fuel
 
                 if entity.name == common.AYSE and \
@@ -371,6 +361,21 @@ class PEngine:
                 eng_acc = eng_thrust / mass
                 Ax[index] += eng_acc[0]
                 Ay[index] += eng_acc[1]
+
+        # And SRB thrust
+        srb_usage = 0
+        try:
+            if y.srb_time >= 0:
+                hab_index = y._name_to_index(common.HABITAT)
+                hab = y[hab_index]
+                srb_acc = common.SRB_THRUST / (hab.mass + hab.fuel)
+                srb_acc_vector = srb_acc * calc.heading_vector(hab.heading)
+                Ax[hab_index] += srb_acc_vector[0]
+                Ay[hab_index] += srb_acc_vector[1]
+                srb_usage = -1
+        except state.PhysicsState.NoEntityError:
+            # The Habitat doesn't exist.
+            pass
 
         # Drag effects
         try:
@@ -401,7 +406,7 @@ class PEngine:
 
         return np.concatenate((
             y.VX, y.VY, Ax, Ay, y.Spin,
-            zeros, fuel_cons, zeros, zeros, zeros
+            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage])
         ), axis=None)
 
     def _run_simulation(self, t: float, y: state.PhysicsState) -> None:
@@ -430,6 +435,7 @@ class PEngine:
             hab_fuel_event = HabFuelEvent(y)
             altitude_event = AltitudeEvent(y, self.R)
             liftoff_event = LiftoffEvent(y)
+            srb_event = SrbFuelEvent()
 
             ivp_out = scipy.integrate.solve_ivp(
                 functools.partial(
@@ -438,7 +444,8 @@ class PEngine:
                 [t, t + np.sqrt(y.time_acc)],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
-                events=[altitude_event, hab_fuel_event, liftoff_event],
+                events=[
+                    altitude_event, hab_fuel_event, liftoff_event, srb_event],
                 dense_output=True
             )
 
@@ -468,7 +475,7 @@ class PEngine:
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
-                log.info(f'Got event: {ivp_out.t_events}')
+                log.info(f'Got event: {ivp_out.t_events} at t={t}.')
                 if len(ivp_out.t_events[0]):
                     # Collision, simulation ended. Handled it and continue.
                     assert len(ivp_out.t_events[0]) == 1
@@ -476,23 +483,30 @@ class PEngine:
                     y = _collision_decision(t, y, altitude_event)
                     y = _reconcile_entity_motions(y)
                 if len(ivp_out.t_events[1]):
-                    log.info(f'Got fuel empty at {t}')
-
+                    # Something ran out of fuel.
                     for index in self._artificials:
                         artificial = y[index]
-                        # Habitat's out of fuel, the next iteration won't
+                        if round(artificial.fuel) != 0:
+                            continue
+                        # This craft is out of fuel, the next iteration won't
                         # consume any fuel. Set throttle to zero anyway.
                         artificial.throttle = 0
                         # Set fuel to a negative value, so it doesn't trigger
                         # the event function
                         artificial.fuel = 0
                         y[index] = artificial
+                        log.info(f'{artificial.name} ran out of fuel.')
                 if len(ivp_out.t_events[2]):
+                    # A craft has a TWR > 1
                     craft = y.craft_entity()
                     log.info('We have liftoff of the '
-                             f'{craft.name} from {craft.landed_on} at {t}')
+                             f'{craft.name} from {craft.landed_on} at {t}.')
                     craft.landed_on = ''
                     y[y.craft] = craft
+                if len(ivp_out.t_events[3]):
+                    # SRB fuel exhaustion.
+                    log.info('SRB exhausted.')
+                    y.srb_time = common.SRB_EMPTY
 
 
 class Event:
@@ -504,6 +518,13 @@ class Event:
     # Implement this in an event subclass
     def __call___(self, t: float, y_1d: np.ndarray) -> float:
         raise NotImplementedError
+
+
+class SrbFuelEvent(Event):
+    def __call__(self, t, y_1d) -> float:
+        """Returns how much SRB burn time is left.
+        This will cause simulation to stop when SRB burn time reaches 0."""
+        return y_1d[-1]
 
 
 class HabFuelEvent(Event):
@@ -585,7 +606,10 @@ class LiftoffEvent(Event):
             # by other mechanisms. Ignore this.
             return np.inf
 
-        thrust = craft_capabilities[craft.name].thrust * craft.throttle
+        thrust = common.craft_capabilities[craft.name].thrust * craft.throttle
+        if y.srb_time > 0 and y.craft == common.HABITAT:
+            thrust += common.SRB_THRUST
+
         pos = craft.pos - planet.pos
         # This is the G(m1*m2)/r^2 formula
         weight = common.G * craft.mass * planet.mass / np.inner(pos, pos)
@@ -677,8 +701,7 @@ def _docking(e1, e2, e2_index):
 
     # set right heading for future takeoff
     e2_opposite = e2.heading + np.pi
-    e1.pos = e2.pos + (e1.r + e2.r) * \
-        np.array([np.cos(e2_opposite), np.sin(e2_opposite)])
+    e1.pos = e2.pos + (e1.r + e2.r) * calc.heading_vector(e2_opposite)
     e1.heading = (e2_opposite) % (2 * np.pi)
     e1.throttle = 0
     e1.spin = e2.spin

@@ -31,37 +31,65 @@ TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
 FRAMERATE = 100
 
-DEFAULT_TIME_ACC = 1
-
+# ---------------- Graphics-related constants ---------------
 DEFAULT_CENTRE = HABITAT
 DEFAULT_REFERENCE = EARTH
 DEFAULT_TARGET = AYSE
 
-# Graphics-related constants
 DEFAULT_UP = vpython.vector(0, 0.1, 1)
 DEFAULT_FORWARD = vpython.vector(0, 0, -1)
 
-MIN_THROTTLE = -1.00  # -100%
-MAX_THROTTLE = 1  # 100%
+TIMEZONE = pytz.timezone('Canada/Eastern')
 
-# The max speed at which the autopilot will spin the craft
+# ---------------- Physics-related constants ----------------
+G = 6.674e-11
+
+MIN_THROTTLE = -1.00  # -100%
+MAX_THROTTLE = 1.00  # 100%
+
+# The max speed at which the autopilot will spin the craft.
 AUTOPILOT_SPEED = numpy.radians(20)
 
 # The margin on either side of the target heading that the autopilot will slow
-# down its adjustments
+# down its adjustments.
 AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
-DRAG_PROFILE = 0.0002
+UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
 
-G = 6.674e-11
+
+class Spacecraft(NamedTuple):
+    """Represents the capabilities of different craft."""
+    fuel_cons: float  # Fuel consumption in kg/s at 100% engines
+    thrust: float  # Thrust in N at 100% engines
+
+
+# These numbers taken from orbit5vm.bas.
+craft_capabilities = {
+    HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000),
+    AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9)
+}
+
+SRB_THRUST = 13125000
+
+# Rotating the craft changes the spin by this amount per button press.
+SPIN_CHANGE = numpy.radians(10)  # radians per second.
+
+HAB_DRAG_PROFILE = 0.0002
+PARACHUTE_DRAG_PROFILE = 0.02
 
 # The thrust-weight ratio required for liftoff. Realistically, the TWR only has
 # to be greater than 1 to lift off, but we want to make sure there aren't any
 # possible collisions that will set the engines to 0 again.
 LAUNCH_TWR = 1.05
 
-TIMEZONE = pytz.timezone('Canada/Eastern')
+# These special values mean that the SRBs are full but haven't been used, and
+# that the SRBs have been fully used, respectively.
+SRB_FULL = -1
+SRB_EMPTY = -2
+SRB_BURNTIME = 120  # 120s of burntime.
 
+
+# ---------- Logging setup and some other constants ----------
 PERF_FILE = 'flamegraph-data.log'
 
 # Set up a logger.
@@ -149,11 +177,13 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
     google.protobuf.json_format.Parse(data, read_state)
 
     if read_state.time_acc == 0:
-        read_state.time_acc = DEFAULT_TIME_ACC
+        read_state.time_acc = 1
     if read_state.reference == '':
         read_state.reference = DEFAULT_REFERENCE
     if read_state.target == '':
         read_state.target = DEFAULT_TARGET
+    if read_state.srb_time == 0:
+        read_state.srb_time = SRB_FULL
     return state.PhysicsState(None, read_state)
 
 

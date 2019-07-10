@@ -50,6 +50,8 @@ message Command {
         TARGET_UPDATE = 8;
         LOAD_SAVEFILE = 9;
         NAVMODE_SET = 10;
+        PARACHUTE = 11;
+        IGNITE_SRBS = 12;
     }
 
     enum ModuleState {
@@ -83,6 +85,7 @@ message Command {
         string target = 8;
         string loadfile = 9;
         Navmode navmode = 10;
+        bool deploy_parachute = 11;
     }
 }
 
@@ -131,4 +134,10 @@ message PhysicalState {
     string reference = 5;
     string target = 6;
     Navmode navmode = 7;
+    // This SRB time field is intentionally similar in design to the OrbitV
+    // implementation, namely just a timer for how long the SRBs run.
+    // srb_time = -1 means the SRB is full and hasn't been used yet,
+    // srb_time = -2 means the SRB is empty. These contants are in common.py
+    double srb_time = 8;
+    bool parachute_deployed = 9;
 }

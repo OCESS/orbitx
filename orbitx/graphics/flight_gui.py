@@ -34,10 +34,10 @@ DEFAULT_TRAILS = False
 
 
 class MiscCommand(Enum):
-    UNSELECTED = 'Command'
+    UNSELECTED = 'Select'
     UNDOCK = 'Undock'
     IGNITE_SRBS = 'Ignite SRBs'
-    DEPLOY_PARACHUTE = 'Deploy Parachute'
+    DEPLOY_PARACHUTE = 'Toggle Parachute'
 
 
 # If you change the 'Pause' element of this dict, change the corresponding
@@ -189,11 +189,11 @@ class FlightGui:
         elif k == 'a':
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
-                spin_change=np.radians(10)))
+                spin_change=common.SPIN_CHANGE))
         elif k == 'd':
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
-                spin_change=-np.radians(10)))
+                spin_change=-common.SPIN_CHANGE))
         elif k == 'w':
             self._commands.append(Request(
                 ident=Request.HAB_THROTTLE_CHANGE,
@@ -389,6 +389,13 @@ class FlightGui:
     def _misc_command_hook(self, menu: vpython.menu):
         if menu.selected == MiscCommand.UNDOCK.value:
             self._commands.append(Request(ident=Request.UNDOCK))
+        elif menu.selected == MiscCommand.DEPLOY_PARACHUTE.value:
+            self._commands.append(Request(
+                ident=Request.PARACHUTE,
+                deploy_parachute=not self._state.parachute_deployed))
+        elif menu.selected == MiscCommand.IGNITE_SRBS.value:
+            self._commands.append(Request(ident=Request.IGNITE_SRBS))
+        menu.selected = MiscCommand.UNSELECTED.value
 
     def lead_server_communication_requested(self) -> bool:
         # This should only be called when this FlightGui is the frontend of a
@@ -518,7 +525,7 @@ class Sidebar:
         self._wtexts.append(Text(
             "Engine Acceleration",
             lambda state: common.format_num(calc.engine_acceleration(
-                state.craft_entity()), " m/s/s"),
+                state), " m/s/s"),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
@@ -659,7 +666,7 @@ class Sidebar:
             selected=MiscCommand.UNSELECTED.value,
             bind=self._parent._misc_command_hook,
             caption="Command",
-            helptext="Select elements in this menu to issue other commands"
+            helptext="Several miscellaneous commands"
         )
     # end of _create_menus
 

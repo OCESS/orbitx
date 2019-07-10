@@ -93,7 +93,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # Note that dy.X is actually the velocity at 0,
             # and dy.VX is acceleration.
             dy = state.PhysicsState(
-                physics_engine._derive(0, y0._y0, y0._proto_state),
+                physics_engine._derive(0, y0.y0(), y0._proto_state),
                 y0._proto_state)
             self.assertEqual(len(dy.X), 2)
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
@@ -132,24 +132,42 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(
                 moved[0].fuel,
                 (initial[0].fuel -
-                 t_delta * state.Habitat.fuel_cons(throttle=throttle)))
+                 t_delta * throttle *
+                 common.craft_capabilities[common.HABITAT].fuel_cons))
             self.assertTrue(
                 moved[0].vx <
-                (t_delta *
-                    state.Habitat.thrust(
-                        throttle=throttle,
-                        heading=initial[0].heading)[0] /
-                    (moved[0].mass + moved[0].fuel))
-            )
+                (t_delta * calc.engine_acceleration(moved)))
 
-            t_no_fuel = (initial[0].fuel /
-                         state.Habitat.fuel_cons(throttle=throttle))
+            t_no_fuel = (initial[0].fuel / (throttle *
+                         common.craft_capabilities[common.HABITAT].fuel_cons))
             empty_fuel = physics_engine.get_state(t_no_fuel)
             after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
 
             self.assertEqual(round(empty_fuel[0].fuel), 0)
             self.assertEqual(round(after_empty_fuel[0].vx),
                              round(empty_fuel[0].vx))
+
+    def test_srbs(self):
+        """Test that SRBs move the craft, and run out of fuel."""
+        with PhysicsEngine('tests/habitat.json') as physics_engine:
+            t_delta = 5
+
+            physics_engine.handle_request(
+                network.Request(ident=network.Request.IGNITE_SRBS),
+                requested_t=0)
+
+            initial = physics_engine.get_state(0)
+            moved = physics_engine.get_state(t_delta)
+
+            self.assertAlmostEqual(initial[0].heading, 0)
+            self.assertAlmostEqual(initial[0].vx, 0)
+            self.assertAlmostEqual(moved[0].vx,
+                                   t_delta * calc.engine_acceleration(moved))
+
+            srb_empty = physics_engine.get_state(common.SRB_BURNTIME)
+            after_srb_empty = physics_engine.get_state(common.SRB_BURNTIME + 5)
+
+            self.assertAlmostEqual(srb_empty[0].vx, after_srb_empty[0].vx)
 
     def test_three_body(self):
         """Test gravitational acceleration between three bodies is expected."""
@@ -163,7 +181,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # Test that every single entity has the correct accelerations.
             y0 = physics_state
             dy = state.PhysicsState(
-                physics_engine._derive(0, y0._y0, y0._proto_state),
+                physics_engine._derive(0, y0.y0(), y0._proto_state),
                 physics_state._proto_state)
             self.assertEqual(len(dy.X), 3)
 
@@ -319,7 +337,8 @@ class PhysicsStateTestCase(unittest.TestCase):
             90, 100,  # fuel
             0, 0,     # throttle
             1, -1,    # only First is landed on Second
-            0, 1      # Second is broken
+            0, 1,     # Second is broken
+            common.SRB_EMPTY
         ])
 
         ps = state.PhysicsState(y0, self.physical_state)

@@ -194,6 +194,9 @@ class PhysicsState:
         self._proto_state.CopyFrom(proto_state)
         self._n = len(proto_state.entities)
 
+        self._entity_names = \
+            [entity.name for entity in self._proto_state.entities]
+
         if y is None:
             # PROTO: if you're changing protobufs remember to change here
             X = np.array([entity.x for entity in proto_state.entities])
@@ -223,26 +226,26 @@ class PhysicsState:
 
             self._y0: np.ndarray = np.concatenate((
                 X, Y, VX, VY, Heading, Spin,
-                Fuel, Throttle, LandedOn, Broken
-            ), axis=0).astype(self.DTYPE)
+                Fuel, Throttle, LandedOn, Broken,
+                np.array([self._proto_state.srb_time])),
+                axis=0).astype(self.DTYPE)
         else:
+            # Take everything except the SRB time, the last element.
             self._y0: np.ndarray = y.astype(self.DTYPE)
+            self._proto_state.srb_time = y[-1]
 
         assert len(self._y0.shape) == 1, f'y is not 1D: {self._y0.shape()}'
-        assert self._y0.size % self.N_COMPONENTS == 0
-        assert self._y0.size // self.N_COMPONENTS == \
+        assert (self._y0.size - 1) % self.N_COMPONENTS == 0, self._y0.size
+        assert (self._y0.size - 1) // self.N_COMPONENTS == \
             len(proto_state.entities), \
             f'{self._y0.size} != {len(proto_state.entities)}'
-        self._n = len(self._y0) // self.N_COMPONENTS
+        self._n = (len(self._y0) - 1) // self.N_COMPONENTS
 
         self._entities_with_atmospheres: List[int] = []
         for index, entity in enumerate(self._proto_state.entities):
             if entity.atmosphere_scaling != 0 and \
                     entity.atmosphere_thickness != 0:
                 self._entities_with_atmospheres.append(index)
-
-        self._entity_names = \
-            [entity.name for entity in self._proto_state.entities]
 
     def _y_entities(self) -> np.ndarray:
         """Internal, returns an array for every entity, each with an element
@@ -252,7 +255,7 @@ class PhysicsState:
     def _y_components(self) -> np.ndarray:
         """Internal, returns N_COMPONENT number of arrays, each with an element
         for each entity."""
-        return self._y0.reshape(self.N_COMPONENTS, -1)
+        return self._y0[0:-1].reshape(self.N_COMPONENTS, -1)
 
     def _index_to_name(self, index: int) -> str:
         """Translates an index into the entity list to the right name."""
@@ -261,8 +264,11 @@ class PhysicsState:
 
     def _name_to_index(self, name: str) -> int:
         """Finds the index of the entity with the given name."""
-        return self._entity_names.index(name) if name != '' \
-            else self.NO_INDEX
+        try:
+            return self._entity_names.index(name) if name != '' \
+                else self.NO_INDEX
+        except ValueError:
+            raise self.NoEntityError(f'{name} not in entity list')
 
     def y0(self):
         """Returns a y-vector suitable as input for scipy.solve_ivp."""
@@ -275,7 +281,7 @@ class PhysicsState:
 
         Expensive. Consider one of the other accessors, which are faster.
         For example, if you want to iterate over all elements, use __iter__
-        by doing
+        by doing:
         for entity in my_physics_state: print(entity.name)"""
         constructed_protobuf = protos.PhysicalState()
         constructed_protobuf.CopyFrom(self._proto_state)
@@ -354,6 +360,23 @@ class PhysicsState:
     @timestamp.setter
     def timestamp(self, t: float):
         self._proto_state.timestamp = t
+
+    @property
+    def srb_time(self) -> float:
+        return self._proto_state.srb_time
+
+    @srb_time.setter
+    def srb_time(self, val: float):
+        self._proto_state.srb_time = val
+        self._y0[-1] = val
+
+    @property
+    def parachute_deployed(self) -> bool:
+        return self._proto_state.parachute_deployed
+
+    @parachute_deployed.setter
+    def parachute_deployed(self, val: bool):
+        self._proto_state.parachute_deployed = val
 
     @property
     def X(self):
@@ -473,84 +496,3 @@ class PhysicsState:
     @navmode.setter
     def navmode(self, navmode: Navmode):
         self._proto_state.navmode = navmode.value
-
-
-# A note about functions with the signature "(self, *, arg1=None, arg2=None)"
-# there are a lot of float parameters to the upcoming APIs, so I think it's
-# best for the callsite to have to specify what argument is what. For example,
-# habitat.fuel_cons(throttle=0.2)
-# as opposed to
-# habitat.fuel_cons(0.2)
-# The former is hopefully much clearer, so I think mandatory keyword arguments
-# is better in this case.
-
-class Engine(object):
-    def __init__(self, *, max_fuel_cons=None, max_thrust=None):
-        """
-        max_fuel_cons: kg/s consumption of fuel at max throttle
-        max_thrust: newtons of force from engine at max throttle
-        """
-        assert max_fuel_cons is not None
-        assert max_thrust is not None
-        self._max_fuel_cons = max_fuel_cons
-        self.max_thrust = max_thrust  # max acceleration
-
-    def fuel_cons(self, *, throttle=None):
-        assert throttle is not None
-        return abs(throttle) * self._max_fuel_cons
-
-    def thrust(self, *, throttle: float = None) -> float:
-        """
-        throttle: unitless float, nominally in the range [0, 1]
-        fuel: kg of fuel available for engine to burn
-        returns the magnitude of the thrust in Newtons generated by the engine.
-        """
-        assert throttle is not None
-        return throttle * self.max_thrust
-
-
-class ReactionWheel(object):
-    def __init__(self, *, max_spin_change=None):
-        """
-        max_spin_change: radians/s/s, maximum angular acceleration
-        """
-        assert max_spin_change is not None
-        self._max_spin_change = max_spin_change
-
-    def spin_change(self, *, requested_spin_change=None):
-        """
-        requested_spin_change: radians/s/s
-        returns the requested spin change, bounded by max_spin_change
-        """
-        assert requested_spin_change is not None
-        if requested_spin_change < -self._max_spin_change:
-            return -self._max_spin_change
-        elif requested_spin_change > self._max_spin_change:
-            return self._max_spin_change
-        else:
-            return requested_spin_change
-
-
-class Habitat():
-    """Static class implementing hab engine and reaction wheel constraints."""
-    engine = Engine(max_fuel_cons=5, max_thrust=4375000)
-    rw = ReactionWheel(max_spin_change=1)
-
-    @classmethod
-    def spin_change(cls, *, requested_spin_change: float = None) -> float:
-        assert requested_spin_change is not None
-        return cls.rw.spin_change(
-            requested_spin_change=requested_spin_change)
-
-    @classmethod
-    def fuel_cons(cls, *, throttle: float = None) -> float:
-        assert throttle is not None
-        return abs(cls.engine.fuel_cons(throttle=throttle))
-
-    @classmethod
-    def thrust(cls, *,
-               throttle: float = None, heading: float = None) -> np.ndarray:
-        assert throttle is not None
-        assert heading is not None
-        thrust = cls.engine.thrust(throttle=throttle)
-        return thrust * np.array([np.cos(heading), np.sin(heading)])
