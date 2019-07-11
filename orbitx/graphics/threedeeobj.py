@@ -23,7 +23,27 @@ class ThreeDeeObj(metaclass=ABCMeta):
                     ) -> Union[vpython.sphere, vpython.compound]:
         """Create a 3D object, like a planet, a star, or a spaceship, using
         vpython and return it. It will be rotated etc. elsewhere, don't worry
-        about that. Just make a cool object!"""
+        about that. Just make a cool object!
+
+        Note when drawing new fancy objects and when you eventually use the
+        vpython.compound object:
+        To make a vpython.compound object (say, obj = vpython.compound(shapes))
+        have a length equal to the size of an entity's diameter, you'll end up
+        setting obj.length = entity.r * 2, or something similar.
+        But the shapes that you wrap in the vpython.compound object will also
+        be stretched in unexpected ways. If you can't make sense of it,
+        consider the following example:
+
+        a = vpython.cylinder(length=1)
+        b = vpython.sphere(radius=0.2)
+        compound = vpython.compound([a, b])
+        compound.length = my_length
+
+        will visually look exactly the same as if `a` and `b` both had exactly
+        ten times the length and radius, or thirty times the length and radius.
+        The dimensions of the individual shapes in a compound object don't
+        matter, it's the _proportion_ of the shapes to each other.
+        """
         pass
 
     @abstractmethod
