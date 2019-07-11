@@ -37,9 +37,10 @@ class Habitat(ThreeDeeObj):
 
         boosters: List[vpython.cylinder] = []
         booster_radius = 5
-        body_radius = entity.r / 5
+        body_radius = entity.r / 15
         for quadrant in range(0, 4):
-            normal = vpython.rotate(vpython.vector(0, 0.5, 0.5),
+            # Generate four SRB bodies.
+            normal = vpython.rotate(vpython.vector(0, 1, 1),
                                     angle=quadrant * vpython.radians(90),
                                     axis=vpython.vector(1, 0, 0))
             boosters.append(vpython.cylinder(
@@ -56,11 +57,39 @@ class Habitat(ThreeDeeObj):
         # For an explanation of why that matters, read the
         # ThreeDeeObj._create_obj docstring (and if that doesn't make sense,
         # get in touch with Patrick M please hello hi I'm always free!)
-        boosters.append(vpython.sphere(radius=1, visible=False,
+        boosters.append(vpython.sphere(radius=1, opacity=0,
                                        pos=vpython.vec(1.2, 0, 0)))
         booster_texture = texture.replace(f'{entity.name}.jpg', 'SRB.jpg')
         hab.boosters = vpython.compound(boosters, texture=booster_texture)
         hab.boosters.length = entity.r * 2
+        hab.boosters.axis = hab.axis
+
+        parachute: List[vpython.standardAttributes] = []
+        parachute_radius = 20
+        string_length = entity.r * 1.2
+        parachute_texture = texture.replace(f'{entity.name}.jpg',
+                                            'Parachute.jpg')
+        # Build the parachute fabric.
+        parachute.append(vpython.extrusion(
+            path=vpython.paths.circle(radius=0.5, up=vpython.vec(0, -1, 0)),
+            shape=vpython.shapes.arc(
+                angle1=vpython.radians(5), angle2=vpython.radians(95), radius=1
+            ),
+            pos=vpython.vec(0, string_length + parachute_radius / 2, 0)
+        ))
+        parachute[0].length = parachute_radius * 2
+        parachute[0].width = parachute_radius * 2
+        parachute[0].height = parachute_radius
+        for quadrant in range(0, 4):
+            # Generate parachute attachment lines.
+            string = vpython.cylinder(
+                axis=vpython.vec(parachute_radius, string_length, 0),
+                radius=0.2
+            )
+            string.rotate(angle=quadrant * vpython.radians(90),
+                          axis=vpython.vector(0, 1, 0))
+            parachute.append(string)
+        hab.parachute = vpython.compound(parachute, texture=parachute_texture)
 
         return hab
 
@@ -102,6 +131,7 @@ class Habitat(ThreeDeeObj):
         self._update_obj(entity, state, origin)
         self._obj.boosters.pos = self._obj.pos
         self._obj.boosters.axis = self._obj.axis
+        #self._obj.parachute.pos = self._obj.pos
 
         same = state.reference == entity.name
         default = vpython.vector(0, 0, -1)

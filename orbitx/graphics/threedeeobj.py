@@ -98,7 +98,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
                 vpython_tris,
                 opacity=0,
                 pos=self._obj.pos,
-                up=vpython.vector(0, 0, 1))
+                up=common.DEFAULT_UP)
 
         # We have to have to sizes because we want our landing graphic to be
         # visible at large zoom levels (the large one won't be, because vpython
