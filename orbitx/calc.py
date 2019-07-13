@@ -22,6 +22,10 @@ def angle_to_vpy(angle: float) -> vpython.vector:
     return vpython.vector(np.cos(angle), np.sin(angle), 0)
 
 
+def heading_vector(heading: float) -> np.ndarray:
+    return np.array([np.cos(heading), np.sin(heading)])
+
+
 def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> \
         Optional[float]:
     """The orbital phase angle, between A-B-C, of the angle at B.
@@ -92,10 +96,6 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     v_angle = np.arctan2(v[1], v[0])
     angle_diff = (normal_angle - v_angle) % (2 * np.pi) - np.pi
     return tangent_v * np.sign(angle_diff)
-
-
-def heading_vector(heading: float) -> np.ndarray:
-    return np.array([np.cos(heading), np.sin(heading)])
 
 
 def engine_acceleration(state: state.PhysicsState) -> float:
