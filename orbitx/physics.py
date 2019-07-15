@@ -441,7 +441,7 @@ class PEngine:
                 functools.partial(
                     self._derive, pass_through_state=proto_state),
                 # np.sqrt is here to give a slower-than-linear step size growth
-                [t, t + np.sqrt(y.time_acc)],
+                [t, t + y.time_acc],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
                 events=[
