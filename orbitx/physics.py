@@ -238,7 +238,7 @@ class PEngine:
     def set_state(self, physical_state: state.PhysicsState):
         self._stop_simthread()
 
-        physical_state = _reconcile_entity_motions(physical_state)
+        physical_state = _reconcile_entity_dynamics(physical_state)
         self._artificials = np.where(
             np.array([
                 entity.artificial
@@ -401,8 +401,8 @@ class PEngine:
         # If you want to set the acceleration of an entity, do it above and
         # keep that logic in _derive. If you want to set the velocity and spin
         # or any other fields that an Entity has, you should put that logic in
-        # this _reconcile_entity_motions helper.
-        y = _reconcile_entity_motions(y)
+        # this _reconcile_entity_dynamics helper.
+        y = _reconcile_entity_dynamics(y)
 
         return np.concatenate((
             y.VX, y.VY, Ax, Ay, y.Spin,
@@ -481,7 +481,7 @@ class PEngine:
                     assert len(ivp_out.t_events[0]) == 1
                     assert len(ivp_out.t) >= 2
                     y = _collision_decision(t, y, altitude_event)
-                    y = _reconcile_entity_motions(y)
+                    y = _reconcile_entity_dynamics(y)
                 if len(ivp_out.t_events[1]):
                     # Something ran out of fuel.
                     for index in self._artificials:
@@ -619,7 +619,7 @@ class LiftoffEvent(Event):
         return max(0, common.LAUNCH_TWR - thrust / weight)
 
 
-def _reconcile_entity_motions(y: state.PhysicsState) -> state.PhysicsState:
+def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
     """Idempotent helper that sets velocities and spins of some entities.
     This is in its own function because it has a couple calling points."""
     # Navmode auto-rotation
@@ -634,6 +634,15 @@ def _reconcile_entity_motions(y: state.PhysicsState) -> state.PhysicsState:
         # If we're landed on something, make sure we move in lockstep.
         lander = y[index]
         ground = y[landed_on[index]]
+
+        if ground.name == common.AYSE and lander.name == common.HABITAT:
+            # Always put the Habitat at the docking port.
+            lander.pos = ground.pos - \
+                calc.heading_vector(ground.heading) * (lander.r + ground.r)
+        else:
+            norm = lander.pos - ground.pos
+            unit_norm = norm / np.linalg.norm(norm)
+            lander.pos = ground.pos + unit_norm * (ground.r + lander.r)
 
         lander.spin = ground.spin
         lander.v = calc.rotational_speed(lander, ground)
