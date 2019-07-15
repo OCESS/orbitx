@@ -42,7 +42,7 @@ class Text:
             </td>
             <td class="num">
                 <div id="{last_div_id}">{self._wtext.text}</div>
-                <div class="helptext" style="font-size: 12px">{helptext}</div>
+                <div class="helptext">{helptext}</div>
             </td>
         </tr>\n"""
 

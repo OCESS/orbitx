@@ -43,7 +43,7 @@ class Habitat(ThreeDeeObj):
         body_radius = entity.r / 15
         for quadrant in range(0, 4):
             # Generate four SRB bodies.
-            normal = vpython.rotate(vpython.vector(0, 1, 0),
+            normal = vpython.rotate(vpython.vector(0, 1, 1).hat,
                                     angle=quadrant * vpython.radians(90),
                                     axis=vpython.vector(1, 0, 0))
             boosters.append(vpython.cylinder(
@@ -95,7 +95,7 @@ class Habitat(ThreeDeeObj):
             opacity=0,
             pos=vpython.vec(-(string_length + self.PARACHUTE_RADIUS), 0, 0)))
         hab.parachute = vpython.compound(parachute, texture=parachute_texture)
-        vpython.canvas.get_selected().range = 200
+        hab.parachute.visible = False
 
         return hab
 
@@ -112,6 +112,14 @@ class Habitat(ThreeDeeObj):
         self._minimap_canvas = vpython.canvas(
             width=200, height=150, userspin=False, userzoom=False,
             up=common.DEFAULT_UP, forward=common.DEFAULT_FORWARD)
+        self._minimap_canvas.append_to_caption(
+            # The element styling will be removed at runtime. This just hides
+            # this helptext during startup.
+            "<span class='helptext' style='display: none'>"
+            "This small 'minimap' shows the Habitat's orientation. The red "
+            "arrow represents the Hab's velocity relative to the reference, "
+            "and the gray arrow points to position of the reference."
+            "</span>")
 
         self._small_habitat = self._create_hab(entity, texture)
         self._ref_arrow = vpython.arrow(color=vpython.color.gray(0.5))
@@ -167,7 +175,7 @@ class Habitat(ThreeDeeObj):
                 parachute.width = self.PARACHUTE_RADIUS
                 parachute.height = self.PARACHUTE_RADIUS
 
-                parachute.axis = -vpython.vec(drag[0], drag[1], 0)
+                parachute.axis = -vpython.vec(*drag, 0)
 
                 if not parachute.visible:
                     parachute.visible = True
@@ -182,7 +190,7 @@ class Habitat(ThreeDeeObj):
         )
         v = entity.v - state.reference_entity().v
         velocity_arrow_axis = \
-            vpython.vector(v[0], v[1], 0).norm() * entity.r
+            vpython.vector(*v, 0).norm() * entity.r
 
         self._ref_arrow.axis = default if same else ref_arrow_axis
         self._velocity_arrow.axis = default if same else velocity_arrow_axis

@@ -126,7 +126,8 @@ input[type=checkbox] {
     height: unset !important;
 }
 input[type=text] {
-    height: unset !important;
+    /* vpython changes this colour when disabling/enabling. Don't let it. */
+    color: initial !important;
 }
 span {
     /* vpython changes this colour when disabling/enabling. Don't let it. */
@@ -153,7 +154,11 @@ document.querySelector(
     '#pause_anchor + select').addEventListener('change',
         function (ev) {
             // When paused, remove the explanatory placeholder text.
+            console.log(ev)
+            console.log(ev.target)
+            console.log(ev.target.value)
             if (ev.target.value == 'Pause') {
+                console.log('debug')
                 text_inputs[0].placeholder = 'Save...';
                 text_inputs[1].placeholder = 'Load...';
             }

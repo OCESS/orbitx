@@ -138,6 +138,10 @@ class ThreeDeeObj(metaclass=ABCMeta):
         y_intercept = -slope * self.LANDING_GRAPHIC_TRANSPARENT_ALTITUDE
         opacity = slope * (axis.mag - entity.r) + y_intercept
         graphic.opacity = max(0, min(opacity, 1))
+        if graphic.opacity == 0:
+            graphic.visible = False
+        else:
+            graphic.visible = True
 
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible

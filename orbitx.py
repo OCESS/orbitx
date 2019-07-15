@@ -73,7 +73,7 @@ def vpython_error_message():
     </script>""")
     vpython.canvas.get_selected().append_to_caption("""<style>
         .error {
-            color: #D8000C;
+            color: #D8000C !important;
             background-color: #FFBABA;
             margin: 10px 0;
             padding: 10px;
