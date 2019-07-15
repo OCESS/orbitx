@@ -71,22 +71,16 @@ class OrbitProjection:
         elif e_mag > 1:
             # Project a hyperbolic orbit
             self._ring.visible = False
-            # The mathematical centre of the hyperbola is not where the vertex
-            # is, but we want to have the vertex be at the periapsis. Translate
-            # the hyperbola by sqrt(2) * major_axis. See the wikipedia page on
-            # hyperbolas for illustration why, specifically
-            # https://en.wikipedia.org/wiki/File:Hyperbel-param-e.svg
-            # I don't entirely get it either. I just do what works.
-            self._hyperbola.origin = (
-                vpython.vector(*pos, 0) +
-                direction.norm() * orb_params.major_axis / 2
-            )
+            self._hyperbola.origin = vpython.vector(*pos, 0)
 
-            # TODO check that I have major and minor axes right. With an
-            # existing hyperbolic object maybe?
-            fudge_factor = 0.825
+            # For a vpython.curve object, setting the axis is confusing.
+            # To control direction, set the .up attribute (magnitude doesn't
+            # matter for .up)
+            # To control size, set the .size attribute (magnitude matters).
+            # Setting .axis will also change .size, not sure how.
+
             self._hyperbola.size = vpython.vector(
-                orb_params.minor_axis * fudge_factor, orb_params.major_axis, 1)
+                orb_params.minor_axis / 2, orb_params.major_axis / 2, 1)
             self._hyperbola.up = -direction
             self._hyperbola.radius = thickness
             self._hyperbola.visible = True

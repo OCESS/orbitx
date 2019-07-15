@@ -423,8 +423,7 @@ class Sidebar:
         self.orbits_checkbox = Checkbox(
             self._parent._orbits_checkbox_hook,
             False, 'Orbit',
-            "Simple projection of hab around reference. "
-            "Hyperbola not accurate sorry :(")
+            "Simple projection of hab around reference.")
         vpython.canvas.get_selected().append_to_caption("<br/>")
 
         self._create_menus()
