@@ -70,14 +70,13 @@ class FlightGui:
         self._commands: List[Request] = []
         self._paused_label = vpython.label(
             text="Simulation paused; saving and loading enabled.\n"
-                 "When finished, unpause by clicking the 'Pause' checkbox.",
+                 "When finished, unpause by setting a time acceleration.",
             xoffset=0, yoffset=200, line=False, height=25, border=20,
             opacity=1, visible=False)
 
         self._3dobjs: Dict[str, ThreeDeeObj] = {}
         # remove vpython ambient lighting
         self._scene.lights = []  # This line shouldn't be removed
-        self._wtexts: List[Text] = []
 
         self._set_origin(common.DEFAULT_CENTRE)
 
@@ -357,7 +356,7 @@ class FlightGui:
         This doesn't effect physics simulation at all."""
         self._paused = pause
         self._paused_label.visible = self._paused
-        self._sidebar._disable_inputs(pause)
+        # self._sidebar._disable_inputs(pause)
         self._sidebar._save_box.disabled = not self._paused
         self._sidebar._load_box.disabled = not self._paused
 
@@ -377,6 +376,9 @@ class FlightGui:
             textbox.text = 'File loaded!'
             # The file we loaded will have a non-zero time acc, unpause.
             self.pause(False)
+            # Re-centre on the habitat.
+            self._sidebar.centre_menu._menu.selected = common.HABITAT
+            self._recentre_dropdown_hook(self._sidebar.centre_menu._menu)
         else:
             log.warning(f'Ignored non-existent loadfile: {full_path}')
             textbox.text = 'File not found!'

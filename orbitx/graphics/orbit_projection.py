@@ -13,7 +13,7 @@ class OrbitProjection:
     POINTS_IN_HYPERBOLA = 500
     HYPERBOLA_RADIUS = 1e2
 
-    # Thickness of orbit projections, relative to how zoomed-out the viewport.
+    # Thickness of orbit projections, scaled to how zoomed-out the viewport is.
     PROJECTION_THICKNESS = 0.005
 
     def __init__(self):
@@ -28,18 +28,17 @@ class OrbitProjection:
         # by generating a bunch of points along a hyperbola. Look at this graph
         # https://www.desmos.com/calculator/dbhsftzyjc
         # or put the following into wolframalpha.com
-        # parametric graph sinh(t), cosh(t) from t = -asinh(1e8) to asinh(1e8)
+        # parametric graph sinh(t), cosh(t) from t = -asinh(1e2) to asinh(1e2)
         hyperbola_points: List[vpython.vector] = []
-        start_t = -math.asinh(self.HYPERBOLA_RADIUS)
+        start_t = -math.asinh(self.POINTS_IN_HYPERBOLA)
         for i in range(0, self.POINTS_IN_HYPERBOLA + 1):
             t = start_t + abs(start_t) * 2 * i / self.POINTS_IN_HYPERBOLA
             hyperbola_points.append(vpython.vector(
                 math.sinh(t), math.cosh(t), 0))
 
         self._hyperbola = vpython.curve(
-            hyperbola_points, axis=vpython.vector(0, 0, 1))
+            hyperbola_points, axis=vpython.vector(1, 1, 0), up=vpython.vec(-1, 0, 0))
         self._hyperbola.visible = False
-        self._hyperbola.rotate(math.degrees(90), axis=vpython.vector(0, 1, 0))
 
     def update(self, state: state.PhysicsState, origin: state.Entity):
         if not self._visible:
@@ -85,11 +84,14 @@ class OrbitProjection:
 
             # TODO check that I have major and minor axes right. With an
             # existing hyperbolic object maybe?
+            fudge_factor = 0.825
             self._hyperbola.size = vpython.vector(
-                orb_params.minor_axis, orb_params.major_axis, 0)
+                orb_params.minor_axis * fudge_factor, orb_params.major_axis, 1)
             self._hyperbola.up = -direction
             self._hyperbola.radius = thickness
             self._hyperbola.visible = True
+            assert self._hyperbola.axis.z == 0, self._hyperbola.axis
+            assert self._hyperbola.up.z == 0, self._hyperbola.up
 
         else:
             # e == 1 pretty much never happens, and if it does we'll just wait
