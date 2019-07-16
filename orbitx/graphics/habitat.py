@@ -40,7 +40,7 @@ class Habitat(ThreeDeeObj):
         hab.length = entity.r * 2
 
         boosters: List[vpython.cylinder] = []
-        body_radius = entity.r / 15
+        body_radius = entity.r / 8
         for quadrant in range(0, 4):
             # Generate four SRB bodies.
             normal = vpython.rotate(vpython.vector(0, 1, 1).hat,
@@ -155,16 +155,10 @@ class Habitat(ThreeDeeObj):
             drag = calc.drag(state)
             drag_mag = np.inner(drag, drag)
         for parachute in [self._obj.parachute, self._small_habitat.parachute]:
-            if not parachute_is_visible:
+            if not parachute_is_visible or drag_mag < 0.00001:
                 # If parachute_is_visible == False, don't show the parachute.
-                if parachute.visible:
-                    parachute.visible = False
-                continue
-
-            if drag_mag < 0.00001:
                 # If the drag is basically zero, don't show the parachute.
-                if parachute.visible:
-                    parachute.visible = False
+                parachute.visible = False
                 continue
 
             if drag_mag > 0.1:
@@ -175,10 +169,8 @@ class Habitat(ThreeDeeObj):
                 parachute.width = self.PARACHUTE_RADIUS
                 parachute.height = self.PARACHUTE_RADIUS
 
-                parachute.axis = -vpython.vec(*drag, 0)
-
-                if not parachute.visible:
-                    parachute.visible = True
+            parachute.axis = -vpython.vec(*drag, 0)
+            parachute.visible = True
 
         # Set reference and target arrows of the minimap habitat.
         same = state.reference == entity.name
