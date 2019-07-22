@@ -2,9 +2,7 @@
 """Common code and class interfaces."""
 
 import argparse
-import atexit
 import logging
-import os
 import pytz
 import sys
 from pathlib import Path
@@ -113,64 +111,8 @@ SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
 
 
-# ---------- Logging setup and some other constants ----------
+# ---------- Other runtime constants ----------
 PERF_FILE = 'flamegraph-data.log'
-
-# Set up a logger.
-# Log DEBUG and higher to the logfile,
-# Log WARNING and higher to stdout.
-logging.getLogger().setLevel(logging.DEBUG)
-logging.captureWarnings(True)
-
-debug_formatter = logging.Formatter(
-    '{asctime} {levelname}\t{module}.{funcName}: {message}',
-    datefmt='%X',  # The timestamp is just the time of day
-    style='{'
-)
-
-print_formatter = logging.Formatter(
-    '{levelname} {module}.{funcName}:\t{message}',
-    datefmt='%X',  # The timestamp is just the time of day
-    style='{'
-)
-
-# When changing output streams, consider that jupyter appmode, which is an easy
-# way to give demos, will only show the stdout and not the stderr of a process.
-print_handler = logging.StreamHandler(stream=sys.stdout)
-print_handler.setLevel(logging.WARNING)
-print_handler.setFormatter(print_formatter)
-
-
-def print_handler_cleanup():
-    logfile_handler.close()
-    try:
-        os.remove(logfile_handler.baseFilename)
-    except FileNotFoundError:
-        pass
-
-
-# The logfile will be deleted on program exit, unless this is unregistered.
-atexit.register(print_handler_cleanup)
-
-# TODO: put logs in a directory
-logfile_handler = logging.FileHandler(
-    f'debug-{os.getpid()}.log', mode='w', delay=True)
-logfile_handler.setLevel(logging.DEBUG)
-logfile_handler.setFormatter(debug_formatter)
-
-logging.getLogger().handlers = []
-logging.getLogger().addHandler(print_handler)
-logging.getLogger().addHandler(logfile_handler)
-
-
-def enable_verbose_logging():
-    """Enables logging of all messages to stdout, from DEBUG upwards"""
-    print_handler.setLevel(logging.DEBUG)
-
-
-def savefile(name: str) -> Path:
-    return PROGRAM_PATH / 'data' / 'saves' / name
-
 
 if getattr(sys, 'frozen', False):
     # We're running from a PyInstaller exe, use the path of the exe
@@ -191,6 +133,10 @@ def format_num(num: Optional[float], unit: str) -> str:
     if num is None:
         return ''
     return '{:,.5g}'.format(round(num)) + unit
+
+
+def savefile(name: str) -> Path:
+    return PROGRAM_PATH / 'data' / 'saves' / name
 
 
 def load_savefile(file: Path) -> 'state.PhysicsState':

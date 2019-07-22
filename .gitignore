@@ -12,6 +12,7 @@ venv/
 debug.log
 debug-*.log
 flamegraph-data.log
+logs/*
 
 ## Below here is the GitHub python .gitignore
 

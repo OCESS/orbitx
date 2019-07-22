@@ -8,7 +8,6 @@ modules, and receives updates from networked modules.
 """
 
 import argparse
-import atexit
 import logging
 import os
 import sys
@@ -19,6 +18,7 @@ from pathlib import Path
 import vpython
 
 from orbitx import common
+from orbitx import logs
 from orbitx.graphics import launcher
 from orbitx.programs.lead import Lead
 from orbitx.programs.mirror import Mirror
@@ -55,11 +55,10 @@ def vpython_error_message():
         "been saved to <span class='code'>orbitx/debug.log</span>. If you "
         "want to get this problem fixed, send the contents of the log file "
         "<blockquote>" +
-        # Double-escape backslashes, vpython will choke on them otherwise.
-        common.logfile_handler.baseFilename.replace('\\', '\\\\') +
-        "</blockquote>"
-        "Patrick Melanson along with a description of what was happening in "
-        "the program when it crashed.</p>"
+        logs.logfile_name.replace('\\', '\\\\') +
+        "</blockquote> "
+        "to Patrick Melanson along with a description of what was happening "
+        "in the program when it crashed.</p>"
 
         "<p>Again, thank you for using OrbitX!</p>"
     )
@@ -149,6 +148,7 @@ def main():
                     '''<h2>You may now close this tab</h2>
                     OrbitX is running in the backgroud (in the terminal).'''
 
+        logs.make_program_logfile(args.program)
         args.main_loop(args)
     except KeyboardInterrupt:
         # We're expecting ctrl-C will end the program, hide the exception from
@@ -156,7 +156,6 @@ def main():
         pass
     except Exception as e:
         log.exception('Unexpected exception, exiting...')
-        atexit.unregister(common.print_handler_cleanup)
 
         vpython_error_message()
 
