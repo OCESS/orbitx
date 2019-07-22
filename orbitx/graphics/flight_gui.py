@@ -32,20 +32,16 @@ log = logging.getLogger()
 
 DEFAULT_TRAILS = False
 
+TIME_ACC_TO_STR = {time_acc.value: time_acc.desc
+                   for time_acc in common.TIME_ACCS}
+STR_TO_TIME_ACC = {v: k for k, v in TIME_ACC_TO_STR.items()}
+
 
 class MiscCommand(Enum):
     UNSELECTED = 'Select'
     UNDOCK = 'Undock'
     IGNITE_SRBS = 'Ignite SRBs'
     DEPLOY_PARACHUTE = 'Toggle Parachute'
-
-
-# If you change the 'Pause' element of this dict, change the corresponding
-# JS code in footer.html also.
-TIME_ACC_TO_STR = {
-    0: 'Pause', 1: '1×', 5: '5×', 10: '10×', 50: '50×',
-    100: '100×', 1_000: '1,000×', 10_000: '10,000×', 100_000: '100,000×'}
-STR_TO_TIME_ACC = {v: k for k, v in TIME_ACC_TO_STR.items()}
 
 
 class FlightGui:

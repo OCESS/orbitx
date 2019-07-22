@@ -1,10 +1,11 @@
 import collections
 import functools
 import logging
+import math
 import threading
 import time
 import warnings
-from typing import Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, NamedTuple, Union
 
 import numpy as np
 import scipy.integrate
@@ -17,11 +18,21 @@ from orbitx import state
 from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 
-SOLUTION_CACHE_SIZE = 10
+SOLUTION_CACHE_SIZE = 2
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
+
+
+TIME_ACC_TO_BOUND = {time_acc.value: time_acc.accurate_bound
+                     for time_acc in common.TIME_ACCS}
+
+
+class TimeAccChange(NamedTuple):
+    """Describes when the time acc of the simulation changes, and what to."""
+    time_acc: float
+    start_simtime: float
 
 
 class PEngine:
@@ -32,9 +43,9 @@ class PEngine:
     Example usage:
     pe = PEngine(flight_savefile)
     state = pe.get_state()
-    pe.set_time_acceleration(20)
-    # Simulates 20 * [amount of time elapsed since last get_state() call]:
-    state = pe.get_state()
+    pe.handle_request(Request(ident=..., ...))  # Change some state.
+    # Simulates 20 seconds:
+    state = pe.get_state(requested_t=20)
 
     This class will start a background thread to simulate physics when __init__
     is called. This background thread may restart at arbitrary times.
@@ -53,43 +64,56 @@ class PEngine:
         # self._last_simtime changes.
         self._solutions_cond = threading.Condition()
         self._solutions: collections.deque
-        self._last_monotime: float = time.monotonic()
+
         self._simthread: Optional[threading.Thread] = None
         self._simthread_exception: Optional[Exception] = None
         self._last_physical_state: state.protos.PhysicalState
+        self._last_monotime: float = time.monotonic()
+        self._last_simtime: float
+        self._time_acc_changes: collections.deque
 
         self.set_state(physical_state)
 
-    def set_time_acceleration(self, time_acceleration, requested_t=None):
-        """Change the speed at which this PEngine simulates at."""
-        self.handle_request(Request(
-            ident=Request.TIME_ACC_SET, time_acc_set=time_acceleration))
-
-    def _simtime(self, requested_t=None, *, peek_time=False):
-        """Gets simulation time, accounting for time acceleration and passage.
-
-        peek_time: if True, doesn't change any internal state. Use this as True
-                   for internal log messages, and False for external APIs.
-        """
+    def _simtime(self, requested_t=None):
+        """Gets simulation time, accounting for time acc and elapsed time."""
         # During runtime, strange things will happen if you mix calling
         # this with None (like from orbitx.py) or with values (like in test.py)
-
         if requested_t is None:
-            time_elapsed = max(
+            # "Alpha time" refers to time in the real world
+            # (just as the spacesim wiki defines it).
+            alpha_time_elapsed = max(
                 time.monotonic() - self._last_monotime,
                 0.0001
             )
-            if not peek_time:
-                self._last_monotime = time.monotonic()
-            requested_t = (
-                self._last_simtime +
-                time_elapsed * self._last_physical_state.time_acc
-            )
+            self._last_monotime = time.monotonic()
 
-        if not peek_time:
-            with self._solutions_cond:
-                self._last_simtime = requested_t
-                self._solutions_cond.notify_all()
+            simtime = self._last_simtime
+
+            assert self._time_acc_changes
+            if len(self._time_acc_changes) > 1:
+                # This while loop will increment simtime and decrement
+                # time_elapsed correspondingly until the second time acc change
+                # starts farther in the future than we will increment simtime.
+                while self._time_acc_changes[1].start_simtime < (
+                    simtime + self._time_acc_changes[0].time_acc *
+                        alpha_time_elapsed):
+                    remaining_simtime = \
+                        self._time_acc_changes[1].start_simtime - simtime
+                    simtime = self._time_acc_changes[1].start_simtime
+                    alpha_time_elapsed -= \
+                        remaining_simtime / self._time_acc_changes[0].time_acc
+                    # We've advanced past self._time_acc_changes[0],
+                    # we can forget it now.
+                    self._time_acc_changes.popleft()
+
+            # Now we will just advance partway into the span of time
+            # between self._time_acc_changes[0].startime and [1].startime.
+            simtime += alpha_time_elapsed * self._time_acc_changes[0].time_acc
+            requested_t = simtime
+
+        with self._solutions_cond:
+            self._last_simtime = requested_t
+            self._solutions_cond.notify_all()
 
         return requested_t
 
@@ -101,14 +125,22 @@ class PEngine:
             self._simthread.join()
 
     def _start_simthread(self, t0: float, y0: state.PhysicsState) -> None:
-        if y0.time_acc == 0:
+        if round(y0.time_acc) == 0:
             # We've paused the simulation. Don't start a new simthread
+            log.debug('Pausing simulation')
             return
 
         # We don't need to synchronize self._last_simtime or
         # self._solutions here, because we just stopped the background
         # simulation thread only a few lines ago.
         self._last_simtime = t0
+        # This double-ended queue should always have at least one element in
+        # it, and the first element should have a start_simtime less
+        # than self._last_simtime.
+        self._time_acc_changes = collections.deque(
+            [TimeAccChange(time_acc=y0.time_acc,
+             start_simtime=y0.timestamp)]
+        )
 
         # Essentially just a cache of ODE solutions.
         self._solutions = collections.deque(maxlen=SOLUTION_CACHE_SIZE)
@@ -153,6 +185,10 @@ class PEngine:
         else:
             y0 = self.get_state(requested_t)
 
+        if request.ident != Request.TIME_ACC_SET:
+            # Reveal the type of y0.craft as str (not None).
+            assert y0.craft is not None
+
         if request.ident == Request.HAB_SPIN_CHANGE:
             if y0.navmode != state.Navmode['Manual']:
                 # We're in autopilot, ignore this command
@@ -172,6 +208,9 @@ class PEngine:
         elif request.ident == Request.TIME_ACC_SET:
             assert request.time_acc_set >= 0
             y0.time_acc = request.time_acc_set
+            self._time_acc_changes.append(
+                TimeAccChange(time_acc=y0.time_acc, start_simtime=y0.timestamp)
+            )
         elif request.ident == Request.ENGINEERING_UPDATE:
             # Multiply this value by 100, because OrbitV considers engines at
             # 100% to be 100x the maximum thrust.
@@ -244,10 +283,10 @@ class PEngine:
                 entity.artificial
                 for entity in physical_state]) >= 1)[0]
 
-        # We keep track of the PhysicalState because our simulation only
-        # simulates things that change like position and velocity, not things
-        # that stay constant like names and mass. self._last_physical_state
-        # contains these constants.
+        # We keep track of the PhysicalState because our simulation
+        # only simulates things that change like position and velocity,
+        # not things that stay constant like names and mass.
+        # self._last_physical_state contains these constants.
         self._last_physical_state = physical_state._proto_state
         self.R = np.array([entity.r for entity in physical_state])
         self.M = np.array([entity.mass for entity in physical_state])
@@ -299,23 +338,37 @@ class PEngine:
             newest_state.timestamp = requested_t
             return newest_state
 
+    class RestartSimulationException(Exception):
+        """A request to restart the simulation with new t and y."""
+        def __init__(self, t: float, y: state.PhysicsState):
+            self.t = t
+            self.y = y
+
     def _simthread_target(self, t, y):
-        try:
-            self._run_simulation(t, y)
-        except Exception as e:
-            log.error(f'simthread got exception {repr(e)}.')
-            self._simthread_exception = e
-            with self._solutions_cond:
-                self._solutions_cond.notify_all()
+        while True:
+            try:
+                self._run_simulation(t, y)
+                if self._stopping_simthread:
+                    return
+            except PEngine.RestartSimulationException as e:
+                t = e.t
+                y = e.y
+                log.info(f'Simulation restarted itself at {t}.')
+            except Exception as e:
+                log.error(f'simthread got exception {repr(e)}.')
+                self._simthread_exception = e
+                with self._solutions_cond:
+                    self._solutions_cond.notify_all()
+                return
 
     def _derive(self, t: float, y_1d: np.ndarray,
                 pass_through_state: PhysicalState) -> np.ndarray:
         """
         y_1d =
          [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
-         SRB_time_left (this is just a single element, not an n-array)
+         SRB_time_left + time_acc (these are both single values)
         returns the derivative of y_1d, i.e.
-        [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant
+        [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
         (zeroed-out fields are changed elsewhere)
 
         !!!!!!!!!!! IMPORTANT !!!!!!!!!!!
@@ -406,7 +459,7 @@ class PEngine:
 
         return np.concatenate((
             y.VX, y.VY, Ax, Ay, y.Spin,
-            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage])
+            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0])
         ), axis=None)
 
     def _run_simulation(self, t: float, y: state.PhysicsState) -> None:
@@ -426,26 +479,27 @@ class PEngine:
         proto_state = y._proto_state
 
         while not self._stopping_simthread:
-            # self._solutions contains ODE solutions for the interval
-            # [self._solutions[0].t_min, self._solutions[-1].t_max]
-            # If we're in this function, requested_t is not in this interval!
-            # Then we should integrate the interval of
-            # [self._solutions[-1].t_max, requested_t]
-            # and hopefully a bit farther past the end of that interval.
-            hab_fuel_event = HabFuelEvent(y)
-            altitude_event = AltitudeEvent(y, self.R)
-            liftoff_event = LiftoffEvent(y)
-            srb_event = SrbFuelEvent()
+            derive_func = functools.partial(
+                self._derive, pass_through_state=proto_state)
+
+            events: List[Event] = [
+                CollisionEvent(y, self.R), HabFuelEvent(y), LiftoffEvent(y),
+                SrbFuelEvent()
+            ]
+            if y.craft is not None:
+                craft_index = y._name_to_index(y.craft)
+                events.append(CraftAccEvent(derive_func,
+                                       2 * len(y) + craft_index,
+                                       3 * len(y) + craft_index,
+                                       TIME_ACC_TO_BOUND[round(y.time_acc)]))
 
             ivp_out = scipy.integrate.solve_ivp(
-                functools.partial(
-                    self._derive, pass_through_state=proto_state),
-                # np.sqrt is here to give a slower-than-linear step size growth
-                [t, t + y.time_acc],
+                derive_func,
+                # math.pow is here to give a sub-linear step size growth.
+                [t, t + math.pow(y.time_acc, 1/1.2)],
                 # solve_ivp requires a 1D y0 array
                 y.y0(),
-                events=[
-                    altitude_event, hab_fuel_event, liftoff_event, srb_event],
+                events=events,
                 dense_output=True
             )
 
@@ -468,6 +522,8 @@ class PEngine:
                 if self._stopping_simthread:
                     break
 
+                # self._solutions contains ODE solutions for the interval
+                # [self._solutions[0].t_min, self._solutions[-1].t_max].
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
@@ -476,37 +532,60 @@ class PEngine:
 
             if ivp_out.status > 0:
                 log.info(f'Got event: {ivp_out.t_events} at t={t}.')
-                if len(ivp_out.t_events[0]):
-                    # Collision, simulation ended. Handled it and continue.
-                    assert len(ivp_out.t_events[0]) == 1
-                    assert len(ivp_out.t) >= 2
-                    y = _collision_decision(t, y, altitude_event)
-                    y = _reconcile_entity_dynamics(y)
-                if len(ivp_out.t_events[1]):
-                    # Something ran out of fuel.
-                    for index in self._artificials:
-                        artificial = y[index]
-                        if round(artificial.fuel) != 0:
-                            continue
-                        # This craft is out of fuel, the next iteration won't
-                        # consume any fuel. Set throttle to zero anyway.
-                        artificial.throttle = 0
-                        # Set fuel to a negative value, so it doesn't trigger
-                        # the event function
-                        artificial.fuel = 0
-                        y[index] = artificial
-                        log.info(f'{artificial.name} ran out of fuel.')
-                if len(ivp_out.t_events[2]):
-                    # A craft has a TWR > 1
-                    craft = y.craft_entity()
-                    log.info('We have liftoff of the '
-                             f'{craft.name} from {craft.landed_on} at {t}.')
-                    craft.landed_on = ''
-                    y[y.craft] = craft
-                if len(ivp_out.t_events[3]):
-                    # SRB fuel exhaustion.
-                    log.info('SRB exhausted.')
-                    y.srb_time = common.SRB_EMPTY
+                for index, event_t in enumerate(ivp_out.t_events):
+                    if len(event_t) == 0:
+                        # If this event didn't occur, then event_t == []
+                        continue
+                    event = events[index]
+                    if isinstance(event, CollisionEvent):
+                        # Collision, simulation ended. Handled it and continue.
+                        assert len(ivp_out.t_events[0]) == 1
+                        assert len(ivp_out.t) >= 2
+                        y = _collision_decision(t, y, events[0])
+                        y = _reconcile_entity_dynamics(y)
+                    if isinstance(event, HabFuelEvent):
+                        # Something ran out of fuel.
+                        for index in self._artificials:
+                            artificial = y[index]
+                            if round(artificial.fuel) != 0:
+                                continue
+                            log.info(f'{artificial.name} ran out of fuel.')
+                            # This craft is out of fuel, the next iteration
+                            # won't consume any fuel. Set throttle to zero.
+                            artificial.throttle = 0
+                            # Set fuel to a negative value, so it doesn't
+                            # trigger the event function.
+                            artificial.fuel = 0
+                            y[index] = artificial
+                    if isinstance(event, LiftoffEvent):
+                        # A craft has a TWR > 1
+                        craft = y.craft_entity()
+                        log.info(
+                            'We have liftoff of the '
+                            f'{craft.name} from {craft.landed_on} at {t}.')
+                        craft.landed_on = ''
+                        y[y.craft] = craft
+                    if isinstance(event, SrbFuelEvent):
+                        # SRB fuel exhaustion.
+                        log.info('SRB exhausted.')
+                        y.srb_time = common.SRB_EMPTY
+                    if isinstance(event, CraftAccEvent):
+                        # The acceleration acting on the craft is high, might
+                        # result in inaccurate results. SLOOWWWW DOWWWWNNNN.
+                        slower_time_acc_index = list(
+                            TIME_ACC_TO_BOUND.keys()
+                        ).index(round(y.time_acc)) - 1
+                        assert slower_time_acc_index >= 0
+                        slower_time_acc = \
+                            common.TIME_ACCS[slower_time_acc_index]
+                        # We never want to automatically pause the simulation.
+                        if slower_time_acc.value != 0:
+                            log.info(
+                                f'{y.time_acc} is too fast, '
+                                f'slowing down to {slower_time_acc.value}')
+                            # We should lower the time acc.
+                            y.time_acc = slower_time_acc.value
+                            raise PEngine.RestartSimulationException(t, y)
 
 
 class Event:
@@ -524,7 +603,7 @@ class SrbFuelEvent(Event):
     def __call__(self, t, y_1d) -> float:
         """Returns how much SRB burn time is left.
         This will cause simulation to stop when SRB burn time reaches 0."""
-        return y_1d[-1]
+        return y_1d[state.PhysicsState.SRB_TIME_INDEX]
 
 
 class HabFuelEvent(Event):
@@ -540,7 +619,7 @@ class HabFuelEvent(Event):
         return np.inf
 
 
-class AltitudeEvent(Event):
+class CollisionEvent(Event):
     def __init__(self, initial_state: state.PhysicsState, radii: np.ndarray):
         self.initial_state = initial_state
         self.radii = radii
@@ -590,11 +669,10 @@ class LiftoffEvent(Event):
         """Return 0 when the craft is landed but thrusting enough to lift off,
         and a positive value otherwise."""
         y = state.PhysicsState(y_1d, self.initial_state._proto_state)
-        try:
-            craft = y.craft_entity()
-        except state.PhysicsState.NoEntityError:
+        if y.craft is None:
             # There is no craft, return early.
             return np.inf
+        craft = y.craft_entity()
 
         if not craft.landed():
             # We don't have to lift off because we already lifted off.
@@ -617,6 +695,24 @@ class LiftoffEvent(Event):
         # This should be positive when the craft isn't thrusting enough, and
         # zero when it is thrusting enough.
         return max(0, common.LAUNCH_TWR - thrust / weight)
+
+
+class CraftAccEvent(Event):
+    def __init__(self, derive: Callable[[float, np.ndarray], np.ndarray],
+                 ax_index: int, ay_index: int, acc_bound: float):
+        self.derive = derive
+        self.ax_index = ax_index
+        self.ay_index = ay_index
+        self.acc_bound = acc_bound
+
+    def __call__(self, t, y_1d):
+        """Return positive if the current time acceleration is accurate, zero
+        then negative otherwise."""
+        derive_result = self.derive(t, y_1d)
+        accel_vector = np.array(
+            [derive_result[self.ax_index], derive_result[self.ay_index]])
+        acc = np.linalg.norm(accel_vector)
+        return self.acc_bound - acc
 
 
 def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
