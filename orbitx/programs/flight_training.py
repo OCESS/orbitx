@@ -15,8 +15,10 @@ log = logging.getLogger()
 
 name = "Flight Training Program"
 
-description = ("This standalone program gives you piloting control of the "
-               "Habitat, as it simulates the Habitat in spaceflight.")
+description = (
+    "This standalone program gives you piloting control of the "
+    "Habitat, as it simulates the Habitat in spaceflight."
+)
 
 argument_parser = argparse.ArgumentParser(
     'flighttraining',

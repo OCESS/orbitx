@@ -11,7 +11,6 @@ from pathlib import Path
 
 import grpc
 
-from orbitx import common
 from orbitx import network
 from orbitx import orbitv_file_interface
 from orbitx import programs
@@ -19,24 +18,28 @@ from orbitx import programs
 log = logging.getLogger()
 
 
-description = """Communicate between a running OrbitV engineering program and
-a running OrbitX Lead Flight Server."""
+name = "Compatibility Client"
+
+description = (
+    "Communicate between a running OrbitV engineering program and an OrbitX "
+    "Physics Server."
+)
 
 argument_parser = argparse.ArgumentParser('compat', description=description)
 argument_parser.add_argument(
     "--engineering", default="orbit-files/",
-    help=(
-        "Path to engineering, "
-        "containing OSbackup.RND and ORBITSSE.RND")
+    help="Path to engineering, "
+         "containing OSbackup.RND and ORBITSSE.RND"
 )
-argument_parser.add_argument("--piloting", default=(
-    f"localhost"),
-    help="network name of piloting client")
+argument_parser.add_argument(
+    "--physics-server", default="localhost",
+    help="network name of piloting client"
+)
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(args.piloting, common.DEFAULT_PORT)
-    print(f'Connected to OrbitX lead server: {args.piloting}')
+    orbitx_connection = network.StateClient(args.physics_server)
+    print(f'Connected to OrbitX lead server: {args.physics_server}')
     assert Path(args.engineering).exists
 
     osbackup = Path(args.engineering) / 'OSbackup.RND'
@@ -60,7 +63,7 @@ def main(args: argparse.Namespace):
 
 
 program = programs.Program(
-    name='Compatibility',
+    name=name,
     description=description,
     main=main,
     argparser=argument_parser,

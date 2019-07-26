@@ -7,9 +7,10 @@ from typing import List, Iterable
 
 import grpc
 
+from orbitx import common
+from orbitx import state
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
-from orbitx import state
 
 log = logging.getLogger()
 
@@ -87,13 +88,14 @@ class StateClient:
     calling code.
 
     Usage:
-        with StateClient('localhost', 28430) as physics_state_getter:
+        with StateClient('localhost') as physics_state_getter:
             while True:
                 physics_state = physical_state_getter()
     """
 
-    def __init__(self, cnc_address, cnc_port):
-        self.channel = grpc.insecure_channel(f'{cnc_address}:{cnc_port}')
+    def __init__(self, hostname: str):
+        self.channel = grpc.insecure_channel(
+            f'{hostname}:{common.DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
 
     def get_state(self,

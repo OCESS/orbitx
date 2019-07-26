@@ -14,16 +14,18 @@ log = logging.getLogger()
 
 name = "MC Flight"
 
-description = """Connect to a running Lead Flight Server and follow along with
-its simulation state. While this Mirror is running, you can pause network
-updates and take control of the Habitat."""
+description = (
+    "Connect to a Physics Server and follow along with its simulation state. "
+    "You can temporarily this stop this MC Flight mirror from communicating "
+    "with the Physics Server, and instead simulate its own gamma reality."
+)
 
 argument_parser = argparse.ArgumentParser('mcflight', description=description)
 argument_parser.add_argument(
-    'lead_server', type=str, nargs='?', default='localhost',
+    'physics_server', type=str, nargs='?', default='localhost',
     help=(
-        'Network name of the computer where the lead server is running. If the'
-        ' lead server is running on the same machine, put "localhost".')
+        'Network name of the computer where the physics server is running. If '
+        'the lead server is running on the same machine, put "localhost".')
 )
 
 
@@ -31,9 +33,8 @@ def main(args: argparse.Namespace):
     time_of_last_network_update = 0.0
     networking = True  # Whether data is requested over the network
 
-    log.info(f'Connecting to lead server {args.lead_server}.')
-    lead_server_connection = network.StateClient(
-        args.lead_server, common.DEFAULT_PORT)
+    log.info(f'Connecting to lead server {args.physics_server}.')
+    lead_server_connection = network.StateClient(args.physics_server)
     state = lead_server_connection.get_state()
     physics_engine = physics.PEngine(state)
 
@@ -42,12 +43,12 @@ def main(args: argparse.Namespace):
 
     while True:
         old_networking = networking
-        networking = gui.lead_server_communication_requested()
+        networking = gui.requesting_read_from_physics_server()
         if old_networking != networking:
             log.info(
                 ('STARTED' if networking else 'STOPPED') +
-                ' networking with the lead flight server at ' +
-                args.lead_server)
+                ' networking with the physics server at ' +
+                args.physics_server)
 
         if (networking and
             time.monotonic() - time_of_last_network_update >

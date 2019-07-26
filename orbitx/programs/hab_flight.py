@@ -12,13 +12,14 @@ log = logging.getLogger()
 
 name = "Habitat Flight"
 
-description = """Connect to a running Lead Flight Server and follow along with
-its simulation state. While this Mirror is running, you can pause network
-updates and take control of the Habitat."""
+description = (
+    "Connect to a running Physics Server and provide graphical pilot control "
+    "of the Physics Server."
+)
 
 argument_parser = argparse.ArgumentParser('habflight', description=description)
 argument_parser.add_argument(
-    'lead_server', type=str, nargs='?', default='localhost',
+    'physics_server', type=str, nargs='?', default='localhost',
     help=(
         'Network name of the computer where the lead server is running. If the'
         ' lead server is running on the same machine, put "localhost".')
@@ -26,9 +27,8 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    log.info(f'Connecting to lead server {args.lead_server}.')
-    lead_server_connection = network.StateClient(
-        args.lead_server, common.DEFAULT_PORT)
+    log.info(f'Connecting to physics server {args.physics_server}.')
+    lead_server_connection = network.StateClient(args.physics_server)
     state = lead_server_connection.get_state()
 
     gui = flight_gui.FlightGui(state, running_as_mirror=False)

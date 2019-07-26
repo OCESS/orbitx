@@ -19,8 +19,14 @@ log = logging.getLogger()
 
 name = "Physics Server"
 
-description = ("This standalone program gives you piloting control of the "
-               "Habitat, as it simulates the Habitat in spaceflight.")
+description = (
+    "Simulate the Habitat in spaceflight with the specified savefile."
+    "<br />To control this Physics Server, connect a Habitat Flight client."
+    "<br />To just view the state of this Physics Server, connect an "
+    "MC flight client."
+    "<br />To have this Physics Server communicate with OrbitV engineering, "
+    "connect a Compatibility Client."
+)
 
 argument_parser = argparse.ArgumentParser(
     'physicsserver',

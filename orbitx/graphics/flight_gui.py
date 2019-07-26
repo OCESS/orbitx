@@ -172,7 +172,7 @@ class FlightGui:
             # The user could be entering in things in the text fields, so just
             # wait until they're not paused.
             return
-        if self.lead_server_communication_requested():
+        if self.requesting_read_from_physics_server():
             # We shouldn't be generating any commands, ignore this.
             return
 
@@ -395,7 +395,7 @@ class FlightGui:
             self._commands.append(Request(ident=Request.IGNITE_SRBS))
         menu.selected = MiscCommand.UNSELECTED.value
 
-    def lead_server_communication_requested(self) -> bool:
+    def requesting_read_from_physics_server(self) -> bool:
         # This should only be called when this FlightGui is the frontend of a
         # mirror server. This will probably throw an AttributeError otherwise.
         if self._sidebar.follow_lead_checkbox is None:

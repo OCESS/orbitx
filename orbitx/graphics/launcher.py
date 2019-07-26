@@ -48,29 +48,27 @@ class Launcher:
             "</input>")
 
         for program in programs.LISTING:
+            text_fields: List[vpython.winput] = []
             canvas.append_to_caption("<hr />")
             canvas.append_to_caption(f"<h3>{program.name}</h3>")
+            vpython.button(
+                text=f'Launch {program.name}!',
+                bind=functools.partial(self._set_args, program, text_fields))
             canvas.append_to_caption(f"<p>{program.description}</p>")
 
-            text_fields: List[vpython.winput] = []
-            vpython.button(
-                text=program.name,
-                bind=functools.partial(self._set_args, program, text_fields))
             for arg in program.argparser._actions:
                 if '--help' in arg.option_strings:
                     # This is the default help action, ignore it.
                     continue
                 canvas.append_to_caption(
-                    "<br class='description' style='display:none' />")
-                canvas.append_to_caption(
                     f"<span class='argname'>{arg.dest}:</span>")
                 canvas.append_to_caption(
-                    "<span class='description' style='display:none'>"
-                    f" {arg.help}</span>&nbsp;")
+                    f"<span class='description'> {arg.help}</span>&nbsp;")
                 arg_field = vpython.winput(
                     # The bind is a no-op, we'll poll the .text attribute.
                     type='string', bind=lambda _: None, text=arg.default
                 )
+                canvas.append_to_caption("<br />")
 
                 # Monkey-patch this attribute so that we can build CLI args
                 # properly.
