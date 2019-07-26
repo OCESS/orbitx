@@ -37,7 +37,7 @@ def main(args: argparse.Namespace):
     while True:
         gui.draw(state)
         # TODO: what if this fails? Set networking to False?
-        state = lead_server_connection.get_state(iter(gui.pop_commands()))
+        state = lead_server_connection.get_state(gui.pop_commands())
         gui.rate(common.FRAMERATE)
 
 

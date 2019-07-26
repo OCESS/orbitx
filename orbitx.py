@@ -157,7 +157,12 @@ def main():
 
         vpython_error_message()
 
-        if isinstance(e, (AttributeError, ValueError)):
+        # The usual errors that result from stale grpc/protobuf definitions are
+        # attribute errors (like entity.x throwing an AttributeError), or
+        # GRPC errors.
+        if isinstance(e, (AttributeError, ValueError)) or \
+            hasattr(e, '__module__') and (
+                'grpc' in e.__module__ or 'google' in e.__module__):
             proto_file = Path('orbitx', 'orbitx.proto')
             generated_file = Path('orbitx', 'orbitx_pb2.py')
             if not generated_file.is_file():

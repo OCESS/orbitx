@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 
 from orbitx import common
-from orbitx import network
 from orbitx import physics
 from orbitx import programs
 from orbitx.graphics import flight_gui
@@ -51,15 +50,10 @@ def main(args: argparse.Namespace):
 
     while True:
         state = physics_engine.get_state()
-        user_commands = gui.pop_commands()
 
         # If we have any commands, process them so the simthread has as
         # much time as possible to restart before next update.
-        for command in user_commands:
-            if command.ident == network.Request.NOOP:
-                continue
-            log.info(f'Got command: {command}')
-            physics_engine.handle_request(command)
+        physics_engine.handle_requests(gui.pop_commands())
 
         gui.draw(state)
         gui.rate(common.FRAMERATE)

@@ -319,7 +319,10 @@ class FlightGui:
 
     def _time_acc_dropdown_hook(self, time_acc_menu: vpython.menu):
         time_acc = STR_TO_TIME_ACC[time_acc_menu.selected]
-        self._commands.append(Request(
+        # Insert this TIME_ACC_SET command at the beginning of the list,
+        # so that we process it as quickly as possible. This isn't necessary,
+        # but can get us out of a stuck simulation faster.
+        self._commands.insert(0, Request(
             ident=Request.TIME_ACC_SET,
             time_acc_set=time_acc))
 

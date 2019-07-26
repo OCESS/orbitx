@@ -156,19 +156,8 @@ class PEngine:
         # Fork self._simthread into the background.
         self._simthread.start()
 
-    def handle_request(self, request: Request, requested_t=None):
-        """Interface to set habitat controls.
-
-        Use an argument to change habitat throttle or spinning, and simulation
-        will restart with this new information."""
-        if request.ident == Request.NOOP:
-            # We don't care about these requests
-            return
-        requested_t = self._simtime(requested_t)
-        log.info(
-            f'Got {Request.Idents.Name(request.ident)}, simtime={requested_t}')
-
-        if request.ident == Request.TIME_ACC_SET:
+    def handle_requests(self, requests: List[Request], requested_t=None):
+        if len(requests) and requests[0].ident == Request.TIME_ACC_SET:
             # Immediately change the time acceleration, don't wait for the
             # simulation to catch up. This deals with the case where we're at
             # 100,000x time acc, and the program seems frozen for the user and
@@ -179,98 +168,25 @@ class PEngine:
                 requested_t = self._last_physical_state.timestamp
             else:
                 requested_t = min(self._solutions[-1].t_max, requested_t)
+        else:
+            requested_t = self._simtime(requested_t)
 
         if len(self._solutions) == 0:
             y0 = state.PhysicsState(None, self._last_physical_state)
         else:
             y0 = self.get_state(requested_t)
 
-        if request.ident != Request.TIME_ACC_SET:
-            # Reveal the type of y0.craft as str (not None).
-            assert y0.craft is not None
-
-        if request.ident == Request.HAB_SPIN_CHANGE:
-            if y0.navmode != state.Navmode['Manual']:
-                # We're in autopilot, ignore this command
-                return
-            craft = y0[y0.craft]
-            if not craft.landed():
-                craft.spin += request.spin_change
-                y0[y0.craft] = craft
-        elif request.ident == Request.HAB_THROTTLE_CHANGE:
-            craft = y0[y0.craft]
-            craft.throttle += request.throttle_change
-            y0[y0.craft] = craft
-        elif request.ident == Request.HAB_THROTTLE_SET:
-            craft = y0[y0.craft]
-            craft.throttle = request.throttle_set
-            y0[y0.craft] = craft
-        elif request.ident == Request.TIME_ACC_SET:
-            assert request.time_acc_set >= 0
-            y0.time_acc = request.time_acc_set
-            self._time_acc_changes.append(
-                TimeAccChange(time_acc=y0.time_acc, start_simtime=y0.timestamp)
-            )
-        elif request.ident == Request.ENGINEERING_UPDATE:
-            # Multiply this value by 100, because OrbitV considers engines at
-            # 100% to be 100x the maximum thrust.
-            common.craft_capabilities[common.HABITAT] = \
-                common.craft_capabilities[common.HABITAT]._replace(
-                    thrust=100 * request.engineering_update.max_thrust)
-            hab = y0[common.HABITAT]
-            ayse = y0[common.AYSE]
-            hab.fuel = request.engineering_update.hab_fuel
-            ayse.fuel = request.engineering_update.ayse_fuel
-            y0[common.HABITAT] = hab
-            y0[common.AYSE] = ayse
-
-            if request.engineering_update.module_state == \
-                Request.DETACHED_MODULE and \
-                common.MODULE not in y0._entity_names and \
-                    not hab.landed():
-                # If the Habitat is freely floating and engineering asks us to
-                # detach the Module, spawn in the Module.
-                module = state.Entity(state.protos.Entity(
-                    name=common.MODULE, mass=100, r=10, artificial=True))
-                module.pos = hab.pos - (module.r + hab.r) * \
-                    calc.heading_vector(hab.heading)
-                module.v = calc.rotational_speed(module, hab)
-
-                y0_proto = y0.as_proto()
-                y0_proto.entities.extend([module.proto])
-                y0 = state.PhysicsState(None, y0_proto)
-
-        elif request.ident == Request.UNDOCK:
-            habitat = y0[common.HABITAT]
-
-            if habitat.landed_on == common.AYSE:
-                ayse = y0[common.AYSE]
-                habitat.landed_on = ''
-
-                norm = habitat.pos - ayse.pos
-                unit_norm = norm / np.linalg.norm(norm)
-                habitat.v += unit_norm * common.UNDOCK_PUSH
-                habitat.spin = ayse.spin
-
-                y0[common.HABITAT] = habitat
-
-        elif request.ident == Request.REFERENCE_UPDATE:
-            y0.reference = request.reference
-        elif request.ident == Request.TARGET_UPDATE:
-            y0.target = request.target
-        elif request.ident == Request.LOAD_SAVEFILE:
-            y0 = common.load_savefile(common.savefile(request.loadfile))
-        elif request.ident == Request.NAVMODE_SET:
-            y0.navmode = state.Navmode(request.navmode)
-            if y0.navmode == state.Navmode['Manual']:
-                craft = y0[y0.craft]
-                craft.spin = 0
-                y0[y0.craft] = craft
-        elif request.ident == Request.PARACHUTE:
-            y0.parachute_deployed = request.deploy_parachute
-        elif request.ident == Request.IGNITE_SRBS:
-            if round(y0.srb_time) == common.SRB_FULL:
-                y0.srb_time = common.SRB_BURNTIME
+        for request in requests:
+            if request.ident == Request.NOOP:
+                # We don't care about these requests
+                continue
+            y0 = _one_request(request, y0)
+            if request.ident == Request.TIME_ACC_SET:
+                assert request.time_acc_set >= 0
+                self._time_acc_changes.append(
+                    TimeAccChange(time_acc=y0.time_acc,
+                                  start_simtime=y0.timestamp)
+                )
 
         self.set_state(y0)
 
@@ -287,7 +203,7 @@ class PEngine:
         # only simulates things that change like position and velocity,
         # not things that stay constant like names and mass.
         # self._last_physical_state contains these constants.
-        self._last_physical_state = physical_state._proto_state
+        self._last_physical_state = physical_state.as_proto()
         self.R = np.array([entity.r for entity in physical_state])
         self.M = np.array([entity.mass for entity in physical_state])
 
@@ -489,9 +405,9 @@ class PEngine:
             if y.craft is not None:
                 craft_index = y._name_to_index(y.craft)
                 events.append(CraftAccEvent(derive_func,
-                                       2 * len(y) + craft_index,
-                                       3 * len(y) + craft_index,
-                                       TIME_ACC_TO_BOUND[round(y.time_acc)]))
+                              2 * len(y) + craft_index,
+                              3 * len(y) + craft_index,
+                              TIME_ACC_TO_BOUND[round(y.time_acc)]))
 
             ivp_out = scipy.integrate.solve_ivp(
                 derive_func,
@@ -861,3 +777,99 @@ def _land(e1, e2):
     e1.throttle = 0
     e1.spin = e2.spin
     e1.v = calc.rotational_speed(e1, e2)
+
+
+def _one_request(request: Request, y0: state.PhysicsState) \
+        -> state.PhysicsState:
+    """Interface to set habitat controls.
+
+    Use an argument to change habitat throttle or spinning, and simulation
+    will restart with this new information."""
+    log.info(f'Got {Request.Idents.Name(request.ident)}, '
+             f'simtime={y0.timestamp}')
+
+    if request.ident != Request.TIME_ACC_SET:
+        # Reveal the type of y0.craft as str (not None).
+        assert y0.craft is not None
+
+    if request.ident == Request.HAB_SPIN_CHANGE:
+        if y0.navmode != state.Navmode['Manual']:
+            # We're in autopilot, ignore this command
+            return y0
+        craft = y0[y0.craft]
+        if not craft.landed():
+            craft.spin += request.spin_change
+            y0[y0.craft] = craft
+    elif request.ident == Request.HAB_THROTTLE_CHANGE:
+        craft = y0[y0.craft]
+        craft.throttle += request.throttle_change
+        y0[y0.craft] = craft
+    elif request.ident == Request.HAB_THROTTLE_SET:
+        craft = y0[y0.craft]
+        craft.throttle = request.throttle_set
+        y0[y0.craft] = craft
+    elif request.ident == Request.TIME_ACC_SET:
+        assert request.time_acc_set >= 0
+        y0.time_acc = request.time_acc_set
+    elif request.ident == Request.ENGINEERING_UPDATE:
+        # Multiply this value by 100, because OrbitV considers engines at
+        # 100% to be 100x the maximum thrust.
+        common.craft_capabilities[common.HABITAT] = \
+            common.craft_capabilities[common.HABITAT]._replace(
+                thrust=100 * request.engineering_update.max_thrust)
+        hab = y0[common.HABITAT]
+        ayse = y0[common.AYSE]
+        hab.fuel = request.engineering_update.hab_fuel
+        ayse.fuel = request.engineering_update.ayse_fuel
+        y0[common.HABITAT] = hab
+        y0[common.AYSE] = ayse
+
+        if request.engineering_update.module_state == \
+            Request.DETACHED_MODULE and \
+            common.MODULE not in y0._entity_names and \
+                not hab.landed():
+            # If the Habitat is freely floating and engineering asks us to
+            # detach the Module, spawn in the Module.
+            module = state.Entity(state.protos.Entity(
+                name=common.MODULE, mass=100, r=10, artificial=True))
+            module.pos = hab.pos - (module.r + hab.r) * \
+                calc.heading_vector(hab.heading)
+            module.v = calc.rotational_speed(module, hab)
+
+            y0_proto = y0.as_proto()
+            y0_proto.entities.extend([module.proto])
+            y0 = state.PhysicsState(None, y0_proto)
+
+    elif request.ident == Request.UNDOCK:
+        habitat = y0[common.HABITAT]
+
+        if habitat.landed_on == common.AYSE:
+            ayse = y0[common.AYSE]
+            habitat.landed_on = ''
+
+            norm = habitat.pos - ayse.pos
+            unit_norm = norm / np.linalg.norm(norm)
+            habitat.v += unit_norm * common.UNDOCK_PUSH
+            habitat.spin = ayse.spin
+
+            y0[common.HABITAT] = habitat
+
+    elif request.ident == Request.REFERENCE_UPDATE:
+        y0.reference = request.reference
+    elif request.ident == Request.TARGET_UPDATE:
+        y0.target = request.target
+    elif request.ident == Request.LOAD_SAVEFILE:
+        y0 = common.load_savefile(common.savefile(request.loadfile))
+    elif request.ident == Request.NAVMODE_SET:
+        y0.navmode = state.Navmode(request.navmode)
+        if y0.navmode == state.Navmode['Manual']:
+            craft = y0[y0.craft]
+            craft.spin = 0
+            y0[y0.craft] = craft
+    elif request.ident == Request.PARACHUTE:
+        y0.parachute_deployed = request.deploy_parachute
+    elif request.ident == Request.IGNITE_SRBS:
+        if round(y0.srb_time) == common.SRB_FULL:
+            y0.srb_time = common.SRB_BURNTIME
+
+    return y0

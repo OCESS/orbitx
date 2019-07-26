@@ -81,16 +81,12 @@ class StateServer(grpc_stubs.StateServerServicer):
 
 class StateClient:
     """
-    Context manager for networking.
-
-    Should return a function that evaluates to the state of the entities.
-    This will let us change the implementation of this class without changing
-    calling code.
+    Allows clients to easily communicate to the Physics Server.
 
     Usage:
-        with StateClient('localhost') as physics_state_getter:
-            while True:
-                physics_state = physical_state_getter()
+        connection = StateClient('localhost')
+        while True:
+            physics_state = connection.get_state()
     """
 
     def __init__(self, hostname: str):
@@ -98,8 +94,11 @@ class StateClient:
             f'{hostname}:{common.DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
 
-    def get_state(self,
-                  commands: Iterable[Request] = None) -> state.PhysicsState:
+    def get_state(self, commands: List[Request] = None) \
+            -> state.PhysicsState:
         if commands is None:
-            commands = iter([Request(ident=protos.Command.NOOP)])
-        return state.PhysicsState(None, self.stub.get_physical_state(commands))
+            commands_iter = iter([Request(ident=protos.Command.NOOP)])
+        else:
+            commands_iter = iter(commands)
+        return state.PhysicsState(None,
+                                  self.stub.get_physical_state(commands_iter))

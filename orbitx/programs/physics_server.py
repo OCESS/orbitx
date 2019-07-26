@@ -71,15 +71,9 @@ def main(args: argparse.Namespace):
             state = physics_engine.get_state()
             state_server.notify_state_change(state.as_proto())
 
-            user_commands = state_server.pop_commands()
-
             # If we have any commands, process them so the simthread has as
             # much time as possible to restart before next update.
-            for command in user_commands:
-                if command.ident == network.Request.NOOP:
-                    continue
-                log.info(f'Got command: {command}')
-                physics_engine.handle_request(command)
+            physics_engine.handle_requests(state_server.pop_commands())
 
             # Sleep for just a little bit, to allow the simthread to excecute
             # and to give the GRPC server more time to serve requests.

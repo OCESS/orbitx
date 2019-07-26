@@ -64,9 +64,7 @@ def main(args: argparse.Namespace):
         gui.draw(state)
         if not networking:
             # When we're not networking, allow user input.
-            user_commands = gui.pop_commands()
-            for request in user_commands:
-                physics_engine.handle_request(request)
+            physics_engine.handle_requests(gui.pop_commands())
         gui.rate(common.FRAMERATE)
 
 
