@@ -25,7 +25,7 @@ from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
-from orbitx.graphics.sidebar_widgets import Checkbox, Menu, Text
+from orbitx.graphics.sidebar_widgets import Checkbox, Menu, TableText
 from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()
@@ -428,7 +428,7 @@ class Sidebar:
         self._create_menus()
 
         # If you change the order of these, note that the placeholder text
-        # is set in footer.html
+        # is set in flight_gui_footer.html
         self._save_box = vpython.winput(
             bind=self._parent._save_hook, type='string')
         self._save_box.disabled = True
@@ -456,9 +456,8 @@ class Sidebar:
             self.follow_lead_checkbox = None
 
         common.remove_vpython_css()
-
-        with open(Path('orbitx', 'graphics', 'footer.html')) as footer:
-            vpython.canvas.get_selected().append_to_caption(footer.read())
+        common.include_vpython_footer_file(
+            Path('orbitx', 'graphics', 'flight_gui_footer.html'))
 
     def _disable_inputs(self, disabled: bool):
         """Enable or disable all inputs, except for networking checkbox."""
@@ -471,15 +470,15 @@ class Sidebar:
 
     def _create_wtexts(self):
         vpython.canvas.get_selected().caption += "<table>\n"
-        self._wtexts: List[Text] = []
+        self._wtexts: List[TableText] = []
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Simulation time",
             lambda state: datetime.fromtimestamp(
                 state.timestamp, common.TIMEZONE).strftime('%x %X'),
             "Current time in simulation",
             new_section=False))
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Orbit speed",
             lambda state: common.format_num(calc.orb_speed(
                 state.craft_entity(),
@@ -487,7 +486,7 @@ class Sidebar:
             "Speed required for circular orbit at current altitude",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Periapsis",
             lambda state: common.format_num(calc.periapsis(
                 state.craft_entity(),
@@ -495,7 +494,7 @@ class Sidebar:
             "Lowest altitude in naïve orbit around reference",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Apoapsis",
             lambda state: common.format_num(calc.apoapsis(
                 state.craft_entity(),
@@ -503,7 +502,7 @@ class Sidebar:
             "Highest altitude in naïve orbit around reference",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             # The H in HRT stands for Habitat, even though craft is more
             # general and covers AYSE, but HRT is the familiar triple name and
             # the Hawking III says trans rights.
@@ -516,33 +515,33 @@ class Sidebar:
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Throttle",
             lambda state: "{:.1%}".format(state.craft_entity().throttle),
             "Percentage of habitat's maximum rated engines",
             new_section=True))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Engine Acceleration",
             lambda state: common.format_num(calc.engine_acceleration(
                 state), " m/s/s"),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Drag",
             lambda state: common.format_num(np.linalg.norm(calc.drag(state)),
                                             " m/s/s"),
             "Atmospheric drag acting on the craft",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Fuel ",
             lambda state: common.format_num(state.craft_entity(
             ).fuel, " kg"), "Remaining fuel of habitat",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Ref altitude",
             lambda state: common.format_num(calc.altitude(
                 state.craft_entity(),
@@ -550,7 +549,7 @@ class Sidebar:
             "Altitude of habitat above reference surface",
             new_section=True))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Ref speed",
             lambda state: common.format_num(calc.speed(
                 state.craft_entity(),
@@ -558,7 +557,7 @@ class Sidebar:
             "Speed of habitat above reference surface",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Vertical speed",
             lambda state: common.format_num(calc.v_speed(
                 state.craft_entity(),
@@ -566,7 +565,7 @@ class Sidebar:
             "Vertical speed of habitat towards/away reference surface",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Horizontal speed",
             lambda state: common.format_num(calc.h_speed(
                 state.craft_entity(),
@@ -574,7 +573,7 @@ class Sidebar:
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Pitch θ",
             lambda state: common.format_num(np.degrees(calc.pitch(
                 state.craft_entity(),
@@ -582,7 +581,7 @@ class Sidebar:
             "Horizontal speed of habitat across reference surface",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Targ altitude",
             lambda state: common.format_num(calc.altitude(
                 state.craft_entity(),
@@ -590,7 +589,7 @@ class Sidebar:
             "Altitude of habitat above reference surface",
             new_section=True))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Targ speed",
             lambda state: common.format_num(calc.speed(
                 state.craft_entity(),
@@ -598,7 +597,7 @@ class Sidebar:
             "Speed of habitat above target surface",
             new_section=False))
 
-        self._wtexts.append(Text(
+        self._wtexts.append(TableText(
             "Landing acc",
             lambda state: common.format_num(calc.landing_acceleration(
                 state.craft_entity(),
@@ -650,7 +649,7 @@ class Sidebar:
             helptext="Automatically points habitat"
         )
 
-        # This div is referenced in footer.html to locate the pause menu.
+        # This div is referenced in flight_gui_footer.html to locate the pause menu.
         vpython.canvas.get_selected().append_to_caption(
             '<div id="pause_anchor"></div>')
         self.time_acc_menu = Menu(

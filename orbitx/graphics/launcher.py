@@ -1,4 +1,5 @@
 import functools
+from pathlib import Path
 from typing import List, Optional
 
 import vpython
@@ -17,21 +18,9 @@ class Launcher:
         canvas = vpython.canvas(width=1, height=1)
 
         # Some basic but nice styling.
+        common.include_vpython_footer_file(
+            Path('orbitx', 'graphics', 'simple_css.css'))
         canvas.append_to_caption("""<style>
-            body {
-                margin: 1em auto;
-                max-width: 40em;
-                padding: 0.62em;
-                font: 1.2em/1.62em sans-serif;
-            }
-            h1,h2,h3 {
-                line-height: 1.2em;
-            }
-            .description {
-                font-size: 60%;
-                font-stretch: condensed;
-                display: none;
-            }
             .argname {
                 font-weight: bold;
             }

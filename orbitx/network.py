@@ -2,8 +2,9 @@
 
 import logging
 import threading
+import time
 import queue
-from typing import List, Iterable
+from typing import Dict, List, Iterable
 
 import grpc
 
@@ -42,6 +43,9 @@ class StateServer(grpc_stubs.StateServerServicer):
         self._internal_state_lock = threading.Lock()
         self._commands = queue.Queue()
 
+        # This maps client identifiers to the last timestamp they contacted us.
+        self.last_contact: Dict[str, float] = {}
+
     def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
         # properly. When changing this code, consider that multithreading is
@@ -62,6 +66,7 @@ class StateServer(grpc_stubs.StateServerServicer):
         for request in request_iterator:
             if request.ident != protos.Command.NOOP:
                 self._commands.put(request)
+        self.last_contact[context.peer()] = time.monotonic()
         with self._internal_state_lock:
             assert self._class_used_properly
             return self._internal_state_copy

@@ -12,6 +12,7 @@ from orbitx import common
 from orbitx import network
 from orbitx import physics
 from orbitx import programs
+from orbitx.graphics.server_gui import ServerGui
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
@@ -51,10 +52,12 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = common.savefile(args.loadfile)
 
-    # TODO: give some user feedback when this is working, e.g. a GUI.
     log.info(f'Loading save at {loadfile}')
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
+
+    gui = ServerGui()
+
     server = grpc.server(
         concurrent.futures.ThreadPoolExecutor(max_workers=4))
     atexit.register(lambda: server.stop(grace=2))
@@ -75,9 +78,7 @@ def main(args: argparse.Namespace):
             # much time as possible to restart before next update.
             physics_engine.handle_requests(state_server.pop_commands())
 
-            # Sleep for just a little bit, to allow the simthread to excecute
-            # and to give the GRPC server more time to serve requests.
-            time.sleep(0.1)
+            gui.update(state_server.last_contact)
     finally:
         server.stop(grace=1)
 

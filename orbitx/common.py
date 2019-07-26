@@ -39,7 +39,7 @@ class TimeAcc(NamedTuple):
 
 
 # If you change the 'Pause' element of this list, change the corresponding
-# JS code in footer.html also.
+# JS code in flight_gui_footer.html also.
 TIME_ACCS = [
     TimeAcc(value=0,       desc='Pause',    accurate_bound=100),
     TimeAcc(value=1,       desc='1×',       accurate_bound=10),
@@ -189,3 +189,10 @@ def remove_vpython_css():
             element.style.float = float_backup;
         }
     </script>""")
+
+
+def include_vpython_footer_file(footer_path: Path):
+    """Append the contents of a file to the vpython caption.
+    Useful for including HTML or CSS files."""
+    with open(footer_path) as footer:
+        vpython.canvas.get_selected().append_to_caption(footer.read())

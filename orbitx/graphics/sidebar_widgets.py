@@ -1,9 +1,6 @@
-from typing import List, Callable
+from typing import Any, List, Callable
 
 import vpython
-
-from orbitx.state import PhysicsState
-
 
 # There's a bit of magic here. Normally, vpython.wtext will make a
 # <div> in the HTML and automaticall update it when the .text field is
@@ -26,10 +23,10 @@ from orbitx.state import PhysicsState
 last_div_id = 1
 
 
-class Text:
+class TableText:
     def __init__(self,
                  caption: str,
-                 text_gen: Callable[[PhysicsState], str],
+                 text_gen: Callable[[Any], str],
                  helptext: str, *,
                  new_section: bool):
         global last_div_id
@@ -48,7 +45,7 @@ class Text:
 
         last_div_id += 1
 
-    def update(self, state: PhysicsState):
+    def update(self, state: Any):
         self._wtext.text = self._text_gen(state)
 
 
