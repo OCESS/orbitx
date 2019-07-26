@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """Common code and class interfaces."""
 
-import argparse
 import logging
 import pytz
 import sys
 from pathlib import Path
-from typing import Callable, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import numpy
 import google.protobuf.json_format
@@ -178,14 +177,6 @@ def start_profiling():
         fd=open(PERF_FILE, 'w'),
         filter=r'(simthread|MainThread)'
     )
-
-
-class Program(NamedTuple):
-    main: Callable[[argparse.Namespace], None]
-    name: str
-    description: str
-    argparser: argparse.ArgumentParser
-    headless: bool
 
 
 def remove_vpython_css():

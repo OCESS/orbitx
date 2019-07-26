@@ -6,18 +6,19 @@ import time
 from orbitx import common
 from orbitx import network
 from orbitx import physics
+from orbitx import programs
 from orbitx.graphics import flight_gui
 
 log = logging.getLogger()
 
 
-name = "Mirror Client"
+name = "MC Flight"
 
 description = """Connect to a running Lead Flight Server and follow along with
 its simulation state. While this Mirror is running, you can pause network
 updates and take control of the Habitat."""
 
-argument_parser = argparse.ArgumentParser('mirror', description=description)
+argument_parser = argparse.ArgumentParser('mcflight', description=description)
 argument_parser.add_argument(
     'lead_server', type=str, nargs='?', default='localhost',
     help=(
@@ -68,7 +69,7 @@ def main(args: argparse.Namespace):
         gui.rate(common.FRAMERATE)
 
 
-Mirror = common.Program(
+program = programs.Program(
     name=name,
     description=description,
     main=main,

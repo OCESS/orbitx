@@ -14,6 +14,7 @@ import grpc
 from orbitx import common
 from orbitx import network
 from orbitx import orbitv_file_interface
+from orbitx import programs
 
 log = logging.getLogger()
 
@@ -50,7 +51,7 @@ def main(args: argparse.Namespace):
         while True:
             update = \
                 orbitv_file_interface.read_update_from_orbitsse(orbitsse)
-            state = orbitx_connection.get_state(update)
+            state = orbitx_connection.get_state([update])
             orbitv_file_interface.write_state_to_osbackup(state, osbackup)
             time.sleep(1)
     except grpc.RpcError as err:
@@ -58,7 +59,7 @@ def main(args: argparse.Namespace):
             f'Got response code {err.code()} from orbitx, shutting down')
 
 
-Compat = common.Program(
+program = programs.Program(
     name='Compatibility',
     description=description,
     main=main,

@@ -3,30 +3,27 @@ import concurrent.futures
 import atexit
 import logging
 import os
+import time
 from pathlib import Path
-from typing import List
 
 import grpc
 
 from orbitx import common
 from orbitx import network
 from orbitx import physics
-from orbitx.graphics import flight_gui
+from orbitx import programs
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
 
-name = "Lead Flight Server"
+name = "Physics Server"
 
-description = """This program gives you piloting control of the Habitat, as it
-    simulates the Habitat in spaceflight.<br />
-    While this lead flight server is running, one or more mirror programs
-    can connect and provide a read-only copy of the state of this lead
-    flight server."""
+description = ("This standalone program gives you piloting control of the "
+               "Habitat, as it simulates the Habitat in spaceflight.")
 
 argument_parser = argparse.ArgumentParser(
-    'lead',
+    'physicsserver',
     description=description.replace('<br />', '\n'))
 argument_parser.add_argument(
     'loadfile', type=str, nargs='?', default='OCESS.json',
@@ -48,6 +45,7 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = common.savefile(args.loadfile)
 
+    # TODO: give some user feedback when this is working, e.g. a GUI.
     log.info(f'Loading save at {loadfile}')
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
@@ -60,19 +58,14 @@ def main(args: argparse.Namespace):
     server.start()  # This doesn't block!
 
     try:
-        gui = flight_gui.FlightGui(initial_state, running_as_mirror=False)
-        atexit.register(gui.shutdown)
-
         if args.profile:
             common.start_profiling()
 
         while True:
-            user_commands: List[network.Request] = []
             state = physics_engine.get_state()
             state_server.notify_state_change(state.as_proto())
 
-            user_commands += gui.pop_commands()
-            user_commands += state_server.pop_commands()
+            user_commands = state_server.pop_commands()
 
             # If we have any commands, process them so the simthread has as
             # much time as possible to restart before next update.
@@ -82,14 +75,14 @@ def main(args: argparse.Namespace):
                 log.info(f'Got command: {command}')
                 physics_engine.handle_request(command)
 
-            gui.draw(state)
-            gui.rate(common.FRAMERATE)
-    except Exception:
+            # Sleep for just a little bit, to allow the simthread to excecute
+            # and to give the GRPC server more time to serve requests.
+            time.sleep(0.1)
+    finally:
         server.stop(grace=1)
-        raise
 
 
-Lead = common.Program(
+program = programs.Program(
     name=name,
     description=description,
     main=main,

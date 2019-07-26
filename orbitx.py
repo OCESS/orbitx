@@ -19,10 +19,8 @@ import vpython
 
 from orbitx import common
 from orbitx import logs
+from orbitx import programs
 from orbitx.graphics import launcher
-from orbitx.programs.lead import Lead
-from orbitx.programs.mirror import Mirror
-from orbitx.programs.compat import Compat
 
 log = logging.getLogger()
 
@@ -111,7 +109,7 @@ def main():
     subparsers = parser.add_subparsers(help='Which OrbitX program to run',
                                        dest='program')
 
-    for program in [Lead, Mirror, Compat]:
+    for program in programs.LISTING:
         subparser = subparsers.add_parser(
             program.argparser.prog,
             add_help=False, parents=[program.argparser])

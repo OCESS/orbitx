@@ -19,7 +19,7 @@ syntax = "proto3";
 // This is a GRPC protobuf definition, not just plain protobuf code.
 // Look in network.py to see how this is used.
 service StateServer {
-    rpc get_physical_state (Command) returns (PhysicalState) {}
+    rpc get_physical_state (stream Command) returns (PhysicalState) {}
 }
 
 // Keep this enum in sync with the corresponding enum in state.py!

@@ -3,7 +3,7 @@
 import logging
 import threading
 import queue
-from typing import List
+from typing import List, Iterable
 
 import grpc
 
@@ -47,19 +47,20 @@ class StateServer(grpc_stubs.StateServerServicer):
         # hard. This StateServer will be in a different thread than the main
         # thread of whatever is using this GRPC server.
         # So REMEMBER: the argument should not be modified by the main thread!
-        # an easy way to ensure this is by passing in a copy.deepcopy.
         with self._internal_state_lock:
             self._internal_state_copy = physical_state_copy
             self._class_used_properly = True
 
     def get_physical_state(
-            self, request: protos.Command, context) -> protos.PhysicalState:
+        self, request_iterator: Iterable[protos.Command], context) \
+            -> protos.PhysicalState:
         """Server-side implementation of this remote procedure call (RPC).
 
         This is called by GRPC, and the name of the function is special (it's
         referenced in orbitx.proto, under service StateServer)"""
-        if request.ident != protos.Command.NOOP:
-            self._commands.put(request)
+        for request in request_iterator:
+            if request.ident != protos.Command.NOOP:
+                self._commands.put(request)
         with self._internal_state_lock:
             assert self._class_used_properly
             return self._internal_state_copy
@@ -95,7 +96,8 @@ class StateClient:
         self.channel = grpc.insecure_channel(f'{cnc_address}:{cnc_port}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
 
-    def get_state(self, command: Request = None) -> state.PhysicsState:
-        if command is None:
-            command = Request(ident=protos.Command.NOOP)
-        return state.PhysicsState(None, self.stub.get_physical_state(command))
+    def get_state(self,
+                  commands: Iterable[Request] = None) -> state.PhysicsState:
+        if commands is None:
+            commands = iter([Request(ident=protos.Command.NOOP)])
+        return state.PhysicsState(None, self.stub.get_physical_state(commands))

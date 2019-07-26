@@ -4,17 +4,15 @@ from typing import List, Optional
 import vpython
 
 from orbitx import common
+from orbitx import programs
 from orbitx.graphics import sidebar_widgets
-from orbitx.programs.lead import Lead
-from orbitx.programs.mirror import Mirror
-from orbitx.programs.compat import Compat
 
 
 class Launcher:
     def __init__(self):
         # When the user clicks a button, this will be set.
         self._user_args: Optional[List[str]] = None
-        self._program: Optional[common.Program] = None
+        self._program: Optional[programs.Program] = None
 
         canvas = vpython.canvas(width=1, height=1)
 
@@ -30,8 +28,9 @@ class Launcher:
                 line-height: 1.2em;
             }
             .description {
-                font-size: 80%;
+                font-size: 60%;
                 font-stretch: condensed;
+                display: none;
             }
             .argname {
                 font-weight: bold;
@@ -39,17 +38,16 @@ class Launcher:
         </style>""")
 
         # Set up some buttons asking what program the user wants to run.
-        canvas.append_to_caption("""<h1>
-            OrbitX Launcher
-        </h1>""")
-        canvas.append_to_caption("""<h2>
-            Select a program to launch
-        </h2>""")
-        canvas.append_to_caption("<input type='checkbox' id='description_checkbox'>"
+        canvas.append_to_caption(
+            "<h1>OrbitX Launcher</h1>")
+        canvas.append_to_caption(
+            "<h2>Select a program to launch</h2>")
+        canvas.append_to_caption(
+            "<input type='checkbox' id='description_checkbox'>"
             "Show descriptions"
-        "</input>")
+            "</input>")
 
-        for program in [Lead, Mirror, Compat]:
+        for program in programs.LISTING:
             canvas.append_to_caption("<hr />")
             canvas.append_to_caption(f"<h3>{program.name}</h3>")
             canvas.append_to_caption(f"<p>{program.description}</p>")
@@ -101,12 +99,15 @@ class Launcher:
                 });
             }
 
-            description_checkbox = document.querySelector('#description_checkbox');
+            description_checkbox = document.querySelector(
+                '#description_checkbox');
             description_checkbox.addEventListener('change', function(event) {
                 console.log(event);
                 descriptions = document.getElementsByClassName("description");
                 for (const element of descriptions) {
-                    element.style.display = event.target.checked ? "initial" : "none";
+                    element.style.display = (event.target.checked ?
+                        "initial" : "none"
+                    );
                 }
             })
         </script>""")
@@ -115,7 +116,9 @@ class Launcher:
         vpython.sphere()
         vpython.canvas.get_selected().delete()
 
-    def _set_args(self, program: common.Program, arg_fields: List[vpython.winput]):
+    def _set_args(self,
+                  program: programs.Program,
+                  arg_fields: List[vpython.winput]):
         user_args = [program.argparser.prog]
         for field in arg_fields:
             if field.arg.option_strings:
@@ -133,6 +136,6 @@ class Launcher:
 
         return self._user_args
 
-    def get_program(self) -> common.Program:
+    def get_program(self) -> programs.Program:
         assert self._program is not None
         return self._program
