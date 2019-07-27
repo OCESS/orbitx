@@ -7,11 +7,9 @@ from typing import Dict
 import vpython
 
 import orbitx.common as common
-from orbitx.graphics.sidebar_widgets import TableText
-
 
 # How many seconds until a client is considered stale.
-CLIENT_STALE_SECONDS = 2.
+CLIENT_STALE_SECONDS = 4.
 
 
 class ServerGui:

@@ -38,6 +38,14 @@ enum Navmode {
 // example, the GUI might send this to the physics engine in the same process,
 // or a different program on another computer might send this over the network.
 message Command {
+    // Used in network.py to provide a per-client identifier.
+    enum ClientType {
+        INVALID = 0;
+        MC_FLIGHT = 1;
+        HAB_FLIGHT = 2;
+        COMPAT = 3;
+    }
+
     enum Idents {
         NOOP = 0;
         HAB_SPIN_CHANGE = 1;
@@ -73,19 +81,20 @@ message Command {
         ModuleState module_state = 4;
     }
 
-    Idents ident = 1;
+    ClientType client = 1;
+    Idents ident = 2;
 
     oneof arg {
-        double spin_change = 2;
-        double throttle_change = 3;
-        double throttle_set = 4;
-        double time_acc_set = 5;
-        EngineeringUpdate engineering_update = 6;
-        string reference = 7;
-        string target = 8;
-        string loadfile = 9;
-        Navmode navmode = 10;
-        bool deploy_parachute = 11;
+        double spin_change = 3;
+        double throttle_change = 4;
+        double throttle_set = 5;
+        double time_acc_set = 6;
+        EngineeringUpdate engineering_update = 7;
+        string reference = 8;
+        string target = 9;
+        string loadfile = 10;
+        Navmode navmode = 11;
+        bool deploy_parachute = 12;
     }
 }
 

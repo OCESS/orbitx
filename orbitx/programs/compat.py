@@ -14,6 +14,7 @@ import grpc
 from orbitx import network
 from orbitx import orbitv_file_interface
 from orbitx import programs
+from orbitx.network import Request
 
 log = logging.getLogger()
 
@@ -38,7 +39,8 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(args.physics_server)
+    orbitx_connection = network.StateClient(
+        Request.COMPAT, args.physics_server)
     print(f'Connected to OrbitX lead server: {args.physics_server}')
     assert Path(args.engineering).exists
 

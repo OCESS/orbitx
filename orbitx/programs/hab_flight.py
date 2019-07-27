@@ -6,6 +6,7 @@ from orbitx import common
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics import flight_gui
+from orbitx.network import Request
 
 log = logging.getLogger()
 
@@ -28,7 +29,8 @@ argument_parser.add_argument(
 
 def main(args: argparse.Namespace):
     log.info(f'Connecting to physics server {args.physics_server}.')
-    lead_server_connection = network.StateClient(args.physics_server)
+    lead_server_connection = network.StateClient(
+        Request.HAB_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
 
     gui = flight_gui.FlightGui(state, running_as_mirror=False)

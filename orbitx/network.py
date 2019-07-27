@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 import queue
-from typing import Dict, List, Iterable
+from typing import Dict, List, Optional, Iterable
 
 import grpc
 
@@ -38,6 +38,14 @@ class StateServer(grpc_stubs.StateServerServicer):
     Magic!
     """
 
+    # Keep this in syn with the ClientType definition in orbitx.proto.
+    CLIENT_TYPE_TO_STR = [
+        'Invalid client',
+        'MC Flight',
+        'Habitat Flight',
+        'OrbitV Compatibility Server'
+    ]
+
     def __init__(self):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
@@ -63,10 +71,21 @@ class StateServer(grpc_stubs.StateServerServicer):
 
         This is called by GRPC, and the name of the function is special (it's
         referenced in orbitx.proto, under service StateServer)"""
+        client_type: Optional[protos.Command.ClientType] = None
         for request in request_iterator:
+            if client_type is None:
+                client_type = request.client
+            else:
+                assert client_type == request.client
+
             if request.ident != protos.Command.NOOP:
                 self._commands.put(request)
-        self.last_contact[context.peer()] = time.monotonic()
+        assert client_type is not None
+
+        self.last_contact[
+            self.CLIENT_TYPE_TO_STR[client_type] + ', at ' + context.peer()
+        ] = time.monotonic()
+
         with self._internal_state_lock:
             assert self._class_used_properly
             return self._internal_state_copy
@@ -94,16 +113,21 @@ class StateClient:
             physics_state = connection.get_state()
     """
 
-    def __init__(self, hostname: str):
+    def __init__(self, client: protos.Command.ClientType, hostname: str):
         self.channel = grpc.insecure_channel(
             f'{hostname}:{common.DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
+        self.client_type = client
 
     def get_state(self, commands: List[Request] = None) \
             -> state.PhysicsState:
+
         if commands is None:
-            commands_iter = iter([Request(ident=protos.Command.NOOP)])
+            commands_iter = iter([
+                Request(ident=Request.NOOP, client=self.client_type)])
         else:
+            for command in commands:
+                command.client = self.client_type
             commands_iter = iter(commands)
         return state.PhysicsState(None,
                                   self.stub.get_physical_state(commands_iter))

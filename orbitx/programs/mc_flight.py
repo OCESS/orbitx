@@ -8,6 +8,7 @@ from orbitx import network
 from orbitx import physics
 from orbitx import programs
 from orbitx.graphics import flight_gui
+from orbitx.network import Request
 
 log = logging.getLogger()
 
@@ -34,7 +35,8 @@ def main(args: argparse.Namespace):
     networking = True  # Whether data is requested over the network
 
     log.info(f'Connecting to lead server {args.physics_server}.')
-    lead_server_connection = network.StateClient(args.physics_server)
+    lead_server_connection = network.StateClient(
+        Request.MC_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
     physics_engine = physics.PEngine(state)
 
