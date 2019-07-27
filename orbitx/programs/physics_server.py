@@ -3,7 +3,6 @@ import concurrent.futures
 import atexit
 import logging
 import os
-import time
 from pathlib import Path
 
 import grpc

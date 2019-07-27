@@ -20,17 +20,10 @@ class ServerGui:
     def __init__(self):
         canvas = vpython.canvas(width=1, height=1)
 
-        canvas.caption += "<h1>IT'S A DANGO SERVER</h1>"
+        canvas.append_to_caption("<title>OrbitX Physics Server</title>")
+        canvas.append_to_caption("<h1>OrbitX Physics Server</h1>")
 
-        canvas.caption += "<table>\n"
-        self.clients_text_field = TableText(
-            'No clients connected',
-            clients_text_field_formatter,
-            'Help me, text',
-            new_section=False
-        )
-
-        canvas.caption += "</table>"
+        self.clients_table = vpython.wtext(text='')
 
         common.include_vpython_footer_file(
             Path('orbitx', 'graphics', 'simple_css.css'))
@@ -40,17 +33,30 @@ class ServerGui:
         vpython.canvas.get_selected().delete()
 
     def update(self, client_map: Dict[str, float]):
-        self.clients_text_field.update(client_map)
+        self.clients_table.text = clients_table_formatter(client_map)
         vpython.rate(self.UPDATES_PER_SECOND)
 
 
-def clients_text_field_formatter(clients_map: Dict[str, float]):
+def clients_table_formatter(clients_map: Dict[str, float]) -> str:
+    text = "<table>"
+    text += "<caption>Connected OrbitX clients</caption>"
+    text += "<tr>"
+    text += "<th scope='col'>Client</th>"
+    text += "<th scope='col'>Status</th>"
+    text += "</tr>"
+
     if len(clients_map) == 0:
-        return 'No clients have connected yet'
+        text += "<tr><td colspan='2'>No clients connected yet</td></tr>"
+
     monotime = time.monotonic()
-    text = ''
     for client, last_time in clients_map.items():
+        text += "<tr>"
+        text += f"<td>{client}</td>"
         if monotime - last_time > CLIENT_STALE_SECONDS:
-            text += 'STALE: '
-        text += client + '\n'
+            text += "<td>Stale</td>"
+        else:
+            text += "<td>Active</td>"
+        text += "</tr>"
+
+    text += "</table>"
     return text

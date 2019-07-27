@@ -8,9 +8,37 @@ body {
 h1,h2,h3 {
     line-height: 1.2em;
 }
+
 .description {
     font-size: 60%;
     font-stretch: condensed;
     display: none;
+}
+
+/* Good table CSS from
+   https://github.com/mdn/learning-area/blob/master/html/tables/basic/minimal-table.css
+*/
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px solid rgb(200,200,200);
+    letter-spacing: 1px;
+    font-size: 0.8rem;
+}
+td, th {
+    border: 1px solid rgb(190,190,190);
+    padding: 10px 20px;
+}
+th {
+    background-color: rgb(235,235,235);
+}
+tr:nth-child(even) td {
+    background-color: rgb(250,250,250);
+}
+tr:nth-child(odd) td {
+    background-color: rgb(245,245,245);
+}
+caption {
+    padding: 10px;
 }
 </style>
