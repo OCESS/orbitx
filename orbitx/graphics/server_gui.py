@@ -1,5 +1,6 @@
 """A simple textual GUI for the Physics Server."""
 
+import socket
 import time
 from pathlib import Path
 from typing import Dict
@@ -20,6 +21,7 @@ class ServerGui:
 
         canvas.append_to_caption("<title>OrbitX Physics Server</title>")
         canvas.append_to_caption("<h1>OrbitX Physics Server</h1>")
+        canvas.append_to_caption(f"<h3>Running on {socket.getfqdn()}</h3>")
 
         self.clients_table = vpython.wtext(text='')
 
