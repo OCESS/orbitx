@@ -41,7 +41,7 @@ argument_parser.add_argument(
 def main(args: argparse.Namespace):
     orbitx_connection = network.StateClient(
         Request.COMPAT, args.physics_server)
-    print(f'Connected to OrbitX lead server: {args.physics_server}')
+    log.info(f'Connected to OrbitX Physics Server: {args.physics_server}')
     assert Path(args.engineering).exists
 
     osbackup = Path(args.engineering) / 'OSbackup.RND'

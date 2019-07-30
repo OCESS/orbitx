@@ -11,6 +11,7 @@ import numpy as np
 import scipy.integrate
 import scipy.spatial
 import scipy.special
+from google.protobuf.text_format import MessageToString
 
 from orbitx import calc
 from orbitx import common
@@ -90,21 +91,21 @@ class PEngine:
             simtime = self._last_simtime
 
             assert self._time_acc_changes
-            if len(self._time_acc_changes) > 1:
-                # This while loop will increment simtime and decrement
-                # time_elapsed correspondingly until the second time acc change
-                # starts farther in the future than we will increment simtime.
-                while self._time_acc_changes[1].start_simtime < (
-                    simtime + self._time_acc_changes[0].time_acc *
-                        alpha_time_elapsed):
-                    remaining_simtime = \
-                        self._time_acc_changes[1].start_simtime - simtime
-                    simtime = self._time_acc_changes[1].start_simtime
-                    alpha_time_elapsed -= \
-                        remaining_simtime / self._time_acc_changes[0].time_acc
-                    # We've advanced past self._time_acc_changes[0],
-                    # we can forget it now.
-                    self._time_acc_changes.popleft()
+            # This while loop will increment simtime and decrement
+            # time_elapsed correspondingly until the second time acc change
+            # starts farther in the future than we will increment simtime.
+            while len(self._time_acc_changes) > 1 and \
+                self._time_acc_changes[1].start_simtime < (
+                simtime + self._time_acc_changes[0].time_acc *
+                    alpha_time_elapsed):
+                remaining_simtime = \
+                    self._time_acc_changes[1].start_simtime - simtime
+                simtime = self._time_acc_changes[1].start_simtime
+                alpha_time_elapsed -= \
+                    remaining_simtime / self._time_acc_changes[0].time_acc
+                # We've advanced past self._time_acc_changes[0],
+                # we can forget it now.
+                self._time_acc_changes.popleft()
 
             # Now we will just advance partway into the span of time
             # between self._time_acc_changes[0].startime and [1].startime.
@@ -157,6 +158,10 @@ class PEngine:
         self._simthread.start()
 
     def handle_requests(self, requests: List[Request], requested_t=None):
+        requested_t = self._simtime(requested_t)
+        if len(requests) == 0:
+            return
+
         if len(requests) and requests[0].ident == Request.TIME_ACC_SET:
             # Immediately change the time acceleration, don't wait for the
             # simulation to catch up. This deals with the case where we're at
@@ -168,8 +173,6 @@ class PEngine:
                 requested_t = self._last_physical_state.timestamp
             else:
                 requested_t = min(self._solutions[-1].t_max, requested_t)
-        else:
-            requested_t = self._simtime(requested_t)
 
         if len(self._solutions) == 0:
             y0 = state.PhysicsState(None, self._last_physical_state)
@@ -191,6 +194,7 @@ class PEngine:
         self.set_state(y0)
 
     def set_state(self, physical_state: state.PhysicsState):
+        log.debug(f'Setting new state at time {physical_state.timestamp}')
         self._stop_simthread()
 
         physical_state = _reconcile_entity_dynamics(physical_state)
@@ -785,8 +789,8 @@ def _one_request(request: Request, y0: state.PhysicsState) \
 
     Use an argument to change habitat throttle or spinning, and simulation
     will restart with this new information."""
-    log.info(f'Got {Request.Idents.Name(request.ident)}, '
-             f'simtime={y0.timestamp}')
+    log.info(f'At simtime={y0.timestamp}, '
+             f'Got {MessageToString(request, as_one_line=True)}')
 
     if request.ident != Request.TIME_ACC_SET:
         # Reveal the type of y0.craft as str (not None).

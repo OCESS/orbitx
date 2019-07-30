@@ -22,8 +22,8 @@ argument_parser = argparse.ArgumentParser('habflight', description=description)
 argument_parser.add_argument(
     'physics_server', type=str, nargs='?', default='localhost',
     help=(
-        'Network name of the computer where the lead server is running. If the'
-        ' lead server is running on the same machine, put "localhost".')
+        'Network name of the computer where the physics server is running. If '
+        'the physics server is running on the same machine, put "localhost".')
 )
 
 

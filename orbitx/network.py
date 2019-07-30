@@ -122,7 +122,7 @@ class StateClient:
     def get_state(self, commands: List[Request] = None) \
             -> state.PhysicsState:
 
-        if commands is None:
+        if commands is None or len(commands) == 0:
             commands_iter = iter([
                 Request(ident=Request.NOOP, client=self.client_type)])
         else:

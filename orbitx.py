@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
 """
-Main for CnC, the 'Command and Control' server
+main() for OrbitX. Can launch one of several OrbitX programs.
 
-This is the central server that stores all state, serves it to networked
-modules, and receives updates from networked modules.
+Look in the submodules of orbitx.programs for different programs.
 """
 
 import argparse
@@ -17,7 +16,6 @@ from pathlib import Path
 
 import vpython
 
-from orbitx import common
 from orbitx import logs
 from orbitx import programs
 from orbitx.graphics import launcher
@@ -27,7 +25,9 @@ log = logging.getLogger()
 
 def log_git_info():
     """For ease in debugging, try to get some version information.
-    This should never throw a fatal error, it's just nice-to-know stuff."""
+    This should never throw a fatal error, it's just nice-to-know stuff.
+    But if I get a logfile from someone at spacesim, this will help to make
+    sure they're on the latest version."""
     try:
         git_dir = Path('.git')
         head_file = git_dir / 'HEAD'
@@ -74,8 +74,12 @@ def vpython_error_message():
             background-color: #FFBABA;
             margin: 10px 0;
             padding: 10px;
-            border-radius: 3px 3px 3px 3px;
-            width: 550px;
+            border-radius: 5px 5px 5px 5px;
+            width: 700px;
+        }
+        span.code {
+            color: #D8000C !important;
+            font-family: monospace;
         }
         blockquote {
             font-family: monospace;
@@ -118,7 +122,7 @@ def main():
     args = parser.parse_args()
 
     if args.verbose:
-        common.enable_verbose_logging()
+        logs.enable_verbose_logging()
 
     try:
         if args.program is None:

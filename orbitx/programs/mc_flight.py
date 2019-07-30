@@ -26,7 +26,7 @@ argument_parser.add_argument(
     'physics_server', type=str, nargs='?', default='localhost',
     help=(
         'Network name of the computer where the physics server is running. If '
-        'the lead server is running on the same machine, put "localhost".')
+        'the physics server is running on the same machine, put "localhost".')
 )
 
 
@@ -34,7 +34,7 @@ def main(args: argparse.Namespace):
     time_of_last_network_update = 0.0
     networking = True  # Whether data is requested over the network
 
-    log.info(f'Connecting to lead server {args.physics_server}.')
+    log.info(f'Connecting to physics server {args.physics_server}.')
     lead_server_connection = network.StateClient(
         Request.MC_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()

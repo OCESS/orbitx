@@ -99,8 +99,8 @@ class FlightGui:
     def _init_canvas(self, running_as_mirror) -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
         _scene = vpython.canvas(
-            title='<title>OrbitX ' +
-                  ("Mirror" if running_as_mirror else "Lead") +
+            title='<title>' +
+                  ("MC Flight" if running_as_mirror else "Hab Flight") +
                   '</title>',
             align='right',
             width=900,
@@ -447,9 +447,9 @@ class Sidebar:
         if running_as_mirror:
             self.follow_lead_checkbox = Checkbox(
                 lambda checkbox: self._disable_inputs(checkbox.checked),
-                True, 'Follow lead server',
+                True, 'Follow physics server',
                 "Check to keep this mirror program in sync with the "
-                "mirror://[host]:[port] OrbitX lead server specified at "
+                "mirror://[host]:[port] OrbitX physics server specified at "
                 "startup"
             )
         else:

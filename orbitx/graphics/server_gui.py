@@ -19,14 +19,14 @@ class ServerGui:
     def __init__(self):
         canvas = vpython.canvas(width=1, height=1)
 
+        common.include_vpython_footer_file(
+            Path('orbitx', 'graphics', 'simple_css.css'))
+
         canvas.append_to_caption("<title>OrbitX Physics Server</title>")
         canvas.append_to_caption("<h1>OrbitX Physics Server</h1>")
         canvas.append_to_caption(f"<h3>Running on {socket.getfqdn()}</h3>")
 
         self.clients_table = vpython.wtext(text='')
-
-        common.include_vpython_footer_file(
-            Path('orbitx', 'graphics', 'simple_css.css'))
 
         # This is needed to launch vpython.
         vpython.sphere()

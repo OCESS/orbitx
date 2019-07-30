@@ -23,5 +23,9 @@ from . import physics_server
 
 # A list of all defined programs, for convenience in other code.
 LISTING: List[Program] = [module.program for module in [  # type: ignore
-    compat, flight_training, hab_flight, mc_flight, physics_server
+    flight_training,
+    physics_server,
+    hab_flight,
+    mc_flight,
+    compat,
 ]]

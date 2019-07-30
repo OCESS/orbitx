@@ -27,7 +27,7 @@ DEFAULT_PORT = 28430
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
-FRAMERATE = 100
+FRAMERATE = 40
 
 
 class TimeAcc(NamedTuple):
@@ -127,7 +127,6 @@ else:
 
 def format_num(num: Optional[float], unit: str) -> str:
     """This should be refactored with the Menu class after symposium."""
-    # TODO: refactor this along with the Menu class
     # This return string will be at most 10 characters
     if num is None:
         return ''
