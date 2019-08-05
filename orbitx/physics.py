@@ -673,7 +673,10 @@ def _collision_decision(t, y, altitude_event):
     e1 = y[e1_index]
     e2 = y[e2_index]
 
-    log.info(f'Collision at t={t} betwixt {e1} and {e2}')
+    log.info(f'Collision at t={t} betwixt\n' +
+             MessageToString(e1.proto, as_one_line=True) +
+             '\nand\n' +
+             f'{MessageToString(e2.proto, as_one_line=True)}')
 
     # TODO: does this break three-body collisions? e.g. both Hab and AYSE
     # or does it even get triggered at all?

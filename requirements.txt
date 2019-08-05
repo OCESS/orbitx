@@ -1,4 +1,5 @@
 grpcio
+grpcio-channelz
 grpcio-tools
 protobuf
 six

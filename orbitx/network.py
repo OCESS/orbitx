@@ -2,19 +2,20 @@
 
 import logging
 import threading
-import time
 import queue
-from typing import Dict, List, Optional, Iterable
+from typing import List, Optional, Iterable
 
 import grpc
 
-from orbitx import common
 from orbitx import state
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
+
+DEFAULT_PORT = 28430
+ENABLE_CHANNELZ = (('grpc.enable_channelz', 1),)
 
 # This Request class is just an alias of the Command protobuf message. We
 # provide this so that nobody has to directly import orbitx_pb2, and so that
@@ -51,9 +52,6 @@ class StateServer(grpc_stubs.StateServerServicer):
         self._internal_state_lock = threading.Lock()
         self._commands = queue.Queue()
 
-        # This maps client identifiers to the last timestamp they contacted us.
-        self.last_contact: Dict[str, float] = {}
-
     def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
         # properly. When changing this code, consider that multithreading is
@@ -81,10 +79,6 @@ class StateServer(grpc_stubs.StateServerServicer):
             if request.ident != protos.Command.NOOP:
                 self._commands.put(request)
         assert client_type is not None
-
-        self.last_contact[
-            self.CLIENT_TYPE_TO_STR[client_type] + ', at ' + context.peer()
-        ] = time.monotonic()
 
         with self._internal_state_lock:
             assert self._class_used_properly
@@ -115,7 +109,8 @@ class StateClient:
 
     def __init__(self, client: protos.Command.ClientType, hostname: str):
         self.channel = grpc.insecure_channel(
-            f'{hostname}:{common.DEFAULT_PORT}')
+            f'{hostname}:{DEFAULT_PORT}',
+            options=ENABLE_CHANNELZ)
         self.stub = grpc_stubs.StateServerStub(self.channel)
         self.client_type = client
 

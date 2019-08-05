@@ -55,15 +55,16 @@ def main(args: argparse.Namespace):
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
-    gui = ServerGui()
-
     server = grpc.server(
-        concurrent.futures.ThreadPoolExecutor(max_workers=4))
+        concurrent.futures.ThreadPoolExecutor(max_workers=4),
+        options=network.ENABLE_CHANNELZ)
     atexit.register(lambda: server.stop(grace=2))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
-    server.add_insecure_port(f'[::]:{common.DEFAULT_PORT}')
+    server.add_insecure_port(f'[::]:{network.DEFAULT_PORT}')
     state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
+
+    gui = ServerGui()
 
     try:
         if args.profile:
@@ -77,7 +78,7 @@ def main(args: argparse.Namespace):
             # much time as possible to restart before next update.
             physics_engine.handle_requests(state_server.pop_commands())
 
-            gui.update(state_server.last_contact)
+            gui.update()
     finally:
         server.stop(grace=1)
 
