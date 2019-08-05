@@ -78,7 +78,7 @@ def main(args: argparse.Namespace):
             # much time as possible to restart before next update.
             physics_engine.handle_requests(state_server.pop_commands())
 
-            gui.update()
+            gui.update(state_server.client_types)
     finally:
         server.stop(grace=1)
 

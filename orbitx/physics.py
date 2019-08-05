@@ -194,7 +194,6 @@ class PEngine:
         self.set_state(y0)
 
     def set_state(self, physical_state: state.PhysicsState):
-        log.debug(f'Setting new state at time {physical_state.timestamp}')
         self._stop_simthread()
 
         physical_state = _reconcile_entity_dynamics(physical_state)

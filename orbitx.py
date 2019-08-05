@@ -50,8 +50,8 @@ def vpython_error_message():
         "some reason.</p>"
 
         "<p>Any information that OrbitX has on the crash has "
-        "been saved to <span class='code'>orbitx/debug.log</span>. If you "
-        "want to get this problem fixed, send the contents of the log file "
+        "been saved to a logfile. If you want to get this problem fixed, send "
+        "the contents of the log file "
         "<blockquote>" +
         logs.logfile_name.replace('\\', '\\\\') +
         "</blockquote> "

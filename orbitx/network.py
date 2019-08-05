@@ -3,7 +3,7 @@
 import logging
 import threading
 import queue
-from typing import List, Optional, Iterable
+from typing import Dict, List, Optional, Iterable
 
 import grpc
 
@@ -51,6 +51,7 @@ class StateServer(grpc_stubs.StateServerServicer):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
         self._commands = queue.Queue()
+        self.client_types: Dict[str, str] = {}
 
     def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
@@ -79,6 +80,9 @@ class StateServer(grpc_stubs.StateServerServicer):
             if request.ident != protos.Command.NOOP:
                 self._commands.put(request)
         assert client_type is not None
+
+        self.client_types[context.peer()] = \
+            self.CLIENT_TYPE_TO_STR[client_type]
 
         with self._internal_state_lock:
             assert self._class_used_properly

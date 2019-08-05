@@ -19,6 +19,7 @@ h1,h2,h3 {
    https://github.com/mdn/learning-area/blob/master/html/tables/basic/minimal-table.css
 */
 table {
+    table-layout: fixed;
     width: 100%;
     border-collapse: collapse;
     border: 2px solid rgb(200,200,200);
