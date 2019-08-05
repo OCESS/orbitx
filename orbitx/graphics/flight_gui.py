@@ -498,7 +498,7 @@ class Sidebar:
             "Periapsis",
             lambda state: common.format_num(calc.periapsis(
                 state.craft_entity(),
-                state.reference_entity()), " m"),
+                state.reference_entity()) / 1000, " km", decimals=3),
             "Lowest altitude in naïve orbit around reference",
             new_section=False))
 
@@ -506,7 +506,7 @@ class Sidebar:
             "Apoapsis",
             lambda state: common.format_num(calc.apoapsis(
                 state.craft_entity(),
-                state.reference_entity()), " m"),
+                state.reference_entity()) / 1000, " km", decimals=3),
             "Highest altitude in naïve orbit around reference",
             new_section=False))
 
@@ -569,7 +569,7 @@ class Sidebar:
             "Ref altitude",
             lambda state: common.format_num(calc.altitude(
                 state.craft_entity(),
-                state.reference_entity()), " m"),
+                state.reference_entity()) / 1000, " km", decimals=3),
             "Altitude of habitat above reference surface",
             new_section=True))
 
@@ -609,7 +609,7 @@ class Sidebar:
             "Targ altitude",
             lambda state: common.format_num(calc.altitude(
                 state.craft_entity(),
-                state.target_entity()), " m"),
+                state.target_entity()) / 1000, " km", decimals=3),
             "Altitude of habitat above reference surface",
             new_section=True))
 

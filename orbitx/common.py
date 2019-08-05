@@ -124,12 +124,13 @@ else:
     PROGRAM_PATH = Path(sys.path[0])
 
 
-def format_num(num: Optional[float], unit: str) -> str:
+def format_num(num: Optional[float], unit: str,
+               *, decimals: Optional[int] = None) -> str:
     """This should be refactored with the Menu class after symposium."""
     # This return string will be at most 10 characters
     if num is None:
         return ''
-    return '{:,.5g}'.format(round(num)) + unit
+    return '{:,.5g}'.format(round(num, ndigits=decimals)) + unit
 
 
 def savefile(name: str) -> Path:
