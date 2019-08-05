@@ -407,10 +407,11 @@ class PEngine:
             ]
             if y.craft is not None:
                 craft_index = y._name_to_index(y.craft)
-                events.append(CraftAccEvent(derive_func,
+                events.append(HighAccEvent(derive_func,
                               2 * len(y) + craft_index,
                               3 * len(y) + craft_index,
-                              TIME_ACC_TO_BOUND[round(y.time_acc)]))
+                              TIME_ACC_TO_BOUND[round(y.time_acc)],
+                              y.time_acc))
 
             ivp_out = scipy.integrate.solve_ivp(
                 derive_func,
@@ -488,7 +489,7 @@ class PEngine:
                         # SRB fuel exhaustion.
                         log.info('SRB exhausted.')
                         y.srb_time = common.SRB_EMPTY
-                    if isinstance(event, CraftAccEvent):
+                    if isinstance(event, HighAccEvent):
                         # The acceleration acting on the craft is high, might
                         # result in inaccurate results. SLOOWWWW DOWWWWNNNN.
                         slower_time_acc_index = list(
@@ -497,14 +498,13 @@ class PEngine:
                         assert slower_time_acc_index >= 0
                         slower_time_acc = \
                             common.TIME_ACCS[slower_time_acc_index]
-                        # We never want to automatically pause the simulation.
-                        if slower_time_acc.value != 0:
-                            log.info(
-                                f'{y.time_acc} is too fast, '
-                                f'slowing down to {slower_time_acc.value}')
-                            # We should lower the time acc.
-                            y.time_acc = slower_time_acc.value
-                            raise PEngine.RestartSimulationException(t, y)
+                        assert slower_time_acc.value > 0
+                        log.info(
+                            f'{y.time_acc} is too fast, '
+                            f'slowing down to {slower_time_acc.value}')
+                        # We should lower the time acc.
+                        y.time_acc = slower_time_acc.value
+                        raise PEngine.RestartSimulationException(t, y)
 
 
 class Event:
@@ -515,7 +515,7 @@ class Event:
 
     # Implement this in an event subclass
     def __call___(self, t: float, y_1d: np.ndarray) -> float:
-        raise NotImplementedError
+        ...
 
 
 class SrbFuelEvent(Event):
@@ -616,17 +616,23 @@ class LiftoffEvent(Event):
         return max(0, common.LAUNCH_TWR - thrust / weight)
 
 
-class CraftAccEvent(Event):
-    def __init__(self, derive: Callable[[float, np.ndarray], np.ndarray],
-                 ax_index: int, ay_index: int, acc_bound: float):
+class HighAccEvent(Event):
+    def __init__(
+        self, derive: Callable[[float, np.ndarray], np.ndarray],
+        ax_index: int, ay_index: int, acc_bound: float, current_acc: float
+            ):
         self.derive = derive
         self.ax_index = ax_index
         self.ay_index = ay_index
         self.acc_bound = acc_bound
+        self.current_acc = round(current_acc)
 
-    def __call__(self, t, y_1d):
+    def __call__(self, t: float, y_1d: np.ndarray) -> float:
         """Return positive if the current time acceleration is accurate, zero
         then negative otherwise."""
+        if self.current_acc == 1:
+            # If we can't lower the time acc, don't bother doing any work.
+            return np.inf
         derive_result = self.derive(t, y_1d)
         accel_vector = np.array(
             [derive_result[self.ax_index], derive_result[self.ay_index]])

@@ -39,8 +39,8 @@ class TimeAcc(NamedTuple):
 # If you change the 'Pause' element of this list, change the corresponding
 # JS code in flight_gui_footer.html also.
 TIME_ACCS = [
-    TimeAcc(value=0,       desc='Pause',    accurate_bound=100),
-    TimeAcc(value=1,       desc='1×',       accurate_bound=10),
+    TimeAcc(value=0,       desc='Pause',    accurate_bound=10000),
+    TimeAcc(value=1,       desc='1×',       accurate_bound=1000),
     TimeAcc(value=5,       desc='5×',       accurate_bound=9),
     TimeAcc(value=10,      desc='10×',      accurate_bound=7),
     TimeAcc(value=50,      desc='50×',      accurate_bound=5),
