@@ -531,8 +531,9 @@ class Sidebar:
 
         self._wtexts.append(TableText(
             "Engine Acceleration",
-            lambda state: common.format_num(calc.engine_acceleration(
-                state), " m/s/s"),
+            lambda state:
+                common.format_num(calc.engine_acceleration(state), " m/s/s") +
+                (' [SRB]' if state.srb_time > 0 else ''),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
