@@ -40,7 +40,7 @@ def main(args: argparse.Namespace):
     state = lead_server_connection.get_state()
     physics_engine = physics.PEngine(state)
 
-    gui = flight_gui.FlightGui(state, running_as_mirror=True)
+    gui = flight_gui.FlightGui(state, title=name, running_as_mirror=True)
     atexit.register(gui.shutdown)
 
     while True:

@@ -33,7 +33,7 @@ def main(args: argparse.Namespace):
         Request.HAB_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
 
-    gui = flight_gui.FlightGui(state, running_as_mirror=False)
+    gui = flight_gui.FlightGui(state, title=name, running_as_mirror=False)
     atexit.register(gui.shutdown)
 
     while True:

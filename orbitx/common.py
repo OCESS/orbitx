@@ -91,7 +91,8 @@ craft_capabilities = {
 SRB_THRUST = 13125000
 
 # Rotating the craft changes the spin by this amount per button press.
-SPIN_CHANGE = numpy.radians(10)  # radians per second.
+SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
+FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
 
 HAB_DRAG_PROFILE = 0.0002
 PARACHUTE_DRAG_PROFILE = 0.02

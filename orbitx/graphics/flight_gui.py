@@ -50,13 +50,14 @@ class FlightGui:
         self,
         draw_state: state.PhysicsState,
         *,
+        title: str,
         running_as_mirror: bool
     ) -> None:
         assert len(draw_state) >= 1
 
         self._state = draw_state
         # create a vpython canvas, onto which all 3D and HTML drawing happens.
-        self._scene = self._init_canvas(running_as_mirror)
+        self._scene = self._init_canvas(title, running_as_mirror)
 
         self._show_label: bool = True
         self._show_trails: bool = DEFAULT_TRAILS
@@ -96,12 +97,11 @@ class FlightGui:
         self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
 
-    def _init_canvas(self, running_as_mirror) -> vpython.canvas:
+    def _init_canvas(self, title: str, running_as_mirror: bool) \
+            -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
         _scene = vpython.canvas(
-            title='<title>' +
-                  ("MC Flight" if running_as_mirror else "Hab Flight") +
-                  '</title>',
+            title=f'<title>{title}</title>',
             align='right',
             width=900,
             height=750,
@@ -189,6 +189,14 @@ class FlightGui:
             self._commands.append(Request(
                 ident=Request.HAB_SPIN_CHANGE,
                 spin_change=-common.SPIN_CHANGE))
+        elif k == 'A':
+            self._commands.append(Request(
+                ident=Request.HAB_SPIN_CHANGE,
+                spin_change=common.FINE_SPIN_CHANGE))
+        elif k == 'D':
+            self._commands.append(Request(
+                ident=Request.HAB_SPIN_CHANGE,
+                spin_change=-common.FINE_SPIN_CHANGE))
         elif k == 'w':
             self._commands.append(Request(
                 ident=Request.HAB_THROTTLE_CHANGE,
@@ -536,9 +544,24 @@ class Sidebar:
             new_section=False))
 
         self._wtexts.append(TableText(
-            "Fuel ",
-            lambda state: common.format_num(state.craft_entity(
-            ).fuel, " kg"), "Remaining fuel of habitat",
+            "Fuel",
+            lambda state: common.format_num(
+                state.craft_entity().fuel, " kg"),
+            "Remaining fuel of craft",
+            new_section=False))
+
+        def rotation_formatter(state: state.PhysicsState) -> str:
+            deg_spin = round(np.degrees(state.craft_entity().spin), ndigits=1)
+            if deg_spin < 0:
+                return f"{-deg_spin} °/s cw"
+            elif deg_spin > 0:
+                return f"{deg_spin} °/s ccw"
+            else:
+                return f"{deg_spin} °/s"
+        self._wtexts.append(TableText(
+            "Rotation",
+            rotation_formatter,
+            "Rotation speed of craft",
             new_section=False))
 
         self._wtexts.append(TableText(
