@@ -17,6 +17,9 @@ from orbitx import common
 
 log = logging.getLogger()
 
+TZ_OFFSET_SECONDS = \
+    calendar.timegm(time.gmtime()) - calendar.timegm(time.localtime())
+
 
 class ClientConnection(NamedTuple):
     """Represents data about a client connection."""
@@ -125,9 +128,7 @@ class ServerGui:
 
             # I think just on Windows, this time difference might be off by
             # the time zone, make an adjustment for that.
-            tz_offset = calendar.timegm(time.gmtime()) - \
-                calendar.timegm(time.localtime())
-            relative_last_message_time %= tz_offset
+            relative_last_message_time %= TZ_OFFSET_SECONDS
 
             wtext.text = f'{relative_last_message_time:.1f} seconds ago'
 
