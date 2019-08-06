@@ -228,9 +228,13 @@ class FlightGui:
             except IndexError:
                 pass  # We're already at max time acceleration
         elif k == ',':
-            if self._sidebar.time_acc_menu._menu.index != 0:
+            if self._sidebar.time_acc_menu._menu.index != 1:
                 self._sidebar.time_acc_menu._menu.index -= 1
                 self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
+        elif k == 'p':
+            # Pause
+            self._sidebar.time_acc_menu._menu.index = 0
+            self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
     # end of _handle_keydown
 
     def draw(self, draw_state: state.PhysicsState) -> None:
