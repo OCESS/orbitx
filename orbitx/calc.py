@@ -192,11 +192,11 @@ def apoapsis(A: state.Entity, B: state.Entity) -> float:
 
 def pitch(A: state.Entity, B: state.Entity) -> float:
     """The angle that A is facing, relative to the surface of B.
-    Should be 270 degrees when facing ccw prograde, 90 when facing
-    cw retrograde, and 0 when facing directly away from B."""
+    Should be 90 degrees when facing ccw prograde, 270 when facing
+    cw retrograde, and 180 when facing directly away from B."""
     normal = A.pos - B.pos
     normal_angle = np.arctan2(normal[1], normal[0])
-    return normal_angle - A.heading
+    return normal_angle - A.heading - np.radians(180)
 
 
 def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
