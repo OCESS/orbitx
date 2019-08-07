@@ -462,13 +462,15 @@ class Sidebar:
 
         self.follow_lead_checkbox: Optional[Checkbox]
         if running_as_mirror:
+            start_off_following = True
             self.follow_lead_checkbox = Checkbox(
                 lambda checkbox: self._disable_inputs(checkbox.checked),
-                True, 'Follow physics server',
+                start_off_following, 'Follow physics server',
                 "Check to keep this mirror program in sync with the "
                 "mirror://[host]:[port] OrbitX physics server specified at "
                 "startup"
             )
+            self._disable_inputs(start_off_following)
         else:
             self.follow_lead_checkbox = None
 
@@ -480,7 +482,7 @@ class Sidebar:
         """Enable or disable all inputs, except for networking checkbox."""
         for menu in [
             self.centre_menu, self.reference_menu, self.target_menu,
-                self.navmode_menu, self.misc_menu]:
+                self.navmode_menu, self.time_acc_menu, self.misc_menu]:
             menu._menu.disabled = disabled
         for checkbox in [self.trails_checkbox, self.orbits_checkbox]:
             checkbox._checkbox.disabled = disabled
