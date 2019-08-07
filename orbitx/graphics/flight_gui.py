@@ -161,7 +161,7 @@ class FlightGui:
         else:
             return self._origin
 
-    def pop_commands(self) -> list:
+    def pop_commands(self) -> List[Request]:
         """Take gathered user input and send it off."""
         old_commands = self._commands
         self._commands = []

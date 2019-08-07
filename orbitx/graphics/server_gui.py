@@ -14,6 +14,8 @@ from grpc_channelz.v1 import channelz_pb2
 import vpython
 
 from orbitx import common
+from orbitx import network
+from orbitx import state
 
 log = logging.getLogger()
 
@@ -69,7 +71,9 @@ class ServerGui:
     # See comments in sidebar_widgets.py for why this is needed.
     _last_vpython_div_id = 0
 
-    def __init__(self):
+    def __init__(self, initial_loadfile: Path):
+        self._commands: List[network.Request] = []
+        self._last_state: state.PhysicsState
         self.connection_viewer = ConnectionViewer()
         canvas = vpython.canvas(width=1, height=1)
 
@@ -79,10 +83,20 @@ class ServerGui:
         # Hide vpython wtexts, except for the table.
         canvas.append_to_caption("""<style>
             span {
+                /* Hide any wtexts we generate. */
                 display: none;
             }
-            span[id="1"] {
+            span.nohide {
+                /* Make sure wtexts we make are not hidden. */
                 display: initial;
+            }
+            div.flex-box {
+                display: flex;
+                justify-content: space-between;
+            }
+            input {
+                flex: 1;
+                margin: 5px;
             }
         </style>""")
 
@@ -90,16 +104,52 @@ class ServerGui:
         canvas.append_to_caption("<h1>OrbitX Physics Server</h1>")
         canvas.append_to_caption(f"<h3>Running on {socket.getfqdn()}</h3>")
 
+        canvas.append_to_caption("<div class='flex-box'></div>")
+
+        self._load_box = vpython.winput(bind=self._load_hook, type='string')
+        self._last_vpython_div_id += 1
+        # Stuff the input we made into our flex-box div.
+        canvas.append_to_caption(f"""<script>
+load_box = document.querySelector('input[id="{self._last_vpython_div_id}"]');
+load_box.placeholder = "Load savefile";
+document.querySelector('div.flex-box').append(load_box);
+</script>""")
+        self._load_box.text = f"Started {initial_loadfile}."
+
+        self._save_box = vpython.winput(bind=self._save_hook, type='string')
+        self._last_vpython_div_id += 1
+        # Stuff the input we made into our flex-box div.
+        canvas.append_to_caption(f"""<script>
+save_box = document.querySelector('input[id="{self._last_vpython_div_id}"]');
+save_box.placeholder = "Save savefile";
+document.querySelector('div.flex-box').append(save_box);
+</script>""")
+
+        canvas.append_to_caption("<hr />")
+
         self._clients_table = vpython.wtext(text='')
         self._last_vpython_div_id += 1
+        # We hide all other vpython-made wtexts, except for this one.
+        canvas.append_to_caption(f"""<script>
+document.querySelector(
+    'span[id="{self._last_vpython_div_id}"]').className = 'nohide';
+</script>""")
         self._last_contact_wtexts: List[vpython.wtext] = []
         self._last_client_locs = None
 
         # This is needed to launch vpython.
         vpython.sphere()
         vpython.canvas.get_selected().delete()
+        common.remove_vpython_css()
 
-    def update(self, client_types: Dict[str, str]):
+    def pop_commands(self) -> List[network.Request]:
+        """Take gathered user input and send it off."""
+        old_commands = self._commands
+        self._commands = []
+        return old_commands
+
+    def update(self, state: state.PhysicsState, client_types: Dict[str, str]):
+        self._last_state = state
         connected_clients = self.connection_viewer.connected_clients()
         current_client_locs = [
             client.location for client in connected_clients
@@ -111,7 +161,7 @@ class ServerGui:
             # which we notice when the cached list of unique client identifiers
             # changes.
             self._last_client_locs = current_client_locs
-            self.build_clients_table(connected_clients, client_types)
+            self._build_clients_table(connected_clients, client_types)
             # By clearing this dict, we keep stale items out of it and allow
             # them to be populated with fresher values.
             client_types.clear()
@@ -134,9 +184,9 @@ class ServerGui:
 
         vpython.rate(self.UPDATES_PER_SECOND)
 
-    def build_clients_table(self,
-                            connections: List[ClientConnection],
-                            client_types: Dict[str, str]):
+    def _build_clients_table(self,
+                             connections: List[ClientConnection],
+                             client_types: Dict[str, str]):
         text = "<table>"
         text += "<caption>Connected OrbitX clients</caption>"
         text += "<tr>"
@@ -166,3 +216,22 @@ class ServerGui:
 
         text += "</table>"
         self._clients_table.text = text
+
+    def _save_hook(self, textbox: vpython.winput):
+        full_path = common.savefile(textbox.text)
+        try:
+            common.write_savefile(self._last_state, full_path)
+            textbox.text = f'Saved to {full_path}!'
+        except OSError:
+            log.exception('Caught exception during file saving')
+            textbox.text = f'Error writing file to {full_path}'
+
+    def _load_hook(self, textbox: vpython.winput):
+        full_path = common.savefile(textbox.text)
+        if full_path.is_file():
+            self._commands.append(network.Request(
+                ident=network.Request.LOAD_SAVEFILE, loadfile=textbox.text))
+            textbox.text = f'Loaded {full_path}!'
+        else:
+            log.warning(f'Ignored non-existent loadfile: {full_path}')
+            textbox.text = f'{full_path} not found!'

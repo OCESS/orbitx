@@ -64,7 +64,7 @@ def main(args: argparse.Namespace):
     state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
 
-    gui = ServerGui()
+    gui = ServerGui(loadfile)
 
     try:
         if args.profile:
@@ -76,9 +76,10 @@ def main(args: argparse.Namespace):
 
             # If we have any commands, process them so the simthread has as
             # much time as possible to restart before next update.
-            physics_engine.handle_requests(state_server.pop_commands())
+            commands = state_server.pop_commands() + gui.pop_commands()
+            physics_engine.handle_requests(commands)
 
-            gui.update(state_server.client_types)
+            gui.update(state, state_server.client_types)
     finally:
         server.stop(grace=1)
 

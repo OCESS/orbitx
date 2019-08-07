@@ -184,7 +184,7 @@ def remove_vpython_css():
         for (const element of document.querySelectorAll(
                 "div, input, select, button, span")) {
             float_backup = element.style.float;
-            element.style = null;
+            element.removeAttribute('style');
             element.style.float = float_backup;
         }
     </script>""")

@@ -42,7 +42,8 @@ def main(args: argparse.Namespace):
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
-    gui = flight_gui.FlightGui(initial_state, title=name, running_as_mirror=False)
+    gui = flight_gui.FlightGui(
+        initial_state, title=name, running_as_mirror=False)
     atexit.register(gui.shutdown)
 
     if args.profile:

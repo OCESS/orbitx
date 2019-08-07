@@ -34,7 +34,7 @@ def write_state_to_osbackup(
         # Note that the MID$ function in QB is 1-indexed, instead of 0-indexed.
         osbackup.seek(2 + 15 - 1, SEEK_SET)
         # OrbitX keeps throttle as a float, where 100% = 1.0
-        # OrbitV expecteds 100% = 100.0
+        # OrbitV expects 100% = 100.0
         _write_single(100 * max(hab.throttle, ayse.throttle), osbackup)
 
         osbackup.seek(68, SEEK_CUR)
