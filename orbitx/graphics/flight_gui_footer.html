@@ -154,17 +154,9 @@ text_inputs = document.querySelectorAll('input[type=text]');
 text_inputs[0].placeholder = 'Pause sim to';
 text_inputs[1].placeholder = 'save and load';
 
-document.querySelector(
-    '#pause_anchor + select').addEventListener('change',
-        function (ev) {
-            // When paused, remove the explanatory placeholder text.
-            console.log(ev)
-            console.log(ev.target)
-            console.log(ev.target.value)
-            if (ev.target.value == 'Pause') {
-                console.log('debug')
-                text_inputs[0].placeholder = 'Save...';
-                text_inputs[1].placeholder = 'Load...';
-            }
-});
+function remove_saveload_hint() {
+    // This is used by flight_gui.py
+    text_inputs[0].placeholder = 'Save...';
+    text_inputs[1].placeholder = 'Load...';
+}
 </script>

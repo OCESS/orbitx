@@ -62,6 +62,7 @@ class FlightGui:
         self._show_label: bool = True
         self._show_trails: bool = DEFAULT_TRAILS
         self._paused: bool = False
+        self._removed_saveload_hint: bool = False
         self._origin: state.Entity
         self.texture_path: Path = Path('data', 'textures')
         self._commands: List[Request] = []
@@ -367,9 +368,13 @@ class FlightGui:
         This doesn't effect physics simulation at all."""
         self._paused = pause
         self._paused_label.visible = self._paused
-        # self._sidebar._disable_inputs(pause)
         self._sidebar._save_box.disabled = not self._paused
         self._sidebar._load_box.disabled = not self._paused
+        if pause and not self._removed_saveload_hint:
+            # We should remove the 'Pause sim to save and load' hint.
+            vpython.canvas.get_selected().append_to_caption(
+                "<script>remove_saveload_hint();</script>")
+            self._removed_saveload_hint = True
 
     def _save_hook(self, textbox: vpython.winput):
         try:
@@ -677,7 +682,7 @@ class Sidebar:
             helptext="Automatically points habitat"
         )
 
-        # This div is referenced in flight_gui_footer.html to locate the pause menu.
+        # This div used by flight_gui_footer.html to locate the pause menu.
         vpython.canvas.get_selected().append_to_caption(
             '<div id="pause_anchor"></div>')
         self.time_acc_menu = Menu(
