@@ -11,10 +11,7 @@ For a guide on if and how you should contribute, read `CONTRIBUTING.md`
 For a guide on how to set up your text editor to edit code, read `DEVELOPING.md`  
 For a guide on how the actual OrbitX codebase is structured, read `ARCHITECTURE.md`
 
-This project is maintained by
-- Patrick
-- Ye Qin
-- Sean
+This project is maintained by Patrick Melanson for members of Spacesim.
 
 As part of CS493 and CS494, a final year project course at Waterloo.
 
@@ -92,3 +89,21 @@ Read `ARCHITECTURE.md` for a description of OrbitX's architecture.
 ![The Jupiter system, showing Io, Europa, Ganymede, and Callisto orbiting Jupiter](https://user-images.githubusercontent.com/1498589/49043539-60230c00-f199-11e8-90d4-4e9553c6c14f.png)
 
 ![A representation of the new habitat design](https://user-images.githubusercontent.com/1498589/51934439-96674c80-23d1-11e9-98a0-9a0213eef2ea.png)
+
+## Contributors
+
+This project would not have been possible in its current form without contributions and support from:
+- @xxxyyyqqq12345, my teammate for CS493/494 where we wrote most of the physics
+  code together. Some of his dreams for refactoring have finally been included.
+- @sh23kim, my teammate for CS493/494 where we wrote most of the GUI code
+  together. In CS494 he still worked on the codebase, even though he had a full
+  time job!
+- @goodday0404, my teammate for CS494 where he kept us on the straight and
+  narrow project specification path, getting us to properly specify how we
+  wanted to get our project ready for the demo and pushed us to improve the
+  all-important code quality.
+- @swickrotation, by far the most physics-qualified person to gaze at this
+  project, who provided rubber duck support to my ramblings, and critically
+  useful and needed suggestions as "check your gravity is working."
+- @kemcbride, who has provided oodles of motivation and validation (of the
+  feelings kind, but she is more than capabe of providing technical validation).
