@@ -126,6 +126,8 @@ class Habitat(ThreeDeeObj):
         self._velocity_arrow = vpython.arrow(color=vpython.color.red)
         main_scene.select()
 
+        self._broken: bool = False
+
         return habitat
 
     def draw_landing_graphic(self, entity: state.Entity) -> None:
@@ -133,12 +135,15 @@ class Habitat(ThreeDeeObj):
         pass
 
     def _label_text(self, entity: state.Entity) -> str:
-        return (
-            f'{entity.name}\n'
-            f'Fuel: {common.format_num(entity.fuel, " kg")}' +
-            ('\nDocked' if entity.landed_on == common.AYSE else
-             '\nLanded' if entity.landed() else '')
-        )
+        label = entity.name
+        if entity.broken:
+            label += ' [BROKEN]'
+        label += '\nFuel: ' + common.format_num(entity.fuel, " kg")
+        if entity.landed_on == common.AYSE:
+            label += '\nDocked'
+        elif entity.landed():
+            label += '\nLanded'
+        return label
 
     def draw(self, entity: state.Entity,
              state: state.PhysicsState, origin: state.Entity):
@@ -171,6 +176,26 @@ class Habitat(ThreeDeeObj):
 
             parachute.axis = -vpython.vec(*drag, 0)
             parachute.visible = True
+
+        if not self._broken and entity.broken:
+            # We weren't broken before, but looking at new data we realize
+            # we're now broken. Change the habitat texture.
+            new_texture = self._obj.texture.replace(
+                'Habitat.jpg', 'Habitat-broken.jpg')
+            assert new_texture != self._obj.texture, \
+                f'{new_texture!r} == {self._obj.texture!r}'
+            self._obj.texture = new_texture
+            self._small_habitat.texture = new_texture
+            self._broken = entity.broken
+        elif self._broken and not entity.broken:
+            # We were broken before, but we've repaired ourselves somehow.
+            new_texture = self._obj.texture.replace(
+                'Habitat-broken.jpg', 'Habitat.jpg')
+            assert new_texture != self._obj.texture, \
+                f'{new_texture!r} == {self._obj.texture!r}'
+            self._obj.texture = new_texture
+            self._small_habitat.texture = new_texture
+            self._broken = entity.broken
 
         # Set reference and target arrows of the minimap habitat.
         same = state.reference == entity.name
