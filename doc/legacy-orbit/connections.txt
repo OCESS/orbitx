@@ -1,0 +1,74 @@
+Here are my notes on the inter-process communication between
+OrbitV piloting, engineering, and a couple other programs.
+
+As another resource, look at https://github.com/OCESS/serverv-py/blob/master/serverv-py/qb_communication.py#L26 the _file_connectors variable, which encodes what orbitv programs are responsible for writing what files, and what other orbitv programs read from those same files.
+
+Engineering (enghabv.bas):
+Inputs:
+obitsej.txt (a hardcoded list of switches and connections)
+
+orb5res.rnd
+seems to be switch states
+but also other things! Including Zvar(14-26), which includes wind
+
+-osbackup.rnd
+Zvar 1-25 (e.g. 25 is engine throttle)
+timestamp
+moduleflag
+AYSE distance, OCESS distance
+pressure
+Accel# (??)
+
+[incomplete, other files are maybe inputs]
+
+
+Outputs:
+-ORBITSSE.rnd
+Zvar(i) from 1 to 26
+and EL 15-array
+and switch, a 66-array
+coolantPUMP, a 10-array, as well as 10*3 coolant/RAD pairs
+
+
+-OSBACKUP.RND
+Piloting reads [a char] + _______ and might restart
+It just writes [a char] + ORBIT5S
+
+
+
+Piloting (orbit5vt.bas)
+INPUTS
+-starsr
+masses and radii of objects. Also positions and velocities, but they get overridden
+timestamp
+nme? an array? of names?
+
+-filename.rnd
+throttle
+center target ref
+SRB
+timestamps
+ztel(1, 2, 9, 14, 15, 16)
+Px(1-39, 3) and Py and Vx, Vy for 39 objects
+fuel
+AYSEfuel
+
+-MST.RND
+not sure about this one
+MST# and EST#, LONGtarg (an angle? on a topo map?)
+set by orbit5vd.bas, which is the topo map program
+
+-orbitstr.txt
+just reads a string, "normal" or "restart"?
+
+-ORBITSSE.RND
+RADAR, INS, LOS
+Ztel(1-26) (hab and ayse fuel, other things)
+
+
+OUTPUTS
+-filename.rnd
+just saves it
+
+-osbackup.rnd
+regular backup, saved in the same way as filename.rnd
