@@ -399,17 +399,18 @@ def navmode_spin(flight_state: state.PhysicsState) -> float:
         return np.sign(heading_difference) * common.AUTOPILOT_SPEED
 
 
-def drag(flight_state: state.PhysicsState) -> np.ndarray:
+def relevant_atmosphere(flight_state: state.PhysicsState) \
+        -> Optional[state.Entity]:
+    """Returns the closest entity that has an atmosphere, or None if there are
+    no such entities close enough to effect the craft."""
     craft = flight_state.craft_entity()
-
     closest_atmosphere: Optional[state.Entity] = None
     closest_distance = np.inf
-    closest_exponential = np.inf
 
     atmosphere_indices = flight_state.Atmospheres
     if not atmosphere_indices:
         # There are no entities with atmospheres
-        return np.array([0, 0])
+        return None
 
     for index in atmosphere_indices:
         atmosphere = flight_state[index]
@@ -426,13 +427,32 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
                 # Entity has an atmosphere and it's close enough to be relevant
                 closest_distance = distance
                 closest_atmosphere = atmosphere
-                closest_exponential = exponential
 
-    if closest_atmosphere is None:
-        # No atmospheres were close enough to be relevant
+    return closest_atmosphere
+
+
+def pressure(craft: state.Entity, atmosphere: state.Entity) -> float:
+    """Calculates the pressure exerted by atmosphere on the craft."""
+    # Taken from orbit5v.bas,
+    # This exponential-form equation seems to be the barometric formula:
+    # https://en.wikipedia.org/wiki/Barometric_formula
+    distance = np.linalg.norm(atmosphere.pos - craft.pos)
+    return (
+        atmosphere.atmosphere_thickness *
+        np.exp(
+            -(distance - craft.r - atmosphere.r) / 1000 /
+            atmosphere.atmosphere_scaling))
+
+
+def drag(flight_state: state.PhysicsState) -> np.ndarray:
+    """Calculates the directional drag exerted on the craft by an atmosphere.
+    """
+    atmosphere = relevant_atmosphere(flight_state)
+    if atmosphere is None:
         return np.array([0, 0])
 
-    air_v = rotational_speed(craft, closest_atmosphere)
+    craft = flight_state.craft_entity()
+    air_v = rotational_speed(craft, atmosphere)
     wind = craft.v - air_v
     if np.inner(wind, wind) < 0.01:
         # The craft is stationary
@@ -447,7 +467,7 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
     # TODO: disabled while I figure out if this only works during telemetry
     i_know_what_this_aoa_code_does = False
     if i_know_what_this_aoa_code_does:
-        aoa = wind_angle - pitch(craft, closest_atmosphere)
+        aoa = wind_angle - pitch(craft, atmosphere)
         aoa = np.sign(np.sign(np.cos(aoa)) - 1)
         aoa = aoa**3
         if aoa > 0.5:
@@ -458,15 +478,9 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
         ])
         return aoa_vector
 
-    # This exponential-form equation seems to be the barometric formula:
-    # https://en.wikipedia.org/wiki/Barometric_formula
-    pressure = (
-        closest_atmosphere.atmosphere_thickness *
-        np.exp(closest_exponential)
-    )
-
     drag_profile = common.HAB_DRAG_PROFILE
     if flight_state.parachute_deployed:
         drag_profile += common.PARACHUTE_DRAG_PROFILE
-    drag_acc = pressure * np.linalg.norm(wind)**2 * drag_profile
+    drag_acc = \
+        pressure(craft, atmosphere) * np.linalg.norm(wind)**2 * drag_profile
     return drag_acc * (wind / np.linalg.norm(wind))
