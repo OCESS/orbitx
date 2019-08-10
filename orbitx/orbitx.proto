@@ -75,10 +75,19 @@ message Command {
     }
 
     message EngineeringUpdate {
-        double max_thrust = 1;
-        double hab_fuel = 2;
-        double ayse_fuel = 3;
-        ModuleState module_state = 4;
+        int32 nav_malfunction = 1;
+        double max_thrust = 2;
+        double hab_fuel = 3;
+        double ayse_fuel = 4;
+        bool hab_meltdown = 5;
+        bool ayse_meltdown = 6;
+        ModuleState module_state = 7;
+        bool radar = 8;
+        bool ins = 9;
+        bool los = 10;
+        string wind_source_entity = 11;
+        double wind_speed = 12;
+        double wind_angle = 13;
     }
 
     ClientType client = 1;
