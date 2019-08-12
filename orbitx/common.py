@@ -23,6 +23,7 @@ SUN = 'Sun'
 EARTH = 'Earth'
 MODULE = 'Module'
 SUN = 'Sun'
+OCESS = 'OCESS'
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 

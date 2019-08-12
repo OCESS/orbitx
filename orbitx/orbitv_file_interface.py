@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy
+import scipy
 
 from orbitx import calc
 from orbitx import common
@@ -388,11 +389,14 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
                     f'{check_byte} != {check_byte_2}')
 
     # Delete any entity with a (0, 0) position that isn't the Sun.
+    # TODO: We also delete the OCESS launch tower, but once we implement
+    # OCESS we should no longer do this.
     entity_index = 0
     while entity_index < len(proto_state.entities):
         proto_entity = proto_state.entities[entity_index]
         if round(proto_entity.x) == 0 and round(proto_entity.y) == 0 and \
-                proto_entity.name != common.SUN:
+            proto_entity.name != common.SUN or \
+                proto_entity.name == common.OCESS:
             del proto_state.entities[entity_index]
         else:
             entity_index += 1
@@ -413,6 +417,7 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
 
     log.debug(f'Interpreted {rnd_path} and {starsr_path} into this state:')
     log.debug(repr(orbitx_state))
+    orbitx_state = _separate_landed_entities(orbitx_state)
     return orbitx_state
 
 
@@ -499,3 +504,55 @@ def _read_double(file) -> float:
 
 def _string_to_float(item: str) -> float:
     return float(item.upper().replace('#', '').replace('D', 'E'))
+
+
+def _separate_landed_entities(orbitx_state: state.PhysicsState) \
+        -> state.PhysicsState:
+    n = len(orbitx_state)
+    # 2xN of (x, y) positions
+    posns = numpy.column_stack((orbitx_state.X, orbitx_state.Y))
+    # An n*n matrix of _altitudes_ between each entity
+    radii = numpy.array([entity.r for entity in orbitx_state])
+    alt_matrix = (
+        scipy.spatial.distance.cdist(posns, posns) -
+        numpy.array([radii]) - numpy.array([radii]).T)
+    numpy.fill_diagonal(alt_matrix, numpy.inf)
+
+    # Find everything that has a very small or negative altitude, and make
+    # sure that it has an altitude of at least 1.
+    infinite_loop_warning = 0
+    while numpy.min(alt_matrix) < 1:
+        infinite_loop_warning += 1
+        assert infinite_loop_warning <= len(orbitx_state)
+
+        flattened_index = alt_matrix.argmin()
+        e1_index = flattened_index // n
+        e2_index = flattened_index % n
+        e1 = orbitx_state[e1_index]
+        e2 = orbitx_state[e2_index]
+        alt = numpy.min(alt_matrix)
+        assert abs(numpy.min(alt_matrix)) < 10, (
+            f"{e1.name} and {e2.name} were loaded from the OrbitV savefile, "
+            "but they greatly intersect each other with "
+            f"altitude={alt}. This probably shouldn't happen!")
+
+        if e1.mass < e2.mass:
+            smaller = e1
+            larger = e2
+        else:
+            smaller = e2
+            larger = e1
+
+        norm = smaller.pos - larger.pos
+        norm = norm / numpy.linalg.norm(norm)
+
+        smaller.pos += norm * (alt + 1)
+        orbitx_state[smaller.name] = smaller
+
+        posns = numpy.column_stack((orbitx_state.X, orbitx_state.Y))
+        alt_matrix = (
+            scipy.spatial.distance.cdist(posns, posns) -
+            numpy.array([radii]) - numpy.array([radii]).T)
+        numpy.fill_diagonal(alt_matrix, numpy.inf)
+
+    return orbitx_state
