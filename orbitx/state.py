@@ -280,6 +280,7 @@ class PhysicsState:
     def _name_to_index(self, name: Optional[str]) -> int:
         """Finds the index of the entity with the given name."""
         try:
+            assert name is not None
             return self._entity_names.index(name) if name != '' \
                 else self.NO_INDEX
         except ValueError:
@@ -369,6 +370,12 @@ class PhysicsState:
             val.x, val.y, val.vx, val.vy, val.heading, val.spin, val.fuel,
             val.throttle, landed_index, val.broken
         ]).astype(self.DTYPE)
+
+    def __repr__(self):
+        return self.as_proto().__repr__()
+
+    def __str__(self):
+        return self.as_proto().__str__()
 
     @property
     def timestamp(self) -> float:

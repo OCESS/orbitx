@@ -11,7 +11,6 @@ import numpy
 import google.protobuf.json_format
 import vpython
 
-from orbitx import orbitv_file_interface
 from orbitx import orbitx_pb2 as protos
 from orbitx import state
 
@@ -23,6 +22,7 @@ AYSE = 'AYSE'
 SUN = 'Sun'
 EARTH = 'Earth'
 MODULE = 'Module'
+SUN = 'Sun'
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
@@ -143,8 +143,13 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
     If the input file is an OrbitX-style .json file, simply loads it.
     If the input file is an OrbitV-style .rnd file, tries to interpret it
     and also loads the adjacent STARSr file to produce a PhysicsState."""
-    logging.getLogger().info(f'Loading savefile {file.resolve()}')
+
+    # We shouldn't import orbitv_file_interface at the top of common.py, since
+    # common.py is imported by lots of modules and shouldn't circularly depend
+    # on anything.
+    from orbitx import orbitv_file_interface
     physics_state: state.PhysicsState
+    logging.getLogger().info(f'Loading savefile {file.resolve()}')
 
     assert isinstance(file, Path)
     if file.suffix.lower() == '.rnd':

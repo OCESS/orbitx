@@ -25,8 +25,9 @@ argument_parser = argparse.ArgumentParser(
 argument_parser.add_argument(
     'loadfile', type=str, nargs='?', default='OCESS.json',
     help=(
-        'Name of the savefile to be loaded. Should be a .json'
-        ' file, in a format that OrbitX expects.')
+        f'Name of the savefile to load, relative to {common.savefile(".")}. '
+        'Should be a .json savefile written by OrbitX. '
+        'Can also read OrbitV .RND savefiles.')
 )
 
 
@@ -38,7 +39,6 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = common.savefile(args.loadfile)
 
-    log.info(f'Loading save at {loadfile}')
     physics_engine = physics.PEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 

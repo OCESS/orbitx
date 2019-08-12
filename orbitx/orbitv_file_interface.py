@@ -216,6 +216,9 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
     Returns a PhysicsState representing everything we can read."""
     proto_state = protos.PhysicalState()
 
+    hab_index: Optional[int] = None
+    ayse_index: Optional[int] = None
+
     with open(starsr_path, 'r') as starsr_file:
         starsr = csv.reader(starsr_file, delimiter=',')
 
@@ -253,28 +256,36 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
         # We skip a line here. It's the timestamp line, but the .RND file will
         # have more up-to-date timestamp info.
         entity_positions_line = next(starsr)
-        entity_index = 0
+
+        # We don't care about entity positions, we'll get this from the .RND
+        # file as well.
         while len(entity_positions_line) == 6:
-            proto_entity = proto_state.entities[entity_index]
-
-            proto_entity.x, proto_entity.y, proto_entity.vx, proto_entity.vy, \
-                ax, ay = map(_string_to_float, entity_positions_line)
-
-            entity_index += 1
             entity_positions_line = next(starsr)
 
         entity_name_line = entity_positions_line
         entity_index = 0
         while len(entity_name_line) == 1:
-            proto_state.entities[entity_index].name = \
-                entity_name_line[0].strip()
+            name = entity_name_line[0].strip()
+            proto_state.entities[entity_index].name = name
+
+            if name == common.HABITAT:
+                hab_index = entity_index
+            elif name == common.AYSE:
+                ayse_index = entity_index
+
             entity_index += 1
             entity_name_line = next(starsr)
 
-    orbitx_state = state.PhysicsState(None, proto_state)
+    assert proto_state.entities[0].name == common.SUN, (
+        'We assume that the Sun is the first OrbitV entity, this has '
+        'implications for how we populate entity positions.')
+    assert hab_index is not None, \
+        "We didn't see the Habitat in the STARSr file!"
+    assert ayse_index is not None, \
+        "We didn't see AYSE in the STARSr file!"
 
-    hab = orbitx_state[common.HABITAT]
-    ayse = orbitx_state[common.AYSE]
+    hab = proto_state.entities[hab_index]
+    ayse = proto_state.entities[ayse_index]
 
     with open(rnd_path, 'rb') as rnd:
         check_byte = rnd.read(1)
@@ -285,7 +296,7 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
         _read_int(rnd), _read_int(rnd)
         navmode = state.Navmode(SFLAG_TO_NAVMODE[_read_int(rnd)])
         if navmode is not None:
-            orbitx_state.navmode = navmode
+            proto_state.navmode = navmode.value
 
         _read_double(rnd)  # This is drag, we calculate this ourselves.
         _read_double(rnd)  # This is zoom, we ignore this as well.
@@ -296,11 +307,11 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
         # We don't track if trails are set.
         _read_int(rnd)
         drag_profile = _read_single(rnd)
-        orbitx_state.parachute_deployed = (drag_profile > 0.002)
+        proto_state.parachute_deployed = (drag_profile > 0.002)
 
         current_srb_output = _read_single(rnd)
         if current_srb_output != 0:
-            orbitx_state.srb_time = common.SRB_BURNTIME
+            proto_state.srb_time = common.SRB_BURNTIME
 
         # We don't care about colour trails or how times are displayed.
         _read_int(rnd), _read_int(rnd)
@@ -317,7 +328,7 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
         timestamp = datetime(
             year, 1, 1, hour=hour, minute=minute, second=int(second)
         ) + timedelta(day - 1)
-        orbitx_state.timestamp = timestamp.toordinal()
+        proto_state.timestamp = timestamp.timestamp()
 
         ayse.heading = _read_single(rnd)
         _read_int(rnd)  # AYSEscrape seems to do nothing.
@@ -359,8 +370,9 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
 
         # We calculate pressure and agrav.
         _read_single(rnd), _read_single(rnd)
-        for i in range(39):
-            entity = orbitx_state[i]
+        # Note, we skip the first entity, the Sun, since OrbitV does.
+        for i in range(1, min(39, len(proto_state.entities))):
+            entity = proto_state.entities[i]
             entity.x, entity.y, entity.vx, entity.vy = (
                 _read_double(rnd), _read_double(rnd),
                 _read_double(rnd), _read_double(rnd)
@@ -375,13 +387,32 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
         log.warning('RND file had inconsistent check bytes: '
                     f'{check_byte} != {check_byte_2}')
 
-    orbitx_state[common.HABITAT] = hab
-    orbitx_state[common.AYSE] = ayse
+    # Delete any entity with a (0, 0) position that isn't the Sun.
+    entity_index = 0
+    while entity_index < len(proto_state.entities):
+        proto_entity = proto_state.entities[entity_index]
+        if round(proto_entity.x) == 0 and round(proto_entity.y) == 0 and \
+                proto_entity.name != common.SUN:
+            del proto_state.entities[entity_index]
+        else:
+            entity_index += 1
+
+    hab.artificial = True
+    ayse.artificial = True
+    # Habitat and AYSE masses are hardcoded in OrbitV.
+    hab.mass = 275000
+    ayse.mass = 20000000
+
+    orbitx_state = state.PhysicsState(None, proto_state)
+    orbitx_state[common.HABITAT] = state.Entity(hab)
+    orbitx_state[common.AYSE] = state.Entity(ayse)
 
     craft = orbitx_state.craft_entity()
     craft.throttle = craft_throttle
     orbitx_state[orbitx_state.craft] = craft
 
+    log.debug(f'Interpreted {rnd_path} and {starsr_path} into this state:')
+    log.debug(repr(orbitx_state))
     return orbitx_state
 
 
