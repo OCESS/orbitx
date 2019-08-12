@@ -1,12 +1,13 @@
 """Provides write_state_to_osbackup. Contains no state."""
 
+import csv
 import logging
 import random
 import string
 import struct
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
 
 import numpy
 
@@ -36,15 +37,18 @@ ORBITV_NAMES = [
 # This is a mapping from the OrbitX NAVMODE enum to a value of "Sflag",
 # which is internal to OrbitV.
 NAVMODE_TO_SFLAG = {  # type: ignore
-    protos.CCW_PROG: 0,
-    protos.CW_RETRO: 4,
-    protos.MANUAL: 1,
-    protos.APP_TARG: 2,
-    protos.PRO_VTRG: 5,
-    protos.RETR_VTRG: 7,
+    state.Navmode(protos.CCW_PROG): 0,
+    state.Navmode(protos.CW_RETRO): 4,
+    state.Navmode(protos.MANUAL): 1,
+    state.Navmode(protos.APP_TARG): 2,
+    state.Navmode(protos.PRO_VTRG): 5,
+    state.Navmode(protos.RETR_VTRG): 6,
     # Hold Atrg should be here, but OrbitX doesn't implement it lol.
-    protos.DEPRT_REF: 3,
+    state.Navmode(protos.DEPRT_REF): 3,
 }
+SFLAG_TO_NAVMODE: Dict[int, Optional[state.Navmode]]
+SFLAG_TO_NAVMODE = {v: k for k, v in NAVMODE_TO_SFLAG.items()}  # type: ignore
+SFLAG_TO_NAVMODE[7] = None  # This is Hold Atrg
 
 # Converts from an OrbitX Enum representation of the module state to
 # the OrbitV variable MODULEflag.
@@ -105,11 +109,11 @@ def write_state_to_osbackup(
         # OrbitV expects 100% = 100.0
         _write_single(100 * max(hab.throttle, ayse.throttle), osbackup)
 
-        # vflag todo
+        # This is Vflag and Aflag, dunno what these are.
         _write_int(0, osbackup)
-        # Aflag todo
         _write_int(0, osbackup)
-        _write_int(NAVMODE_TO_SFLAG[orbitx_state.navmode.value], osbackup)
+
+        _write_int(NAVMODE_TO_SFLAG[orbitx_state.navmode], osbackup)
         _write_double(numpy.linalg.norm(calc.drag(orbitx_state)), osbackup)
         _write_double(25, osbackup)  # This is a sane value for OrbitV zoom.
         # TODO: check if this is off by 90 degrees or something.
@@ -119,7 +123,6 @@ def write_state_to_osbackup(
         _write_int(ORBITV_NAMES.index(reference), osbackup)
 
         _write_int(0, osbackup)  # Set trails to off.
-        #_write_single(0, osbackup)  # To do with rotation malfunctions??
         _write_single(0.006 if orbitx_state.parachute_deployed else 0.002,
                       osbackup)
         _write_single((common.SRB_THRUST / 100)
@@ -206,7 +209,185 @@ def write_state_to_osbackup(
         osbackup.write(check_byte)
 
 
+def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
+        -> state.PhysicsState:
+    """Gathers information from an OrbitV savefile, in the *.RND format,
+    as well as a STARSr file.
+    Returns a PhysicsState representing everything we can read."""
+    proto_state = protos.PhysicalState()
+
+    with open(starsr_path, 'r') as starsr_file:
+        starsr = csv.reader(starsr_file, delimiter=',')
+
+        background_star_line = next(starsr)
+        while len(background_star_line) == 3:
+            background_star_line = next(starsr)
+
+        # After the last while loop, the value of background_star_line is
+        # actually a gravity_pair line (a pair of indices, which we also don't
+        # care about).
+        gravity_pair_line = background_star_line
+        while len(gravity_pair_line) == 2:
+            gravity_pair_line = next(starsr)
+
+        entity_constants_line = gravity_pair_line
+        while len(entity_constants_line) == 6:
+            proto_entity = proto_state.entities.add()
+
+            # Cast all the elements on a line to floats.
+            # Some strings will be the form '1.234D+04', convert these too.
+            colour, mass, radius, \
+                atmosphere_thickness, atmosphere_scaling, atmosphere_height \
+                = map(_string_to_float, entity_constants_line)
+            mass = max(1, mass)
+
+            proto_entity.mass = mass
+            proto_entity.r = radius
+            if atmosphere_thickness and atmosphere_scaling:
+                # Only set atmosphere fields if they both have a value.
+                proto_entity.atmosphere_thickness = atmosphere_thickness
+                proto_entity.atmosphere_scaling = atmosphere_scaling
+
+            entity_constants_line = next(starsr)
+
+        # We skip a line here. It's the timestamp line, but the .RND file will
+        # have more up-to-date timestamp info.
+        entity_positions_line = next(starsr)
+        entity_index = 0
+        while len(entity_positions_line) == 6:
+            proto_entity = proto_state.entities[entity_index]
+
+            proto_entity.x, proto_entity.y, proto_entity.vx, proto_entity.vy, \
+                ax, ay = map(_string_to_float, entity_positions_line)
+
+            entity_index += 1
+            entity_positions_line = next(starsr)
+
+        entity_name_line = entity_positions_line
+        entity_index = 0
+        while len(entity_name_line) == 1:
+            proto_state.entities[entity_index].name = \
+                entity_name_line[0].strip()
+            entity_index += 1
+            entity_name_line = next(starsr)
+
+    orbitx_state = state.PhysicsState(None, proto_state)
+
+    hab = orbitx_state[common.HABITAT]
+    ayse = orbitx_state[common.AYSE]
+
+    with open(rnd_path, 'rb') as rnd:
+        check_byte = rnd.read(1)
+        rnd.read(len("ORBIT5S        "))
+        craft_throttle = _read_single(rnd) / 100
+
+        # I don't know what Vflag and Aflag do.
+        _read_int(rnd), _read_int(rnd)
+        navmode = state.Navmode(SFLAG_TO_NAVMODE[_read_int(rnd)])
+        if navmode is not None:
+            orbitx_state.navmode = navmode
+
+        _read_double(rnd)  # This is drag, we calculate this ourselves.
+        _read_double(rnd)  # This is zoom, we ignore this as well.
+        hab.heading = _read_single(rnd)
+        # Skip centre, ref, and targ information.
+        _read_int(rnd), _read_int(rnd), _read_int(rnd)
+
+        # We don't track if trails are set.
+        _read_int(rnd)
+        drag_profile = _read_single(rnd)
+        orbitx_state.parachute_deployed = (drag_profile > 0.002)
+
+        current_srb_output = _read_single(rnd)
+        if current_srb_output != 0:
+            orbitx_state.srb_time = common.SRB_BURNTIME
+
+        # We don't care about colour trails or how times are displayed.
+        _read_int(rnd), _read_int(rnd)
+        _read_double(rnd), _read_double(rnd)  # No time acc info either.
+        _read_single(rnd)  # Ignore some RCPS info
+        _read_int(rnd)  # Eflag? Something that gassimv.bas sets.
+
+        year = _read_int(rnd)
+        day = _read_int(rnd)
+        hour = _read_int(rnd)
+        minute = _read_int(rnd)
+        second = _read_double(rnd)
+
+        timestamp = datetime(
+            year, 1, 1, hour=hour, minute=minute, second=int(second)
+        ) + timedelta(day - 1)
+        orbitx_state.timestamp = timestamp.toordinal()
+
+        ayse.heading = _read_single(rnd)
+        _read_int(rnd)  # AYSEscrape seems to do nothing.
+
+        # TODO: Once we implement wind, fill in these fields.
+        _read_single(rnd), _read_single(rnd)
+
+        hab.spin = numpy.radians(_read_single(rnd))
+        docked_constant = _read_int(rnd)
+        if docked_constant != 0:
+            hab.landed_on = common.AYSE
+
+        _read_single(rnd)  # Rad shields, overwritten by enghabv.bas.
+        # TODO: once module is implemented, have it be launched here.
+        _read_int(rnd)
+        # module_state = MODFLAG_TO_MODSTATE[modflag]
+
+        _read_single(rnd), _read_single(rnd)  # AYSEdist and OCESSdist.
+
+        hab.broken = bool(_read_int(rnd))
+        ayse.broken = bool(_read_int(rnd))
+
+        # TODO: Once we implement nav malfunctions, set this field.
+        _read_single(rnd)
+
+        # Max thrust, ignored because we'll read it from ORBITSSE.rnd
+        _read_single(rnd)
+
+        # TODO: Once we implement nav malfunctions, set this field.
+        # Also, apparently this is the same field as two fields ago?
+        _read_single(rnd)
+
+        # TODO: Once we implement wind, fill in these fields.
+        _read_long(rnd)
+
+        # TODO: There is some information required from MST.rnd to implement
+        # this field (LONGtarg).
+        _read_single(rnd)
+
+        # We calculate pressure and agrav.
+        _read_single(rnd), _read_single(rnd)
+        for i in range(39):
+            entity = orbitx_state[i]
+            entity.x, entity.y, entity.vx, entity.vy = (
+                _read_double(rnd), _read_double(rnd),
+                _read_double(rnd), _read_double(rnd)
+            )
+
+        hab.fuel = _read_single(rnd)
+        ayse.fuel = _read_single(rnd)
+
+        check_byte_2 = rnd.read(1)
+
+    if check_byte != check_byte_2:
+        log.warning('RND file had inconsistent check bytes: '
+                    f'{check_byte} != {check_byte_2}')
+
+    orbitx_state[common.HABITAT] = hab
+    orbitx_state[common.AYSE] = ayse
+
+    craft = orbitx_state.craft_entity()
+    craft.throttle = craft_throttle
+    orbitx_state[orbitx_state.craft] = craft
+
+    return orbitx_state
+
+
 def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
+    """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
+    that contains the information."""
     global _last_orbitsse_modified_time
     command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
@@ -273,7 +454,7 @@ def _read_int(file) -> int:
     return int.from_bytes(file.read(2), byteorder='little')
 
 
-def _read_long(lon: int, file):
+def _read_long(file) -> int:
     return int.from_bytes(file.read(4), byteorder='little')
 
 
@@ -283,3 +464,7 @@ def _read_single(file) -> float:
 
 def _read_double(file) -> float:
     return struct.unpack("<d", file.read(8))[0]
+
+
+def _string_to_float(item: str) -> float:
+    return float(item.upper().replace('#', '').replace('D', 'E'))

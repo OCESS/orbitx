@@ -220,7 +220,7 @@ document.querySelector(
     def _save_hook(self, textbox: vpython.winput):
         full_path = common.savefile(textbox.text)
         try:
-            common.write_savefile(self._last_state, full_path)
+            full_path = common.write_savefile(self._last_state, full_path)
             textbox.text = f'Saved to {full_path}!'
         except OSError:
             log.exception('Caught exception during file saving')

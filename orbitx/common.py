@@ -11,6 +11,7 @@ import numpy
 import google.protobuf.json_format
 import vpython
 
+from orbitx import orbitv_file_interface
 from orbitx import orbitx_pb2 as protos
 from orbitx import state
 
@@ -138,28 +139,55 @@ def savefile(name: str) -> Path:
 
 
 def load_savefile(file: Path) -> 'state.PhysicsState':
+    """Loads the physics state represented by the input file.
+    If the input file is an OrbitX-style .json file, simply loads it.
+    If the input file is an OrbitV-style .rnd file, tries to interpret it
+    and also loads the adjacent STARSr file to produce a PhysicsState."""
     logging.getLogger().info(f'Loading savefile {file.resolve()}')
-    with open(file, 'r') as f:
-        data = f.read()
-    read_state = protos.PhysicalState()
-    google.protobuf.json_format.Parse(data, read_state)
+    physics_state: state.PhysicsState
 
-    if read_state.time_acc == 0:
-        read_state.time_acc = 1
-    if read_state.reference == '':
-        read_state.reference = DEFAULT_REFERENCE
-    if read_state.target == '':
-        read_state.target = DEFAULT_TARGET
-    if read_state.srb_time == 0:
-        read_state.srb_time = SRB_FULL
-    return state.PhysicsState(None, read_state)
+    assert isinstance(file, Path)
+    if file.suffix.lower() == '.rnd':
+        logging.getLogger().info(f'Interpreting savefile as an OrbitV file.')
+        starsr = file.parent / 'STARSr'
+        logging.getLogger().info(f'Also loading adjacent {starsr.resolve()}.')
+        physics_state = \
+            orbitv_file_interface.orbitv_to_orbitx_state(starsr, file)
+
+    else:
+        if file.suffix.lower() != '.json':
+            logging.getLogger().warning(
+                f'{file} is not a .json file, trying to load it anyways.')
+
+        with open(file, 'r') as f:
+            data = f.read()
+        read_state = protos.PhysicalState()
+        google.protobuf.json_format.Parse(data, read_state)
+        physics_state = state.PhysicsState(None, read_state)
+
+    if physics_state.time_acc == 0:
+        physics_state.time_acc = 1
+    if physics_state.reference == '':
+        physics_state.reference = DEFAULT_REFERENCE
+    if physics_state.target == '':
+        physics_state.target = DEFAULT_TARGET
+    if physics_state.srb_time == 0:
+        physics_state.srb_time = SRB_FULL
+    return physics_state
 
 
 def write_savefile(state: 'state.PhysicsState', file: Path):
+    """Writes state to the specified savefile path (use common.savefile to get
+    a savefile path in data/saves/). Returns a possibly-different path that it
+    was saved under."""
+    if file.suffix.lower() != '.json':
+        # Ensure a .json suffix.
+        file = file.parent / (file.name + '.json')
     logging.getLogger().info(f'Saving to savefile {file.resolve()}')
     with open(file, 'w') as outfile:
         outfile.write(
             google.protobuf.json_format.MessageToJson(state.as_proto()))
+    return file
 
 
 def start_profiling():
