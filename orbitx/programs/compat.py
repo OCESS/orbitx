@@ -21,19 +21,24 @@ log = logging.getLogger()
 name = "Compatibility Client"
 
 description = (
-    "Communicate between a running OrbitV engineering program and an OrbitX "
-    "Physics Server."
+    "Pretends to be a running OrbitV Habitat flight program. Communicates to "
+    "OrbitV by writing an OSBACKUP.RND file, and receives communications from "
+    "OrbitV by reading an ORBITSSE.RND file.<br />"
+    "Recommended use is to run this on the machine that ServerV.exe "
+    "expects OrbitV hab piloting to be, and setting the --piloting flag to "
+    "the directory that OrbitV hab piloting would usually run in."
 )
 
-argument_parser = argparse.ArgumentParser('compat', description=description)
+argument_parser = argparse.ArgumentParser(
+    'compat', description=description.replace('<br />', '\n'))
 argument_parser.add_argument(
-    "--engineering", default="orbit-files/",
-    help="Path to engineering, "
+    "--piloting", default="orbit-files/",
+    help="Path to , "
          "containing OSbackup.RND and ORBITSSE.RND"
 )
 argument_parser.add_argument(
     "--physics-server", default="localhost",
-    help="network name of piloting client"
+    help="network name of the physics server"
 )
 
 
