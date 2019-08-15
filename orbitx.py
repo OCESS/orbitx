@@ -130,25 +130,6 @@ def main():
             # user using a graphical launcher interface.
             launch = launcher.Launcher()
             args = parser.parse_args(launch.get_args())
-            if launch.get_program().headless:
-                # Exiting the vpython tab will send a signal to the python
-                # process calling sys.exit(0). If the program we're running
-                # is headless, we want the user to be able to exit the vpython
-                # tab without sys.exit(0) being called.
-                old_handler = vpython.no_notebook.WSserver.onClose
-
-                def onClose(self, wasClean, code, reason):
-                    old_kill = os.kill
-                    os.kill = lambda pid, sig: \
-                        log.info(
-                            'Intercepted an os.kill call on vpython shutdown.')
-                    old_handler(self, wasClean, code, reason)
-                    os.kill = old_kill
-
-                vpython.no_notebook.WSserver.onClose = onClose
-                vpython.canvas.get_selected().caption = \
-                    '''<h2>You may now close this tab</h2>
-                    OrbitX is running in the backgroud (in the terminal).'''
 
         logs.make_program_logfile(args.program)
         args.main_loop(args)

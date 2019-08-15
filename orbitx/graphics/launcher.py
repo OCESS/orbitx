@@ -6,7 +6,7 @@ import vpython
 
 from orbitx import common
 from orbitx import programs
-from orbitx.graphics import sidebar_widgets
+from orbitx.graphics import vpython_widgets
 
 
 class Launcher:
@@ -64,7 +64,7 @@ class Launcher:
                 arg_field.arg = arg
 
                 text_fields.append(arg_field)
-                sidebar_widgets.last_div_id += 1
+                vpython_widgets.last_div_id += 1
 
         common.remove_vpython_css()
 

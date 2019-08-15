@@ -25,7 +25,7 @@ from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.spacestation import SpaceStation
 from orbitx.graphics.star import Star
-from orbitx.graphics.sidebar_widgets import Checkbox, Menu, TableText
+from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.graphics.orbit_projection import OrbitProjection
 
 log = logging.getLogger()

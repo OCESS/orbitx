@@ -1,4 +1,4 @@
-"""Provides write_state_to_osbackup. Contains no state."""
+"""Provides functions for reading and writing to OrbitV files."""
 
 import csv
 import logging
@@ -19,8 +19,6 @@ from orbitx import orbitx_pb2 as protos
 from orbitx import state
 
 log = logging.getLogger()
-
-_last_orbitsse_modified_time = 0.0
 
 
 # This is an ordered list of names that are internal to OrbitV.
@@ -424,17 +422,8 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
 def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
     that contains the information."""
-    global _last_orbitsse_modified_time
     command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
-
-        orbitsse_modified_time = orbitsse_path.stat().st_mtime
-        if orbitsse_modified_time == _last_orbitsse_modified_time:
-            # We've already seen this version of ORBITSSE.RND, return early.
-            return network.Request(ident=network.Request.NOOP)
-        else:
-            _last_orbitsse_modified_time = orbitsse_modified_time
-
         # See enghabv.bas at label 820 to find out what data is written at what
         # offsets in orbitsse.rnd
         orbitsse.seek(1)  # Skip CHKbyte

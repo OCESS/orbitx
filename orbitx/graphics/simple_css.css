@@ -1,7 +1,7 @@
 <style>
 body {
     margin: 1em auto;
-    max-width: 40em;
+    max-width: 50em;
     padding: 0.62em;
     font: 1.2em/1.62em sans-serif;
 }
@@ -10,9 +10,22 @@ h1,h2,h3 {
 }
 
 .description {
-    font-size: 80%;
+    font-size: 0.7rem;
     font-stretch: condensed;
     display: none;
+}
+
+.mono, .num {
+    font-family: monospace;
+}
+
+.error {
+    color: #D8000C;
+    background-color: #FFBABA;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px 5px 5px 5px;
+    width: 700px;
 }
 
 /* Good table CSS from

@@ -47,6 +47,5 @@ program = programs.Program(
     name=name,
     description=description,
     main=main,
-    argparser=argument_parser,
-    headless=False
+    argparser=argument_parser
 )

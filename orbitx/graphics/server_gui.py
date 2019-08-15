@@ -16,6 +16,7 @@ import vpython
 from orbitx import common
 from orbitx import network
 from orbitx import state
+from orbitx.graphics import vpython_widgets
 
 log = logging.getLogger()
 
@@ -68,9 +69,6 @@ class ConnectionViewer:
 class ServerGui:
     UPDATES_PER_SECOND = 10
 
-    # See comments in sidebar_widgets.py for why this is needed.
-    _last_vpython_div_id = 0
-
     def __init__(self, initial_loadfile: Path):
         self._commands: List[network.Request] = []
         self._last_state: state.PhysicsState
@@ -106,40 +104,29 @@ class ServerGui:
 
         canvas.append_to_caption("<div class='flex-box'></div>")
 
-        self._load_box = vpython.winput(bind=self._load_hook, type='string')
-        self._last_vpython_div_id += 1
-        # Stuff the input we made into our flex-box div.
-        canvas.append_to_caption(f"""<script>
-load_box = document.querySelector('input[id="{self._last_vpython_div_id}"]');
-load_box.placeholder = "Load savefile";
-document.querySelector('div.flex-box').append(load_box);
-</script>""")
-        self._load_box.text = f"Started {initial_loadfile}."
-
-        self._save_box = vpython.winput(bind=self._save_hook, type='string')
-        self._last_vpython_div_id += 1
-        # Stuff the input we made into our flex-box div.
-        canvas.append_to_caption(f"""<script>
-save_box = document.querySelector('input[id="{self._last_vpython_div_id}"]');
-save_box.placeholder = "Save savefile";
-document.querySelector('div.flex-box').append(save_box);
-</script>""")
+        vpython_widgets.Input(
+            bind=self._load_hook, placeholder='Load savefile')
+        vpython_widgets.Input(
+            bind=self._load_hook, placeholder='Save savefile')
+        vpython_widgets.stuff_widgets_into_flex_box([
+            vpython_widgets.last_div_id - 1, vpython_widgets.last_div_id
+        ])
 
         canvas.append_to_caption("<hr />")
 
         self._clients_table = vpython.wtext(text='')
-        self._last_vpython_div_id += 1
+        vpython_widgets.last_div_id += 1
         # We hide all other vpython-made wtexts, except for this one.
         canvas.append_to_caption(f"""<script>
 document.querySelector(
-    'span[id="{self._last_vpython_div_id}"]').className = 'nohide';
+    'span[id="{vpython_widgets.last_div_id}"]').className = 'nohide';
 </script>""")
         self._last_contact_wtexts: List[vpython.wtext] = []
-        self._last_client_locs = None
+        self._last_client_locs: Optional[List[str]] = None
 
         # This is needed to launch vpython.
         vpython.sphere()
-        vpython.canvas.get_selected().delete()
+        canvas.delete()
         common.remove_vpython_css()
 
     def pop_commands(self) -> List[network.Request]:
@@ -207,11 +194,11 @@ document.querySelector(
                 client_type = '&nbsp;'
 
             self._last_contact_wtexts.append(vpython.wtext(text=''))
-            self._last_vpython_div_id += 1
+            vpython_widgets.last_div_id += 1
             text += "<tr>"
             text += f"<td>{client_type}</td>"
             text += f"<td>{client.location}</td>"
-            text += f"<td><div id={self._last_vpython_div_id}></div></td>"
+            text += f"<td><div id={vpython_widgets.last_div_id}></div></td>"
             text += "</tr>"
 
         text += "</table>"

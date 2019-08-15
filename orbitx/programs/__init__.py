@@ -11,7 +11,6 @@ class Program(NamedTuple):  # noqa: E402
     name: str
     description: str
     argparser: argparse.ArgumentParser
-    headless: bool
 
 
 from . import compat
