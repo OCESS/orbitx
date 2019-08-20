@@ -48,14 +48,8 @@ def main(args: argparse.Namespace):
         network.Request.COMPAT, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
-    assert Path(args.piloting).exists
-    osbackup = Path(args.piloting) / 'OSbackup.RND'
-    assert osbackup.exists
-    log.info(f'Writing to legacy flight database: {osbackup}')
-
-    orbitsse = Path(args.piloting) / 'ORBITSSE.RND'
-    assert orbitsse.exists
-    log.info(f'Reading from legacy engineering database: {orbitsse}')
+    intermediary = orbitv_file_interface.OrbitVIntermediary(
+        Path(args.piloting))
 
     try:
         # Make sure we have a connection before continuing.
@@ -66,26 +60,26 @@ def main(args: argparse.Namespace):
         StartupFailedGui(args.physics_server, err)
         return
 
-    gui = CompatGui(args.physics_server, osbackup, orbitsse)
+    gui = CompatGui(args.physics_server, intermediary)
 
     last_orbitsse_modified_time = 0.0
     last_orbitsse_read_datetime = datetime.fromtimestamp(0)
 
     try:
         while True:
-            orbitsse_modified_time = orbitsse.stat().st_mtime
+            orbitsse_modified_time = intermediary.orbitsse.stat().st_mtime
             if orbitsse_modified_time == last_orbitsse_modified_time:
                 # We've already seen this version of ORBITSSE.RND.
                 update = network.Request(ident=network.Request.NOOP)
             else:
                 last_orbitsse_modified_time = orbitsse_modified_time
                 last_orbitsse_read_datetime = datetime.now()
-                update = \
-                    orbitv_file_interface.read_update_from_orbitsse(orbitsse)
+                update = intermediary.read_engineering_update()
 
             state = orbitx_connection.get_state([update])
-            orbitv_file_interface.write_state_to_osbackup(state, osbackup)
-            gui.update(update, last_orbitsse_read_datetime)
+            intermediary.write_state(state)
+            gui.update(
+                update, state._entity_names, last_orbitsse_read_datetime)
     except grpc.RpcError as err:
         log.error(
             f'Got response code {err.code()} from orbitx, shutting down')

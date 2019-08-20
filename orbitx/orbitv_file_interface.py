@@ -20,19 +20,6 @@ from orbitx import state
 
 log = logging.getLogger()
 
-
-# This is an ordered list of names that are internal to OrbitV.
-# Sometimes OrbitV references a numeric index, e.g. ORBITSSE.RND Zvar[13],
-# and we can convert that numeric index into an entity name using this list.
-ORBITV_NAMES = [
-    "Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus",
-    "Neptune", "Pluto", "Moon", "Phobos", "Hyperion", "Io", "Europa",
-    "Ganymede", "Callisto", "Enceldus", "Dione", "Rhea", "Titan", "Iapatus",
-    "Thethys", "Mimas", "Titania", "Oberon", "Triton", "Charon", "Habitat",
-    "Ceres", "DAWN", "Vesta", "AYSE", "Cassini", "C 103P H", "ISS", "Module",
-    "OCESS", "PROBE", "unknown"
-]  # Likely off by one, TODO: test that
-
 # This is a mapping from the OrbitX NAVMODE enum to a value of "Sflag",
 # which is internal to OrbitV.
 NAVMODE_TO_SFLAG = {  # type: ignore
@@ -59,161 +46,45 @@ MODSTATE_TO_MODFLAG = {
 MODFLAG_TO_MODSTATE = {v: k for k, v in MODSTATE_TO_MODFLAG.items()}
 
 
-def write_state_to_osbackup(
-    orbitx_state: state.PhysicsState,
-    osbackup_path: Path
-) -> None:
-    """Writes information to OSbackup.RND.
+class OrbitVIntermediary:
+    def __init__(self, piloting_path: Path):
+        assert piloting_path.exists
 
-    Currently only writes information relevant to engineering, but if we want
-    to communicate piloting state to other legacy orbit programs we can write
-    other kinds of information. I found out what information I should be
-    writing here by reading the source for engineering (enghabv.bas) and seeing
-    what information it reads from OSbackup.RND"""
-    assert orbitx_state.craft
+        self.osbackup = piloting_path / 'OSbackup.RND'
+        self.orbitsse = piloting_path / 'ORBITSSE.RND'
+        self.starsr = piloting_path / 'STARSr'
 
-    hab = orbitx_state[common.HABITAT]
-    ayse = orbitx_state[common.AYSE]
-    craft = orbitx_state.craft_entity()
-    max_thrust = common.craft_capabilities[craft.name].thrust
-    timestamp = datetime.fromtimestamp(orbitx_state.timestamp)
-    check_byte = random.choice(string.ascii_letters).encode('ascii')
-    target = (orbitx_state.target
-              if orbitx_state.target in ORBITV_NAMES
-              else "AYSE")
-    reference = (orbitx_state.reference
-                 if orbitx_state.reference in ORBITV_NAMES
-                 else "Earth")
-    atmosphere = calc.relevant_atmosphere(orbitx_state)
-    if atmosphere is None:
-        pressure = 0.0
-    else:
-        pressure = calc.pressure(craft, atmosphere)
-    craft_thrust = max_thrust * craft.throttle * \
-        calc.heading_vector(craft.heading)
-    craft_drag = calc.drag(orbitx_state)
-    artificial_gravity = numpy.linalg.norm(craft_thrust - craft_drag)
+        assert self.osbackup.exists
+        assert self.orbitsse.exists
+        assert self.starsr.exists
 
-    with open(osbackup_path, 'r+b') as osbackup:
-        # We replicate the logic of orbit5v.bas:1182 (look for label 800)
-        # in the below code. OSBACKUP.RND is a binary, fixed-width field file.
-        # orbit5v.bas writes to it every second, and it's created in the same
-        # way as any OrbitV save file.
-        # If you're reading the orbit5v.bas source code, note that arrays and
-        # strings in QB are 1-indexed not 0-indexed.
+        log.info(
+            f'Writing to legacy flight database: {self.osbackup}')
+        log.info(
+            f'Reading from legacy engineering database: {self.orbitsse}')
+        log.info(f'Reading from STARSr file: {self.starsr}')
 
-        osbackup.write(check_byte)
-        osbackup.write("ORBIT5S        ".encode('ascii'))
-        # OrbitX keeps throttle as a float, where 100% = 1.0
-        # OrbitV expects 100% = 100.0
-        _write_single(100 * max(hab.throttle, ayse.throttle), osbackup)
+        self.orbitv_names = _entity_list_from_starsr(
+            piloting_path / 'STARSr')
 
-        # This is Vflag and Aflag, dunno what these are.
-        _write_int(0, osbackup)
-        _write_int(0, osbackup)
+    def write_state(self, orbitx_state: state.PhysicsState):
+        _write_state_to_osbackup(
+            orbitx_state, self.osbackup, self.orbitv_names)
 
-        _write_int(NAVMODE_TO_SFLAG[orbitx_state.navmode], osbackup)
-        _write_double(numpy.linalg.norm(calc.drag(orbitx_state)), osbackup)
-        _write_double(25, osbackup)  # This is a sane value for OrbitV zoom.
-        # TODO: check if this is off by 90 degrees or something.
-        _write_single(hab.heading, osbackup)
-        _write_int(ORBITV_NAMES.index("Habitat"), osbackup)  # Centre the hab.
-        _write_int(ORBITV_NAMES.index(target), osbackup)
-        _write_int(ORBITV_NAMES.index(reference), osbackup)
-
-        _write_int(0, osbackup)  # Set trails to off.
-        _write_single(0.006 if orbitx_state.parachute_deployed else 0.002,
-                      osbackup)
-        _write_single((common.SRB_THRUST / 100)
-                      if orbitx_state.srb_time > 0 else 0, osbackup)
-        _write_int(0, osbackup)  # No colour-coded trails.
-
-        # Valid values of this are 0, 1, 2.
-        # A value of 1 gets OrbitV to display EST timestamps.
-        _write_int(1, osbackup)
-        _write_double(0.125, osbackup)  # Set timestep to the slowest.
-        _write_double(0.125, osbackup)  # This is OLDts, also slowest value.
-        _write_single(0, osbackup)  # Something to do with RSCP, just zero it.
-        _write_int(0, osbackup)  # Eflag? Something that gassimv.bas sets.
-
-        _write_int(timestamp.year, osbackup)
-        # QB uses day-of-the-year instead of day-of-the-month.
-        _write_int(int(timestamp.strftime('%j')), osbackup)
-        _write_int(timestamp.hour, osbackup)
-        _write_int(timestamp.minute, osbackup)
-        _write_double(timestamp.second, osbackup)
-
-        _write_single(ayse.heading, osbackup)
-        _write_int(0, osbackup)  # AYSEscrape seemingly does nothing.
-
-        # TODO: Once we implement wind, fill in these fields.
-        _write_single(0, osbackup)
-        _write_single(0, osbackup)
-
-        _write_single(numpy.degrees(hab.spin), osbackup)
-        _write_int(150 if hab.landed_on == common.AYSE else 0, osbackup)
-        _write_single(0, osbackup)  # Rad shields, overwritten by enghabv.bas.
-        _write_int(MODSTATE_TO_MODFLAG[network.Request.DETACHED_MODULE]
-                   if common.MODULE in orbitx_state._entity_names
-                   else MODSTATE_TO_MODFLAG[network.Request.NO_MODULE],
-                   osbackup)
-
-        # These next two variables are technically AYSEdist and OCESSdist
-        # but they're used for engineering to determine if you can load fuel
-        # from OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
-        # engineering if we're landed, but don't tell it any more deets.
-        _write_single(150 if hab.landed_on == common.AYSE else 1000, osbackup)
-        _write_single(150 if hab.landed_on == common.EARTH else 1000, osbackup)
-
-        _write_int(hab.broken, osbackup)  # I think this is an explosion flag.
-        _write_int(ayse.broken, osbackup)  # Same as above.
-
-        # TODO: Once we implement nav malfunctions, set this field.
-        _write_single(0, osbackup)
-
-        _write_single(max_thrust, osbackup)
-
-        # TODO: Once we implement nav malfunctions, set this field.
-        # Also, apparently this is the same field as two fields ago?
-        _write_single(0, osbackup)
-
-        # TODO: Once we implement wind, fill in these fields.
-        _write_long(0, osbackup)
-
-        # TODO: There is some information required from MST.rnd to implement
-        # this field (LONGtarg).
-        _write_single(0, osbackup)
-
-        _write_single(pressure, osbackup)
-        _write_single(artificial_gravity, osbackup)
-
-        for i in range(0, 39):
-            try:
-                entity = orbitx_state[ORBITV_NAMES[i]]
-                x, y = entity.pos
-                vx, vy = entity.v
-            except ValueError:
-                log.error(f"Tried to write position of {ORBITV_NAMES[i]} "
-                          "to OSBACKUP.rnd, but OrbitX does not recognize "
-                          "this name!")
-                x = y = vx = vy = 0
-            _write_double(x, osbackup)
-            _write_double(y, osbackup)
-            _write_double(vx, osbackup)
-            _write_double(vy, osbackup)
-
-        _write_single(hab.fuel, osbackup)
-        _write_single(ayse.fuel, osbackup)
-
-        osbackup.write(check_byte)
+    def read_engineering_update(self) -> network.Request.EngineeringUpdate:
+        return _read_update_from_orbitsse(self.orbitsse, self.orbitv_names)
 
 
-def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
-        -> state.PhysicsState:
+def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
     """Gathers information from an OrbitV savefile, in the *.RND format,
     as well as a STARSr file.
     Returns a PhysicsState representing everything we can read."""
     proto_state = protos.PhysicalState()
+    starsr_path = rnd_path.parent / 'STARSr'
+
+    log.info(
+        f"Reading OrbitV file {rnd_path}, "
+        f"using info from adjacent STARSr file {starsr_path}")
 
     hab_index: Optional[int] = None
     ayse_index: Optional[int] = None
@@ -419,7 +290,173 @@ def orbitv_to_orbitx_state(starsr_path: Path, rnd_path: Path) \
     return orbitx_state
 
 
-def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
+def _entity_list_from_starsr(starsr_path: Path) -> List[str]:
+    # We need to get the list of entity names, so that we know what
+    # entities OrbitV expects us to write to OSBACKUP.RND.
+    orbitv_names: List[str] = []
+    with open(starsr_path, 'r') as starsr_file:
+        starsr = csv.reader(starsr_file, delimiter=',')
+        name_line = next(starsr)
+        while len(name_line) != 1:
+            # Get to the list of entity names.
+            name_line = next(starsr)
+
+        while len(name_line) == 1:
+            orbitv_names.append(name_line[0].strip())
+            name_line = next(starsr)
+    return orbitv_names
+
+
+def _write_state_to_osbackup(orbitx_state: state.PhysicsState,
+                             osbackup_path: Path, orbitv_names: List[str]):
+    """Writes information to OSbackup.RND. orbitv_names should be the result
+    of entity_list_from_starsr.
+
+    Currently only writes information relevant to engineering, but if we
+    want to communicate piloting state to other legacy orbit programs we
+    can write other kinds of information. I found out what information I
+    should be writing here by reading the source for engineering
+    (enghabv.bas) and seeing what information it reads from OSbackup.RND"""
+    assert orbitx_state.craft
+
+    hab = orbitx_state[common.HABITAT]
+    ayse = orbitx_state[common.AYSE]
+    craft = orbitx_state.craft_entity()
+    max_thrust = common.craft_capabilities[craft.name].thrust
+    timestamp = datetime.fromtimestamp(orbitx_state.timestamp)
+    check_byte = random.choice(string.ascii_letters).encode('ascii')
+    target = (orbitx_state.target
+              if orbitx_state.target in orbitv_names
+              else "AYSE")
+    reference = (orbitx_state.reference
+                 if orbitx_state.reference in orbitv_names
+                 else "Earth")
+    atmosphere = calc.relevant_atmosphere(orbitx_state)
+    if atmosphere is None:
+        pressure = 0.0
+    else:
+        pressure = calc.pressure(craft, atmosphere)
+    craft_thrust = max_thrust * craft.throttle * \
+        calc.heading_vector(craft.heading)
+    craft_drag = calc.drag(orbitx_state)
+    artificial_gravity = numpy.linalg.norm(craft_thrust - craft_drag)
+
+    with open(osbackup_path, 'r+b') as osbackup:
+        # We replicate the logic of orbit5v.bas:1182 (look for label 800)
+        # in the below code. OSBACKUP.RND is a binary, fixed-width field
+        # file. orbit5v.bas writes to it every second, and it's created in
+        # the same way as any OrbitV save file.
+        # If you're reading the orbit5v.bas source code, note that arrays
+        # and strings in QB are 1-indexed not 0-indexed.
+
+        osbackup.write(check_byte)
+        osbackup.write("ORBIT5S        ".encode('ascii'))
+        # OrbitX keeps throttle as a float, where 100% = 1.0
+        # OrbitV expects 100% = 100.0
+        _write_single(100 * max(hab.throttle, ayse.throttle), osbackup)
+
+        # This is Vflag and Aflag, dunno what these are.
+        _write_int(0, osbackup)
+        _write_int(0, osbackup)
+
+        _write_int(NAVMODE_TO_SFLAG[orbitx_state.navmode], osbackup)
+        _write_double(numpy.linalg.norm(calc.drag(orbitx_state)), osbackup)
+        _write_double(25, osbackup)  # A sane value for OrbitV zoom.
+        # TODO: check if this is off by 90 degrees or something.
+        _write_single(hab.heading, osbackup)
+        _write_int(orbitv_names.index("Habitat"), osbackup)  # Centre
+        _write_int(orbitv_names.index(target), osbackup)
+        _write_int(orbitv_names.index(reference), osbackup)
+
+        _write_int(0, osbackup)  # Set trails to off.
+        _write_single(0.006 if orbitx_state.parachute_deployed else 0.002,
+                      osbackup)
+        _write_single((common.SRB_THRUST / 100)
+                      if orbitx_state.srb_time > 0 else 0, osbackup)
+        _write_int(0, osbackup)  # No colour-coded trails.
+
+        # Valid values of this are 0, 1, 2.
+        # A value of 1 gets OrbitV to display EST timestamps.
+        _write_int(1, osbackup)
+        _write_double(0.125, osbackup)  # Set timestep to the slowest.
+        _write_double(0.125, osbackup)  # This is OLDts, also slowest value
+        _write_single(0, osbackup)  # Something to do with RSCP, zero it.
+        _write_int(0, osbackup)  # Eflag? Something that gassimv.bas sets.
+
+        _write_int(timestamp.year, osbackup)
+        # QB uses day-of-the-year instead of day-of-the-month.
+        _write_int(int(timestamp.strftime('%j')), osbackup)
+        _write_int(timestamp.hour, osbackup)
+        _write_int(timestamp.minute, osbackup)
+        _write_double(timestamp.second, osbackup)
+
+        _write_single(ayse.heading, osbackup)
+        _write_int(0, osbackup)  # AYSEscrape seemingly does nothing.
+
+        # TODO: Once we implement wind, fill in these fields.
+        _write_single(0, osbackup)
+        _write_single(0, osbackup)
+
+        _write_single(numpy.degrees(hab.spin), osbackup)
+        _write_int(150 if hab.landed_on == common.AYSE else 0, osbackup)
+        _write_single(0, osbackup)  # Rad shields, written by enghabv.bas.
+        _write_int(MODSTATE_TO_MODFLAG[network.Request.DETACHED_MODULE]
+                   if common.MODULE in orbitx_state._entity_names
+                   else MODSTATE_TO_MODFLAG[network.Request.NO_MODULE],
+                   osbackup)
+
+        # These next two variables are technically AYSEdist and OCESSdist
+        # but they're used for engineering to determine fueld loading from
+        # OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
+        # engineering if we're landed, but don't tell it any more deets.
+        _write_single(
+            150 if hab.landed_on == common.AYSE else 1000, osbackup)
+        _write_single(
+            150 if hab.landed_on == common.EARTH else 1000, osbackup)
+
+        _write_int(hab.broken, osbackup)  # I think an explosion flag.
+        _write_int(ayse.broken, osbackup)  # Same as above.
+
+        # TODO: Once we implement nav malfunctions, set this field.
+        _write_single(0, osbackup)
+
+        _write_single(max_thrust, osbackup)
+
+        # TODO: Once we implement nav malfunctions, set this field.
+        # Also, apparently this is the same field as two fields ago?
+        _write_single(0, osbackup)
+
+        # TODO: Once we implement wind, fill in these fields.
+        _write_long(0, osbackup)
+
+        # TODO: Some information required from MST.rnd needed to implement.
+        # this field (LONGtarg).
+        _write_single(0, osbackup)
+
+        _write_single(pressure, osbackup)
+        _write_single(artificial_gravity, osbackup)
+
+        for i in range(0, 39):
+            try:
+                entity = orbitx_state[orbitv_names[i]]
+                x, y = entity.pos
+                vx, vy = entity.v
+            except ValueError:
+                x = y = vx = vy = 0
+            _write_double(x, osbackup)
+            _write_double(y, osbackup)
+            _write_double(vx, osbackup)
+            _write_double(vy, osbackup)
+
+        _write_single(hab.fuel, osbackup)
+        _write_single(ayse.fuel, osbackup)
+
+        osbackup.write(check_byte)
+
+
+def _read_update_from_orbitsse(
+    orbitsse_path: Path, orbitv_names: List[str]) \
+        -> network.Request.EngineeringUpdate:
     """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
     that contains the information."""
     command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
@@ -449,7 +486,7 @@ def read_update_from_orbitsse(orbitsse_path: Path) -> network.Request:
     # Zvar[10] and [11] are not referenced anywhere.
     # Zvar[12] is just if AYSE is connected?? unsure.
     command.engineering_update.wind_source_entity = \
-        ORBITV_NAMES[round(Zvar[13])]
+        orbitv_names[round(Zvar[13])]
     command.engineering_update.wind_speed = Zvar[14]
     command.engineering_update.wind_angle = Zvar[15]
     # Zvar[16] is something to do with a ufo?

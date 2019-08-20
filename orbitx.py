@@ -8,7 +8,6 @@ Look in the submodules of orbitx.programs for different programs.
 
 import argparse
 import logging
-import os
 import sys
 import time
 import warnings

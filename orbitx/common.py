@@ -154,11 +154,8 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
 
     assert isinstance(file, Path)
     if file.suffix.lower() == '.rnd':
-        logging.getLogger().info(f'Interpreting savefile as an OrbitV file.')
-        starsr = file.parent / 'STARSr'
-        logging.getLogger().info(f'Also loading adjacent {starsr.resolve()}.')
         physics_state = \
-            orbitv_file_interface.orbitv_to_orbitx_state(starsr, file)
+            orbitv_file_interface.clone_orbitv_state(file)
 
     else:
         if file.suffix.lower() != '.json':
