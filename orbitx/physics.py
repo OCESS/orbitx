@@ -350,14 +350,12 @@ class PEngine:
             pass
 
         # Drag effects
-        try:
+        craft = y.craft
+        if craft is not None:
             craft_index = y._name_to_index(y.craft)
             drag_acc = calc.drag(y)
             Ax[craft_index] -= drag_acc[0]
             Ay[craft_index] -= drag_acc[1]
-        except state.PhysicsState.NoEntityError:
-            # The craft lookup failed, so there's no craft probably.
-            pass
 
         # Centripetal acceleration to keep landed entities glued to each other.
         landed_on = y.LandedOn

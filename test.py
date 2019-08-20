@@ -119,10 +119,10 @@ class PhysicsEngineTestCase(unittest.TestCase):
             throttle = 1
             t_delta = 5
 
-            physics_engine.handle_request(
+            physics_engine.handle_requests([
                 network.Request(
                     ident=network.Request.HAB_THROTTLE_SET,
-                    throttle_set=throttle),
+                    throttle_set=throttle)],
                 requested_t=0)
 
             initial = physics_engine.get_state(0)
@@ -153,8 +153,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('tests/habitat.json') as physics_engine:
             t_delta = 5
 
-            physics_engine.handle_request(
-                network.Request(ident=network.Request.IGNITE_SRBS),
+            physics_engine.handle_requests(
+                [network.Request(ident=network.Request.IGNITE_SRBS)],
                 requested_t=0)
 
             initial = physics_engine.get_state(0)
@@ -251,8 +251,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('landed.json') as physics_engine:
             initial = physics_engine.get_state(10)
             physics_engine.handle_request(
-                network.Request(ident=network.Request.TIME_ACC_SET,
-                                time_acc_set=1_000_000),
+                [network.Request(ident=network.Request.TIME_ACC_SET,
+                                 time_acc_set=1_000_000)],
                 requested_t=10)
             final = state.PhysicsState(
                 None, physics_engine.get_state(1_000_000))
