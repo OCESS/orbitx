@@ -726,9 +726,11 @@ def _docking(e1, e2, e2_index):
     log.info(f'Docking {e1.name} on {e2.name}')
     e1.landed_on = e2.name
 
-    # Currently does nothing
+    # Currently this flag has almost no effect.
     e1.broken = bool(
-        np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
+        np.linalg.norm(e1.v - e2.v) >
+        common.craft_capabilities[e1.name].hull_strength
+    )
 
     # set right heading for future takeoff
     e2_opposite = e2.heading + np.pi
@@ -779,7 +781,9 @@ def _land(e1, e2):
 
     # Currently does nothing
     e1.broken = bool(
-        np.linalg.norm(e1.v - e2.v) > e1.habitat_hull_strength)
+        np.linalg.norm(e1.v - e2.v) >
+        common.craft_capabilities[e1.name].hull_strength
+    )
 
     # set right heading for future takeoff
     norm = e1.pos - e2.pos

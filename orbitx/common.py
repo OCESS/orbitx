@@ -81,14 +81,15 @@ UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
 
 class Spacecraft(NamedTuple):
     """Represents the capabilities of different craft."""
-    fuel_cons: float  # Fuel consumption in kg/s at 100% engines
-    thrust: float  # Thrust in N at 100% engines
+    fuel_cons: float  # Fuel consumption in kg/s at 100% engines.
+    thrust: float  # Thrust in N at 100% engines.
+    hull_strength: float  # Max m/s impact the craft can take.
 
 
 # These numbers taken from orbit5vm.bas.
 craft_capabilities = {
-    HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000),
-    AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9)
+    HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000, hull_strength=50),
+    AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
 }
 
 SRB_THRUST = 13125000

@@ -34,8 +34,6 @@ class Entity:
     To add fields, or see what fields exists, please see orbitx.proto,
     specifically the "message Entity" declaration.
     """
-    habitat_hull_strength = 50
-    spacestation_hull_strength = 100
 
     def __init__(self, entity: protos.Entity):
         assert isinstance(entity, protos.Entity)
