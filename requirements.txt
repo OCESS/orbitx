@@ -11,3 +11,4 @@ flamegraph
 mypy
 mypy-protobuf
 pytz
+yappi

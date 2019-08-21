@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Common code and class interfaces."""
 
+import atexit
 import logging
 import pytz
 import sys
@@ -193,7 +194,7 @@ def write_savefile(state: 'state.PhysicsState', file: Path):
     return file
 
 
-def start_profiling():
+def start_flamegraphing():
     # TODO: codify my workflow for profiling graphics vs simulation code.
     # Basically, profiling graphics is done by using dev tools of whatever
     # browser (in Firefox, F12 > Performance > Start Recording Performance)
@@ -207,6 +208,21 @@ def start_profiling():
         fd=open(PERF_FILE, 'w'),
         filter=r'(simthread|MainThread)'
     )
+
+
+def start_profiling():
+    import yappi
+    yappi.set_clock_type('cpu')
+    yappi.start()
+    atexit.register(_dump_profiling_stats)
+
+
+def _dump_profiling_stats():
+    import yappi
+    # To find out what functions have the biggest impact on performance,
+    # sort by 'tsub' or 'ttot'. Docs are here:
+    # https://github.com/sumerc/yappi/blob/master/doc/api.md#yfuncstat
+    yappi.get_func_stats().sort('ttot').print_all()
 
 
 def remove_vpython_css():

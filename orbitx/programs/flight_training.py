@@ -46,6 +46,8 @@ def main(args: argparse.Namespace):
         initial_state, title=name, running_as_mirror=False)
     atexit.register(gui.shutdown)
 
+    if args.flamegraph:
+        common.start_flamegraphing()
     if args.profile:
         common.start_profiling()
 

@@ -105,8 +105,10 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help='Logs everything to both logfile and output.')
 
-    parser.add_argument('--profile', action='store_true', default=False,
+    parser.add_argument('--flamegraph', action='store_true', default=False,
                         help='Generating profiling reports, for a flamegraph.')
+    parser.add_argument('--profile', action='store_true', default=False,
+                        help='Profile and print simple stats at exit.')
 
     # Use the argument parsers that each program defines
     subparsers = parser.add_subparsers(help='Which OrbitX program to run',

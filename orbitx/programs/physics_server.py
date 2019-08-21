@@ -67,6 +67,8 @@ def main(args: argparse.Namespace):
     gui = ServerGui(loadfile)
 
     try:
+        if args.flamegraph:
+            common.start_flamegraphing()
         if args.profile:
             common.start_profiling()
 
