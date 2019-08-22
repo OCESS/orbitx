@@ -306,6 +306,7 @@ class PEngine:
         # set any values of y, the changes will be discarded! The only way they
         # will be propagated out of this function is by numpy using the return
         # value of this function as a derivative, as explained above.
+        # If you want to set values in y, look at _reconcile_entity_dynamics.
         y = state.PhysicsState(y_1d, pass_through_state)
         Ax, Ay = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
@@ -313,7 +314,7 @@ class PEngine:
 
         # Engine thrust and fuel consumption
         for index in self._artificials:
-            if y[index].fuel > 0:
+            if y[index].fuel > 0 and y[index].throttle > 0:
                 # We have fuel remaining, calculate thrust
                 entity = y[index]
                 capability = common.craft_capabilities[entity.name]
@@ -474,7 +475,6 @@ class PEngine:
                             # Set fuel to a negative value, so it doesn't
                             # trigger the event function.
                             artificial.fuel = 0
-                            y[index] = artificial
                     if isinstance(event, LiftoffEvent):
                         # A craft has a TWR > 1
                         craft = y.craft_entity()
@@ -482,7 +482,6 @@ class PEngine:
                             'We have liftoff of the '
                             f'{craft.name} from {craft.landed_on} at {t}.')
                         craft.landed_on = ''
-                        y[y.craft] = craft
                     if isinstance(event, SrbFuelEvent):
                         # SRB fuel exhaustion.
                         log.info('SRB exhausted.')
@@ -645,7 +644,6 @@ def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
     if y.navmode != state.Navmode['Manual']:
         craft = y.craft_entity()
         craft.spin = calc.navmode_spin(y)
-        y[y.craft] = craft
 
     # Keep landed entities glued together
     landed_on = y.LandedOn
@@ -665,7 +663,6 @@ def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
 
         lander.spin = ground.spin
         lander.v = calc.rotational_speed(lander, ground)
-        y[index] = lander
 
     return y
 
@@ -676,16 +673,7 @@ def _collision_decision(t, y, altitude_event):
     e1 = y[e1_index]
     e2 = y[e2_index]
 
-    log.info(f'Collision at t={t} betwixt\n' +
-             MessageToString(e1.proto, as_one_line=True) +
-             '\nand\n' +
-             f'{MessageToString(e2.proto, as_one_line=True)}')
-
-    # TODO: does this break three-body collisions? e.g. both Hab and AYSE
-    # or does it even get triggered at all?
-    if e2.landed_on or e1.landed_on:
-        log.info('Entities are landed, returning early')
-        return e1, e2
+    log.info(f'Collision at t={t} betwixt {e1.name} and {e2.name}')
 
     if e1.artificial:
         if e2.artificial:
@@ -702,8 +690,6 @@ def _collision_decision(t, y, altitude_event):
     else:
         _bounce(e1, e2)
 
-    y[e1_index] = e1
-    y[e2_index] = e2
     return y
 
 

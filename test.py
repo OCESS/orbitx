@@ -9,6 +9,7 @@ import orbitx.orbitx_pb2 as protos
 
 from orbitx import calc
 from orbitx import common
+from orbitx import logs
 from orbitx import network
 from orbitx import physics
 from orbitx import state
@@ -35,7 +36,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def setUp(self):
         if '-v' in sys.argv:
-            common.enable_verbose_logging()
+            logs.enable_verbose_logging()
 
     def test_simple_collision(self):
         """Test elastic collisions of two small-mass objects colliding."""
@@ -308,12 +309,12 @@ class EntityTestCase(unittest.TestCase):
 class PhysicsStateTestCase(unittest.TestCase):
     """Tests state.PhysicsState accessors and setters."""
 
-    physical_state = protos.PhysicalState(
+    proto_state = protos.PhysicalState(
         timestamp=5,
         entities=[
             protos.Entity(
                 name='First', mass=100, r=200,
-                x=10, y=20, vx=30, vy=40, heading=1, spin=50, fuel=60,
+                x=10, y=20, vx=30, vy=40, heading=7, spin=50, fuel=60,
                 throttle=70),
             protos.Entity(
                 name='Second', mass=101, r=201, artificial=True,
@@ -322,12 +323,11 @@ class PhysicsStateTestCase(unittest.TestCase):
         ]
     )
 
-    def test_attatched_to(self):
+    def test_landed_on(self):
         """Test that the special .landed_on field is properly set."""
-        ps = state.PhysicsState(None, self.physical_state)
+        ps = state.PhysicsState(None, self.proto_state)
         self.assertEqual(ps['First'].landed_on, '')
         self.assertEqual(ps['Second'].landed_on, 'First')
-        self.assertEqual(ps.LandedOn, {1: 0})
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
@@ -346,7 +346,7 @@ class PhysicsStateTestCase(unittest.TestCase):
             1         # time_acc
         ])
 
-        ps = state.PhysicsState(y0, self.physical_state)
+        ps = state.PhysicsState(y0, self.proto_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
         self.assertEqual(ps['First'].landed_on, 'Second')
 
@@ -358,11 +358,38 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_get_set(self):
         """Test __getitem__ and __setitem__."""
-        ps = state.PhysicsState(None, self.physical_state)
+        ps = state.PhysicsState(None, self.proto_state)
         entity = ps[0]
         entity.landed_on = 'Second'
         ps[0] = entity
         self.assertEqual(ps[0].landed_on, 'Second')
+
+    def test_entity_view(self):
+        """Test that setting and getting _EntityView attrs propagate."""
+        ps = state.PhysicsState(None, self.proto_state)
+        self.assertEqual(ps[0].name, 'First')
+        entity = ps[0]
+        self.assertTrue(isinstance(entity, state._EntityView))
+
+        self.assertEqual(entity.x, 10)
+        self.assertEqual(entity.y, 20)
+        self.assertEqual(entity.vx, 30)
+        self.assertEqual(entity.vy, 40)
+        self.assertEqual(entity.spin, 50)
+        self.assertEqual(entity.fuel, 60)
+        self.assertEqual(entity.landed_on, '')
+        self.assertEqual(entity.throttle, 70)
+
+        ps.y0()
+        self.assertEqual(entity.heading, 7 % (2 * np.pi))
+
+        ps[0].landed_on = 'Second'
+        self.assertEqual(entity.landed_on, 'Second')
+        entity.x = 500
+        self.assertEqual(ps[0].x, 500)
+        entity.pos = np.array([55, 66])
+        self.assertEqual(ps['First'].x, 55)
+        self.assertEqual(ps['First'].y, 66)
 
 
 class CalculationsTestCase(unittest.TestCase):
@@ -376,7 +403,7 @@ class CalculationsTestCase(unittest.TestCase):
 
     def setUp(self):
         if '-v' in sys.argv:
-            common.enable_verbose_logging()
+            logs.enable_verbose_logging()
 
     def test_elliptical_orbital_parameters(self):
         # Again, see

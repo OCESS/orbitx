@@ -223,7 +223,7 @@ def _dump_profiling_stats():
     # To find out what functions have the biggest impact on performance,
     # sort by 'tsub' or 'ttot'. Docs are here:
     # https://github.com/sumerc/yappi/blob/master/doc/api.md#yfuncstat
-    yappi.get_func_stats().sort('ttot').print_all()
+    yappi.get_func_stats().sort('tsub').print_all()
 
 
 def remove_vpython_css():

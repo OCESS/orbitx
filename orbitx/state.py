@@ -17,6 +17,25 @@ from orbitx import common
 log = logging.getLogger()
 
 
+# These entity fields do not change during simulation. Thus, we don't have to
+# store them in a big 1D numpy array for use in scipy.solve_ivp.
+_PER_ENTITY_UNCHANGING_FIELDS = [
+    'name', 'mass', 'r', 'artificial', 'atmosphere_thickness',
+    'atmosphere_scaling'
+]
+
+_PER_ENTITY_MUTABLE_FIELDS = [field.name for
+                              field in protos.Entity.DESCRIPTOR.fields if
+                              field.name not in _PER_ENTITY_UNCHANGING_FIELDS]
+
+_FIELD_ORDERING = {name: index for index, name in
+                   enumerate(_PER_ENTITY_MUTABLE_FIELDS)}
+
+# A special field, we reference it a couple times so turn it into a symbol
+# to guard against string literal typos.
+_LANDED_ON = "landed_on"
+assert _LANDED_ON in [field.name for field in protos.Entity.DESCRIPTOR.fields]
+
 # Make sure this is in sync with the corresponding enum in orbitx.proto!
 Navmode = Enum('Navmode', zip([  # type: ignore
     'Manual', 'CCW Prograde', 'CW Retrograde', 'Depart Reference',
@@ -36,7 +55,6 @@ class Entity:
     """
 
     def __init__(self, entity: protos.Entity):
-        assert isinstance(entity, protos.Entity)
         self.proto = entity
 
     def __repr__(self):
@@ -70,23 +88,22 @@ class Entity:
 
     @property
     def pos(self):
-        return np.asarray([self.proto.x, self.proto.y])
+        return np.asarray([self.x, self.y])
 
     @pos.setter
-    def pos(self, x):
-        self.proto.x = x[0]
-        self.proto.y = x[1]
+    def pos(self, coord):
+        self.x = coord[0]
+        self.y = coord[1]
 
     @property
     def v(self):
-        return np.asarray([self.proto.vx, self.proto.vy])
+        return np.asarray([self.vx, self.vy])
 
     @v.setter
-    def v(self, x):
-        self.proto.vx = x[0]
-        self.proto.vy = x[1]
+    def v(self, coord):
+        self.vx = coord[0]
+        self.vy = coord[1]
 
-    # TODO: temporary solution to detect AYSE, need improvement
     @property
     def dockable(self):
         return self.name == common.AYSE
@@ -96,24 +113,126 @@ class Entity:
         return self.landed_on != ''
 
 
+class _EntityView(Entity):
+    """A view into a PhysicsState, very fast to create and use.
+    Setting fields will update the parent PhysicsState appropriately."""
+    def __init__(self, creator: 'PhysicsState', index: int):
+        self._creator = creator
+        self._index = index
+
+    def __repr__(self):
+        # This is actually a bit hacky. This line implies that orbitx_pb2
+        # protobuf generated code can't tell the difference between an
+        # orbitx_pb2.Entity and an _EntityView. Turns out, it can't! But
+        # hopefully this assumption always holds.
+        return repr(Entity(self))
+
+    def __str__(self):
+        return str(Entity(self))
+
+
+# I feel like I should apologize before things get too crazy. Once you read
+# the following module-level loop and ask "why _EntityView a janky subclass of
+# Entity, and is implemented using janky array indexing into data owned by a
+# PhysicsState?".
+# My excuse is that I wanted a way to index into PhysicsState and get an Entity
+# for ease of use and code. I found this to be a useful API that made physics
+# code cleaner, but it was _too_ useful! The PhysicsState.__getitem__ method
+# that implemented this indexing was so expensive and called so often that it
+# was _half_ the runtime of OrbitX at high time accelerations! My solution to
+# this performance issue was to optimize PhysicsState.__getitem__ to very
+# return an Entity (specifically, an _EntityView) that was very fast to
+# instantiate and very fast to access.
+# Hence: janky array-indexing accessors is my super-optimization! 2x speedup!
 for field in protos.Entity.DESCRIPTOR.fields:
     # For every field in the underlying protobuf entity, make a
     # convenient equivalent property to allow code like the following:
     # Entity(entity).heading = 5
 
-    def fget(self, name=field.name):
+    def entity_fget(self, name=field.name):
         return getattr(self.proto, name)
 
-    def fset(self, val, name=field.name):
+    def entity_fset(self, val, name=field.name):
         return setattr(self.proto, name, val)
 
-    def fdel(self, name=field.name):
+    def entity_fdel(self, name=field.name):
         return delattr(self.proto, name)
 
-    # Assert that there is a stub for the field before setting it.
     setattr(Entity, field.name, property(
-        fget=fget, fset=fset, fdel=fdel,
-        doc=f"Proxy of the underlying field, self.proto.{field.name}"))
+        fget=entity_fget, fset=entity_fset, fdel=entity_fdel,
+        doc=f"Entity proxy of the underlying field, self.proto.{field.name}"))
+
+    def entity_view_unchanging_fget(self, name=field.name):
+        return getattr(self._creator._proto_state.entities[self._index], name)
+
+    def entity_view_unchanging_fset(self, val, name=field.name):
+        return setattr(
+            self._creator._proto_state.entities[self._index], name, val)
+
+    field_n: Optional[int]
+    if field.name in _PER_ENTITY_MUTABLE_FIELDS:
+        field_n = _FIELD_ORDERING[field.name]
+    else:
+        field_n = None
+
+    if field.cpp_type in [field.CPPTYPE_FLOAT, field.CPPTYPE_DOUBLE]:
+        def entity_view_mutable_fget(self, field_n=field_n):
+            return self._creator._array_rep[
+                self._creator._n * field_n + self._index]
+
+        def entity_view_mutable_fset(self, val, field_n=field_n):
+            self._creator._array_rep[
+                self._creator._n * field_n + self._index] = val
+    elif field.cpp_type == field.CPPTYPE_BOOL:
+        # Same as if it's a float, but we have to convert float -> bool.
+        def entity_view_mutable_fget(self, field_n=field_n):
+            return bool(
+                self._creator._array_rep[
+                    self._creator._n * field_n + self._index])
+
+        def entity_view_mutable_fset(self, val, field_n=field_n):
+            self._creator._array_rep[
+                self._creator._n * field_n + self._index] = val
+    elif field.name == _LANDED_ON:
+        # Special case, we store the index of the entity we're landed on as a
+        # float, but we have to convert this to an int then the name of the
+        # entity.
+        def entity_view_mutable_fget(self, field_n=field_n):
+            entity_index = int(
+                self._creator._array_rep[
+                    self._creator._n * field_n + self._index])
+            if entity_index == PhysicsState.NO_INDEX:
+                return ''
+            return self._creator._entity_names[entity_index]
+
+        def entity_view_mutable_fset(self, val, field_n=field_n):
+            assert isinstance(val, str)
+            self._creator._array_rep[
+                self._creator._n * field_n + self._index] = \
+                self._creator._name_to_index(val)
+    elif field.cpp_type == field.CPPTYPE_STRING:
+        assert field.name in _PER_ENTITY_UNCHANGING_FIELDS
+    else:
+        raise NotImplementedError(
+            "Encountered a field in the protobuf definition of Entity that "
+            "is of a type we haven't handled.")
+
+    if field.name in _PER_ENTITY_UNCHANGING_FIELDS:
+        # Note there is no fdel defined. The data is owned by the PhysicalState
+        # so the PhysicalState should delete data on its own time.
+        setattr(_EntityView, field.name, property(
+            fget=entity_view_unchanging_fget,
+            fset=entity_view_unchanging_fset,
+            doc=f"_EntityView proxy of unchanging field {field.name}"
+        ))
+
+    else:
+        assert field.name in _PER_ENTITY_MUTABLE_FIELDS
+        setattr(_EntityView, field.name, property(
+            fget=entity_view_mutable_fget,
+            fset=entity_view_mutable_fset,
+            doc=f"_EntityView proxy of mutable field {field.name}"
+        ))
 
 
 class PhysicsState:
@@ -139,7 +258,7 @@ class PhysicsState:
     my_physics_state.as_proto()
 
     Example usage:
-    y = PhysicsState(physical_state, y_1d)
+    y = PhysicsState(y_1d, physical_state)
 
     entity = y[0]
     y[common.HABITAT] = habitat
@@ -159,12 +278,6 @@ class PhysicsState:
     # For if an entity is not landed to anything
     NO_INDEX = -1
 
-    # Number of different kinds of variables in the internal y vector. The
-    # internal y vector has length N_COMPONENTS * len(proto_state.entities).
-    # For example, if the y-vector contained just x, y, vx, and vy, then
-    # N_COMPONENTS would be 4.
-    N_COMPONENTS = 10
-
     # The number of single-element values at the end of the y-vector.
     # Currently just SRB_TIME and TIME_ACC are appended to the end. If there
     # are more values appended to the end, increment this and follow the same
@@ -176,7 +289,7 @@ class PhysicsState:
     TIME_ACC_INDEX = -1
 
     # Datatype of internal y-vector
-    DTYPE = np.longdouble
+    DTYPE = np.float64
 
     def __init__(self,
                  y: Optional[np.ndarray],
@@ -206,52 +319,41 @@ class PhysicsState:
             [entity.name for entity in self._proto_state.entities]
 
         if y is None:
-            # PROTO: if you're changing protobufs remember to change here
-            X = np.array([entity.x for entity in proto_state.entities])
-            Y = np.array([entity.y for entity in proto_state.entities])
-            VX = np.array([entity.vx for entity in proto_state.entities])
-            VY = np.array([entity.vy for entity in proto_state.entities])
-            Heading = np.array([
-                entity.heading for entity in proto_state.entities])
-            Spin = np.array([entity.spin for entity in proto_state.entities])
-            Fuel = np.array([entity.fuel for entity in proto_state.entities])
-            Throttle = np.array([
-                entity.throttle for entity in proto_state.entities])
-            np.clip(Throttle, common.MIN_THROTTLE, common.MAX_THROTTLE,
-                    out=Throttle)
+            # We rely on having an internal array representation we can refer
+            # to, so we have to build up this array representation.
+            y = np.empty(
+                len(proto_state.entities) * len(_PER_ENTITY_MUTABLE_FIELDS)
+                + self.N_SINGULAR_ELEMENTS, dtype=self.DTYPE)
 
-            # Internally translate string names to indices, otherwise
-            # our entire y vector will turn into a string vector oh no.
-            # Note this will be converted to floats, not integer indices.
-            LandedOn = np.array([
-                self._name_to_index(entity.landed_on)
-                for entity in proto_state.entities
-            ])
+            for field_name, field_n in _FIELD_ORDERING.items():
+                for entity_index, entity in enumerate(proto_state.entities):
+                    proto_value = getattr(entity, field_name)
+                    # Internally translate string names to indices, otherwise
+                    # our entire y vector will turn into a string vector oh no.
+                    # Note this will convert to floats, not integer indices.
+                    if field_name == _LANDED_ON:
+                        proto_value = self._name_to_index(proto_value)
 
-            Broken = np.array([
-                entity.broken for entity in proto_state.entities
-            ])
+                    y[self._n * field_n + entity_index] = proto_value
 
-            self._y0: np.ndarray = np.concatenate((
-                X, Y, VX, VY, Heading, Spin,
-                Fuel, Throttle, LandedOn, Broken,
-                np.array([self._proto_state.srb_time,
-                          self._proto_state.time_acc])),
-                axis=0).astype(self.DTYPE)
+            y[-2] = proto_state.srb_time
+            y[-1] = proto_state.time_acc
+            self._array_rep = y
         else:
             # Take everything except the SRB time, the last element.
-            self._y0: np.ndarray = y.astype(self.DTYPE)
+            self._array_rep: np.ndarray = y.astype(self.DTYPE)
             self._proto_state.srb_time = y[self.SRB_TIME_INDEX]
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
 
-        assert len(self._y0.shape) == 1, f'y is not 1D: {self._y0.shape()}'
-        assert (self._y0.size - self.N_SINGULAR_ELEMENTS) % \
-            self.N_COMPONENTS == 0, self._y0.size
-        assert (self._y0.size - self.N_SINGULAR_ELEMENTS) // \
-            self.N_COMPONENTS == len(proto_state.entities), \
-            f'{self._y0.size} != {len(proto_state.entities)}'
-        self._n = (len(self._y0) - self.N_SINGULAR_ELEMENTS) // \
-            self.N_COMPONENTS
+        assert len(self._array_rep.shape) == 1, \
+            f'y is not 1D: {self._array_rep.shape()}'
+        assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) % \
+            len(_PER_ENTITY_MUTABLE_FIELDS) == 0, self._array_rep.size
+        assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) // \
+            len(_PER_ENTITY_MUTABLE_FIELDS) == len(proto_state.entities), \
+            f'{self._array_rep.size} mismatches: {len(proto_state.entities)}'
+
+        np.mod(self.Heading, 2 * np.pi, out=self.Heading)
 
         self._entities_with_atmospheres: List[int] = []
         for index, entity in enumerate(self._proto_state.entities):
@@ -259,16 +361,12 @@ class PhysicsState:
                     entity.atmosphere_thickness != 0:
                 self._entities_with_atmospheres.append(index)
 
-    def _y_entities(self) -> np.ndarray:
-        """Internal, returns an array for every entity, each with an element
-        for each component."""
-        return np.transpose(self._y_components())
-
-    def _y_components(self) -> np.ndarray:
-        """Internal, returns N_COMPONENT number of arrays, each with an element
-        for each entity."""
-        return self._y0[0:-self.N_SINGULAR_ELEMENTS].reshape(
-            self.N_COMPONENTS, -1)
+    def _y_component(self, field_name: str) -> np.ndarray:
+        """Returns an n-array with the value of a component for each entity."""
+        return self._array_rep[
+            _FIELD_ORDERING[field_name] * self._n:
+            (_FIELD_ORDERING[field_name] + 1) * self._n
+        ]
 
     def _index_to_name(self, index: int) -> str:
         """Translates an index into the entity list to the right name."""
@@ -286,9 +384,7 @@ class PhysicsState:
 
     def y0(self):
         """Returns a y-vector suitable as input for scipy.solve_ivp."""
-        # Ensure that heading is within [0, 2pi).
-        self._y_components()[4] %= (2 * np.pi)
-        return self._y0
+        return self._array_rep
 
     def as_proto(self) -> protos.PhysicalState:
         """Creates a protos.PhysicalState view into all internal data.
@@ -299,16 +395,19 @@ class PhysicsState:
         for entity in my_physics_state: print(entity.name)"""
         constructed_protobuf = protos.PhysicalState()
         constructed_protobuf.CopyFrom(self._proto_state)
-        for entity_data, entity in zip(
-                self._y_entities(),
-                constructed_protobuf.entities):
+        for entity_data, entity in zip(self, constructed_protobuf.entities):
+            (
+                entity.x, entity.y, entity.vx, entity.vy,
+                entity.heading, entity.spin, entity.fuel,
+                entity.throttle, entity.landed_on,
+                entity.broken
+            ) = (
+                entity_data.x, entity_data.y, entity_data.vx, entity_data.vy,
+                entity_data.heading, entity_data.spin, entity_data.fuel,
+                entity_data.throttle, entity_data.landed_on,
+                entity_data.broken
+            )
 
-            entity.x, entity.y, entity.vx, entity.vy, entity.heading, \
-                entity.spin, entity.fuel, entity.throttle, \
-                landed_index, broken = entity_data
-
-            entity.landed_on = self._index_to_name(landed_index)
-            entity.broken = bool(broken)
         return constructed_protobuf
 
     def __len__(self):
@@ -320,54 +419,48 @@ class PhysicsState:
         for i in range(0, self._n):
             yield self.__getitem__(i)
 
-    def __getitem__(self, index: Union[str, int, None]) -> Entity:
+    def __getitem__(self, index: Union[str, int]) -> Entity:
         """Returns a Entity view at a given name or index.
 
         Allows the following:
-        physics_entity = PhysicsState[2]
-        physics_entity = PhysicsState[common.HABITAT]
+        entity = physics_state[2]
+        entity = physics_state[common.HABITAT]
+        entity.x = 5  # Propagates to physics_state.
         """
-        assert index is not None
         if isinstance(index, str):
             # Turn a name-based index into an integer
             index = self._entity_names.index(index)
         i = int(index)
 
-        entity = self._proto_state.entities[i]
+        return _EntityView(self, i)
 
-        entity.x, entity.y, entity.vx, entity.vy, entity.heading, \
-            entity.spin, entity.fuel, entity.throttle, \
-            landed_index, broken = \
-            self._y_entities()[i]
-
-        entity.landed_on = self._index_to_name(landed_index)
-        entity.broken = bool(broken)
-        return Entity(entity)
-
-    def __setitem__(self, index: Union[str, int, None], val: Entity):
+    def __setitem__(self, index: Union[str, int], val: Entity):
         """Puts a Entity at a given name or index in the state.
 
         Allows the following:
         PhysicsState[2] = physics_entity
         PhysicsState[common.HABITAT] = physics_entity
         """
-        # TODO: allow y[common.HABITAT].fuel = 5
-        assert index is not None
+        if isinstance(val, _EntityView) and val._creator == self:
+            # The _EntityView is a view into our own data, so we already have
+            # the data.
+            return
         if isinstance(index, str):
             # Turn a name-based index into an integer
             index = self._entity_names.index(index)
         i = int(index)
 
-        # Bound throttle
-        val.throttle = max(common.MIN_THROTTLE, val.throttle)
-        val.throttle = min(common.MAX_THROTTLE, val.throttle)
+        entity = self[i]
 
-        landed_index = self._name_to_index(val.landed_on)
-
-        self._y_entities()[i] = np.array([
-            val.x, val.y, val.vx, val.vy, val.heading, val.spin, val.fuel,
-            val.throttle, landed_index, val.broken
-        ]).astype(self.DTYPE)
+        (
+            entity.x, entity.y, entity.vx, entity.vy, entity.heading,
+            entity.spin, entity.fuel, entity.throttle, entity.landed_on,
+            entity.broken
+        ) = (
+            val.x, val.y, val.vx, val.vy, val.heading,
+            val.spin, val.fuel, val.throttle, val.landed_on,
+            val.broken
+        )
 
     def __repr__(self):
         return self.as_proto().__repr__()
@@ -390,7 +483,7 @@ class PhysicsState:
     @srb_time.setter
     def srb_time(self, val: float):
         self._proto_state.srb_time = val
-        self._y0[self.SRB_TIME_INDEX] = val
+        self._array_rep[self.SRB_TIME_INDEX] = val
 
     @property
     def parachute_deployed(self) -> bool:
@@ -402,35 +495,35 @@ class PhysicsState:
 
     @property
     def X(self):
-        return self._y_components()[0]
+        return self._y_component('x')
 
     @property
     def Y(self):
-        return self._y_components()[1]
+        return self._y_component('y')
 
     @property
     def VX(self):
-        return self._y_components()[2]
+        return self._y_component('vx')
 
     @property
     def VY(self):
-        return self._y_components()[3]
+        return self._y_component('vy')
 
     @property
     def Heading(self):
-        return self._y_components()[4]
+        return self._y_component('heading')
 
     @property
     def Spin(self):
-        return self._y_components()[5]
+        return self._y_component('spin')
 
     @property
     def Fuel(self):
-        return self._y_components()[6]
+        return self._y_component('fuel')
 
     @property
     def Throttle(self):
-        return self._y_components()[7]
+        return self._y_component('throttle')
 
     @property
     def LandedOn(self) -> Dict[int, int]:
@@ -440,14 +533,14 @@ class PhysicsState:
         """
         landed_map = {}
         for landed, landee in enumerate(
-                self._y_components()[8]):
+                self._y_component('landed_on')):
             if int(landee) != self.NO_INDEX:
                 landed_map[landed] = int(landee)
         return landed_map
 
     @property
     def Broken(self):
-        return self._y_components()[9]
+        return self._y_component('broken')
 
     @property
     def Atmospheres(self) -> List[int]:
@@ -462,7 +555,7 @@ class PhysicsState:
     @time_acc.setter
     def time_acc(self, new_acc: float):
         self._proto_state.time_acc = new_acc
-        self._y0[self.TIME_ACC_INDEX] = new_acc
+        self._array_rep[self.TIME_ACC_INDEX] = new_acc
 
     def craft_entity(self):
         """Convenience function, a full Entity representing the craft."""
@@ -480,7 +573,7 @@ class PhysicsState:
 
         hab_index = self._name_to_index(common.HABITAT)
         ayse_index = self._name_to_index(common.AYSE)
-        if self._y_components()[8][hab_index] == ayse_index:
+        if self._y_component('landed_on')[hab_index] == ayse_index:
             # Habitat is docked with AYSE, AYSE is active craft
             return common.AYSE
         else:

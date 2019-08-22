@@ -1,7 +1,7 @@
 {
     "entities": [
         {
-            "name": "artificial",
+            "name": "Habitat",
             "r": 50.0,
             "mass": 300.0,
             "artificial": true
