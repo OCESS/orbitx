@@ -714,7 +714,7 @@ def _docking(e1, e2, e2_index):
 
     # Currently this flag has almost no effect.
     e1.broken = bool(
-        np.linalg.norm(e1.v - e2.v) >
+        np.linalg.norm(calc.rotational_speed(e1, e2) - e1.v) >
         common.craft_capabilities[e1.name].hull_strength
     )
 
@@ -767,7 +767,7 @@ def _land(e1, e2):
 
     # Currently does nothing
     e1.broken = bool(
-        np.linalg.norm(e1.v - e2.v) >
+        np.linalg.norm(calc.rotational_speed(e1, e2) - e1.v) >
         common.craft_capabilities[e1.name].hull_strength
     )
 
