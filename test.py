@@ -34,10 +34,6 @@ class PhysicsEngine:
 class PhysicsEngineTestCase(unittest.TestCase):
     """Test the motion of the simulated system is correct."""
 
-    def setUp(self):
-        if '-v' in sys.argv:
-            logs.enable_verbose_logging()
-
     def test_simple_collision(self):
         """Test elastic collisions of two small-mass objects colliding."""
         with PhysicsEngine('tests/simple-collision.json') as physics_engine:
@@ -246,17 +242,17 @@ class PhysicsEngineTestCase(unittest.TestCase):
                                     after[0].r +
                                     after[2].r))
 
-    @unittest.skip("PhysicsEngine throws an AssertionError and won't continue")
     def test_longterm_stable_landing(self):
         """Test that landed ships have stable altitude in the long term."""
-        with PhysicsEngine('landed.json') as physics_engine:
-            initial = physics_engine.get_state(10)
-            physics_engine.handle_request(
+        savestate = common.load_savefile(common.savefile('OCESS.json'))
+        initial_t = savestate.timestamp
+        with PhysicsEngine('OCESS.json') as physics_engine:
+            initial = physics_engine.get_state(initial_t + 10)
+            physics_engine.handle_requests(
                 [network.Request(ident=network.Request.TIME_ACC_SET,
-                                 time_acc_set=1_000_000)],
-                requested_t=10)
-            final = state.PhysicsState(
-                None, physics_engine.get_state(1_000_000))
+                                 time_acc_set=common.TIME_ACCS[-1].value)],
+                requested_t=initial_t + 10)
+            final = physics_engine.get_state(initial_t + 1_000_000)
             self.assertAlmostEqual(
                 np.linalg.norm(initial['Earth'].pos - initial['Habitat'].pos),
                 initial['Earth'].r + initial['Habitat'].r,
@@ -401,10 +397,6 @@ class CalculationsTestCase(unittest.TestCase):
     describes the orbital parameters of the ISS, all numbers in this test are
     taken from that page."""
 
-    def setUp(self):
-        if '-v' in sys.argv:
-            logs.enable_verbose_logging()
-
     def test_elliptical_orbital_parameters(self):
         # Again, see
         # https://www.wolframalpha.com/input/?i=International+Space+Station
@@ -469,4 +461,6 @@ class CalculationsTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    if '-v' in sys.argv:
+        logs.enable_verbose_logging()
     unittest.main()

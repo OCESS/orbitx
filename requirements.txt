@@ -12,3 +12,5 @@ mypy
 mypy-protobuf
 pytz
 yappi
+numba
+icc_rt

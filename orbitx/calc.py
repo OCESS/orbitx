@@ -4,6 +4,7 @@ import collections
 import logging
 import math
 
+import numba
 import vpython
 import numpy as np
 
@@ -297,38 +298,30 @@ def _build_sphere_segment_vertices(
 # end of _build_sphere_segment_vertices
 
 
+@numba.jit(nopython=True, nogil=True)
 def grav_acc(X, Y, M):
-    # Turn X, Y, M into column vectors, which is easier to do math with.
-    # (row vectors won't transpose)
-    X = X.reshape(1, -1)
-    Y = Y.reshape(1, -1)
-    M = M.reshape(1, -1)
-    MM = np.outer(M, M)  # A square matrix of masses, units of kg^2
+    # This code taken from https://stackoverflow.com/a/52562874/1333978
+    # and the nested loop from
+    # https://jakevdp.github.io/blog/2013/06/15/numba-vs-cython-take-2/
+    # This make look slow and unoptimized, but the numba.jit decorator
+    # makes this code marginally more efficient and optimized than even
+    # *Cython* (which is basically as efficient as you can get in Python,
+    # and even C.) This is good because this function is very performance-
+    # critical, and is called by scipy.solve_ivp hundreds of times a second.
+    N = len(X)
+    GMm = common.G * M.reshape((1, -1, 1)) * M.reshape((-1, 1, 1))
+    posns = np.column_stack((X, Y))
+    displacements = posns.reshape((1, -1, 2)) - posns.reshape((-1, 1, 2))
+    dist_matrix = np.empty((N, N), dtype=np.float64)
+    for i in range(N):
+        for j in range(N):
+            Xd = X[i] - X[j]
+            Yd = Y[i] - Y[j]
+            dist_matrix[i, j] = np.sqrt(Xd*Xd + Yd*Yd)
+    np.fill_diagonal(dist_matrix, np.inf)
+    forces = GMm * displacements / np.expand_dims(dist_matrix, 2)**3
 
-    # Also get the pairwise x and y differences for each pair of entities
-    Xd_matrix = X - X.transpose()
-    Yd_matrix = Y - Y.transpose()
-
-    # And this is the pairwise distance between each entity
-    D2_matrix = np.square(Xd_matrix) + np.square(Yd_matrix)
-
-    # A matrix of all the angles between entities
-    ang_matrix = np.arctan2(Yd_matrix, Xd_matrix)
-
-    # Calculate G * m1*m2/d^2 for each object pair.
-    # In the diagonal case, i.e. an object paired with itself, force = 0.
-    force_matrix = common.G * np.divide(
-        MM, np.where(D2_matrix != 0, D2_matrix, 1))
-    np.fill_diagonal(force_matrix, 0)
-
-    # Sum up all the gravitational force acting on an object.
-    Xf = np.sum(np.multiply(np.cos(ang_matrix), force_matrix).T, 0)
-    Yf = np.sum(np.multiply(np.sin(ang_matrix), force_matrix).T, 0)
-
-    # And find the resultant acceleration.
-    Xa = np.divide(Xf, M)
-    Ya = np.divide(Yf, M)
-    return np.array(Xa).reshape(-1), np.array(Ya).reshape(-1)
+    return forces.sum(axis=1) / M.reshape(-1, 1)
 
 
 def navmode_heading(flight_state: state.PhysicsState) -> float:

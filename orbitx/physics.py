@@ -240,7 +240,8 @@ class PEngine:
             else:
                 # We can't integrate backwards, so if integration has gone
                 # beyond what we need, fail early.
-                assert requested_t >= self._solutions[0].t_min
+                assert requested_t >= self._solutions[0].t_min, \
+                    (self._solutions[0].t_min, self._solutions[-1].t_max)
 
                 for soln in self._solutions:
                     if soln.t_min <= requested_t and requested_t <= soln.t_max:
@@ -308,7 +309,7 @@ class PEngine:
         # value of this function as a derivative, as explained above.
         # If you want to set values in y, look at _reconcile_entity_dynamics.
         y = state.PhysicsState(y_1d, pass_through_state)
-        Ax, Ay = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
+        acc_matrix = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
@@ -332,8 +333,7 @@ class PEngine:
                     mass += hab.mass + hab.fuel
 
                 eng_acc = eng_thrust / mass
-                Ax[index] += eng_acc[0]
-                Ay[index] += eng_acc[1]
+                acc_matrix[index] += eng_acc
 
         # And SRB thrust
         srb_usage = 0
@@ -343,8 +343,7 @@ class PEngine:
                 hab = y[hab_index]
                 srb_acc = common.SRB_THRUST / (hab.mass + hab.fuel)
                 srb_acc_vector = srb_acc * calc.heading_vector(hab.heading)
-                Ax[hab_index] += srb_acc_vector[0]
-                Ay[hab_index] += srb_acc_vector[1]
+                acc_matrix[hab_index] += srb_acc_vector
                 srb_usage = -1
         except state.PhysicsState.NoEntityError:
             # The Habitat doesn't exist.
@@ -355,8 +354,7 @@ class PEngine:
         if craft is not None:
             craft_index = y._name_to_index(y.craft)
             drag_acc = calc.drag(y)
-            Ax[craft_index] -= drag_acc[0]
-            Ay[craft_index] -= drag_acc[1]
+            acc_matrix[craft_index] -= drag_acc
 
         # Centripetal acceleration to keep landed entities glued to each other.
         landed_on = y.LandedOn
@@ -365,8 +363,7 @@ class PEngine:
             ground = y[landed_on[index]]
 
             centripetal_acc = (lander.pos - ground.pos) * ground.spin ** 2
-            Ax[index] = Ax[landed_on[index]] - centripetal_acc[0]
-            Ay[index] = Ay[landed_on[index]] - centripetal_acc[1]
+            acc_matrix[index] = acc_matrix[landed_on[index]] - centripetal_acc
 
         # Sets velocity and spin of a couple more entities.
         # If you want to set the acceleration of an entity, do it above and
@@ -376,7 +373,7 @@ class PEngine:
         y = _reconcile_entity_dynamics(y)
 
         return np.concatenate((
-            y.VX, y.VY, Ax, Ay, y.Spin,
+            y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
             zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0])
         ), axis=None)
 
