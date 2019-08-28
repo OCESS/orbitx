@@ -5,6 +5,7 @@ import atexit
 import logging
 import pytz
 import sys
+from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -223,7 +224,13 @@ def _dump_profiling_stats():
     # To find out what functions have the biggest impact on performance,
     # sort by 'tsub' or 'ttot'. Docs are here:
     # https://github.com/sumerc/yappi/blob/master/doc/api.md#yfuncstat
-    yappi.get_func_stats().sort('tsub').print_all()
+
+    # Only print the first bunch of lines of yappi output.
+    yappi.stop()
+    yappi_output = StringIO()
+    yappi.get_func_stats().sort('tsub').print_all(out=yappi_output)
+    for line in yappi_output.getvalue().split('\n')[0:20]:
+        print(line)
 
 
 def remove_vpython_css():

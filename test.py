@@ -254,11 +254,11 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 requested_t=initial_t + 10)
             final = physics_engine.get_state(initial_t + 1_000_000)
             self.assertAlmostEqual(
-                np.linalg.norm(initial['Earth'].pos - initial['Habitat'].pos),
+                calc.fastnorm(initial['Earth'].pos - initial['Habitat'].pos),
                 initial['Earth'].r + initial['Habitat'].r,
                 delta=1)
             self.assertAlmostEqual(
-                np.linalg.norm(final['Earth'].pos - final['Habitat'].pos),
+                calc.fastnorm(final['Earth'].pos - final['Habitat'].pos),
                 final['Earth'].r + final['Habitat'].r,
                 delta=1)
 
@@ -271,7 +271,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
         hab = atmosphere_save.craft_entity()
         hab.vy += 10
         atmosphere_save[atmosphere_save.craft] = hab
-        drag = np.linalg.norm(calc.drag(atmosphere_save))
+        drag = calc.fastnorm(calc.drag(atmosphere_save))
         self.assertLess(59, drag)
         self.assertGreater(60, drag)
 
@@ -412,7 +412,7 @@ class CalculationsTestCase(unittest.TestCase):
 
         # The eccentricity is within 1e-6 of the expected.
         self.assertAlmostEqual(
-            np.linalg.norm(calc.eccentricity(iss, earth)),
+            calc.fastnorm(calc.eccentricity(iss, earth)),
             5.893e-4, delta=1e-3)
 
         # The apoapsis is relatively close to expected.
@@ -442,7 +442,7 @@ class CalculationsTestCase(unittest.TestCase):
 
         expected_eccentricity = 1644.477
         self.assertAlmostEqual(
-            np.linalg.norm(calc.eccentricity(oumuamua, sun)),
+            calc.fastnorm(calc.eccentricity(oumuamua, sun)),
             expected_eccentricity, delta=0.01 * expected_eccentricity)
 
         expected_periapsis = 1.1714e11  # Through calculation
@@ -460,7 +460,29 @@ class CalculationsTestCase(unittest.TestCase):
         self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=0.1)
 
 
+def test_performance():
+    # This just runs for 10 seconds and collects profiling data.
+    import time
+
+    with PhysicsEngine('OCESS.json') as physics_engine:
+        physics_engine.handle_requests([
+            network.Request(ident=network.Request.TIME_ACC_SET,
+                            time_acc_set=common.TIME_ACCS[-2].value)])
+
+        end_time = time.time() + 10
+        print(f"Profiling performance for {end_time - time.time()} seconds.")
+        common.start_profiling()
+
+        while time.time() < end_time:
+            time.sleep(0.05)
+            physics_engine.get_state()
+
+
 if __name__ == '__main__':
     if '-v' in sys.argv:
         logs.enable_verbose_logging()
-    unittest.main()
+
+    if 'profile' in sys.argv:
+        test_performance()
+    else:
+        unittest.main()

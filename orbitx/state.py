@@ -311,8 +311,7 @@ class PhysicsState:
         # self._proto_state will have positions, velocities, etc for all
         # entities. DO NOT USE THESE they will be stale. Use the accessors of
         # this class instead!
-        self._proto_state = protos.PhysicalState()
-        self._proto_state.CopyFrom(proto_state)
+        self._proto_state = proto_state
         self._n = len(proto_state.entities)
 
         self._entity_names = \

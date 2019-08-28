@@ -1,7 +1,19 @@
+"""This is the core of the OrbitX physics engine. Here, we simulate the state
+of the solar system over time. To do this, we start a thread running in the
+background to run the simulation, while our main thread handles all other
+user interaction.
+
+I've tried to provide a clean interface to this module, so that you don't have
+to mess with the internals too much. Unfortunately, the internals are a bit
+tied together, and can break in unforeseen ways if changed without
+understanding how all the bits fit together.
+
+Get in contact with me if you want to add new functionality! I'm more than
+happy to help :)"""
+
 import collections
 import functools
 import logging
-import math
 import threading
 import time
 import warnings
@@ -57,6 +69,10 @@ class PEngine:
     deliberately and carefully! Specifically, if you're in spacesim, feel free
     to hit me (Patrick) up, and I can help.
     """
+    # Increasing this constant results in the simulation being faster to
+    # compute but less accurate of an approximation. If Phobos starts crashing
+    # into Mars, tweak this downwards.
+    MAX_STEP_SIZE = 50
 
     def __init__(self, physical_state: state.PhysicsState):
         # Controls access to self._solutions. If anything changes that is
@@ -410,16 +426,16 @@ class PEngine:
                               y.time_acc))
 
             ivp_out = scipy.integrate.solve_ivp(
-                derive_func,
-                # math.pow is here to give a sub-linear step size growth.
-                [t, t + math.pow(y.time_acc, 1/1.2)],
+                fun=derive_func,
+                t_span=[t, t + np.sqrt(y.time_acc)],
                 # solve_ivp requires a 1D y0 array
-                y.y0(),
+                y0=y.y0(),
                 events=events,
-                dense_output=True
+                dense_output=True,
+                max_step=self.MAX_STEP_SIZE
             )
 
-            if ivp_out.status < 0:
+            if not ivp_out.success:
                 # Integration error
                 raise Exception(ivp_out.message)
 
@@ -630,7 +646,7 @@ class HighAccEvent(Event):
         derive_result = self.derive(t, y_1d)
         accel_vector = np.array(
             [derive_result[self.ax_index], derive_result[self.ay_index]])
-        acc = np.linalg.norm(accel_vector)
+        acc = calc.fastnorm(accel_vector)
         return self.acc_bound - acc
 
 
@@ -655,7 +671,7 @@ def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
                 calc.heading_vector(ground.heading) * (lander.r + ground.r)
         else:
             norm = lander.pos - ground.pos
-            unit_norm = norm / np.linalg.norm(norm)
+            unit_norm = norm / calc.fastnorm(norm)
             lander.pos = ground.pos + unit_norm * (ground.r + lander.r)
 
         lander.spin = ground.spin
@@ -711,7 +727,7 @@ def _docking(e1, e2, e2_index):
 
     # Currently this flag has almost no effect.
     e1.broken = bool(
-        np.linalg.norm(calc.rotational_speed(e1, e2) - e1.v) >
+        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v) >
         common.craft_capabilities[e1.name].hull_strength
     )
 
@@ -731,7 +747,7 @@ def _bounce(e1, e2):
     # 3. recombine the velocity vectors
     log.info(f'Bouncing {e1.name} and {e2.name}')
     norm = e1.pos - e2.pos
-    unit_norm = norm / np.linalg.norm(norm)
+    unit_norm = norm / calc.fastnorm(norm)
     # The unit tangent is perpendicular to the unit normal vector
     unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
 
@@ -764,7 +780,7 @@ def _land(e1, e2):
 
     # Currently does nothing
     e1.broken = bool(
-        np.linalg.norm(calc.rotational_speed(e1, e2) - e1.v) >
+        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v) >
         common.craft_capabilities[e1.name].hull_strength
     )
 
@@ -783,7 +799,7 @@ def _one_request(request: Request, y0: state.PhysicsState) \
     Use an argument to change habitat throttle or spinning, and simulation
     will restart with this new information."""
     log.info(f'At simtime={y0.timestamp}, '
-             f'Got {MessageToString(request, as_one_line=True)}')
+             f'Got command {MessageToString(request, as_one_line=True)}')
 
     if request.ident != Request.TIME_ACC_SET:
         # Reveal the type of y0.craft as str (not None).
@@ -845,7 +861,7 @@ def _one_request(request: Request, y0: state.PhysicsState) \
             habitat.landed_on = ''
 
             norm = habitat.pos - ayse.pos
-            unit_norm = norm / np.linalg.norm(norm)
+            unit_norm = norm / calc.fastnorm(norm)
             habitat.v += unit_norm * common.UNDOCK_PUSH
             habitat.spin = ayse.spin
 

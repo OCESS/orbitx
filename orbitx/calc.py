@@ -59,12 +59,12 @@ def altitude(A: state.Entity, B: state.Entity) -> float:
 
 
 def distance(A: state.Entity, B: state.Entity) -> float:
-    return np.linalg.norm(A.pos - B.pos)
+    return fastnorm(A.pos - B.pos)
 
 
 def speed(A: state.Entity, B: state.Entity) -> float:
     """Caculate speed between ref_planet and Habitat"""
-    return np.linalg.norm(A.v - B.v)
+    return fastnorm(A.v - B.v)
 
 
 def v_speed(A: state.Entity, B: state.Entity) -> float:
@@ -73,7 +73,7 @@ def v_speed(A: state.Entity, B: state.Entity) -> float:
     Returns a negative number of m/s when the habitat is falling,
     and positive when the habitat is rising."""
     normal = A.pos - B.pos
-    normal = normal / np.linalg.norm(normal)
+    normal = normal / fastnorm(normal)
     v = A.v - B.v
     radial_v = np.dot(normal, v)
     normal_angle = np.arctan2(normal[1], normal[0])
@@ -89,7 +89,7 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     moving side-to-side relative to the reference surface. A positive
     sign for prograde movement, and negative for retrograde."""
     normal = A.pos - B.pos
-    normal = normal / np.linalg.norm(normal)
+    normal = normal / fastnorm(normal)
     v = A.v - B.v
     tangent = np.array([-normal[1], normal[0]])
     tangent_v = np.dot(tangent, v)
@@ -137,7 +137,7 @@ def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
 
     # np.inner(vector, vector) is the squared norm, i.e. |vector|^2
     return ((common.G * (A.mass + B.mass)) / np.inner(pos, pos) +
-            np.inner(v, v) / (2 * np.linalg.norm(A.pos - B.pos)))
+            np.inner(v, v) / (2 * fastnorm(A.pos - B.pos)))
 
 
 def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
@@ -163,7 +163,7 @@ def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
     mu = common.G * (B.mass + A.mass)
     # e⃗ = [ (v*v - μ/r)r⃗  - (r⃗ ∙ v⃗)v⃗ ] / μ
     return (
-        (np.linalg.norm(v)**2 - mu / np.linalg.norm(r)) * r - np.dot(r, v) * v
+        (fastnorm(v)**2 - mu / fastnorm(r)) * r - np.dot(r, v) * v
     ) / mu
 
 
@@ -174,7 +174,7 @@ def periapsis(A: state.Entity, B: state.Entity) -> float:
     the surface of B."""
     peri_distance = (
         semimajor_axis(A, B) *
-        (1 - np.linalg.norm(eccentricity(A, B)))
+        (1 - fastnorm(eccentricity(A, B)))
     )
     return max(peri_distance - B.r, 0)
 
@@ -186,7 +186,7 @@ def apoapsis(A: state.Entity, B: state.Entity) -> float:
     be above the surface of B."""
     apo_distance = (
         semimajor_axis(A, B) *
-        (1 + np.linalg.norm(eccentricity(A, B)))
+        (1 + fastnorm(eccentricity(A, B)))
     )
     return max(apo_distance - B.r, 0)
 
@@ -207,7 +207,7 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
     # eccentricity is a vector pointing along the major axis of the ellipse of
     # the orbit. i.e. From the orbited-body's centre towards the apoapsis.
     e = eccentricity(A, B)
-    e_mag = np.linalg.norm(e)
+    e_mag = fastnorm(e)
     e_unit = e / e_mag
     a = semimajor_axis(A, B)
 
@@ -229,15 +229,15 @@ def rotational_speed(A: state.Entity, B: state.Entity) -> np.array:
     landed on B's surface."""
     norm = A.pos - B.pos
     tang = np.asarray([-norm[1], norm[0]])
-    unit_tang = tang / np.linalg.norm(tang)
-    return B.v + unit_tang * B.spin * np.linalg.norm(norm)
+    unit_tang = tang / fastnorm(tang)
+    return B.v + unit_tang * B.spin * fastnorm(norm)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
     # Find the midpoint between the xyz-tuples left and right, but also
     # on the surface of a sphere (so not just a simple average).
     midpoint = (left + right) / 2
-    midpoint_radial_dist = np.linalg.norm(midpoint)
+    midpoint_radial_dist = fastnorm(midpoint)
     return radius * midpoint / midpoint_radial_dist
 
 
@@ -407,7 +407,7 @@ def relevant_atmosphere(flight_state: state.PhysicsState) \
 
     for index in atmosphere_indices:
         atmosphere = flight_state[index]
-        distance = np.linalg.norm(atmosphere.pos - craft.pos)
+        distance = fastnorm(atmosphere.pos - craft.pos)
         # np.inner is the same as the magnitude squared
         # https://stackoverflow.com/a/35213951
         # We use the squared distance because it's much faster to calculate.
@@ -429,7 +429,7 @@ def pressure(craft: state.Entity, atmosphere: state.Entity) -> float:
     # Taken from orbit5v.bas,
     # This exponential-form equation seems to be the barometric formula:
     # https://en.wikipedia.org/wiki/Barometric_formula
-    distance = np.linalg.norm(atmosphere.pos - craft.pos)
+    distance = fastnorm(atmosphere.pos - craft.pos)
     return (
         atmosphere.atmosphere_thickness *
         np.exp(
@@ -475,5 +475,12 @@ def drag(flight_state: state.PhysicsState) -> np.ndarray:
     if flight_state.parachute_deployed:
         drag_profile += common.PARACHUTE_DRAG_PROFILE
     drag_acc = \
-        pressure(craft, atmosphere) * np.linalg.norm(wind)**2 * drag_profile
-    return drag_acc * (wind / np.linalg.norm(wind))
+        pressure(craft, atmosphere) * fastnorm(wind)**2 * drag_profile
+    return drag_acc * (wind / fastnorm(wind))
+
+
+@numba.jit(nopython=True, fastmath=True)
+def fastnorm(xy: np.ndarray) -> float:
+    """This is a fast implementation of |<x, y>|, for use in tight code."""
+    assert len(xy) == 2
+    return math.sqrt(xy[0]**2 + xy[1]**2)

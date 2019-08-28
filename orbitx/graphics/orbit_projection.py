@@ -1,7 +1,6 @@
 import math
 from typing import List
 
-import numpy as np
 import vpython
 
 from orbitx import calc
@@ -54,7 +53,7 @@ class OrbitProjection:
         )
         pos = orb_params.centre - origin.pos
         direction = vpython.vector(*orb_params.eccentricity, 0)
-        e_mag = np.linalg.norm(orb_params.eccentricity)
+        e_mag = calc.fastnorm(*orb_params.eccentricity)
 
         if e_mag < 1:
             # Project an elliptical orbit

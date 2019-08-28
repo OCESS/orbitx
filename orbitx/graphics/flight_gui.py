@@ -550,7 +550,7 @@ class Sidebar:
 
         self._wtexts.append(TableText(
             "Drag",
-            lambda state: common.format_num(np.linalg.norm(calc.drag(state)),
+            lambda state: common.format_num(calc.fastnorm(calc.drag(state)),
                                             " m/s/s"),
             "Atmospheric drag acting on the craft",
             new_section=False))
