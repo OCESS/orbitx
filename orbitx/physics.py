@@ -811,18 +811,13 @@ def _one_request(request: Request, y0: state.PhysicsState) \
         if y0.navmode != state.Navmode['Manual']:
             # We're in autopilot, ignore this command
             return y0
-        craft = y0[y0.craft]
+        craft = y0.craft_entity()
         if not craft.landed():
             craft.spin += request.spin_change
-            y0[y0.craft] = craft
     elif request.ident == Request.HAB_THROTTLE_CHANGE:
-        craft = y0[y0.craft]
-        craft.throttle += request.throttle_change
-        y0[y0.craft] = craft
+        y0.craft_entity().throttle += request.throttle_change
     elif request.ident == Request.HAB_THROTTLE_SET:
-        craft = y0[y0.craft]
-        craft.throttle = request.throttle_set
-        y0[y0.craft] = craft
+        y0.craft_entity().throttle = request.throttle_set
     elif request.ident == Request.TIME_ACC_SET:
         assert request.time_acc_set >= 0
         y0.time_acc = request.time_acc_set
@@ -878,9 +873,7 @@ def _one_request(request: Request, y0: state.PhysicsState) \
     elif request.ident == Request.NAVMODE_SET:
         y0.navmode = state.Navmode(request.navmode)
         if y0.navmode == state.Navmode['Manual']:
-            craft = y0[y0.craft]
-            craft.spin = 0
-            y0[y0.craft] = craft
+            y0.craft_entity().spin = 0
     elif request.ident == Request.PARACHUTE:
         y0.parachute_deployed = request.deploy_parachute
     elif request.ident == Request.IGNITE_SRBS:
