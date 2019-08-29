@@ -316,6 +316,7 @@ class PhysicsState:
 
         self._entity_names = \
             [entity.name for entity in self._proto_state.entities]
+        self._array_rep: np.ndarray
 
         if y is None:
             # We rely on having an internal array representation we can refer
@@ -340,7 +341,7 @@ class PhysicsState:
             self._array_rep = y
         else:
             # Take everything except the SRB time, the last element.
-            self._array_rep: np.ndarray = y.astype(self.DTYPE)
+            self._array_rep = y.astype(self.DTYPE)
             self._proto_state.srb_time = y[self.SRB_TIME_INDEX]
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
 
@@ -354,11 +355,7 @@ class PhysicsState:
 
         np.mod(self.Heading, 2 * np.pi, out=self.Heading)
 
-        self._entities_with_atmospheres: List[int] = []
-        for index, entity in enumerate(self._proto_state.entities):
-            if entity.atmosphere_scaling != 0 and \
-                    entity.atmosphere_thickness != 0:
-                self._entities_with_atmospheres.append(index)
+        self._entities_with_atmospheres: Optional[List[int]] = None
 
     def _y_component(self, field_name: str) -> np.ndarray:
         """Returns an n-array with the value of a component for each entity."""
@@ -544,6 +541,12 @@ class PhysicsState:
     @property
     def Atmospheres(self) -> List[int]:
         """Returns a list of indexes of entities that have an atmosphere."""
+        if self._entities_with_atmospheres is None:
+            self._entities_with_atmospheres = []
+            for index, entity in enumerate(self._proto_state.entities):
+                if entity.atmosphere_scaling != 0 and \
+                        entity.atmosphere_thickness != 0:
+                    self._entities_with_atmospheres.append(index)
         return self._entities_with_atmospheres
 
     @property

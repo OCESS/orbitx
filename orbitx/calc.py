@@ -227,10 +227,16 @@ def rotational_speed(A: state.Entity, B: state.Entity) -> np.array:
     A's velocity if it wants to keep its current altitude and angular position
     around B. Used, for example, to figure out how fast A is moving if it is
     landed on B's surface."""
-    norm = A.pos - B.pos
+    return _rotational_speed_fast(A.pos, B.pos, B.v, B.spin)
+
+
+@numba.jit(nopython=True, nogil=True, fastmath=True)
+def _rotational_speed_fast(A_pos, B_pos, B_v, B_spin) -> np.array:
+    # Fast JIT'd helper implementation.
+    norm = A_pos - B_pos
     tang = np.asarray([-norm[1], norm[0]])
     unit_tang = tang / fastnorm(tang)
-    return B.v + unit_tang * B.spin * fastnorm(norm)
+    return B_v + unit_tang * B_spin * fastnorm(norm)
 
 
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
@@ -299,7 +305,7 @@ def _build_sphere_segment_vertices(
 
 
 @numba.jit(nopython=True, nogil=True)
-def grav_acc(X, Y, M):
+def grav_acc(X, Y, M, Fuel):
     # This code taken from https://stackoverflow.com/a/52562874/1333978
     # and the nested loop from
     # https://jakevdp.github.io/blog/2013/06/15/numba-vs-cython-take-2/
@@ -309,6 +315,7 @@ def grav_acc(X, Y, M):
     # and even C.) This is good because this function is very performance-
     # critical, and is called by scipy.solve_ivp hundreds of times a second.
     N = len(X)
+    M = M + Fuel
     GMm = common.G * M.reshape((1, -1, 1)) * M.reshape((-1, 1, 1))
     posns = np.column_stack((X, Y))
     displacements = posns.reshape((1, -1, 2)) - posns.reshape((-1, 1, 2))

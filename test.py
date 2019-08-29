@@ -479,6 +479,7 @@ def test_performance():
 
 
 if __name__ == '__main__':
+    logs.make_program_logfile('test')
     if '-v' in sys.argv:
         logs.enable_verbose_logging()
 

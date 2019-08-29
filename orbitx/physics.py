@@ -325,18 +325,19 @@ class PEngine:
         # value of this function as a derivative, as explained above.
         # If you want to set values in y, look at _reconcile_entity_dynamics.
         y = state.PhysicsState(y_1d, pass_through_state)
-        acc_matrix = calc.grav_acc(y.X, y.Y, self.M + y.Fuel)
+        acc_matrix = calc.grav_acc(y.X, y.Y, self.M, y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
 
         # Engine thrust and fuel consumption
-        for index in self._artificials:
-            if y[index].fuel > 0 and y[index].throttle > 0:
+        for artif_index in self._artificials:
+            if y[artif_index].fuel > 0 and y[artif_index].throttle > 0:
                 # We have fuel remaining, calculate thrust
-                entity = y[index]
+                entity = y[artif_index]
                 capability = common.craft_capabilities[entity.name]
 
-                fuel_cons[index] = -abs(capability.fuel_cons * entity.throttle)
+                fuel_cons[artif_index] = \
+                    -abs(capability.fuel_cons * entity.throttle)
                 eng_thrust = capability.thrust * entity.throttle * \
                     calc.heading_vector(entity.heading)
                 mass = entity.mass + entity.fuel
@@ -349,7 +350,7 @@ class PEngine:
                     mass += hab.mass + hab.fuel
 
                 eng_acc = eng_thrust / mass
-                acc_matrix[index] += eng_acc
+                acc_matrix[artif_index] += eng_acc
 
         # And SRB thrust
         srb_usage = 0
@@ -374,12 +375,13 @@ class PEngine:
 
         # Centripetal acceleration to keep landed entities glued to each other.
         landed_on = y.LandedOn
-        for index in landed_on:
-            lander = y[index]
-            ground = y[landed_on[index]]
+        for landed_i in landed_on:
+            lander = y[landed_i]
+            ground = y[landed_on[landed_i]]
 
             centripetal_acc = (lander.pos - ground.pos) * ground.spin ** 2
-            acc_matrix[index] = acc_matrix[landed_on[index]] - centripetal_acc
+            acc_matrix[landed_i] = \
+                acc_matrix[landed_on[landed_i]] - centripetal_acc
 
         # Sets velocity and spin of a couple more entities.
         # If you want to set the acceleration of an entity, do it above and
@@ -427,7 +429,7 @@ class PEngine:
 
             ivp_out = scipy.integrate.solve_ivp(
                 fun=derive_func,
-                t_span=[t, t + np.sqrt(y.time_acc)],
+                t_span=[t, t + min(y.time_acc, 20 * self.MAX_STEP_SIZE)],
                 # solve_ivp requires a 1D y0 array
                 y0=y.y0(),
                 events=events,
