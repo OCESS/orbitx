@@ -16,8 +16,8 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx import calc
-from orbitx import state
+from orbitx.physics import calc
+from orbitx.data_structures import Entity, Navmode, PhysicsState
 from orbitx.network import Request
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
@@ -48,7 +48,7 @@ class FlightGui:
 
     def __init__(
         self,
-        draw_state: state.PhysicsState,
+        draw_state: PhysicsState,
         *,
         title: str,
         running_as_mirror: bool
@@ -57,13 +57,13 @@ class FlightGui:
 
         self._state = draw_state
         # create a vpython canvas, onto which all 3D and HTML drawing happens.
-        self._scene = self._init_canvas(title, running_as_mirror)
+        self._scene = self._init_canvas(title)
 
         self._show_label: bool = True
         self._show_trails: bool = DEFAULT_TRAILS
         self._paused: bool = False
         self._removed_saveload_hint: bool = False
-        self._origin: state.Entity
+        self._origin: Entity
         self.texture_path: Path = Path('data', 'textures')
         self._commands: List[Request] = []
         self._paused_label = vpython.label(
@@ -98,7 +98,8 @@ class FlightGui:
         self.recentre_camera(common.DEFAULT_CENTRE)
     # end of __init__
 
-    def _init_canvas(self, title: str, running_as_mirror: bool) \
+    @staticmethod
+    def _init_canvas(title: str) \
             -> vpython.canvas:
         """Set up our vpython canvas and other internal variables"""
         _scene = vpython.canvas(
@@ -116,7 +117,7 @@ class FlightGui:
         _scene.range = 696000000.0 * 15000  # Sun radius * 15000
         return _scene
 
-    def _build_threedeeobj(self, entity: state.Entity) -> ThreeDeeObj:
+    def _build_threedeeobj(self, entity: Entity) -> ThreeDeeObj:
         obj: ThreeDeeObj
         if entity.name == common.HABITAT:
             obj = Habitat(entity, self.origin(), self.texture_path)
@@ -151,11 +152,12 @@ class FlightGui:
         except IndexError:
             log.error(f'Unrecognized planet to follow: "{planet_name}"')
 
-    def shutdown(self):
+    @staticmethod
+    def shutdown():
         """Stops any threads vpython has started. Call on exit."""
         vpython.no_notebook.stop_server()
 
-    def origin(self) -> state.Entity:
+    def origin(self) -> Entity:
         if self._show_trails:
             return self._state.reference_entity()
         else:
@@ -238,7 +240,7 @@ class FlightGui:
             self._time_acc_dropdown_hook(self._sidebar.time_acc_menu._menu)
     # end of _handle_keydown
 
-    def draw(self, draw_state: state.PhysicsState) -> None:
+    def draw(self, draw_state: PhysicsState) -> None:
         self._state = draw_state
 
         # Have to reset origin, reference, and target with new positions
@@ -359,7 +361,8 @@ class FlightGui:
     def _orbits_checkbox_hook(self, selection: vpython.menu) -> None:
         self._orbit_projection.show(selection.checked)
 
-    def rate(self, framerate: int) -> None:
+    @staticmethod
+    def rate(framerate: int) -> None:
         """Alias for vpython.rate(framerate). Basically sleeps 1/framerate"""
         vpython.rate(framerate)
 
@@ -402,7 +405,7 @@ class FlightGui:
     def _navmode_hook(self, menu: vpython.menu):
         self._commands.append(Request(
             ident=Request.NAVMODE_SET,
-            navmode=state.Navmode[menu.selected].value))
+            navmode=Navmode[menu.selected].value))
 
     def _misc_command_hook(self, menu: vpython.menu):
         if menu.selected == MiscCommand.UNDOCK.value:
@@ -543,8 +546,8 @@ class Sidebar:
         self._wtexts.append(TableText(
             "Engine Acceleration",
             lambda state:
-                common.format_num(calc.engine_acceleration(state), " m/s/s") +
-                (' [SRB]' if state.srb_time > 0 else ''),
+            common.format_num(calc.engine_acceleration(state), " m/s/s") +
+            (' [SRB]' if state.srb_time > 0 else ''),
             "Acceleration due to craft's engine thrust",
             new_section=False))
 
@@ -562,7 +565,7 @@ class Sidebar:
             "Remaining fuel of craft",
             new_section=False))
 
-        def rotation_formatter(state: state.PhysicsState) -> str:
+        def rotation_formatter(state: PhysicsState) -> str:
             deg_spin = round(np.degrees(state.craft_entity().spin), ndigits=1)
             if deg_spin < 0:
                 return f"{-deg_spin} °/s cw"
@@ -677,8 +680,8 @@ class Sidebar:
         )
 
         self.navmode_menu = Menu(
-            choices=[item.name for item in state.Navmode],
-            selected=state.Navmode(0).name,
+            choices=[item.name for item in Navmode],
+            selected=Navmode(0).name,
             bind=self._parent._navmode_hook,
             caption="NAV mode",
             helptext="Automatically points habitat"
@@ -704,7 +707,7 @@ class Sidebar:
         )
     # end of _create_menus
 
-    def update(self, draw_state: state.PhysicsState):
+    def update(self, draw_state: PhysicsState):
         self.reference_menu._menu.selected = draw_state.reference
         self.target_menu._menu.selected = draw_state.target
         self.navmode_menu._menu.selected = draw_state.navmode.name

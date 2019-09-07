@@ -2,15 +2,15 @@ from typing import Optional
 
 import vpython
 
-from orbitx import calc
+from orbitx.physics import calc
 from orbitx import common
-from orbitx import state
+from orbitx.data_structures import Entity
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 
 
 class SpaceStation(ThreeDeeObj):
     def _create_obj(self,
-                    entity: state.Entity, origin: state.Entity,
+                    entity: Entity, origin: Entity,
                     texture_path: Optional[str]) -> vpython.sphere:
         ship = vpython.cone(pos=vpython.vector(5, 0, 0),
                             axis=vpython.vector(5, 0, 0),
@@ -47,11 +47,11 @@ class SpaceStation(ThreeDeeObj):
 
         return obj
 
-    def draw_landing_graphic(self, entity: state.Entity) -> None:
+    def draw_landing_graphic(self, entity: Entity) -> None:
         # AYSE doesn't have landing graphics
         pass
 
-    def _label_text(self, entity: state.Entity) -> str:
+    def _label_text(self, entity: Entity) -> str:
         return (
             f'{entity.name}\n'
             f'Fuel: {common.format_num(entity.fuel, " kg")}' +

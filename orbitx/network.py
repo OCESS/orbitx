@@ -7,9 +7,9 @@ from typing import Dict, List, Optional, Iterable
 
 import grpc
 
-from orbitx import state
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
+from orbitx.data_structures import PhysicsState
 
 log = logging.getLogger()
 
@@ -119,7 +119,7 @@ class StateClient:
         self.client_type = client
 
     def get_state(self, commands: List[Request] = None) \
-            -> state.PhysicsState:
+            -> PhysicsState:
 
         if commands is None or len(commands) == 0:
             commands_iter = iter([
@@ -128,5 +128,5 @@ class StateClient:
             for command in commands:
                 command.client = self.client_type
             commands_iter = iter(commands)
-        return state.PhysicsState(None,
-                                  self.stub.get_physical_state(commands_iter))
+        return PhysicsState(None,
+                            self.stub.get_physical_state(commands_iter))

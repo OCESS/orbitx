@@ -25,18 +25,17 @@ import scipy.spatial
 import scipy.special
 from google.protobuf.text_format import MessageToString
 
-from orbitx import calc
+from orbitx.physics import calc
 from orbitx import common
-from orbitx import state
 from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
+from orbitx.data_structures import protos, Entity, Navmode, PhysicsState
 
 SOLUTION_CACHE_SIZE = 2
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
 log = logging.getLogger()
-
 
 TIME_ACC_TO_BOUND = {time_acc.value: time_acc.accurate_bound
                      for time_acc in common.TIME_ACCS}
@@ -48,13 +47,13 @@ class TimeAccChange(NamedTuple):
     start_simtime: float
 
 
-class PEngine:
+class PhysicsEngine:
     """Physics Engine class. Encapsulates simulating physical state.
 
     Methods beginning with an underscore are not part of the API and change!
 
     Example usage:
-    pe = PEngine(flight_savefile)
+    pe = PhysicsEngine(flight_savefile)
     state = pe.get_state()
     pe.handle_request(Request(ident=..., ...))  # Change some state.
     # Simulates 20 seconds:
@@ -74,7 +73,7 @@ class PEngine:
     # into Mars, tweak this downwards.
     MAX_STEP_SIZE = 50
 
-    def __init__(self, physical_state: state.PhysicsState):
+    def __init__(self, physical_state: PhysicsState):
         # Controls access to self._solutions. If anything changes that is
         # related to self._solutions, this condition variable should be
         # notified. Currently, that's just if self._solutions or
@@ -84,7 +83,7 @@ class PEngine:
 
         self._simthread: Optional[threading.Thread] = None
         self._simthread_exception: Optional[Exception] = None
-        self._last_physical_state: state.protos.PhysicalState
+        self._last_physical_state: PhysicalState
         self._last_monotime: float = time.monotonic()
         self._last_simtime: float
         self._time_acc_changes: collections.deque
@@ -111,8 +110,8 @@ class PEngine:
             # time_elapsed correspondingly until the second time acc change
             # starts farther in the future than we will increment simtime.
             while len(self._time_acc_changes) > 1 and \
-                self._time_acc_changes[1].start_simtime < (
-                simtime + self._time_acc_changes[0].time_acc *
+                    self._time_acc_changes[1].start_simtime < (
+                    simtime + self._time_acc_changes[0].time_acc *
                     alpha_time_elapsed):
                 remaining_simtime = \
                     self._time_acc_changes[1].start_simtime - simtime
@@ -141,7 +140,7 @@ class PEngine:
                 self._solutions_cond.notify_all()
             self._simthread.join()
 
-    def _start_simthread(self, t0: float, y0: state.PhysicsState) -> None:
+    def _start_simthread(self, t0: float, y0: PhysicsState) -> None:
         if round(y0.time_acc) == 0:
             # We've paused the simulation. Don't start a new simthread
             log.debug('Pausing simulation')
@@ -156,7 +155,7 @@ class PEngine:
         # than self._last_simtime.
         self._time_acc_changes = collections.deque(
             [TimeAccChange(time_acc=y0.time_acc,
-             start_simtime=y0.timestamp)]
+                           start_simtime=y0.timestamp)]
         )
 
         # Essentially just a cache of ODE solutions.
@@ -191,7 +190,7 @@ class PEngine:
                 requested_t = min(self._solutions[-1].t_max, requested_t)
 
         if len(self._solutions) == 0:
-            y0 = state.PhysicsState(None, self._last_physical_state)
+            y0 = PhysicsState(None, self._last_physical_state)
         else:
             y0 = self.get_state(requested_t)
 
@@ -209,7 +208,7 @@ class PEngine:
 
         self.set_state(y0)
 
-    def set_state(self, physical_state: state.PhysicsState):
+    def set_state(self, physical_state: PhysicsState):
         self._stop_simthread()
 
         physical_state = _reconcile_entity_dynamics(physical_state)
@@ -228,7 +227,7 @@ class PEngine:
 
         self._start_simthread(physical_state.timestamp, physical_state)
 
-    def get_state(self, requested_t=None) -> state.PhysicsState:
+    def get_state(self, requested_t=None) -> PhysicsState:
         """Return the latest physical state of the simulation."""
         requested_t = self._simtime(requested_t)
 
@@ -260,15 +259,15 @@ class PEngine:
                     (self._solutions[0].t_min, self._solutions[-1].t_max)
 
                 for soln in self._solutions:
-                    if soln.t_min <= requested_t and requested_t <= soln.t_max:
+                    if soln.t_min <= requested_t <= soln.t_max:
                         solution = soln
 
         if self._last_physical_state.time_acc == 0:
             # We're paused, so return the only state we have.
-            return state.PhysicsState(None, self._last_physical_state)
+            return PhysicsState(None, self._last_physical_state)
         else:
             # We have a solution, return it.
-            newest_state = state.PhysicsState(
+            newest_state = PhysicsState(
                 solution(requested_t), self._last_physical_state
             )
             newest_state.timestamp = requested_t
@@ -276,7 +275,8 @@ class PEngine:
 
     class RestartSimulationException(Exception):
         """A request to restart the simulation with new t and y."""
-        def __init__(self, t: float, y: state.PhysicsState):
+
+        def __init__(self, t: float, y: PhysicsState):
             self.t = t
             self.y = y
 
@@ -286,7 +286,7 @@ class PEngine:
                 self._run_simulation(t, y)
                 if self._stopping_simthread:
                     return
-            except PEngine.RestartSimulationException as e:
+            except PhysicsEngine.RestartSimulationException as e:
                 t = e.t
                 y = e.y
                 log.info(f'Simulation restarted itself at {t}.')
@@ -324,7 +324,7 @@ class PEngine:
         # will be propagated out of this function is by numpy using the return
         # value of this function as a derivative, as explained above.
         # If you want to set values in y, look at _reconcile_entity_dynamics.
-        y = state.PhysicsState(y_1d, pass_through_state)
+        y = PhysicsState(y_1d, pass_through_state)
         acc_matrix = calc.grav_acc(y.X, y.Y, self.M, y.Fuel)
         zeros = np.zeros(y._n)
         fuel_cons = np.zeros(y._n)
@@ -362,7 +362,7 @@ class PEngine:
                 srb_acc_vector = srb_acc * calc.heading_vector(hab.heading)
                 acc_matrix[hab_index] += srb_acc_vector
                 srb_usage = -1
-        except state.PhysicsState.NoEntityError:
+        except PhysicsState.NoEntityError:
             # The Habitat doesn't exist.
             pass
 
@@ -395,7 +395,7 @@ class PEngine:
             zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0])
         ), axis=None)
 
-    def _run_simulation(self, t: float, y: state.PhysicsState) -> None:
+    def _run_simulation(self, t: float, y: PhysicsState) -> None:
         # An overview of how time is managed:
         #
         # self._last_simtime is the main thread's latest idea of
@@ -421,11 +421,12 @@ class PEngine:
             ]
             if y.craft is not None:
                 craft_index = y._name_to_index(y.craft)
-                events.append(HighAccEvent(derive_func,
-                              2 * len(y) + craft_index,
-                              3 * len(y) + craft_index,
-                              TIME_ACC_TO_BOUND[round(y.time_acc)],
-                              y.time_acc))
+                events.append(HighAccEvent(
+                    derive_func,
+                    2 * len(y) + craft_index,
+                    3 * len(y) + craft_index,
+                    TIME_ACC_TO_BOUND[round(y.time_acc)],
+                    y.time_acc))
 
             ivp_out = scipy.integrate.solve_ivp(
                 fun=derive_func,
@@ -461,7 +462,7 @@ class PEngine:
                 self._solutions.append(ivp_out.sol)
                 self._solutions_cond.notify_all()
 
-            y = state.PhysicsState(ivp_out.y[:, -1], proto_state)
+            y = PhysicsState(ivp_out.y[:, -1], proto_state)
             t = ivp_out.t[-1]
 
             if ivp_out.status > 0:
@@ -479,8 +480,8 @@ class PEngine:
                         y = _reconcile_entity_dynamics(y)
                     if isinstance(event, HabFuelEvent):
                         # Something ran out of fuel.
-                        for index in self._artificials:
-                            artificial = y[index]
+                        for artificial_index in self._artificials:
+                            artificial = y[artificial_index]
                             if round(artificial.fuel) != 0:
                                 continue
                             log.info(f'{artificial.name} ran out of fuel.')
@@ -516,7 +517,7 @@ class PEngine:
                             f'slowing down to {slower_time_acc.value}')
                         # We should lower the time acc.
                         y.time_acc = slower_time_acc.value
-                        raise PEngine.RestartSimulationException(t, y)
+                        raise PhysicsEngine.RestartSimulationException(t, y)
 
 
 class Event:
@@ -534,16 +535,16 @@ class SrbFuelEvent(Event):
     def __call__(self, t, y_1d) -> float:
         """Returns how much SRB burn time is left.
         This will cause simulation to stop when SRB burn time reaches 0."""
-        return y_1d[state.PhysicsState.SRB_TIME_INDEX]
+        return y_1d[PhysicsState.SRB_TIME_INDEX]
 
 
 class HabFuelEvent(Event):
-    def __init__(self, initial_state: state.PhysicsState):
+    def __init__(self, initial_state: PhysicsState):
         self.initial_state = initial_state
 
     def __call__(self, t, y_1d) -> float:
         """Return a 0 only when throttle is nonzero."""
-        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
+        y = PhysicsState(y_1d, self.initial_state._proto_state)
         for index, entity in enumerate(y._proto_state.entities):
             if entity.artificial and y.Throttle[index] != 0:
                 return y.Fuel[index]
@@ -551,7 +552,7 @@ class HabFuelEvent(Event):
 
 
 class CollisionEvent(Event):
-    def __init__(self, initial_state: state.PhysicsState, radii: np.ndarray):
+    def __init__(self, initial_state: PhysicsState, radii: np.ndarray):
         self.initial_state = initial_state
         self.radii = radii
 
@@ -559,14 +560,14 @@ class CollisionEvent(Event):
                  ) -> Union[float, Tuple[int, int]]:
         """Returns a scalar, with 0 indicating a collision and a sign change
         indicating a collision has happened."""
-        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
+        y = PhysicsState(y_1d, self.initial_state._proto_state)
         n = len(self.initial_state)
         # 2xN of (x, y) positions
         posns = np.column_stack((y.X, y.Y))
         # An n*n matrix of _altitudes_ between each entity
         alt_matrix = (
-            scipy.spatial.distance.cdist(posns, posns) -
-            np.array([self.radii]) - np.array([self.radii]).T)
+                scipy.spatial.distance.cdist(posns, posns) -
+                np.array([self.radii]) - np.array([self.radii]).T)
         # To simplify calculations, an entity's altitude from itself is inf
         np.fill_diagonal(alt_matrix, np.inf)
         # For each pair of objects that have collisions disabled between
@@ -593,13 +594,13 @@ class CollisionEvent(Event):
 
 
 class LiftoffEvent(Event):
-    def __init__(self, initial_state: state.PhysicsState):
+    def __init__(self, initial_state: PhysicsState):
         self.initial_state = initial_state
 
     def __call__(self, t, y_1d) -> float:
         """Return 0 when the craft is landed but thrusting enough to lift off,
         and a positive value otherwise."""
-        y = state.PhysicsState(y_1d, self.initial_state._proto_state)
+        y = PhysicsState(y_1d, self.initial_state._proto_state)
         if y.craft is None:
             # There is no craft, return early.
             return np.inf
@@ -630,9 +631,9 @@ class LiftoffEvent(Event):
 
 class HighAccEvent(Event):
     def __init__(
-        self, derive: Callable[[float, np.ndarray], np.ndarray],
-        ax_index: int, ay_index: int, acc_bound: float, current_acc: float
-            ):
+            self, derive: Callable[[float, np.ndarray], np.ndarray],
+            ax_index: int, ay_index: int, acc_bound: float, current_acc: float
+    ):
         self.derive = derive
         self.ax_index = ax_index
         self.ay_index = ay_index
@@ -652,11 +653,11 @@ class HighAccEvent(Event):
         return self.acc_bound - acc
 
 
-def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
+def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
     """Idempotent helper that sets velocities and spins of some entities.
     This is in its own function because it has a couple calling points."""
     # Navmode auto-rotation
-    if y.navmode != state.Navmode['Manual']:
+    if y.navmode != Navmode['Manual']:
         craft = y.craft_entity()
         craft.spin = calc.navmode_spin(y)
 
@@ -669,8 +670,9 @@ def _reconcile_entity_dynamics(y: state.PhysicsState) -> state.PhysicsState:
 
         if ground.name == common.AYSE and lander.name == common.HABITAT:
             # Always put the Habitat at the docking port.
-            lander.pos = ground.pos - \
-                calc.heading_vector(ground.heading) * (lander.r + ground.r)
+            lander.pos = (
+                ground.pos -
+                calc.heading_vector(ground.heading) * (lander.r + ground.r))
         else:
             norm = lander.pos - ground.pos
             unit_norm = norm / calc.fastnorm(norm)
@@ -736,7 +738,7 @@ def _docking(e1, e2, e2_index):
     # set right heading for future takeoff
     e2_opposite = e2.heading + np.pi
     e1.pos = e2.pos + (e1.r + e2.r) * calc.heading_vector(e2_opposite)
-    e1.heading = (e2_opposite) % (2 * np.pi)
+    e1.heading = e2_opposite % (2 * np.pi)
     e1.throttle = 0
     e1.spin = e2.spin
     e1.v = e2.v
@@ -794,8 +796,8 @@ def _land(e1, e2):
     e1.v = calc.rotational_speed(e1, e2)
 
 
-def _one_request(request: Request, y0: state.PhysicsState) \
-        -> state.PhysicsState:
+def _one_request(request: Request, y0: PhysicsState) \
+        -> PhysicsState:
     """Interface to set habitat controls.
 
     Use an argument to change habitat throttle or spinning, and simulation
@@ -808,7 +810,7 @@ def _one_request(request: Request, y0: state.PhysicsState) \
         assert y0.craft is not None
 
     if request.ident == Request.HAB_SPIN_CHANGE:
-        if y0.navmode != state.Navmode['Manual']:
+        if y0.navmode != Navmode['Manual']:
             # We're in autopilot, ignore this command
             return y0
         craft = y0.craft_entity()
@@ -835,12 +837,12 @@ def _one_request(request: Request, y0: state.PhysicsState) \
         y0[common.AYSE] = ayse
 
         if request.engineering_update.module_state == \
-            Request.DETACHED_MODULE and \
-            common.MODULE not in y0._entity_names and \
+                Request.DETACHED_MODULE and \
+                common.MODULE not in y0._entity_names and \
                 not hab.landed():
             # If the Habitat is freely floating and engineering asks us to
             # detach the Module, spawn in the Module.
-            module = state.Entity(state.protos.Entity(
+            module = Entity(protos.Entity(
                 name=common.MODULE, mass=100, r=10, artificial=True))
             module.pos = hab.pos - (module.r + hab.r) * \
                 calc.heading_vector(hab.heading)
@@ -848,7 +850,7 @@ def _one_request(request: Request, y0: state.PhysicsState) \
 
             y0_proto = y0.as_proto()
             y0_proto.entities.extend([module.proto])
-            y0 = state.PhysicsState(None, y0_proto)
+            y0 = PhysicsState(None, y0_proto)
 
     elif request.ident == Request.UNDOCK:
         habitat = y0[common.HABITAT]
@@ -871,8 +873,8 @@ def _one_request(request: Request, y0: state.PhysicsState) \
     elif request.ident == Request.LOAD_SAVEFILE:
         y0 = common.load_savefile(common.savefile(request.loadfile))
     elif request.ident == Request.NAVMODE_SET:
-        y0.navmode = state.Navmode(request.navmode)
-        if y0.navmode == state.Navmode['Manual']:
+        y0.navmode = Navmode(request.navmode)
+        if y0.navmode == Navmode['Manual']:
             y0.craft_entity().spin = 0
     elif request.ident == Request.PARACHUTE:
         y0.parachute_deployed = request.deploy_parachute

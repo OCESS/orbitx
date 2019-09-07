@@ -39,7 +39,7 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = common.savefile(args.loadfile)
 
-    physics_engine = physics.PEngine(common.load_savefile(loadfile))
+    physics_engine = physics.PhysicsEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
     gui = flight_gui.FlightGui(

@@ -3,8 +3,8 @@ from typing import List
 
 import vpython
 
-from orbitx import calc
-from orbitx import state
+from orbitx.physics import calc
+from orbitx.data_structures import Entity, PhysicsState
 
 
 class OrbitProjection:
@@ -36,10 +36,11 @@ class OrbitProjection:
                 math.sinh(t), math.cosh(t), 0))
 
         self._hyperbola = vpython.curve(
-            hyperbola_points, axis=vpython.vector(1, 1, 0), up=vpython.vec(-1, 0, 0))
+            hyperbola_points, axis=vpython.vector(1, 1, 0),
+            up=vpython.vec(-1, 0, 0))
         self._hyperbola.visible = False
 
-    def update(self, state: state.PhysicsState, origin: state.Entity):
+    def update(self, state: PhysicsState, origin: Entity):
         if not self._visible:
             self._hyperbola.visible = False
             self._ring.visible = False

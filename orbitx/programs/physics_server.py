@@ -52,7 +52,7 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = common.savefile(args.loadfile)
 
-    physics_engine = physics.PEngine(common.load_savefile(loadfile))
+    physics_engine = physics.PhysicsEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
     server = grpc.server(
@@ -64,7 +64,7 @@ def main(args: argparse.Namespace):
     state_server.notify_state_change(initial_state.as_proto())
     server.start()  # This doesn't block!
 
-    gui = ServerGui(loadfile)
+    gui = ServerGui()
 
     try:
         if args.flamegraph:

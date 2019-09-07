@@ -7,12 +7,12 @@ import numpy as np
 
 import orbitx.orbitx_pb2 as protos
 
-from orbitx import calc
+from orbitx.physics import calc
 from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
-from orbitx import state
+from orbitx.data_structures import _EntityView, Entity, PhysicsState
 
 log = logging.getLogger()
 
@@ -21,7 +21,7 @@ class PhysicsEngine:
     """Ensures that the simthread is always shut down on test exit/failure."""
 
     def __init__(self, savefile):
-        self.physics_engine = physics.PEngine(
+        self.physics_engine = physics.PhysicsEngine(
             common.load_savefile(common.savefile(savefile)))
 
     def __enter__(self):
@@ -90,7 +90,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             y0 = initial
             # Note that dy.X is actually the velocity at 0,
             # and dy.VX is acceleration.
-            dy = state.PhysicsState(
+            dy = PhysicsState(
                 physics_engine._derive(0, y0.y0(), y0._proto_state),
                 y0._proto_state)
             self.assertEqual(len(dy.X), 2)
@@ -178,7 +178,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
             # Test that every single entity has the correct accelerations.
             y0 = physics_state
-            dy = state.PhysicsState(
+            dy = PhysicsState(
                 physics_engine._derive(0, y0.y0(), y0._proto_state),
                 physics_state._proto_state)
             self.assertEqual(len(dy.X), 3)
@@ -280,12 +280,12 @@ class EntityTestCase(unittest.TestCase):
     """Tests that state.Entity properly proxies underlying proto."""
 
     def test_fields(self):
-        def test_field(pe: state.Entity, field: str, val):
+        def test_field(pe: Entity, field: str, val):
             pe.proto.Clear()
             setattr(pe, field, val)
             self.assertEqual(getattr(pe.proto, field), val)
 
-        pe = state.Entity(protos.Entity())
+        pe = Entity(protos.Entity())
         test_field(pe, 'name', 'test')
         test_field(pe, 'x', 5)
         test_field(pe, 'y', 5)
@@ -321,7 +321,7 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_landed_on(self):
         """Test that the special .landed_on field is properly set."""
-        ps = state.PhysicsState(None, self.proto_state)
+        ps = PhysicsState(None, self.proto_state)
         self.assertEqual(ps['First'].landed_on, '')
         self.assertEqual(ps['Second'].landed_on, 'First')
 
@@ -342,7 +342,7 @@ class PhysicsStateTestCase(unittest.TestCase):
             1         # time_acc
         ])
 
-        ps = state.PhysicsState(y0, self.proto_state)
+        ps = PhysicsState(y0, self.proto_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
         self.assertEqual(ps['First'].landed_on, 'Second')
 
@@ -354,7 +354,7 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_get_set(self):
         """Test __getitem__ and __setitem__."""
-        ps = state.PhysicsState(None, self.proto_state)
+        ps = PhysicsState(None, self.proto_state)
         entity = ps[0]
         entity.landed_on = 'Second'
         ps[0] = entity
@@ -362,10 +362,10 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_entity_view(self):
         """Test that setting and getting _EntityView attrs propagate."""
-        ps = state.PhysicsState(None, self.proto_state)
+        ps = PhysicsState(None, self.proto_state)
         self.assertEqual(ps[0].name, 'First')
         entity = ps[0]
-        self.assertTrue(isinstance(entity, state._EntityView))
+        self.assertTrue(isinstance(entity, _EntityView))
 
         self.assertEqual(entity.x, 10)
         self.assertEqual(entity.y, 20)

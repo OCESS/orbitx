@@ -12,27 +12,27 @@ from typing import Dict, List, Optional
 import numpy
 import scipy
 
-from orbitx import calc
+from orbitx.physics import calc
 from orbitx import common
 from orbitx import network
 from orbitx import orbitx_pb2 as protos
-from orbitx import state
+from orbitx.data_structures import Entity, Navmode, PhysicsState
 
 log = logging.getLogger()
 
 # This is a mapping from the OrbitX NAVMODE enum to a value of "Sflag",
 # which is internal to OrbitV.
 NAVMODE_TO_SFLAG = {  # type: ignore
-    state.Navmode(protos.CCW_PROG): 0,
-    state.Navmode(protos.CW_RETRO): 4,
-    state.Navmode(protos.MANUAL): 1,
-    state.Navmode(protos.APP_TARG): 2,
-    state.Navmode(protos.PRO_VTRG): 5,
-    state.Navmode(protos.RETR_VTRG): 6,
+    Navmode(protos.CCW_PROG): 0,
+    Navmode(protos.CW_RETRO): 4,
+    Navmode(protos.MANUAL): 1,
+    Navmode(protos.APP_TARG): 2,
+    Navmode(protos.PRO_VTRG): 5,
+    Navmode(protos.RETR_VTRG): 6,
     # Hold Atrg should be here, but OrbitX doesn't implement it lol.
-    state.Navmode(protos.DEPRT_REF): 3,
+    Navmode(protos.DEPRT_REF): 3,
 }
-SFLAG_TO_NAVMODE: Dict[int, Optional[state.Navmode]]
+SFLAG_TO_NAVMODE: Dict[int, Optional[Navmode]]
 SFLAG_TO_NAVMODE = {v: k for k, v in NAVMODE_TO_SFLAG.items()}  # type: ignore
 SFLAG_TO_NAVMODE[7] = None  # This is Hold Atrg
 
@@ -67,7 +67,7 @@ class OrbitVIntermediary:
         self.orbitv_names = _entity_list_from_starsr(
             piloting_path / 'STARSr')
 
-    def write_state(self, orbitx_state: state.PhysicsState):
+    def write_state(self, orbitx_state: PhysicsState):
         _write_state_to_osbackup(
             orbitx_state, self.osbackup, self.orbitv_names)
 
@@ -75,7 +75,7 @@ class OrbitVIntermediary:
         return _read_update_from_orbitsse(self.orbitsse, self.orbitv_names)
 
 
-def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
+def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
     """Gathers information from an OrbitV savefile, in the *.RND format,
     as well as a STARSr file.
     Returns a PhysicsState representing everything we can read."""
@@ -109,8 +109,8 @@ def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
 
             # Cast all the elements on a line to floats.
             # Some strings will be the form '1.234D+04', convert these too.
-            colour, mass, radius, \
-                atmosphere_thickness, atmosphere_scaling, atmosphere_height \
+            (colour, mass, radius,
+                atmosphere_thickness, atmosphere_scaling, atmosphere_height) \
                 = map(_string_to_float, entity_constants_line)
             mass = max(1, mass)
 
@@ -164,7 +164,7 @@ def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
 
         # I don't know what Vflag and Aflag do.
         _read_int(rnd), _read_int(rnd)
-        navmode = state.Navmode(SFLAG_TO_NAVMODE[_read_int(rnd)])
+        navmode = Navmode(SFLAG_TO_NAVMODE[_read_int(rnd)])
         if navmode is not None:
             proto_state.navmode = navmode.value
 
@@ -264,7 +264,7 @@ def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
     while entity_index < len(proto_state.entities):
         proto_entity = proto_state.entities[entity_index]
         if round(proto_entity.x) == 0 and round(proto_entity.y) == 0 and \
-            proto_entity.name != common.SUN or \
+                proto_entity.name != common.SUN or \
                 proto_entity.name == common.OCESS:
             del proto_state.entities[entity_index]
         else:
@@ -276,13 +276,12 @@ def clone_orbitv_state(rnd_path: Path) -> state.PhysicsState:
     hab.mass = 275000
     ayse.mass = 20000000
 
-    orbitx_state = state.PhysicsState(None, proto_state)
-    orbitx_state[common.HABITAT] = state.Entity(hab)
-    orbitx_state[common.AYSE] = state.Entity(ayse)
+    orbitx_state = PhysicsState(None, proto_state)
+    orbitx_state[common.HABITAT] = Entity(hab)
+    orbitx_state[common.AYSE] = Entity(ayse)
 
     craft = orbitx_state.craft_entity()
     craft.throttle = craft_throttle
-    orbitx_state[orbitx_state.craft] = craft
 
     log.debug(f'Interpreted {rnd_path} and {starsr_path} into this state:')
     log.debug(repr(orbitx_state))
@@ -307,7 +306,7 @@ def _entity_list_from_starsr(starsr_path: Path) -> List[str]:
     return orbitv_names
 
 
-def _write_state_to_osbackup(orbitx_state: state.PhysicsState,
+def _write_state_to_osbackup(orbitx_state: PhysicsState,
                              osbackup_path: Path, orbitv_names: List[str]):
     """Writes information to OSbackup.RND. orbitv_names should be the result
     of entity_list_from_starsr.
@@ -336,8 +335,8 @@ def _write_state_to_osbackup(orbitx_state: state.PhysicsState,
         pressure = 0.0
     else:
         pressure = calc.pressure(craft, atmosphere)
-    craft_thrust = max_thrust * craft.throttle * \
-        calc.heading_vector(craft.heading)
+    craft_thrust = (
+        max_thrust * craft.throttle * calc.heading_vector(craft.heading))
     craft_drag = calc.drag(orbitx_state)
     artificial_gravity = numpy.linalg.norm(craft_thrust - craft_drag)
 
@@ -455,7 +454,7 @@ def _write_state_to_osbackup(orbitx_state: state.PhysicsState,
 
 
 def _read_update_from_orbitsse(
-    orbitsse_path: Path, orbitv_names: List[str]) \
+        orbitsse_path: Path, orbitv_names: List[str]) \
         -> network.Request.EngineeringUpdate:
     """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
     that contains the information."""
@@ -532,16 +531,16 @@ def _string_to_float(item: str) -> float:
     return float(item.upper().replace('#', '').replace('D', 'E'))
 
 
-def _separate_landed_entities(orbitx_state: state.PhysicsState) \
-        -> state.PhysicsState:
+def _separate_landed_entities(orbitx_state: PhysicsState) \
+        -> PhysicsState:
     n = len(orbitx_state)
     # 2xN of (x, y) positions
     posns = numpy.column_stack((orbitx_state.X, orbitx_state.Y))
     # An n*n matrix of _altitudes_ between each entity
     radii = numpy.array([entity.r for entity in orbitx_state])
     alt_matrix = (
-        scipy.spatial.distance.cdist(posns, posns) -
-        numpy.array([radii]) - numpy.array([radii]).T)
+            scipy.spatial.distance.cdist(posns, posns) -
+            numpy.array([radii]) - numpy.array([radii]).T)
     numpy.fill_diagonal(alt_matrix, numpy.inf)
 
     # Find everything that has a very small or negative altitude, and make
@@ -577,8 +576,8 @@ def _separate_landed_entities(orbitx_state: state.PhysicsState) \
 
         posns = numpy.column_stack((orbitx_state.X, orbitx_state.Y))
         alt_matrix = (
-            scipy.spatial.distance.cdist(posns, posns) -
-            numpy.array([radii]) - numpy.array([radii]).T)
+                scipy.spatial.distance.cdist(posns, posns) -
+                numpy.array([radii]) - numpy.array([radii]).T)
         numpy.fill_diagonal(alt_matrix, numpy.inf)
 
     return orbitx_state

@@ -1,20 +1,19 @@
 from typing import List, Optional
 
-import vpython
 import numpy as np
+import vpython
 
-from orbitx import calc
 from orbitx import common
-from orbitx import state
+from orbitx.data_structures import Entity, PhysicsState
 from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.physics import calc
 
 
 class Habitat(ThreeDeeObj):
-
     BOOSTER_RADIUS = 5
     PARACHUTE_RADIUS = 20
 
-    def _create_hab(self, entity: state.Entity, texture: str) -> \
+    def _create_hab(self, entity: Entity, texture: str) -> \
             vpython.compound:
         def vertex(x: float, y: float, z: float) -> vpython.vertex:
             return vpython.vertex(pos=vpython.vector(x, y, z))
@@ -52,8 +51,8 @@ class Habitat(ThreeDeeObj):
             )
             boosters.append(vpython.cone(
                 radius=self.BOOSTER_RADIUS, length=0.2,
-                pos=(self.BOOSTER_RADIUS + body_radius) * normal +
-                vpython.vec(1, 0, 0))
+                pos=((self.BOOSTER_RADIUS + body_radius) * normal +
+                     vpython.vec(1, 0, 0)))
             )
 
         # Append an invisible point to shift the boosters down the fuselage.
@@ -100,7 +99,7 @@ class Habitat(ThreeDeeObj):
         return hab
 
     def _create_obj(self,
-                    entity: state.Entity, origin: state.Entity,
+                    entity: Entity, origin: Entity,
                     texture: Optional[str]
                     ) -> vpython.compound:
         """Creates the habitat, and also a new minimap scene and habitat."""
@@ -130,11 +129,11 @@ class Habitat(ThreeDeeObj):
 
         return habitat
 
-    def draw_landing_graphic(self, entity: state.Entity) -> None:
+    def draw_landing_graphic(self, entity: Entity) -> None:
         # Habitats don't have landing graphics
         pass
 
-    def _label_text(self, entity: state.Entity) -> str:
+    def _label_text(self, entity: Entity) -> str:
         label = entity.name
         if entity.broken:
             label += ' [BROKEN]'
@@ -145,17 +144,17 @@ class Habitat(ThreeDeeObj):
             label += '\nLanded'
         return label
 
-    def draw(self, entity: state.Entity,
-             state: state.PhysicsState, origin: state.Entity):
+    def draw(self, entity: Entity,
+             state: PhysicsState, origin: Entity):
         self._update_obj(entity, state, origin)
         self._obj.boosters.pos = self._obj.pos
         self._obj.boosters.axis = self._obj.axis
         # Attach the parachute to the forward cone of the habitat.
-        self._obj.parachute.pos = self._obj.pos + \
-            calc.angle_to_vpy(entity.heading) * entity.r * 0.8
+        self._obj.parachute.pos = (
+            self._obj.pos + calc.angle_to_vpy(entity.heading) * entity.r * 0.8)
 
-        parachute_is_visible = (state.craft == entity.name) and \
-            state.parachute_deployed
+        parachute_is_visible = (
+            (state.craft == entity.name) and state.parachute_deployed)
         if parachute_is_visible:
             drag = calc.drag(state)
             drag_mag = np.inner(drag, drag)
@@ -202,8 +201,8 @@ class Habitat(ThreeDeeObj):
         default = vpython.vector(0, 0, -1)
 
         ref_arrow_axis = (
-            entity.screen_pos(state.reference_entity()).norm() *
-            entity.r * -1.2
+                entity.screen_pos(state.reference_entity()).norm() *
+                entity.r * -1.2
         )
         v = entity.v - state.reference_entity().v
         velocity_arrow_axis = \

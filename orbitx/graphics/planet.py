@@ -2,8 +2,8 @@ from typing import Optional
 
 import vpython
 
-from orbitx import calc
-from orbitx import state
+from orbitx.physics import calc
+from orbitx.data_structures import Entity
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 
 
@@ -11,7 +11,7 @@ class Planet(ThreeDeeObj):
     SHININIESS = 0.3
 
     def _create_obj(
-        self, entity: state.Entity, origin: state.Entity,
+        self, entity: Entity, origin: Entity,
             texture: Optional[str]) -> vpython.sphere:
         return vpython.sphere(
             pos=entity.screen_pos(origin),
@@ -26,5 +26,5 @@ class Planet(ThreeDeeObj):
             shininess=Planet.SHININIESS
         )
 
-    def _label_text(self, entity: state.Entity) -> str:
+    def _label_text(self, entity: Entity) -> str:
         return entity.name

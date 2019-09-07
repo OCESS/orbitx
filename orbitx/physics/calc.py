@@ -9,7 +9,7 @@ import vpython
 import numpy as np
 
 from orbitx import common
-from orbitx import state
+from orbitx.data_structures import Entity, Navmode, PhysicsState
 
 log = logging.getLogger()
 
@@ -27,8 +27,9 @@ def heading_vector(heading: float) -> np.ndarray:
     return np.array([np.cos(heading), np.sin(heading)])
 
 
-def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> \
-        Optional[float]:
+def phase_angle(A: Entity,
+                B: Entity,
+                C: Entity) -> Optional[float]:
     """The orbital phase angle, between A-B-C, of the angle at B.
     i.e. the angle between the ref-hab vector and the ref-targ vector."""
     # Code from Newton Excel Bach blog, 2014, "the angle between two vectors"
@@ -43,7 +44,8 @@ def phase_angle(A: state.Entity, B: state.Entity, C: state.Entity) -> \
     ) % 360
 
 
-def orb_speed(habitat: state.Entity, reference: state.Entity) -> float:
+def orb_speed(habitat: Entity,
+              reference: Entity) -> float:
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
     return math.sqrt(
@@ -52,22 +54,22 @@ def orb_speed(habitat: state.Entity, reference: state.Entity) -> float:
          distance(reference, habitat)))
 
 
-def altitude(A: state.Entity, B: state.Entity) -> float:
+def altitude(A: Entity, B: Entity) -> float:
     """Caculate distance between ref_planet and Habitat
     returns: the number of metres"""
     return distance(A, B) - A.r - B.r
 
 
-def distance(A: state.Entity, B: state.Entity) -> float:
+def distance(A: Entity, B: Entity) -> float:
     return fastnorm(A.pos - B.pos)
 
 
-def speed(A: state.Entity, B: state.Entity) -> float:
+def speed(A: Entity, B: Entity) -> float:
     """Caculate speed between ref_planet and Habitat"""
     return fastnorm(A.v - B.v)
 
 
-def v_speed(A: state.Entity, B: state.Entity) -> float:
+def v_speed(A: Entity, B: Entity) -> float:
     """Centripetal velocity of the habitat relative to planet_name.
 
     Returns a negative number of m/s when the habitat is falling,
@@ -82,7 +84,7 @@ def v_speed(A: state.Entity, B: state.Entity) -> float:
     return radial_v * np.sign(angle_diff)
 
 
-def h_speed(A: state.Entity, B: state.Entity) -> float:
+def h_speed(A: Entity, B: Entity) -> float:
     """Tangential velocity of the habitat relative to planet_name.
 
     Always returns a scalar m/s, of how fast the habitat is
@@ -99,7 +101,7 @@ def h_speed(A: state.Entity, B: state.Entity) -> float:
     return tangent_v * np.sign(angle_diff)
 
 
-def engine_acceleration(state: state.PhysicsState) -> float:
+def engine_acceleration(state: PhysicsState) -> float:
     """Acceleration due to engine thrust."""
     craft = state.craft_entity()
     if craft.name == common.HABITAT and state.srb_time > 0:
@@ -111,7 +113,8 @@ def engine_acceleration(state: state.PhysicsState) -> float:
             srb_thrust) / (craft.mass + craft.fuel)
 
 
-def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
+def landing_acceleration(A: Entity,
+                         B: Entity) -> Optional[float]:
     """Constant acceleration required to slow to a stop at the surface of B.
     If the the entities are landed, returns 0."""
     if A.landed_on == B.name:
@@ -140,7 +143,8 @@ def landing_acceleration(A: state.Entity, B: state.Entity) -> Optional[float]:
             np.inner(v, v) / (2 * fastnorm(A.pos - B.pos)))
 
 
-def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
+def semimajor_axis(A: Entity,
+                   B: Entity) -> float:
     """Calculate semimajor axis: the mean distance between bodies in an
     elliptical orbit. See 'calculation of semi-major axis from state vectors'
     on the wikipedia article for semi-major axes."""
@@ -150,7 +154,8 @@ def semimajor_axis(A: state.Entity, B: state.Entity) -> float:
     return 1 / (2 / r - np.dot(v, v) / mu)
 
 
-def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
+def eccentricity(A: Entity,
+                 B: Entity) -> np.ndarray:
     """Calculates the eccentricity vector - a defining feature of ellipses.
     See https://space.stackexchange.com/a/1919 for the equation.
 
@@ -167,7 +172,7 @@ def eccentricity(A: state.Entity, B: state.Entity) -> np.ndarray:
     ) / mu
 
 
-def periapsis(A: state.Entity, B: state.Entity) -> float:
+def periapsis(A: Entity, B: Entity) -> float:
     """Calculates the lowest altitude in the orbit of A above B.
 
     A negative periapsis means at some point in A's orbit, A will crash into
@@ -179,7 +184,7 @@ def periapsis(A: state.Entity, B: state.Entity) -> float:
     return max(peri_distance - B.r, 0)
 
 
-def apoapsis(A: state.Entity, B: state.Entity) -> float:
+def apoapsis(A: Entity, B: Entity) -> float:
     """Calculates the highest altitude in the orbit of A above B.
 
     A positive apoapsis means at some point in A's orbit, A will
@@ -191,7 +196,7 @@ def apoapsis(A: state.Entity, B: state.Entity) -> float:
     return max(apo_distance - B.r, 0)
 
 
-def pitch(A: state.Entity, B: state.Entity) -> float:
+def pitch(A: Entity, B: Entity) -> float:
     """The angle that A is facing, relative to the surface of B.
     Should be 90 degrees when facing ccw prograde, 270 when facing
     cw retrograde, and 180 when facing directly away from B."""
@@ -200,7 +205,8 @@ def pitch(A: state.Entity, B: state.Entity) -> float:
     return normal_angle - A.heading - np.radians(180)
 
 
-def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
+def orbit_parameters(A: Entity,
+                     B: Entity) -> OrbitCoords:
     if B.mass > A.mass:
         # Ensure A has the larger mass.
         return orbit_parameters(B, A)
@@ -221,7 +227,8 @@ def orbit_parameters(A: state.Entity, B: state.Entity) -> OrbitCoords:
                        minor_axis=minor_axis, eccentricity=e)
 
 
-def rotational_speed(A: state.Entity, B: state.Entity) -> np.array:
+def rotational_speed(A: Entity,
+                     B: Entity) -> np.array:
     """Returns the velocity of A that would make A geostationary above B.
     In other words, uses the Wikipedia page on Circular Motion to determine
     A's velocity if it wants to keep its current altitude and angular position
@@ -242,9 +249,9 @@ def _rotational_speed_fast(A_pos, B_pos, B_v, B_spin) -> np.array:
 def midpoint(left: np.ndarray, right: np.ndarray, radius: float) -> np.ndarray:
     # Find the midpoint between the xyz-tuples left and right, but also
     # on the surface of a sphere (so not just a simple average).
-    midpoint = (left + right) / 2
-    midpoint_radial_dist = fastnorm(midpoint)
-    return radius * midpoint / midpoint_radial_dist
+    mid = (left + right) / 2
+    midpoint_radial_dist = np.linalg.norm(mid)
+    return radius * mid / midpoint_radial_dist
 
 
 def _build_sphere_segment_vertices(
@@ -331,7 +338,7 @@ def grav_acc(X, Y, M, Fuel):
     return forces.sum(axis=1) / M.reshape(-1, 1)
 
 
-def navmode_heading(flight_state: state.PhysicsState) -> float:
+def navmode_heading(flight_state: PhysicsState) -> float:
     """
     Returns the heading that the craft should be facing in current navmode.
 
@@ -345,31 +352,31 @@ def navmode_heading(flight_state: state.PhysicsState) -> float:
     targ = flight_state.target_entity()
     requested_vector: np.ndarray
 
-    if navmode == state.Navmode['Manual']:
+    if navmode == Navmode['Manual']:
         raise ValueError('Autopilot requested for manual navmode')
     elif navmode.name == 'CCW Prograde':
         if flight_state.reference == flight_state.craft:
             return craft.heading
         normal = craft.pos - ref.pos
         requested_vector = np.array([-normal[1], normal[0]])
-    elif navmode == state.Navmode['CW Retrograde']:
+    elif navmode == Navmode['CW Retrograde']:
         if flight_state.reference == flight_state.craft:
             return craft.heading
         normal = craft.pos - ref.pos
         requested_vector = np.array([normal[1], -normal[0]])
-    elif navmode == state.Navmode['Depart Reference']:
+    elif navmode == Navmode['Depart Reference']:
         if flight_state.reference == flight_state.craft:
             return craft.heading
         requested_vector = craft.pos - ref.pos
-    elif navmode == state.Navmode['Approach Target']:
+    elif navmode == Navmode['Approach Target']:
         if flight_state.target == flight_state.craft:
             return craft.heading
         requested_vector = targ.pos - craft.pos
-    elif navmode == state.Navmode['Pro Targ Velocity']:
+    elif navmode == Navmode['Pro Targ Velocity']:
         if flight_state.target == flight_state.craft:
             return craft.heading
         requested_vector = craft.v - targ.v
-    elif navmode == state.Navmode['Anti Targ Velocity']:
+    elif navmode == Navmode['Anti Targ Velocity']:
         if flight_state.target == flight_state.craft:
             return craft.heading
         requested_vector = targ.v - craft.v
@@ -379,7 +386,7 @@ def navmode_heading(flight_state: state.PhysicsState) -> float:
     return np.arctan2(requested_vector[1], requested_vector[0])
 
 
-def navmode_spin(flight_state: state.PhysicsState) -> float:
+def navmode_spin(flight_state: PhysicsState) -> float:
     """Returns a spin that will orient the craft according to the navmode."""
 
     craft = flight_state.craft_entity()
@@ -399,12 +406,12 @@ def navmode_spin(flight_state: state.PhysicsState) -> float:
         return np.sign(heading_difference) * common.AUTOPILOT_SPEED
 
 
-def relevant_atmosphere(flight_state: state.PhysicsState) \
-        -> Optional[state.Entity]:
+def relevant_atmosphere(flight_state: PhysicsState) \
+        -> Optional[Entity]:
     """Returns the closest entity that has an atmosphere, or None if there are
     no such entities close enough to effect the craft."""
     craft = flight_state.craft_entity()
-    closest_atmosphere: Optional[state.Entity] = None
+    closest_atmosphere: Optional[Entity] = None
     closest_distance = np.inf
 
     atmosphere_indices = flight_state.Atmospheres
@@ -414,37 +421,38 @@ def relevant_atmosphere(flight_state: state.PhysicsState) \
 
     for index in atmosphere_indices:
         atmosphere = flight_state[index]
-        distance = fastnorm(atmosphere.pos - craft.pos)
+        dist = fastnorm(atmosphere.pos - craft.pos)
         # np.inner is the same as the magnitude squared
         # https://stackoverflow.com/a/35213951
         # We use the squared distance because it's much faster to calculate.
-        if distance < closest_distance:
+        if dist < closest_distance:
             # We found a closer planet with an atmosphere
             exponential = (
-                -(distance - craft.r - atmosphere.r) / 1000 /
+                -(dist - craft.r - atmosphere.r) / 1000 /
                 atmosphere.atmosphere_scaling)
             if exponential > -20:
                 # Entity has an atmosphere and it's close enough to be relevant
-                closest_distance = distance
+                closest_distance = dist
                 closest_atmosphere = atmosphere
 
     return closest_atmosphere
 
 
-def pressure(craft: state.Entity, atmosphere: state.Entity) -> float:
+def pressure(craft: Entity,
+             atmosphere: Entity) -> float:
     """Calculates the pressure exerted by atmosphere on the craft."""
     # Taken from orbit5v.bas,
     # This exponential-form equation seems to be the barometric formula:
     # https://en.wikipedia.org/wiki/Barometric_formula
-    distance = fastnorm(atmosphere.pos - craft.pos)
+    dist = fastnorm(atmosphere.pos - craft.pos)
     return (
         atmosphere.atmosphere_thickness *
         np.exp(
-            -(distance - craft.r - atmosphere.r) / 1000 /
+            -(dist - craft.r - atmosphere.r) / 1000 /
             atmosphere.atmosphere_scaling))
 
 
-def drag(flight_state: state.PhysicsState) -> np.ndarray:
+def drag(flight_state: PhysicsState) -> np.ndarray:
     """Calculates the directional drag exerted on the craft by an atmosphere.
     """
     atmosphere = relevant_atmosphere(flight_state)

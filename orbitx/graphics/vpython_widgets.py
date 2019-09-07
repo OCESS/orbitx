@@ -107,7 +107,7 @@ inp_box.placeholder = "{placeholder}";
 
 def stuff_widgets_into_flex_box(widget_ids: List[int], text: str = ''):
     """Stuffs the specified widgets into a div with the flex-box class."""
-    query_selector = ','.join([f"[id='{id}']" for id in widget_ids])
+    query_selector = ','.join([f"[id='{wid}']" for wid in widget_ids])
     vpython.canvas.get_selected().append_to_caption(
         f"<div class='flex-box'>{text}</div>")
     vpython.canvas.get_selected().append_to_caption(f"""<script>

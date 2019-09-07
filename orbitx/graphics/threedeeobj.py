@@ -7,9 +7,9 @@ from typing import Optional, Union
 import vpython
 import numpy as np
 
-from orbitx import calc
+from orbitx.physics import calc
 from orbitx import common
-from orbitx import state
+from orbitx.data_structures import Entity, PhysicsState
 
 log = logging.getLogger()
 
@@ -18,7 +18,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
 
     @abstractmethod
     def _create_obj(self,
-                    entity: state.Entity, origin: state.Entity,
+                    entity: Entity, origin: Entity,
                     texture: Optional[str]
                     ) -> Union[vpython.sphere, vpython.compound]:
         """Create a 3D object, like a planet, a star, or a spaceship, using
@@ -47,7 +47,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _label_text(self, entity: state.Entity) -> str:
+    def _label_text(self, entity: Entity) -> str:
         """Return text that should be put in the label for a 3d object.
         This method is evaluated every frame using the newest physics data."""
         pass
@@ -62,8 +62,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
     LANDING_GRAPHIC_OPAQUE_ALTITUDE = 100_000
     LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
 
-    def __init__(self, entity: state.Entity,
-                 origin: state.Entity, texture_path: Path) -> None:
+    def __init__(self, entity: Entity,
+                 origin: Entity, texture_path: Path) -> None:
         texture_path = texture_path / (entity.name + '.jpg')
 
         texture = str(texture_path) if texture_path.is_file() else None
@@ -76,7 +76,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
             pos=self._obj.pos, xoffset=10, yoffset=10, border=4, font='sans',
             text=self._label_text(entity))
 
-    def draw_landing_graphic(self, entity: state.Entity) -> None:
+    def draw_landing_graphic(self, entity: Entity) -> None:
         log.debug(f'drawing landing graphic for {entity.name}')
         """Draw something that simulates a flat surface at near zoom levels."""
         def graphic(size: float):
@@ -110,7 +110,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
 
     def _update_landing_graphic(
         self, graphic: vpython.compound,
-        entity: state.Entity, craft: state.Entity
+        entity: Entity, craft: Entity
     ) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
@@ -146,8 +146,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible
 
-    def _update_obj(self, entity: state.Entity,
-                    state: state.PhysicsState, origin: state.Entity) -> None:
+    def _update_obj(self, entity: Entity,
+                    state: PhysicsState, origin: Entity) -> None:
         # update planet objects
         self._obj.pos = entity.screen_pos(origin)
         self._obj.axis = calc.angle_to_vpy(entity.heading)
@@ -167,8 +167,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
     def relevant_range(self) -> float:
         return self._obj.radius * 2
 
-    def draw(self, entity: state.Entity,
-             state: state.PhysicsState, origin: state.Entity):
+    def draw(self, entity: Entity,
+             state: PhysicsState, origin: Entity):
         self._update_obj(entity, state, origin)
 
     def clear_trail(self) -> None:

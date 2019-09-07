@@ -2,8 +2,8 @@ from typing import Optional
 
 import vpython
 
-from orbitx import calc
-from orbitx import state
+from orbitx.physics import calc
+from orbitx.data_structures import Entity
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 
 
@@ -11,7 +11,7 @@ class ScienceModule(ThreeDeeObj):
     SHININIESS = 0.3
 
     def _create_obj(
-        self, entity: state.Entity, origin: state.Entity,
+        self, entity: Entity, origin: Entity,
             texture: Optional[str]) -> vpython.sphere:
         main_body = vpython.box()
         side_panels = vpython.box(
@@ -31,5 +31,5 @@ class ScienceModule(ThreeDeeObj):
         obj.radius = entity.r
         return obj
 
-    def _label_text(self, entity: state.Entity) -> str:
+    def _label_text(self, entity: Entity) -> str:
         return entity.name

@@ -88,7 +88,7 @@ class Entity:
 
     @property
     def pos(self):
-        return np.asarray([self.x, self.y])
+        return np.array((self.x, self.y), dtype=PhysicsState.DTYPE, copy=True)
 
     @pos.setter
     def pos(self, coord):
@@ -346,7 +346,7 @@ class PhysicsState:
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
 
         assert len(self._array_rep.shape) == 1, \
-            f'y is not 1D: {self._array_rep.shape()}'
+            f'y is not 1D: {self._array_rep.shape}'
         assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) % \
             len(_PER_ENTITY_MUTABLE_FIELDS) == 0, self._array_rep.size
         assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) // \

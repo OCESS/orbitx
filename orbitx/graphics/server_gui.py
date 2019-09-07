@@ -15,7 +15,7 @@ import vpython
 
 from orbitx import common
 from orbitx import network
-from orbitx import state
+from orbitx.data_structures import PhysicsState
 from orbitx.graphics import vpython_widgets
 
 log = logging.getLogger()
@@ -69,9 +69,9 @@ class ConnectionViewer:
 class ServerGui:
     UPDATES_PER_SECOND = 10
 
-    def __init__(self, initial_loadfile: Path):
+    def __init__(self):
         self._commands: List[network.Request] = []
-        self._last_state: state.PhysicsState
+        self._last_state: PhysicsState
         self.connection_viewer = ConnectionViewer()
         canvas = vpython.canvas(width=1, height=1)
 
@@ -135,7 +135,7 @@ document.querySelector(
         self._commands = []
         return old_commands
 
-    def update(self, state: state.PhysicsState, client_types: Dict[str, str]):
+    def update(self, state: PhysicsState, client_types: Dict[str, str]):
         self._last_state = state
         connected_clients = self.connection_viewer.connected_clients()
         current_client_locs = [

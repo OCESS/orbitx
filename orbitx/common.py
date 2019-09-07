@@ -14,7 +14,7 @@ import google.protobuf.json_format
 import vpython
 
 from orbitx import orbitx_pb2 as protos
-from orbitx import state
+from orbitx import data_structures
 
 
 # Frequently-used entity names are here as constants. You can use string
@@ -142,7 +142,7 @@ def savefile(name: str) -> Path:
     return PROGRAM_PATH / 'data' / 'saves' / name
 
 
-def load_savefile(file: Path) -> 'state.PhysicsState':
+def load_savefile(file: Path) -> 'data_structures.PhysicsState':
     """Loads the physics state represented by the input file.
     If the input file is an OrbitX-style .json file, simply loads it.
     If the input file is an OrbitV-style .rnd file, tries to interpret it
@@ -152,7 +152,7 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
     # common.py is imported by lots of modules and shouldn't circularly depend
     # on anything.
     from orbitx import orbitv_file_interface
-    physics_state: state.PhysicsState
+    physics_state: data_structures.PhysicsState
     logging.getLogger().info(f'Loading savefile {file.resolve()}')
 
     assert isinstance(file, Path)
@@ -169,7 +169,7 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
             data = f.read()
         read_state = protos.PhysicalState()
         google.protobuf.json_format.Parse(data, read_state)
-        physics_state = state.PhysicsState(None, read_state)
+        physics_state = data_structures.PhysicsState(None, read_state)
 
     if physics_state.time_acc == 0:
         physics_state.time_acc = 1
@@ -182,7 +182,7 @@ def load_savefile(file: Path) -> 'state.PhysicsState':
     return physics_state
 
 
-def write_savefile(state: 'state.PhysicsState', file: Path):
+def write_savefile(state: 'data_structures.PhysicsState', file: Path):
     """Writes state to the specified savefile path (use common.savefile to get
     a savefile path in data/saves/). Returns a possibly-different path that it
     was saved under."""
@@ -213,6 +213,11 @@ def start_flamegraphing():
 
 
 def start_profiling():
+    # This will show the performance impact of each function.
+    # If you want to see the performance impact of each _line_ in a function,
+    # pip install line_profiler
+    # and add @profile annotations to functions of interest, then run kernprof
+    # as described in the line_profiler package.
     import yappi
     yappi.set_clock_type('cpu')
     yappi.start()
@@ -229,7 +234,7 @@ def _dump_profiling_stats():
     yappi.stop()
     yappi_output = StringIO()
     yappi.get_func_stats().sort('tsub').print_all(out=yappi_output)
-    for line in yappi_output.getvalue().split('\n')[0:20]:
+    for line in yappi_output.getvalue().split('\n')[0:30]:
         print(line)
 
 

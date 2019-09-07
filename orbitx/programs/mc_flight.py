@@ -38,7 +38,7 @@ def main(args: argparse.Namespace):
     lead_server_connection = network.StateClient(
         Request.MC_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
-    physics_engine = physics.PEngine(state)
+    physics_engine = physics.PhysicsEngine(state)
 
     gui = flight_gui.FlightGui(state, title=name, running_as_mirror=True)
     atexit.register(gui.shutdown)
