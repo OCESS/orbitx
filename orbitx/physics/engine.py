@@ -29,7 +29,8 @@ from orbitx.physics import calc
 from orbitx import common
 from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import protos, Entity, Navmode, PhysicsState
+from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, \
+    _FIELD_ORDERING
 
 SOLUTION_CACHE_SIZE = 2
 
@@ -71,7 +72,7 @@ class PhysicsEngine:
     # Increasing this constant results in the simulation being faster to
     # compute but less accurate of an approximation. If Phobos starts crashing
     # into Mars, tweak this downwards.
-    MAX_STEP_SIZE = 50
+    MAX_STEP_SIZE = 100
 
     def __init__(self, physical_state: PhysicsState):
         # Controls access to self._solutions. If anything changes that is
@@ -143,7 +144,7 @@ class PhysicsEngine:
     def _start_simthread(self, t0: float, y0: PhysicsState) -> None:
         if round(y0.time_acc) == 0:
             # We've paused the simulation. Don't start a new simthread
-            log.debug('Pausing simulation')
+            log.info('Pausing simulation')
             return
 
         # We don't need to synchronize self._last_simtime or
@@ -420,17 +421,16 @@ class PhysicsEngine:
                 SrbFuelEvent()
             ]
             if y.craft is not None:
-                craft_index = y._name_to_index(y.craft)
                 events.append(HighAccEvent(
                     derive_func,
-                    2 * len(y) + craft_index,
-                    3 * len(y) + craft_index,
+                    self._artificials,
                     TIME_ACC_TO_BOUND[round(y.time_acc)],
-                    y.time_acc))
+                    y.time_acc,
+                    len(y)))
 
             ivp_out = scipy.integrate.solve_ivp(
                 fun=derive_func,
-                t_span=[t, t + min(y.time_acc, 20 * self.MAX_STEP_SIZE)],
+                t_span=[t, t + min(y.time_acc, 10 * self.MAX_STEP_SIZE)],
                 # solve_ivp requires a 1D y0 array
                 y0=y.y0(),
                 events=events,
@@ -632,13 +632,14 @@ class LiftoffEvent(Event):
 class HighAccEvent(Event):
     def __init__(
             self, derive: Callable[[float, np.ndarray], np.ndarray],
-            ax_index: int, ay_index: int, acc_bound: float, current_acc: float
-    ):
+            artificials: List[int], acc_bound: float, current_acc: float,
+            n_entities: int):
         self.derive = derive
-        self.ax_index = ax_index
-        self.ay_index = ay_index
+        self.artificials = artificials
         self.acc_bound = acc_bound
         self.current_acc = round(current_acc)
+        self.ax_offset = n_entities * _FIELD_ORDERING['vx']
+        self.ay_offset = n_entities * _FIELD_ORDERING['vy']
 
     def __call__(self, t: float, y_1d: np.ndarray) -> float:
         """Return positive if the current time acceleration is accurate, zero
@@ -647,10 +648,14 @@ class HighAccEvent(Event):
             # If we can't lower the time acc, don't bother doing any work.
             return np.inf
         derive_result = self.derive(t, y_1d)
-        accel_vector = np.array(
-            [derive_result[self.ax_index], derive_result[self.ay_index]])
-        acc = calc.fastnorm(accel_vector)
-        return self.acc_bound - acc
+        max_acc_mag = 0.0005  # A small nonzero value.
+        for artif_index in self.artificials:
+            accel = (derive_result[self.ax_offset] + artif_index,
+                     derive_result[self.ay_offset] + artif_index)
+            acc_mag = calc.fastnorm(accel)
+            if acc_mag > max_acc_mag:
+                max_acc_mag = acc_mag
+        return max(self.acc_bound - acc_mag, 0)
 
 
 def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:

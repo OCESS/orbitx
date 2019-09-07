@@ -45,13 +45,13 @@ class TimeAcc(NamedTuple):
 TIME_ACCS = [
     TimeAcc(value=0,       desc='Pause',    accurate_bound=10000),
     TimeAcc(value=1,       desc='1×',       accurate_bound=1000),
-    TimeAcc(value=5,       desc='5×',       accurate_bound=9),
-    TimeAcc(value=10,      desc='10×',      accurate_bound=7),
-    TimeAcc(value=50,      desc='50×',      accurate_bound=5),
-    TimeAcc(value=100,     desc='100×',     accurate_bound=3),
-    TimeAcc(value=1_000,   desc='1,000×',   accurate_bound=1),
-    TimeAcc(value=10_000,  desc='10,000×',  accurate_bound=0.1),
-    TimeAcc(value=100_000, desc='100,000×', accurate_bound=0.01)
+    TimeAcc(value=5,       desc='5×',       accurate_bound=12),
+    TimeAcc(value=10,      desc='10×',      accurate_bound=9),
+    TimeAcc(value=50,      desc='50×',      accurate_bound=7),
+    TimeAcc(value=100,     desc='100×',     accurate_bound=5),
+    TimeAcc(value=1_000,   desc='1,000×',   accurate_bound=3),
+    TimeAcc(value=10_000,  desc='10,000×',  accurate_bound=1),
+    TimeAcc(value=100_000, desc='100,000×', accurate_bound=0.1)
 ]
 
 # ---------------- Graphics-related constants ---------------

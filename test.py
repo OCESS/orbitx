@@ -252,7 +252,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 [network.Request(ident=network.Request.TIME_ACC_SET,
                                  time_acc_set=common.TIME_ACCS[-1].value)],
                 requested_t=initial_t + 10)
-            final = physics_engine.get_state(initial_t + 1_000_000)
+            final = physics_engine.get_state(initial_t + 100_000)
             self.assertAlmostEqual(
                 calc.fastnorm(initial['Earth'].pos - initial['Habitat'].pos),
                 initial['Earth'].r + initial['Habitat'].r,

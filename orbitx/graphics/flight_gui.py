@@ -695,7 +695,8 @@ class Sidebar:
             selected=TIME_ACC_TO_STR[1],
             bind=self._parent._time_acc_dropdown_hook,
             caption="Warp",
-            helptext="Speed of simulation"
+            helptext=("Speed of simulation. Can't be raised when a craft is "
+                      "under high acceleration")
         )
 
         self.misc_menu = Menu(
