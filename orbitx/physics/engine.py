@@ -761,10 +761,10 @@ def _bounce(e1, e2):
     unit_tang = np.asarray([-unit_norm[1], unit_norm[0]])
 
     # Calculate both normal and tangent velocities for both entities
-    v1n = scipy.dot(unit_norm, e1.v)
-    v1t = scipy.dot(unit_tang, e1.v)
-    v2n = scipy.dot(unit_norm, e2.v)
-    v2t = scipy.dot(unit_tang, e2.v)
+    v1n = np.dot(unit_norm, e1.v)
+    v1t = np.dot(unit_tang, e1.v)
+    v2n = np.dot(unit_norm, e2.v)
+    v2t = np.dot(unit_tang, e2.v)
 
     # Use https://en.wikipedia.org/wiki/Elastic_collision
     # to find the new normal velocities (a 1D collision)
