@@ -95,9 +95,9 @@ def main():
     # exception if we try to use vpython. DeprecationWarnings are normally
     # enabled when __name__ == __main__
     warnings.filterwarnings('once', category=DeprecationWarning)
-    # vpython generates other warnings, as well as its use of asyncio
+    # vpython generates other warnings, as well as its dependent libraries
     warnings.filterwarnings('ignore', category=ResourceWarning)
-    warnings.filterwarnings('ignore', module='vpython|asyncio|autobahn')
+    warnings.filterwarnings('ignore', module='vpython|asyncio|autobahn|txaio')
 
     log_git_info()
 
