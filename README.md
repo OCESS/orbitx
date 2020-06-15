@@ -33,7 +33,7 @@ instructions, read `CONTRIBUTING.md`.
 It's recommended you develop and run in a virtualenv. Setup is as follows:
 
 First, fork your own copy of `orbitx` on GitHub (you'll need a GitHub account
-for this). Then,
+for this). See below for windows-specific changes. Then,
 ```
 git clone https://github.com/your-github-username/orbitx
 cd orbitx
@@ -46,7 +46,7 @@ make install # installs packages in requirements.txt, make sure you've activated
 
 If you're on windows, replace `source venv/bin/activate` with
 `Scripts\Activate.bat` on `cmd`, or `Scripts\Activate.ps1` if you know you're
-running powershell.
+running powershell. Also you'll have to just run the make commands manually, by running `cat Makefile` and copying the command you want.
 
 And when you want to restart development, just do:
 
