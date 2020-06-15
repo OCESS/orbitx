@@ -24,7 +24,7 @@ TZ_OFFSET_SECONDS = \
     calendar.timegm(time.gmtime()) - calendar.timegm(time.localtime())
 
 
-class ClientConnection(NamedTuple):
+class GrpcChannel(NamedTuple):
     """Represents data about a client connection."""
     location: str
     socket: channelz_pb2.Socket
@@ -36,7 +36,7 @@ class ConnectionViewer:
     def __init__(self):
         self._target_server_id: Optional[int] = None
 
-    def connected_clients(self) -> List[ClientConnection]:
+    def open_grpc_channels(self) -> List[GrpcChannel]:
         """Returns a list of unique address:port identifiers, each
         corresponding to a connected client."""
         if self._target_server_id is None:
@@ -54,16 +54,16 @@ class ConnectionViewer:
                 self._target_server_id, 0, 0),
             channelz_pb2.GetServerSocketsResponse(),
         )
-        connections = []
+        channels = []
         for ssock in ssockets.socket_ref:
-            connections.append(ClientConnection(
+            channels.append(GrpcChannel(
                 ssock.name,
                 json_format.Parse(
                     cygrpc.channelz_get_socket(ssock.socket_id),
                     channelz_pb2.GetSocketResponse()
                 )
             ))
-        return connections
+        return channels
 
 
 class ServerGui:
@@ -135,27 +135,26 @@ document.querySelector(
         self._commands = []
         return old_commands
 
-    def update(self, state: PhysicsState, client_types: Dict[str, str]):
+    def update(self, state: PhysicsState, addr_to_client_type: Dict[str, str]):
         self._last_state = state
-        connected_clients = self.connection_viewer.connected_clients()
-        current_client_locs = [
-            client.location for client in connected_clients
+        open_grpc_channels = self.connection_viewer.open_grpc_channels()
+        current_client_addrs = [
+            client.location for client in open_grpc_channels
         ]
 
-        if current_client_locs != self._last_client_locs and \
-                all(client in client_types for client in current_client_locs):
+        if current_client_addrs != self._last_client_locs:
             # We only want to change the DOM when there is a change in clients,
             # which we notice when the cached list of unique client identifiers
             # changes.
-            self._last_client_locs = current_client_locs
-            self._build_clients_table(connected_clients, client_types)
+            self._last_client_locs = current_client_addrs
+            self._build_clients_table(addr_to_client_type)
             # By clearing this dict, we keep stale items out of it and allow
             # them to be populated with fresher values.
-            client_types.clear()
+            addr_to_client_type.clear()
 
         current_time = Timestamp()
         current_time.GetCurrentTime()
-        for wtext, client in zip(self._last_contact_wtexts, connected_clients):
+        for wtext, client in zip(self._last_contact_wtexts, open_grpc_channels):
             last_contact = \
                 client.socket.socket.data.last_message_received_timestamp
             relative_last_message_time = (
@@ -171,9 +170,7 @@ document.querySelector(
 
         vpython.rate(self.UPDATES_PER_SECOND)
 
-    def _build_clients_table(self,
-                             connections: List[ClientConnection],
-                             client_types: Dict[str, str]):
+    def _build_clients_table(self, client_locations: Dict[str, str]):
         text = "<table>"
         text += "<caption>Connected OrbitX clients</caption>"
         text += "<tr>"
@@ -183,22 +180,17 @@ document.querySelector(
         text += "</tr>"
         self._last_contact_wtexts = []
 
-        if len(connections) == 0:
+        if len(client_locations) == 0:
             text += \
                 "<tr><td colspan='3'>No currently connected clients</td></tr>"
 
-        for client in connections:
-            try:
-                client_type = client_types[client.location]
-            except KeyError:
-                client_type = '&nbsp;'
-
+        for client_address, client_type in client_locations.items():
             self._last_contact_wtexts.append(vpython.wtext(text=''))
             vpython_widgets.last_div_id += 1
             text += "<tr>"
             text += f"<td>{client_type}</td>"
-            text += f"<td>{client.location}</td>"
-            text += f"<td><div id={vpython_widgets.last_div_id}></div></td>"
+            text += f"<td>{client_address}</td>"
+            text += f"<td><div id={vpython_widgets.last_div_id}>DISCONNECTED</div></td>"
             text += "</tr>"
 
         text += "</table>"
