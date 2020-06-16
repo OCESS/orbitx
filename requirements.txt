@@ -1,6 +1,5 @@
 autopep8
 grpcio
-grpcio-channelz
 grpcio-tools
 protobuf
 six

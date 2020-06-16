@@ -1,16 +1,12 @@
 """A simple textual GUI for the Physics Server."""
 
-import calendar
 import logging
 import socket
 import time
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional
+from types import SimpleNamespace
+from typing import List
 
-from grpc._cython import cygrpc
-from google.protobuf import json_format
-from google.protobuf.timestamp_pb2 import Timestamp
-from grpc_channelz.v1 import channelz_pb2
 import vpython
 
 from orbitx import common
@@ -20,51 +16,6 @@ from orbitx.graphics import vpython_widgets
 
 log = logging.getLogger()
 
-TZ_OFFSET_SECONDS = \
-    calendar.timegm(time.gmtime()) - calendar.timegm(time.localtime())
-
-
-class GrpcChannel(NamedTuple):
-    """Represents data about a client connection."""
-    location: str
-    socket: channelz_pb2.Socket
-
-
-class ConnectionViewer:
-    """Queries C-Core channelz statistics to see what clients have open channels
-    with this GRPC process."""
-    def __init__(self):
-        self._target_server_id: Optional[int] = None
-
-    def open_grpc_channels(self) -> List[GrpcChannel]:
-        """Returns a list of unique address:port identifiers, each
-        corresponding to a connected client."""
-        if self._target_server_id is None:
-            # Get the server id of the only existing server in this process.
-            servers = json_format.Parse(
-                cygrpc.channelz_get_servers(0),
-                channelz_pb2.GetServersResponse(),
-            )
-            assert len(servers.server) == 1
-            self._target_server_id = servers.server[0].ref.server_id
-
-        # Get all server sockets, each of which represent a client connection.
-        ssockets = json_format.Parse(
-            cygrpc.channelz_get_server_sockets(
-                self._target_server_id, 0, 0),
-            channelz_pb2.GetServerSocketsResponse(),
-        )
-        channels = []
-        for ssock in ssockets.socket_ref:
-            channels.append(GrpcChannel(
-                ssock.name,
-                json_format.Parse(
-                    cygrpc.channelz_get_socket(ssock.socket_id),
-                    channelz_pb2.GetSocketResponse()
-                )
-            ))
-        return channels
-
 
 class ServerGui:
     UPDATES_PER_SECOND = 10
@@ -72,7 +23,6 @@ class ServerGui:
     def __init__(self):
         self._commands: List[network.Request] = []
         self._last_state: PhysicsState
-        self.connection_viewer = ConnectionViewer()
         canvas = vpython.canvas(width=1, height=1)
 
         common.include_vpython_footer_file(
@@ -122,7 +72,7 @@ document.querySelector(
     'span[id="{vpython_widgets.last_div_id}"]').className = 'nohide';
 </script>""")
         self._last_contact_wtexts: List[vpython.wtext] = []
-        self._last_client_locs: Optional[List[str]] = None
+        self._previous_number_of_clients: int = 0
 
         # This is needed to launch vpython.
         vpython.sphere()
@@ -135,42 +85,23 @@ document.querySelector(
         self._commands = []
         return old_commands
 
-    def update(self, state: PhysicsState, addr_to_client_type: Dict[str, str]):
-        self._last_state = state
-        open_grpc_channels = self.connection_viewer.open_grpc_channels()
-        current_client_addrs = [
-            client.location for client in open_grpc_channels
-        ]
-
-        if current_client_addrs != self._last_client_locs:
+    def update(self, state: PhysicsState, clients: List[SimpleNamespace]):
+        if len(clients) != self._previous_number_of_clients:
             # We only want to change the DOM when there is a change in clients,
             # which we notice when the cached list of unique client identifiers
             # changes.
-            self._last_client_locs = current_client_addrs
-            self._build_clients_table(addr_to_client_type)
-            # By clearing this dict, we keep stale items out of it and allow
-            # them to be populated with fresher values.
-            addr_to_client_type.clear()
+            self._previous_number_of_clients = len(clients)
+            self._build_clients_table(clients)
 
-        current_time = Timestamp()
-        current_time.GetCurrentTime()
-        for wtext, client in zip(self._last_contact_wtexts, open_grpc_channels):
-            last_contact = \
-                client.socket.socket.data.last_message_received_timestamp
-            relative_last_message_time = (
-                (current_time.seconds + current_time.nanos / 1e9) -
-                (last_contact.seconds + last_contact.nanos / 1e9)
-            )
-
-            # I think just on Windows, this time difference might be off by
-            # the time zone, make an adjustment for that.
-            relative_last_message_time %= TZ_OFFSET_SECONDS
+        current_time = time.monotonic()
+        for wtext, client in zip(self._last_contact_wtexts, clients):
+            relative_last_message_time = current_time - client.last_contact
 
             wtext.text = f'{relative_last_message_time:.1f} seconds ago'
 
         vpython.rate(self.UPDATES_PER_SECOND)
 
-    def _build_clients_table(self, client_locations: Dict[str, str]):
+    def _build_clients_table(self, clients: List[SimpleNamespace]):
         text = "<table>"
         text += "<caption>Connected OrbitX clients</caption>"
         text += "<tr>"
@@ -180,18 +111,18 @@ document.querySelector(
         text += "</tr>"
         self._last_contact_wtexts = []
 
-        if len(client_locations) == 0:
+        if len(clients) == 0:
             text += \
                 "<tr><td colspan='3'>No currently connected clients</td></tr>"
 
-        for client_address, client_type in client_locations.items():
+        for client in clients:
             self._last_contact_wtexts.append(vpython.wtext(text=''))
             vpython_widgets.last_div_id += 1
             text += "<tr>"
-            text += f"<td>{client_type}</td>"
-            text += f"<td>{client_address}</td>"
-            text += f"<td><div id={vpython_widgets.last_div_id}>DISCONNECTED</div></td>"
-            text += "</tr>"
+            text += f"<td>{client.client_type}</td>"
+            text += f"<td>{client.client_addr}</td>"
+            text += f"<td><div id={vpython_widgets.last_div_id}>Connecting"
+            text += "</div></td></tr>"
 
         text += "</table>"
         self._clients_table.text = text

@@ -55,9 +55,11 @@ def main(args: argparse.Namespace):
     physics_engine = physics.PhysicsEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
+    TICKS_BETWEEN_CLIENT_LIST_REFRESHES = 100
+    ticks_until_next_client_list_refresh = 0
+
     server = grpc.server(
-        concurrent.futures.ThreadPoolExecutor(max_workers=4),
-        options=network.ENABLE_CHANNELZ)
+        concurrent.futures.ThreadPoolExecutor(max_workers=4))
     atexit.register(lambda: server.stop(grace=2))
     grpc_stubs.add_StateServerServicer_to_server(state_server, server)
     server.add_insecure_port(f'[::]:{network.DEFAULT_PORT}')
@@ -76,12 +78,18 @@ def main(args: argparse.Namespace):
             state = physics_engine.get_state()
             state_server.notify_state_change(state.as_proto())
 
+            if ticks_until_next_client_list_refresh == 0:
+                ticks_until_next_client_list_refresh = \
+                    TICKS_BETWEEN_CLIENT_LIST_REFRESHES
+                state_server.refresh_client_list()
+            ticks_until_next_client_list_refresh -= 1
+
             # If we have any commands, process them so the simthread has as
             # much time as possible to restart before next update.
             commands = state_server.pop_commands() + gui.pop_commands()
             physics_engine.handle_requests(commands)
 
-            gui.update(state, state_server.client_types)
+            gui.update(state, state_server.addr_to_connected_clients.values())
     finally:
         server.stop(grace=1)
 

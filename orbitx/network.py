@@ -2,7 +2,9 @@
 
 import logging
 import threading
+import time
 import queue
+from types import SimpleNamespace
 from typing import Dict, List, Optional, Iterable
 
 import grpc
@@ -15,7 +17,6 @@ log = logging.getLogger()
 
 
 DEFAULT_PORT = 28430
-ENABLE_CHANNELZ = (('grpc.enable_channelz', 1),)
 
 # This Request class is just an alias of the Command protobuf message. We
 # provide this so that nobody has to directly import orbitx_pb2, and so that
@@ -39,7 +40,7 @@ class StateServer(grpc_stubs.StateServerServicer):
     Magic!
     """
 
-    # Keep this in syn with the ClientType definition in orbitx.proto.
+    # Keep this in sync with the ClientType definition in orbitx.proto.
     CLIENT_TYPE_TO_STR = [
         'Invalid client',
         'MC Flight',
@@ -51,7 +52,7 @@ class StateServer(grpc_stubs.StateServerServicer):
         self._class_used_properly = False
         self._internal_state_lock = threading.Lock()
         self._commands = queue.Queue()
-        self.client_types: Dict[str, str] = {}
+        self.addr_to_connected_clients: Dict[str, SimpleNamespace] = {}
 
     def notify_state_change(self, physical_state_copy: protos.PhysicalState):
         # This flag is to make sure this class is set up and being used
@@ -81,8 +82,15 @@ class StateServer(grpc_stubs.StateServerServicer):
                 self._commands.put(request)
         assert client_type is not None
 
-        self.client_types[context.peer()] = \
-            self.CLIENT_TYPE_TO_STR[client_type]
+        if context.peer() not in self.addr_to_connected_clients:
+            self.addr_to_connected_clients[context.peer()] = \
+                SimpleNamespace(
+                    client_type=self.CLIENT_TYPE_TO_STR[client_type],
+                    client_addr=context.peer()
+                )
+
+        self.addr_to_connected_clients[context.peer()].last_contact = \
+            time.monotonic()
 
         with self._internal_state_lock:
             assert self._class_used_properly
@@ -100,6 +108,9 @@ class StateServer(grpc_stubs.StateServerServicer):
             pass
         return commands
 
+    def refresh_client_list(self):
+        self.addr_to_connected_clients.clear()
+
 
 class StateClient:
     """
@@ -113,8 +124,7 @@ class StateClient:
 
     def __init__(self, client: protos.Command.ClientType, hostname: str):
         self.channel = grpc.insecure_channel(
-            f'{hostname}:{DEFAULT_PORT}',
-            options=ENABLE_CHANNELZ)
+            f'{hostname}:{DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
         self.client_type = client
 
