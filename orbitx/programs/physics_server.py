@@ -55,7 +55,7 @@ def main(args: argparse.Namespace):
     physics_engine = physics.PhysicsEngine(common.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
-    TICKS_BETWEEN_CLIENT_LIST_REFRESHES = 100
+    TICKS_BETWEEN_CLIENT_LIST_REFRESHES = 150
     ticks_until_next_client_list_refresh = 0
 
     server = grpc.server(
@@ -75,6 +75,11 @@ def main(args: argparse.Namespace):
             common.start_profiling()
 
         while True:
+            # If we have any commands, process them immediately so input lag
+            # is minimized.
+            commands = state_server.pop_commands() + gui.pop_commands()
+            physics_engine.handle_requests(commands)
+
             state = physics_engine.get_state()
             state_server.notify_state_change(state.as_proto())
 
@@ -83,11 +88,6 @@ def main(args: argparse.Namespace):
                     TICKS_BETWEEN_CLIENT_LIST_REFRESHES
                 state_server.refresh_client_list()
             ticks_until_next_client_list_refresh -= 1
-
-            # If we have any commands, process them so the simthread has as
-            # much time as possible to restart before next update.
-            commands = state_server.pop_commands() + gui.pop_commands()
-            physics_engine.handle_requests(commands)
 
             gui.update(state, state_server.addr_to_connected_clients.values())
     finally:

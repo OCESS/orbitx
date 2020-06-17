@@ -29,7 +29,7 @@ OCESS = 'OCESS'
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
-FRAMERATE = 10
+FRAMERATE = 60
 
 
 class TimeAcc(NamedTuple):
