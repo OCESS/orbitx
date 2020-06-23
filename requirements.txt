@@ -4,13 +4,13 @@ grpcio-tools
 protobuf
 six
 vpython>=7.5.1
-numpy~=1.18.1
-scipy~=1.4.1
+numpy
+scipy
 flake8
 flamegraph
 mypy
 mypy-protobuf
-pytz~=2020.1
+pytz
 yappi
-numba~=0.49.1
+numba
 icc_rt
