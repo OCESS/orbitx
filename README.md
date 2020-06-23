@@ -15,7 +15,7 @@ This project is maintained by
 - Patrick
 - Ye Qin
 - Sean
-- Stefan De Young
+- Cesare Corazza
 
 As part of CS493 and CS494, a final year project course at Waterloo.
 
