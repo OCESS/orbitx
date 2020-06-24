@@ -21,6 +21,7 @@ from orbitx.data_structures import Entity, Navmode, PhysicsState
 from orbitx.network import Request
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
+from orbitx.graphics.earth import Earth
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.spacestation import SpaceStation
@@ -127,6 +128,8 @@ class FlightGui:
             obj = Star(entity, self.origin(), self.texture_path)
         elif entity.name == common.MODULE:
             obj = ScienceModule(entity, self.origin(), self.texture_path)
+        elif entity.name == common.EARTH:
+            obj = Earth(entity, self.origin(), self.texture_path)
         else:
             obj = Planet(entity, self.origin(), self.texture_path)
         obj.make_trail(self._show_trails)
