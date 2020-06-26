@@ -49,7 +49,7 @@ def orb_speed(habitat: Entity,
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
     return math.sqrt(
-        (reference.mass**2 * common.G) /
+        (reference.mass ** 2 * common.G) /
         ((habitat.mass + reference.mass) *
          distance(reference, habitat)))
 
@@ -133,9 +133,9 @@ def landing_acceleration(A: Entity,
     v = A.v - B.v
     vx, vy = v
     r = A.r + B.r
-    if (-x**2 * vy**2 + 2 * x * y * vx * vy -
-        y**2 * vx**2 + r**2 * vx**2 + r**2 * vy**2) < 0 or \
-            vx**2 + vy**2 == 0:
+    if (-x ** 2 * vy ** 2 + 2 * x * y * vx * vy -
+        y ** 2 * vx ** 2 + r ** 2 * vx ** 2 + r ** 2 * vy ** 2) < 0 or \
+            vx ** 2 + vy ** 2 == 0:
         return None
 
     # np.inner(vector, vector) is the squared norm, i.e. |vector|^2
@@ -168,8 +168,8 @@ def eccentricity(A: Entity,
     mu = common.G * (B.mass + A.mass)
     # e⃗ = [ (v*v - μ/r)r⃗  - (r⃗ ∙ v⃗)v⃗ ] / μ
     return (
-        (fastnorm(v)**2 - mu / fastnorm(r)) * r - np.dot(r, v) * v
-    ) / mu
+                   (fastnorm(v) ** 2 - mu / fastnorm(r)) * r - np.dot(r, v) * v
+           ) / mu
 
 
 def periapsis(A: Entity, B: Entity) -> float:
@@ -178,8 +178,8 @@ def periapsis(A: Entity, B: Entity) -> float:
     A negative periapsis means at some point in A's orbit, A will crash into
     the surface of B."""
     peri_distance = (
-        semimajor_axis(A, B) *
-        (1 - fastnorm(eccentricity(A, B)))
+            semimajor_axis(A, B) *
+            (1 - fastnorm(eccentricity(A, B)))
     )
     return max(peri_distance - B.r, 0)
 
@@ -190,8 +190,8 @@ def apoapsis(A: Entity, B: Entity) -> float:
     A positive apoapsis means at some point in A's orbit, A will
     be above the surface of B."""
     apo_distance = (
-        semimajor_axis(A, B) *
-        (1 + fastnorm(eccentricity(A, B)))
+            semimajor_axis(A, B) *
+            (1 + fastnorm(eccentricity(A, B)))
     )
     return max(apo_distance - B.r, 0)
 
@@ -222,7 +222,7 @@ def orbit_parameters(A: Entity,
 
     centre = (periapsis_coords + apoapsis_coords) / 2
     major_axis = 2 * a
-    minor_axis = major_axis * math.sqrt(abs(1 - e_mag**2))
+    minor_axis = major_axis * math.sqrt(abs(1 - e_mag ** 2))
     return OrbitCoords(centre=centre, major_axis=major_axis,
                        minor_axis=minor_axis, eccentricity=e)
 
@@ -308,6 +308,8 @@ def _build_sphere_segment_vertices(
         tris = new_tris
 
     return tris
+
+
 # end of _build_sphere_segment_vertices
 
 
@@ -331,9 +333,9 @@ def grav_acc(X, Y, M, Fuel):
         for j in range(N):
             Xd = X[i] - X[j]
             Yd = Y[i] - Y[j]
-            dist_matrix[i, j] = np.sqrt(Xd*Xd + Yd*Yd)
+            dist_matrix[i, j] = np.sqrt(Xd * Xd + Yd * Yd)
     np.fill_diagonal(dist_matrix, np.inf)
-    forces = GMm * displacements / np.expand_dims(dist_matrix, 2)**3
+    forces = GMm * displacements / np.expand_dims(dist_matrix, 2) ** 3
 
     return forces.sum(axis=1) / M.reshape(-1, 1)
 
@@ -428,8 +430,8 @@ def relevant_atmosphere(flight_state: PhysicsState) \
         if dist < closest_distance:
             # We found a closer planet with an atmosphere
             exponential = (
-                -(dist - craft.r - atmosphere.r) / 1000 /
-                atmosphere.atmosphere_scaling)
+                    -(dist - craft.r - atmosphere.r) / 1000 /
+                    atmosphere.atmosphere_scaling)
             if exponential > -20:
                 # Entity has an atmosphere and it's close enough to be relevant
                 closest_distance = dist
@@ -446,10 +448,10 @@ def pressure(craft: Entity,
     # https://en.wikipedia.org/wiki/Barometric_formula
     dist = fastnorm(atmosphere.pos - craft.pos)
     return (
-        atmosphere.atmosphere_thickness *
-        np.exp(
-            -(dist - craft.r - atmosphere.r) / 1000 /
-            atmosphere.atmosphere_scaling))
+            atmosphere.atmosphere_thickness *
+            np.exp(
+                -(dist - craft.r - atmosphere.r) / 1000 /
+                atmosphere.atmosphere_scaling))
 
 
 def drag(flight_state: PhysicsState) -> np.ndarray:
@@ -477,7 +479,7 @@ def drag(flight_state: PhysicsState) -> np.ndarray:
     if i_know_what_this_aoa_code_does:
         aoa = wind_angle - pitch(craft, atmosphere)
         aoa = np.sign(np.sign(np.cos(aoa)) - 1)
-        aoa = aoa**3
+        aoa = aoa ** 3
         if aoa > 0.5:
             aoa = 1 - aoa
         aoa_vector = -abs(aoa) * np.array([
@@ -490,7 +492,7 @@ def drag(flight_state: PhysicsState) -> np.ndarray:
     if flight_state.parachute_deployed:
         drag_profile += common.PARACHUTE_DRAG_PROFILE
     drag_acc = \
-        pressure(craft, atmosphere) * fastnorm(wind)**2 * drag_profile
+        pressure(craft, atmosphere) * fastnorm(wind) ** 2 * drag_profile
     return drag_acc * (wind / fastnorm(wind))
 
 
@@ -498,4 +500,10 @@ def drag(flight_state: PhysicsState) -> np.ndarray:
 def fastnorm(xy: np.ndarray) -> float:
     """This is a fast implementation of |<x, y>|, for use in tight code."""
     assert len(xy) == 2
-    return math.sqrt(xy[0]**2 + xy[1]**2)
+    return math.sqrt(xy[0] ** 2 + xy[1] ** 2)
+
+
+def windspeed_multiplier(entity: Entity, windspeed: float) -> float:
+    """windspeed in km/hr"""
+    entity_equatorial_speed = entity.spin * entity.r * 60 * 60 / 1000  # km/hr
+    return (windspeed + entity_equatorial_speed) / entity_equatorial_speed
