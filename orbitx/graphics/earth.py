@@ -61,6 +61,5 @@ class Earth(ThreeDeeObj):
              state: PhysicsState, origin: Entity):
         self._update_obj(entity, state, origin)
         self._obj.clouds.pos = self._obj.pos
-        # Is this how to rotate clouds?
-        # How do we make them go faster than the planet rotation?
-        self._obj.clouds.axis = calc.angle_to_vpy(entity.heading)
+        self._obj.clouds.axis = calc.angle_to_vpy(
+            entity.heading * calc.windspeed_multiplier(entity, windspeed=100))
