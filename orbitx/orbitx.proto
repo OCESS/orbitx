@@ -44,6 +44,7 @@ message Command {
         MC_FLIGHT = 1;
         HAB_FLIGHT = 2;
         COMPAT = 3;
+        MIST = 4;
     }
 
     enum Idents {
