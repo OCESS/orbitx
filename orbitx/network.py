@@ -45,7 +45,8 @@ class StateServer(grpc_stubs.StateServerServicer):
         'Invalid client',
         'MC Flight',
         'Habitat Flight',
-        'OrbitV Compatibility Server'
+        'OrbitV Compatibility Server',
+        'MIST'
     ]
 
     def __init__(self):
