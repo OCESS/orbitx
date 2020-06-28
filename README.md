@@ -15,13 +15,16 @@ This project is maintained by
 - Patrick
 - Ye Qin
 - Sean
-- Cesare Corazza
-
 As part of CS493 and CS494, a final year project course at Waterloo.
+
+Furthermore, several members and alumni of OCESS are contributing, such as:
+- Cesare Corazza
+- Jamie Tait
+- Jonah Hamer-Wilson
 
 ## First Time Contributors
 
-If your a first-time contributor to OrbitX, take a look at `CONTRIBUTING.md`,
+If you're a first-time contributor to OrbitX, take a look at `CONTRIBUTING.md`,
 especially if you don't recognize the `git clone` command in the Project Setup
 section. The `CONTRIBUTING.md` has helpful tips for first-time contributors.
 
