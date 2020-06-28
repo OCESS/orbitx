@@ -13,7 +13,6 @@ import grpc
 
 from orbitx import network
 from orbitx import programs
-from orbitx.graphics.compat_gui import StartupFailedGui
 
 log = logging.getLogger()
 
@@ -37,15 +36,6 @@ def main(args: argparse.Namespace):
         network.Request.MIST, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
-    try:
-        # Make sure we have a connection before continuing.
-        orbitx_connection.get_state(
-            [network.Request(ident=network.Request.NOOP)])
-    except grpc.RpcError as err:
-        log.error(f'Could not connect to Physics Server: {err.code()}')
-        StartupFailedGui(args.physics_server, err)
-        return
-
     random.seed()
 
     try:
@@ -58,6 +48,7 @@ def main(args: argparse.Namespace):
     except grpc.RpcError as err:
         log.error(
             f'Got response code {err.code()} from orbitx, shutting down')
+        raise err
 
 
 program = programs.Program(
