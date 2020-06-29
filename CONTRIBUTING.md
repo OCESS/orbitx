@@ -107,6 +107,10 @@ cd orbitx
 python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. orbitx.proto
 ```
 
+If you get any errors, make sure all the commands in README.md Project Setup
+have completed successfully, especially `make install` (or equivalently
+`pip install -r requirements.txt`).
+
 ### You're done!
 
 At this point, you can change whatever you want in OrbitX! If you want your
