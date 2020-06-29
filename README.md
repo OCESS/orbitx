@@ -21,6 +21,7 @@ Furthermore, several members and alumni of OCESS are contributing, such as:
 - Cesare Corazza
 - Jamie Tait
 - Jonah Hamer-Wilson
+- Calum Wheaton
 
 ## First Time Contributors
 
