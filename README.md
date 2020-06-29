@@ -15,6 +15,7 @@ This project is maintained by
 - Patrick
 - Ye Qin
 - Sean
+
 As part of CS493 and CS494, a final year project course at Waterloo.
 
 Furthermore, several members and alumni of OCESS are contributing, such as:
@@ -52,6 +53,10 @@ make install # installs packages in requirements.txt, make sure you've activated
 If you're on windows, replace `source venv/bin/activate` with
 `Scripts\Activate.bat` on `cmd`, or `Scripts\Activate.ps1` if you know you're
 running powershell. Also you'll have to just run the make commands manually, by running `cat Makefile` and copying the command you want.
+
+If you get an error referencing "Microsoft Visual C++ Build Tools", especially when
+installing `yappi`, install [the build tools](https://www.scivision.dev/python-windows-visual-c-14-required/)
+(choose Windows 10 SDK and C++ x64/x86 build tools in the installer).
 
 And when you want to restart development, just do:
 
