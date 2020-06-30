@@ -8,7 +8,7 @@ from orbitx.data_structures import Entity
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 
 
-class SpaceStation(ThreeDeeObj):
+class AYSE(ThreeDeeObj):
     def _create_obj(self,
                     entity: Entity, origin: Entity,
                     texture_path: Optional[str]) -> vpython.sphere:
