@@ -23,7 +23,7 @@ from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.science_mod import ScienceModule
-from orbitx.graphics.spacestation import SpaceStation
+from orbitx.graphics.ayse import AYSE
 from orbitx.graphics.star import Star
 from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.graphics.orbit_projection import OrbitProjection
@@ -122,7 +122,7 @@ class FlightGui:
         if entity.name == common.HABITAT:
             obj = Habitat(entity, self.origin(), self.texture_path)
         elif entity.name == common.AYSE:
-            obj = SpaceStation(entity, self.origin(), self.texture_path)
+            obj = AYSE(entity, self.origin(), self.texture_path)
         elif entity.name == common.SUN:
             obj = Star(entity, self.origin(), self.texture_path)
         elif entity.name == common.MODULE:
