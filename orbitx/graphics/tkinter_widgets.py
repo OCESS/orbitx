@@ -11,12 +11,17 @@ WHITE = '#d9d9d9'    # Alert flash text
 DARK_GRAY = '#4d4d4d' # OneTimeButton, used
 
 # Fonts
+# Orbit V uses Lucida Console 14, but it looks awful in tkinter
 LARGE_FONT = ('Arial', 14)
 NORMAL_FONT = ('Arial', 12)
 SMALL_FONT = ('Arial', 10)
 
 
 class ENGLabel(tk.Label):
+    """
+    Use to display a label that also has a value, which may take a unit.
+    E.g. ENGLabel(parent, text='FUEL', value=1000, unit='kg'
+    """
 
     def __init__(self, parent: tk.Widget, text: str, value: Union[int, str], unit: Optional[str] = None):
         super().__init__(parent)
@@ -43,6 +48,9 @@ class ENGLabel(tk.Label):
 
 
 class ENGLabelFrame(tk.LabelFrame):
+    """A subdivision of the GUI using ENG styling.
+    E.g. master = ENGLabelFrame(parent, text='Master Control')
+    """
 
     def __init__(self, parent: tk.Widget, text: str):
         font = NORMAL_FONT
@@ -50,6 +58,10 @@ class ENGLabelFrame(tk.LabelFrame):
 
 
 class Indicator(tk.Button):
+    """
+    Represents an indicator light/toggle push-button switch.
+    E.g. radar = Indicator(parent, text='RAD')
+    """
 
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -81,6 +93,9 @@ class Indicator(tk.Button):
 
 
 class OneTimeButton(tk.Button):
+    """
+    A button, which can only be pressed once.
+    """
 
     def __init__(self, parent, command=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -111,7 +126,16 @@ class OneTimeButton(tk.Button):
 
 
 class Alert(tk.Button):
-    """TODO Fix INVIS and FLASHING"""
+    """
+    Stays flat and gray until alerted. Then it flashes, until clicked.
+    When clicked, the button should be flat, deactivated, and red, and
+    stop flashing, but stay red until the issue causing the alert is cleared.
+
+    Optional invisible tag sets the text to the same colour as the background.
+
+    TODO Invisible doesn't work
+    TODO Sometimes, when you quiet the alert, it goes back to normal_state
+    """
 
     def __init__(self, parent, invis: bool = False, counter:int = None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -175,6 +199,7 @@ class Alert(tk.Button):
 
 
 class ENGScale(tk.Scale):
+    """A slider."""
 
     def __init__(self, parent, label: ENGLabel):
         super().__init__(parent)
