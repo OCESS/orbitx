@@ -3,8 +3,8 @@ from typing import List
 
 import vpython
 
-from orbitx.physics import calc
 from orbitx.data_structures import Entity, PhysicsState
+from orbitx.physics import calc
 
 
 class OrbitProjection:
