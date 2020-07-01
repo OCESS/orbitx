@@ -18,7 +18,9 @@ from . import flight_training  # noqa: E402
 from . import hab_flight  # noqa: E402
 from . import mc_flight  # noqa: E402
 from . import physics_server  # noqa: E402
-from . import mist  # noqa: E402
+from . import mist # noqa: E402
+from . import hab_eng
+
 
 # A list of all defined programs, for convenience in other code.
 LISTING: List[Program] = [module.program for module in [  # type: ignore
@@ -28,4 +30,5 @@ LISTING: List[Program] = [module.program for module in [  # type: ignore
     mc_flight,
     compat,
     mist,
+    hab_eng,
 ]]
