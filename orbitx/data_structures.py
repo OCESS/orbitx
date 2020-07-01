@@ -16,7 +16,6 @@ from orbitx import common
 
 log = logging.getLogger()
 
-
 # These entity fields do not change during simulation. Thus, we don't have to
 # store them in a big 1D numpy array for use in scipy.solve_ivp.
 _PER_ENTITY_UNCHANGING_FIELDS = [
@@ -116,6 +115,7 @@ class Entity:
 class _EntityView(Entity):
     """A view into a PhysicsState, very fast to create and use.
     Setting fields will update the parent PhysicsState appropriately."""
+
     def __init__(self, creator: 'PhysicsState', index: int):
         self._creator = creator
         self._index = index
@@ -152,22 +152,28 @@ for field in protos.Entity.DESCRIPTOR.fields:
     def entity_fget(self, name=field.name):
         return getattr(self.proto, name)
 
+
     def entity_fset(self, val, name=field.name):
         return setattr(self.proto, name, val)
 
+
     def entity_fdel(self, name=field.name):
         return delattr(self.proto, name)
+
 
     setattr(Entity, field.name, property(
         fget=entity_fget, fset=entity_fset, fdel=entity_fdel,
         doc=f"Entity proxy of the underlying field, self.proto.{field.name}"))
 
+
     def entity_view_unchanging_fget(self, name=field.name):
         return getattr(self._creator._proto_state.entities[self._index], name)
+
 
     def entity_view_unchanging_fset(self, val, name=field.name):
         return setattr(
             self._creator._proto_state.entities[self._index], name, val)
+
 
     field_n: Optional[int]
     if field.name in _PER_ENTITY_MUTABLE_FIELDS:
@@ -180,6 +186,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
             return self._creator._array_rep[
                 self._creator._n * field_n + self._index]
 
+
         def entity_view_mutable_fset(self, val, field_n=field_n):
             self._creator._array_rep[
                 self._creator._n * field_n + self._index] = val
@@ -189,6 +196,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
             return bool(
                 self._creator._array_rep[
                     self._creator._n * field_n + self._index])
+
 
         def entity_view_mutable_fset(self, val, field_n=field_n):
             self._creator._array_rep[
@@ -204,6 +212,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
             if entity_index == PhysicsState.NO_INDEX:
                 return ''
             return self._creator._entity_names[entity_index]
+
 
         def entity_view_mutable_fset(self, val, field_n=field_n):
             assert isinstance(val, str)
@@ -349,9 +358,9 @@ class PhysicsState:
         assert len(self._array_rep.shape) == 1, \
             f'y is not 1D: {self._array_rep.shape}'
         assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) % \
-            len(_PER_ENTITY_MUTABLE_FIELDS) == 0, self._array_rep.size
+               len(_PER_ENTITY_MUTABLE_FIELDS) == 0, self._array_rep.size
         assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) // \
-            len(_PER_ENTITY_MUTABLE_FIELDS) == len(proto_state.entities), \
+               len(_PER_ENTITY_MUTABLE_FIELDS) == len(proto_state.entities), \
             f'{self._array_rep.size} mismatches: {len(proto_state.entities)}'
 
         np.mod(self.Heading, 2 * np.pi, out=self.Heading)
@@ -361,9 +370,9 @@ class PhysicsState:
     def _y_component(self, field_name: str) -> np.ndarray:
         """Returns an n-array with the value of a component for each entity."""
         return self._array_rep[
-            _FIELD_ORDERING[field_name] * self._n:
-            (_FIELD_ORDERING[field_name] + 1) * self._n
-        ]
+               _FIELD_ORDERING[field_name] * self._n:
+               (_FIELD_ORDERING[field_name] + 1) * self._n
+               ]
 
     def _index_to_name(self, index: int) -> str:
         """Translates an index into the entity list to the right name."""

@@ -11,7 +11,6 @@ from orbitx.graphics import flight_gui
 
 log = logging.getLogger()
 
-
 name = "Flight Training"
 
 description = (

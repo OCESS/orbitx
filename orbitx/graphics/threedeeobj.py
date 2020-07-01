@@ -79,6 +79,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
     def draw_landing_graphic(self, entity: Entity) -> None:
         log.debug(f'drawing landing graphic for {entity.name}')
         """Draw something that simulates a flat surface at near zoom levels."""
+
         def graphic(size: float):
             # Iterate over a list of Point 3-tuples, each representing the
             # vertices of a triangle in the sphere segment.
@@ -109,8 +110,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
             entity.r * np.tan(np.degrees(30)))
 
     def _update_landing_graphic(
-        self, graphic: vpython.compound,
-        entity: Entity, craft: Entity
+            self, graphic: vpython.compound,
+            entity: Entity, craft: Entity
     ) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
@@ -128,7 +129,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
 
         graphic.axis = vpython.vector(-axis.y, axis.x, 0).norm()
         graphic.pos = (
-            self._obj.pos + axis.norm() * (entity.r - graphic.width / 2)
+                self._obj.pos + axis.norm() * (entity.r - graphic.width / 2)
         )
 
         # Make the graphic transparent when far, but opaque when close.

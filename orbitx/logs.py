@@ -43,6 +43,7 @@ print_formatter = logging.Formatter(
 
 class LogdirFileHandler(logging.FileHandler):
     """Puts a FileHandler in the logging directory."""
+
     def __init__(self, program_name: str,
                  mode='w', encoding=None, delay=False):
         """Just takes the name of a program, e.g. 'mirror'."""
@@ -57,6 +58,7 @@ class StartupHandler(LogdirFileHandler):
     """The same as a LogdirFileHandler, but also saves LogRecords so that we
     can mirror them into a future logfile once we haev a unique logfile name.
     """
+
     def __init__(self):
         self.record_buffer: List[logging.LogRecord] = []
         LogdirFileHandler.__init__(self, 'startup')

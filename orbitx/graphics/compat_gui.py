@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """A simple textual GUI for the compat client."""
 
-
 import functools
 from datetime import datetime
 from pathlib import Path
@@ -168,7 +167,7 @@ class StartupFailedGui:
             (<span class='mono'>{error.code()}</span>).
             {"The Physics Server might be not running, or it might be running "
              "on a different host."
-             if error.code() == grpc.StatusCode.UNAVAILABLE else ""}
+        if error.code() == grpc.StatusCode.UNAVAILABLE else ""}
         </div>""")
 
         # This is needed to launch vpython.

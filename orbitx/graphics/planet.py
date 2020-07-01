@@ -11,7 +11,7 @@ class Planet(ThreeDeeObj):
     SHININIESS = 0.3
 
     def _create_obj(
-        self, entity: Entity, origin: Entity,
+            self, entity: Entity, origin: Entity,
             texture: Optional[str]) -> vpython.sphere:
         return vpython.sphere(
             pos=entity.screen_pos(origin),

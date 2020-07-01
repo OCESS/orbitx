@@ -11,7 +11,7 @@ class ScienceModule(ThreeDeeObj):
     SHININIESS = 0.3
 
     def _create_obj(
-        self, entity: Entity, origin: Entity,
+            self, entity: Entity, origin: Entity,
             texture: Optional[str]) -> vpython.sphere:
         main_body = vpython.box()
         side_panels = vpython.box(

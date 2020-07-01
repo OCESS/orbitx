@@ -45,19 +45,19 @@ def vpython_error_message():
     """Lets the user know that something bad happened.
     Note, if there's no vpython canvas, this vpython code has no effect."""
     error_message = (
-        "<p>&#9888; Sorry, spacesimmer! OrbitX has crashed for "
-        "some reason.</p>"
+            "<p>&#9888; Sorry, spacesimmer! OrbitX has crashed for "
+            "some reason.</p>"
 
-        "<p>Any information that OrbitX has on the crash has "
-        "been saved to a logfile. If you want to get this problem fixed, send "
-        "the contents of the log file "
-        "<blockquote>" +
-        logs.logfile_name.replace('\\', '\\\\') +
-        "</blockquote> "
-        "to Patrick Melanson along with a description of what was happening "
-        "in the program when it crashed.</p>"
+            "<p>Any information that OrbitX has on the crash has "
+            "been saved to a logfile. If you want to get this problem fixed, send "
+            "the contents of the log file "
+            "<blockquote>" +
+            logs.logfile_name.replace('\\', '\\\\') +
+            "</blockquote> "
+            "to Patrick Melanson along with a description of what was happening "
+            "in the program when it crashed.</p>"
 
-        "<p>Again, thank you for using OrbitX!</p>"
+            "<p>Again, thank you for using OrbitX!</p>"
     )
     vpython.canvas.get_selected().append_to_caption(f"""<script>
         if (document.querySelector('div.error') == null) {{
@@ -147,7 +147,7 @@ def main():
         # attribute errors (like entity.x throwing an AttributeError), or
         # GRPC errors.
         if isinstance(e, (AttributeError, ValueError)) or \
-            hasattr(e, '__module__') and (
+                hasattr(e, '__module__') and (
                 'grpc' in e.__module__ or 'google' in e.__module__):
             proto_file = Path('orbitx', 'orbitx.proto')
             generated_file = Path('orbitx', 'orbitx_pb2.py')

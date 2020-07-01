@@ -340,7 +340,7 @@ class PhysicsEngine:
                 fuel_cons[artif_index] = \
                     -abs(capability.fuel_cons * entity.throttle)
                 eng_thrust = capability.thrust * entity.throttle * \
-                    calc.heading_vector(entity.heading)
+                             calc.heading_vector(entity.heading)
                 mass = entity.mass + entity.fuel
 
                 if entity.name == common.AYSE and \
@@ -676,8 +676,8 @@ def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
         if ground.name == common.AYSE and lander.name == common.HABITAT:
             # Always put the Habitat at the docking port.
             lander.pos = (
-                ground.pos -
-                calc.heading_vector(ground.heading) * (lander.r + ground.r))
+                    ground.pos -
+                    calc.heading_vector(ground.heading) * (lander.r + ground.r))
         else:
             norm = lander.pos - ground.pos
             unit_norm = norm / calc.fastnorm(norm)
@@ -850,7 +850,7 @@ def _one_request(request: Request, y0: PhysicsState) \
             module = Entity(protos.Entity(
                 name=common.MODULE, mass=100, r=10, artificial=True))
             module.pos = hab.pos - (module.r + hab.r) * \
-                calc.heading_vector(hab.heading)
+                         calc.heading_vector(hab.heading)
             module.v = calc.rotational_speed(module, hab)
 
             y0_proto = y0.as_proto()

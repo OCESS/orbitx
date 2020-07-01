@@ -9,7 +9,7 @@ from orbitx.graphics.planet import Planet
 class Star(Planet):
 
     def _create_obj(
-        self, entity: Entity, origin: Entity,
+            self, entity: Entity, origin: Entity,
             texture: Optional[str]) -> vpython.sphere:
         obj = super(Star, self)._create_obj(entity, origin, texture)
         obj.emissive = True  # The sun glows!

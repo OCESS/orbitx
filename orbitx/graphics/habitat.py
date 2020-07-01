@@ -151,10 +151,10 @@ class Habitat(ThreeDeeObj):
         self._obj.boosters.axis = self._obj.axis
         # Attach the parachute to the forward cone of the habitat.
         self._obj.parachute.pos = (
-            self._obj.pos + calc.angle_to_vpy(entity.heading) * entity.r * 0.8)
+                self._obj.pos + calc.angle_to_vpy(entity.heading) * entity.r * 0.8)
 
         parachute_is_visible = (
-            (state.craft == entity.name) and state.parachute_deployed)
+                (state.craft == entity.name) and state.parachute_deployed)
         if parachute_is_visible:
             drag = calc.drag(state)
             drag_mag = np.inner(drag, drag)
