@@ -12,7 +12,6 @@ from orbitx.network import Request
 
 log = logging.getLogger()
 
-
 name = "Habitat Flight"
 
 description = (
@@ -55,7 +54,7 @@ def main(args: argparse.Namespace):
             physics_engine.set_state(state)
             if len(user_commands) == 0:
                 time_of_next_network_update = (
-                    current_time + common.TIME_BETWEEN_NETWORK_UPDATES
+                        current_time + common.TIME_BETWEEN_NETWORK_UPDATES
                 )
             else:
                 # If we sent a user command, still ask for an update soon so

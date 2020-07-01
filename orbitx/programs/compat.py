@@ -18,7 +18,6 @@ from orbitx.graphics.compat_gui import CompatGui, StartupFailedGui
 
 log = logging.getLogger()
 
-
 name = "Compatibility Client"
 
 description = (

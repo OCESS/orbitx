@@ -98,14 +98,14 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
                              round(common.G * initial[1].mass /
-                                   (y0.X[0] - y0.X[1])**2))
+                                   (y0.X[0] - y0.X[1]) ** 2))
             self.assertAlmostEqual(dy.VY[0], 0)
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
                              round(common.G * initial[0].mass /
-                                   (y0.X[1] - y0.X[0])**2))
+                                   (y0.X[1] - y0.X[0]) ** 2))
             self.assertAlmostEqual(dy.VY[1], 0)
 
     def test_engines(self):
@@ -137,7 +137,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 (t_delta * calc.engine_acceleration(moved)))
 
             t_no_fuel = (initial[0].fuel / (throttle *
-                         common.craft_capabilities[common.HABITAT].fuel_cons))
+                                            common.craft_capabilities[common.HABITAT].fuel_cons))
             empty_fuel = physics_engine.get_state(t_no_fuel)
             after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
 
@@ -187,39 +187,39 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
                              round(common.G * physics_state[1].mass /
-                                   (y0.X[0] - y0.X[1])**2))
+                                   (y0.X[0] - y0.X[1]) ** 2))
             self.assertEqual(round(abs(dy.VY[0])),
                              round(common.G * physics_state[2].mass /
-                                   (y0.Y[0] - y0.Y[2])**2))
+                                   (y0.Y[0] - y0.Y[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
                              round(common.G * physics_state[0].mass /
-                                   (y0.X[1] - y0.X[0])**2 +
+                                   (y0.X[1] - y0.X[0]) ** 2 +
 
                                    np.sqrt(2) * common.G *
                                    physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2])**2
+                                   (y0.X[1] - y0.X[2]) ** 2
                                    ))
             self.assertEqual(round(abs(dy.VY[1])),
                              round(np.sqrt(2) * common.G *
                                    physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2])**2))
+                                   (y0.X[1] - y0.X[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[2], y0.VX[2])
             self.assertAlmostEqual(dy.Y[2], y0.VY[2])
             self.assertEqual(round(abs(dy.VX[2])),
                              round(np.sqrt(2) * common.G *
                                    physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2])**2))
+                                   (y0.X[1] - y0.X[2]) ** 2))
             self.assertEqual(round(abs(dy.VY[2])),
                              round(
-                             common.G * physics_state[0].mass /
-                             (y0.Y[2] - y0.Y[0])**2 +
+                                 common.G * physics_state[0].mass /
+                                 (y0.Y[2] - y0.Y[0]) ** 2 +
 
-                             np.sqrt(2) * common.G * physics_state[1].mass /
-                             (y0.Y[2] - y0.Y[1])**2
+                                 np.sqrt(2) * common.G * physics_state[1].mass /
+                                 (y0.Y[2] - y0.Y[1]) ** 2
                              ))
 
     def test_landing(self):
@@ -328,18 +328,18 @@ class PhysicsStateTestCase(unittest.TestCase):
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
         y0 = np.array([
-            10, 20,   # x
-            30, 40,   # y
-            50, 60,   # vx
-            0, 0,     # vy
-            0, 0,     # heading
-            70, 80,   # spin
+            10, 20,  # x
+            30, 40,  # y
+            50, 60,  # vx
+            0, 0,  # vy
+            0, 0,  # heading
+            70, 80,  # spin
             90, 100,  # fuel
-            0, 0,     # throttle
-            1, -1,    # only First is landed on Second
-            0, 1,     # Second is broken
+            0, 0,  # throttle
+            1, -1,  # only First is landed on Second
+            0, 1,  # Second is broken
             common.SRB_EMPTY,
-            1         # time_acc
+            1  # time_acc
         ])
 
         ps = PhysicsState(y0, self.proto_state)

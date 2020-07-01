@@ -16,7 +16,6 @@ import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger()
 
-
 name = "Physics Server"
 
 description = (

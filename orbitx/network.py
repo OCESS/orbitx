@@ -15,7 +15,6 @@ from orbitx.data_structures import PhysicsState
 
 log = logging.getLogger()
 
-
 DEFAULT_PORT = 28430
 
 # This Request class is just an alias of the Command protobuf message. We
@@ -66,7 +65,7 @@ class StateServer(grpc_stubs.StateServerServicer):
             self._class_used_properly = True
 
     def get_physical_state(
-        self, request_iterator: Iterable[protos.Command], context) \
+            self, request_iterator: Iterable[protos.Command], context) \
             -> protos.PhysicalState:
         """Server-side implementation of this remote procedure call (RPC).
 

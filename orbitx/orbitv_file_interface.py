@@ -110,7 +110,7 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
             # Cast all the elements on a line to floats.
             # Some strings will be the form '1.234D+04', convert these too.
             (colour, mass, radius,
-                atmosphere_thickness, atmosphere_scaling, atmosphere_height) \
+             atmosphere_thickness, atmosphere_scaling, atmosphere_height) \
                 = map(_string_to_float, entity_constants_line)
             mass = max(1, mass)
 
@@ -336,7 +336,7 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
     else:
         pressure = calc.pressure(craft, atmosphere)
     craft_thrust = (
-        max_thrust * craft.throttle * calc.heading_vector(craft.heading))
+            max_thrust * craft.throttle * calc.heading_vector(craft.heading))
     craft_drag = calc.drag(orbitx_state)
     artificial_gravity = numpy.linalg.norm(craft_thrust - craft_drag)
 

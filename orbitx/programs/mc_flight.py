@@ -12,7 +12,6 @@ from orbitx.network import Request
 
 log = logging.getLogger()
 
-
 name = "MC Flight"
 
 description = (
@@ -53,7 +52,7 @@ def main(args: argparse.Namespace):
                 args.physics_server)
 
         if (networking and
-            time.monotonic() - time_of_last_network_update >
+                time.monotonic() - time_of_last_network_update >
                 common.TIME_BETWEEN_NETWORK_UPDATES):
             # Our state is stale, get the latest update
             # TODO: what if this fails? Set networking to False?

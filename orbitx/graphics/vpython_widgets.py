@@ -26,6 +26,7 @@ last_div_id = 0
 class TableText:
     """Add a row to an existing table, with first column `caption`, and
     the second column the value of `text_gen` plus an optional helptext."""
+
     def __init__(self,
                  caption: str,
                  text_gen: Callable[[Any], str],
