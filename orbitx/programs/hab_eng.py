@@ -1,5 +1,6 @@
 """
-main() for MIST, a program for monitoring astronauts' vitals.
+main() for Habitat Engineering, a program for control of Habitat and AYSE
+subsystems, electrical power distribution, and thermal loading.
 
 Communicates to orbitx with GRPC.
 """
@@ -14,6 +15,8 @@ import grpc
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
+from orbitx.graphics.eng_gui import MainApplication
+
 
 log = logging.getLogger()
 
@@ -48,6 +51,9 @@ def main(args: argparse.Namespace):
         log.error(f'Could not connect to Physics Server: {err.code()}')
         StartupFailedGui(args.physics_server, err)
         return
+
+    gui = MainApplication()
+    gui.mainloop()
 
     random.seed()
 
