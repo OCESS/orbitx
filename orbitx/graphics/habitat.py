@@ -87,7 +87,7 @@ class Habitat(ThreeDeeObj):
                 axis=vpython.vec(string_length, self.PARACHUTE_RADIUS, 0),
                 radius=0.2
             )
-            string.rotate(angle=quadrant * vpython.radians(90),
+            string.rotate(angle=(quadrant * vpython.radians(90) - vpython.radians(45)),
                           axis=vpython.vector(1, 0, 0))
             parachute.append(string)
         parachute.append(vpython.sphere(
