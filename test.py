@@ -136,8 +136,11 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 moved[0].vx <
                 (t_delta * calc.engine_acceleration(moved)))
 
-            t_no_fuel = (initial[0].fuel / (throttle *
-                                            common.craft_capabilities[common.HABITAT].fuel_cons))
+            t_no_fuel = (initial[0].fuel
+                         / (throttle *
+                            common.craft_capabilities[common.HABITAT].fuel_cons
+                            )
+                         )
             empty_fuel = physics_engine.get_state(t_no_fuel)
             after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
 
@@ -218,8 +221,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
                                  common.G * physics_state[0].mass /
                                  (y0.Y[2] - y0.Y[0]) ** 2 +
 
-                                 np.sqrt(2) * common.G * physics_state[1].mass /
-                                 (y0.Y[2] - y0.Y[1]) ** 2
+                                 np.sqrt(2) * common.G * physics_state[1].mass
+                                 / (y0.Y[2] - y0.Y[1]) ** 2
                              ))
 
     def test_landing(self):

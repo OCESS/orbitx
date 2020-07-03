@@ -8,7 +8,7 @@ GRAY = '#b3b3b3'    # Indicator inactive
 GREEN = '#009933'   # Indicator active
 RED = '#cc0000'    # Alert flash
 WHITE = '#d9d9d9'    # Alert flash text
-DARK_GRAY = '#4d4d4d' # OneTimeButton, used
+DARK_GRAY = '#4d4d4d'    # OneTimeButton, used
 
 # Fonts
 # Orbit V uses Lucida Console 14, but it looks awful in tkinter
@@ -23,7 +23,8 @@ class ENGLabel(tk.Label):
     E.g. ENGLabel(parent, text='FUEL', value=1000, unit='kg'
     """
 
-    def __init__(self, parent: tk.Widget, text: str, value: Union[int, str], unit: Optional[str] = None):
+    def __init__(self, parent: tk.Widget, text: str, value: Union[int, str],
+                 unit: Optional[str] = None):
         super().__init__(parent)
         self.text = text
         self.value = value
@@ -137,7 +138,8 @@ class Alert(tk.Button):
     TODO Sometimes, when you quiet the alert, it goes back to normal_state
     """
 
-    def __init__(self, parent, invis: bool = False, counter:int = None, *args, **kwargs):
+    def __init__(self, parent, invis: bool = False, counter: int = None,
+                 *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         # Allows for button width, height to be specified in px
         self.px_img = tk.PhotoImage(width=1, height=1)
@@ -160,18 +162,17 @@ class Alert(tk.Button):
         if counter is not None:
             self.counter = counter
 
-        self.flash_period = 450    #ms
-        self.duty_cycle = 0.7    # Duty Cycle = 0.8 means turned on 80% of period
+        # Duty Cycle = 0.8 means activated for 80% of the period
+        self.flash_period = 450    # ms
+        self.duty_cycle = 0.7
 
     def alert(self):
         self.alerted = 1
-        #print('ALERT')
+        # print('ALERT')
         self.alerted_state()
-        # self.after(int(0.6*self.flash_time), lambda: self.normal_state())
-        #self.after(int(0.6 * self.flash_time), lambda: self.configure(bg=BLACK))
 
     def alerted_state(self):
-        #print('AS')
+        # print('Alerted State')
         self.configure(relief=tk.RAISED,
                        bg=RED,
                        fg=WHITE,
@@ -181,7 +182,7 @@ class Alert(tk.Button):
                        lambda: self.normal_state())
 
     def normal_state(self):
-        #print('NS', self.value==True)
+        # print('Normal State', self.value==True)
         self.configure(relief=tk.FLAT,
                        bg=BLACK,
                        fg=GRAY,

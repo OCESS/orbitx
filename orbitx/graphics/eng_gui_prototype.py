@@ -48,7 +48,8 @@ class MainApplication(tk.Tk):
 
 class HabPage(tk.Frame):
     """1. Create a page in which lives all of the HabPage GUI
-    2. Divide the page into a left and right pane. The right pane is divided into top, middle, bottom
+    2. Divide the page into a left and right pane. The right
+    pane is divided into top, middle, bottom
     3. Create and render everything in each of the panes.
     """
 
@@ -85,10 +86,12 @@ class HabPage(tk.Frame):
         master = cw.ENGLabelFrame(self.left_frame, text="Master")
         master.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        widgets['master_freeze'] = cw.Indicator(master, text='Freeze\nControls')
+        widgets['master_freeze'] = cw.Indicator(master,
+                                                text='Freeze\nControls')
         widgets['master_freeze'].configure(width=60, height=60)
 
-        widgets['a_master'] = cw.Alert(master, text='MASTER\nALARM', font=cw.LARGE_FONT)
+        widgets['a_master'] = cw.Alert(master, text='MASTER\nALARM',
+                                       font=cw.LARGE_FONT)
         widgets['a_master'].configure(width=100, height=100)
 
         widgets['a_asteroid'] = cw.Alert(master, text='ASTEROID')
@@ -108,7 +111,8 @@ class HabPage(tk.Frame):
         widgets['h_INJ1'] = cw.Indicator(engines, text="INJ-1")
         widgets['h_INJ2'] = cw.Indicator(engines, text="INJ-2")
         widgets["fuel"] = cw.ENGLabel(engines, text='FUEL', value=0, unit='kg')
-        widgets['h_br'] = cw.ENGLabel(engines, text='BURN RATE', value=0, unit='kg/hr')
+        widgets['h_br'] = cw.ENGLabel(engines, text='BURN RATE',
+                                      value=0, unit='kg/hr')
 
         widgets['h_INJ1'].grid(row=0, column=0)
         widgets['h_INJ2'].grid(row=1, column=0)
@@ -129,8 +133,9 @@ class HabPage(tk.Frame):
         widgets['h_load'].grid(row=0, column=2)
 
         # Subsystems
-        subsystems = tk.LabelFrame(self.left_frame, text="Subsystems",
-                                bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
+        subsystems = tk.LabelFrame(
+            self.left_frame, text="Subsystems",
+            bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
         subsystems.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         widgets['INS'] = cw.Indicator(subsystems, text='INS')
@@ -156,8 +161,9 @@ class HabPage(tk.Frame):
 
     def _render_right_top(self):
         # Electrical Grid
-        hegrid = tk.LabelFrame(self.right_frame_top, text="Habitat Electrical Grid",
-                                 bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
+        hegrid = tk.LabelFrame(self.right_frame_top,
+                               text="Habitat Electrical Grid",
+                               bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
         hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         widgets['he_grid'] = tk.Canvas(hegrid, width=750, height=350)
@@ -173,12 +179,16 @@ class HabPage(tk.Frame):
             loop = cw.ENGLabelFrame(loops, text='Loop {}'.format(cl+1))
             loop.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-            widgets[prefix + 'pump'] = cw.ENGLabel(loop, text='PUMP', value=96, unit='%')
-            widgets[prefix + 'pump_sldr'] = cw.ENGScale(loop, widgets[prefix + 'pump'])
-            widgets[prefix + 'temp'] = cw.ENGLabel(loop, text='TEMP', value=47, unit='*C')
+            widgets[prefix + 'pump'] = cw.ENGLabel(loop, text='PUMP',
+                                                   value=96, unit='%')
+            widgets[prefix + 'pump_sldr'] = cw.ENGScale(
+                loop, widgets[prefix + 'pump'])
+            widgets[prefix + 'temp'] = cw.ENGLabel(
+                loop, text='TEMP', value=47, unit='*C')
 
             widgets[prefix + 'pump'].grid(row=0, column=0)
-            widgets[prefix + 'pump_sldr'].grid(row=0, column=1, rowspan=2, columnspan=2)
+            widgets[prefix + 'pump_sldr'].grid(row=0, column=1,
+                                               rowspan=2, columnspan=2)
             widgets[prefix + 'temp'].grid(row=1, column=0, pady=5)
 
             for i in range(2):
@@ -194,27 +204,33 @@ class HabPage(tk.Frame):
         for i in range(6):
             rad = 'R{}'.format(i+1)
 
-            widgets['r_' + rad + '_isol'] = tk.Button(radiators, text=ISOLATED, width=10, bg=cw.GRAY,
-                                                      command=lambda v=(i+1): rad_isol(v))
+            widgets['r_' + rad + '_isol'] = tk.Button(
+                radiators, text=ISOLATED, width=10, bg=cw.GRAY,
+                command=lambda v=(i+1): rad_isol(v))
             if i < 3:
-                widgets['r_' + rad] = cw.ENGLabel(radiators, text=rad, value=STOWED)
-                widgets['r_' + rad + '_stow'] = tk.Button(radiators, text=STOWED, width=10, bg=cw.GRAY,
-                                                          command=lambda v=(i+1): rad_stow(v))
+                widgets['r_' + rad] = cw.ENGLabel(
+                    radiators, text=rad, value=STOWED)
+                widgets['r_' + rad + '_stow'] = tk.Button(
+                    radiators, text=STOWED, width=10, bg=cw.GRAY,
+                    command=lambda v=(i+1): rad_stow(v))
             else:
-                widgets['r_' + rad] = cw.ENGLabel(radiators, text=rad, value=ISOLATED)
+                widgets['r_' + rad] = cw.ENGLabel(radiators,
+                                                  text=rad, value=ISOLATED)
 
             widgets['r_' + rad].grid(row=i, column=0, padx=15)
             widgets['r_' + rad + '_isol'].grid(row=i, column=1, padx=5, pady=5)
             if i < 3:
                 widgets['r_' + rad + '_stow'].grid(row=i, column=2, padx=5)
 
-        all_buttons = cw.ENGLabelFrame(radiators,text='')
+        all_buttons = cw.ENGLabelFrame(radiators, text='')
         all_buttons.grid(row=3, column=2, rowspan=3, ipadx=5, ipady=5)
 
-        widgets['r_stow_all']=tk.Button(all_buttons, text='STOW-A', width=8, height=2, bg=cw.GRAY,
-                                                    command=lambda: [rad_stow(v+1) for v in range(3)])
-        widgets['r_isol_all']= tk.Button(all_buttons, text='ISOL-A', width=8, height=2, bg=cw.GRAY,
-                                                    command=lambda: [rad_isol(v+1) for v in range(6)])
+        widgets['r_stow_all'] = tk.Button(
+            all_buttons, text='STOW-A', width=8, height=2, bg=cw.GRAY,
+            command=lambda: [rad_stow(v+1) for v in range(3)])
+        widgets['r_isol_all'] = tk.Button(
+            all_buttons, text='ISOL-A', width=8, height=2, bg=cw.GRAY,
+            command=lambda: [rad_isol(v+1) for v in range(6)])
 
         widgets['r_stow_all'].pack(pady=5)
         widgets['r_isol_all'].pack()
@@ -239,19 +255,20 @@ class HabPage(tk.Frame):
             else:
                 pass
 
-
     def _render_right_bot(self):
         # Hab Reactor
-        hreactor = cw.ENGLabelFrame(self.right_frame_bot, text="Habitat Reactor")
+        hreactor = cw.ENGLabelFrame(self.right_frame_bot,
+                                    text="Habitat Reactor")
         hreactor.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
 
         widgets['hr_INJ-1'] = cw.Indicator(hreactor, text="R-INJ-1")
         widgets['hr_INJ-2'] = cw.Indicator(hreactor, text="R-INJ-2")
         widgets['hr_heater'] = cw.Indicator(hreactor, text="HEAT")
-        widgets["hr_curr"] = cw.ENGLabel(hreactor, text='CURR', value=0, unit='A')
-        widgets['hr_temp'] = cw.ENGLabel(hreactor, text='TEMP', value=81, unit='*C')
+        widgets["hr_curr"] = cw.ENGLabel(hreactor, text='CURR',
+                                         value=0, unit='A')
+        widgets['hr_temp'] = cw.ENGLabel(hreactor, text='TEMP',
+                                         value=81, unit='*C')
         widgets['a_hr_overtemp'] = cw.Alert(hreactor, text="OVERTEMP")
-
 
         widgets['hr_INJ-1'].grid(row=0, column=0, padx=10)
         widgets['hr_INJ-2'].grid(row=1, column=0)
@@ -260,24 +277,29 @@ class HabPage(tk.Frame):
         widgets['hr_temp'].grid(row=1, column=1, sticky=tk.W)
         widgets['a_hr_overtemp'].grid(row=2, column=1)
 
-        graph_frame=tk.Frame(hreactor)
+        graph_frame = tk.Frame(hreactor)
         graph_width = 400
-        widgets['hr_graph'] = tk.Canvas(graph_frame, width=graph_width, height=200)
+        widgets['hr_graph'] = tk.Canvas(graph_frame,
+                                        width=graph_width, height=200)
         graph_frame.grid(row=0, column=2, rowspan=3, padx=10, pady=10)
-        widgets['hr_graph'].pack(side=tk.TOP,fill=tk.BOTH, expand=True)
+        widgets['hr_graph'].pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         hreactor.grid_columnconfigure(0, weight=1, minsize=60)
         hreactor.grid_columnconfigure(1, weight=1, minsize=70)
         hreactor.grid_columnconfigure(2, weight=3, minsize=graph_width)
 
-        hrconfinement = cw.ENGLabelFrame(self.right_frame_bot, text="Reactor Confinement")
+        hrconfinement = cw.ENGLabelFrame(self.right_frame_bot,
+                                         text="Reactor Confinement")
         hrconfinement.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         widgets['hr_RCON-1'] = cw.Indicator(hrconfinement, text="RCON-1")
         widgets['hr_RCON-2'] = cw.Indicator(hrconfinement, text="RCON-2")
-        widgets["hr_RCON-1_temp"] = cw.ENGLabel(hrconfinement, text='TEMP', value=84, unit='*C')
-        widgets['hr_RCON-2_temp'] = cw.ENGLabel(hrconfinement, text='TEMP', value=80, unit='*C')
-        widgets['hr_BATT'] = cw.ENGLabel(hrconfinement, text='BATT', value=2000, unit='As')
+        widgets["hr_RCON-1_temp"] = cw.ENGLabel(hrconfinement, text='TEMP',
+                                                value=84, unit='*C')
+        widgets['hr_RCON-2_temp'] = cw.ENGLabel(hrconfinement, text='TEMP',
+                                                value=80, unit='*C')
+        widgets['hr_BATT'] = cw.ENGLabel(hrconfinement, text='BATT',
+                                         value=2000, unit='As')
         widgets['a_hr_lowBatt'] = cw.Alert(hrconfinement, text='LOW BATT')
 
         widgets['hr_RCON-1'].grid(row=0, column=0)

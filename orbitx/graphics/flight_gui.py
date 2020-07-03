@@ -536,11 +536,13 @@ class Sidebar:
             # general and covers AYSE, but HRT is the familiar triple name and
             # the Hawking III says trans rights.
             "HRT phase θ",
-            lambda state: common.format_num(calc.phase_angle(
-                state.craft_entity(),
-                state.reference_entity(),
-                state.target_entity()), "°") or
-                          "Same ref and targ",
+            lambda state: common.format_num(
+                calc.phase_angle(
+                    state.craft_entity(),
+                    state.reference_entity(),
+                    state.target_entity()),
+                "°")
+            or "Same ref and targ",
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
@@ -647,8 +649,9 @@ class Sidebar:
             "Landing acc",
             lambda state: common.format_num(calc.landing_acceleration(
                 state.craft_entity(),
-                state.target_entity()), " m/s/s") or
-                          "no vertical landing",
+                state.target_entity()),
+                " m/s/s")
+            or "no vertical landing",
             "Constant engine acc to land during vertical descent to target",
             new_section=False))
 
