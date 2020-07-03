@@ -151,7 +151,8 @@ class Habitat(ThreeDeeObj):
         self._obj.boosters.axis = self._obj.axis
         # Attach the parachute to the forward cone of the habitat.
         self._obj.parachute.pos = (
-                self._obj.pos + calc.angle_to_vpy(entity.heading) * entity.r * 0.8)
+                self._obj.pos + calc.angle_to_vpy(entity.heading)
+                * entity.r * 0.8)
 
         parachute_is_visible = (
                 (state.craft == entity.name) and state.parachute_deployed)
