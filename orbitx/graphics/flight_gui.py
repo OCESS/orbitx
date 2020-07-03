@@ -16,18 +16,18 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx.physics import calc
 from orbitx.data_structures import Entity, Navmode, PhysicsState
-from orbitx.network import Request
-from orbitx.graphics.threedeeobj import ThreeDeeObj
-from orbitx.graphics.planet import Planet
+from orbitx.graphics.ayse import AYSE
 from orbitx.graphics.earth import Earth
 from orbitx.graphics.habitat import Habitat
-from orbitx.graphics.science_mod import ScienceModule
-from orbitx.graphics.ayse import AYSE
-from orbitx.graphics.star import Star
-from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.graphics.orbit_projection import OrbitProjection
+from orbitx.graphics.planet import Planet
+from orbitx.graphics.science_mod import ScienceModule
+from orbitx.graphics.star import Star
+from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
+from orbitx.network import Request
+from orbitx.physics import calc
 
 log = logging.getLogger()
 
@@ -492,7 +492,8 @@ class Sidebar:
         """Enable or disable all inputs, except for networking checkbox."""
         for menu in [
             self.centre_menu, self.reference_menu, self.target_menu,
-            self.navmode_menu, self.time_acc_menu, self.misc_menu]:
+            self.navmode_menu, self.time_acc_menu, self.misc_menu
+        ]:
             menu._menu.disabled = disabled
         for checkbox in [self.trails_checkbox, self.orbits_checkbox]:
             checkbox._checkbox.disabled = disabled

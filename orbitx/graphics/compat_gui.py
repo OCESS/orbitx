@@ -81,11 +81,11 @@ class CompatGui:
         canvas.append_to_caption("<th scope='col'>Field value</th>")
         canvas.append_to_caption("</tr>")
 
-        def row_text_setter(eng_update: network.Request.EngineeringUpdate,
+        def row_text_setter(eng_update: network.Request.OrbitVEngineeringUpdate,
                             field_name: str) -> str:
             return getattr(eng_update, field_name)
 
-        fields_list = orbitx_pb2.Command.EngineeringUpdate.DESCRIPTOR.fields
+        fields_list = orbitx_pb2.Command.OrbitVEngineeringUpdate.DESCRIPTOR.fields
         self._eng_fields: List[vpython_widgets.TableText] = []
         for descriptor in fields_list:
             self._eng_fields.append(vpython_widgets.TableText(

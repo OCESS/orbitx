@@ -76,7 +76,7 @@ message Command {
         DETACHED_MODULE = 30;
     }
 
-    message EngineeringUpdate {
+    message OrbitVEngineeringUpdate {
         int32 nav_malfunction = 1;
         double max_thrust = 2;
         double hab_fuel = 3;
@@ -100,13 +100,39 @@ message Command {
         double throttle_change = 4;
         double throttle_set = 5;
         double time_acc_set = 6;
-        EngineeringUpdate engineering_update = 7;
+        OrbitVEngineeringUpdate engineering_update = 7;
         string reference = 8;
         string target = 9;
         string loadfile = 10;
         Navmode navmode = 11;
         bool deploy_parachute = 12;
     }
+}
+
+message EngineeringState {
+    repeated bool switch = 1;
+
+    message CoolantLoop {
+        double coolant_temp = 1;
+        bool primary_pump_on = 2;
+        bool secondary_pump_on = 3;
+    }
+
+    message Radiator {
+        int32 attached_to_coolant_loop = 1;
+        bool functioning = 2;  // If the radiator is stowed or broken, it is not functioning.
+    }
+
+    repeated CoolantLoop coolant_loop = 2;
+    repeated Radiator radiator = 3;
+
+    enum AlarmState {
+        NOMINAL = 0;
+        MASTER_ALARM = 1;
+        HAB_GNOMES = 2;
+    }
+
+    AlarmState alarm = 4;
 }
 
 // This is wrapped by state.py.
@@ -160,4 +186,6 @@ message PhysicalState {
     // srb_time = -2 means the SRB is empty. These contants are in common.py
     double srb_time = 8;
     bool parachute_deployed = 9;
+
+    EngineeringState engineering = 10;
 }

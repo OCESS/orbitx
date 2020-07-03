@@ -11,8 +11,8 @@ from typing import List, Dict, Optional, Union
 import numpy as np
 import vpython
 
-from orbitx import orbitx_pb2 as protos
 from orbitx import common
+from orbitx import orbitx_pb2 as protos
 
 log = logging.getLogger()
 

@@ -71,7 +71,7 @@ class OrbitVIntermediary:
         _write_state_to_osbackup(
             orbitx_state, self.osbackup, self.orbitv_names)
 
-    def read_engineering_update(self) -> network.Request.EngineeringUpdate:
+    def read_engineering_update(self) -> network.Request.OrbitVEngineeringUpdate:
         return _read_update_from_orbitsse(self.orbitsse, self.orbitv_names)
 
 
@@ -455,7 +455,7 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
 
 def _read_update_from_orbitsse(
         orbitsse_path: Path, orbitv_names: List[str]) \
-        -> network.Request.EngineeringUpdate:
+        -> network.Request.OrbitVEngineeringUpdate:
     """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
     that contains the information."""
     command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
