@@ -140,9 +140,9 @@ class _EntityView(Entity):
 # code cleaner, but it was _too_ useful! The PhysicsState.__getitem__ method
 # that implemented this indexing was so expensive and called so often that it
 # was _half_ the runtime of OrbitX at high time accelerations! My solution to
-# this performance issue was to optimize PhysicsState.__getitem__ to very
-# return an Entity (specifically, an _EntityView) that was very fast to
-# instantiate and very fast to access.
+# this performance issue was to optimize PhysicsState.__getitem__ by return
+# an Entity (specifically, an _EntityView) that was very fast to instantiate
+# and very fast to access.
 # Hence: janky array-indexing accessors is my super-optimization! 2x speedup!
 for field in protos.Entity.DESCRIPTOR.fields:
     # For every field in the underlying protobuf entity, make a
@@ -242,6 +242,61 @@ for field in protos.Entity.DESCRIPTOR.fields:
             fset=entity_view_mutable_fset,
             doc=f"_EntityView proxy of mutable field {field.name}"
         ))
+
+
+class EngineeringState:
+    """Wrapper around protos.EngineeringState.
+
+    Access with physics_state.engineering, e.g.
+        eng_state = physics_state.engineering
+        eng_state.alarm = eng_state.AlarmState.NOMINAL
+        print(eng_state['AUXCOM'].resistance)
+        eng_state['LOS'].connected = True
+    """
+
+    AlarmState = protos.EngineeringState.AlarmState
+
+    def __init__(self, proto_state: protos.EngineeringState):
+        assert len(proto_state.components) == common.N_COMPONENTS
+        assert len(proto_state.radiators) == common.N_RADIATORS
+        assert len(proto_state.coolant_loops) == common.N_COOLANT_LOOPS
+
+        self._proto_state = proto_state
+
+    def __getitem__(self, index: Union[str, int]) -> protos.EngineeringState.Component:
+        """Convenience function to return a Component with a specified name or index."""
+        if isinstance(index, str):
+            # Turn a name-based index into an integer
+            index = common.COMPONENT_NAMES.index(index)
+        i = int(index)
+
+        return self._proto_state.components[i]
+
+    def __repr__(self):
+        return self._proto_state.__repr__()
+
+    def __str__(self):
+        return self._proto_state.__str__()
+
+    @property
+    def components(self):
+        return self._proto_state.components
+
+    @property
+    def coolant_loops(self):
+        return self._proto_state.coolant_loops
+
+    @property
+    def radiators(self):
+        return self._proto_state.radiators
+
+    @property
+    def alarm(self):
+        return self._proto_state.alarm
+
+    @alarm.setter
+    def alarm(self, val: protos.EngineeringState.AlarmState):
+        self._proto_state.alarm = val
 
 
 class PhysicsState:
@@ -473,6 +528,11 @@ class PhysicsState:
 
     def __str__(self):
         return self.as_proto().__str__()
+
+    @property
+    def engineering(self) -> EngineeringState:
+        representation = EngineeringState(self._proto_state.engineering)
+        return representation
 
     @property
     def timestamp(self) -> float:

@@ -112,6 +112,17 @@ SRB_FULL = -1
 SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
 
+# ---------- Engineering constants -----------
+
+COMPONENT_NAMES = [
+    'INS', 'LOS', 'GNC', 'ION1', 'ACC1', 'ION2', 'ACC2', 'ION3', 'ACC3', 'AUXCOM'
+]
+
+N_COMPONENTS = len(COMPONENT_NAMES)
+N_RADIATORS = 8
+N_COOLANT_LOOPS = 3
+
+
 # ---------- Other runtime constants ----------
 PERF_FILE = 'flamegraph-data.log'
 

@@ -110,7 +110,13 @@ message Command {
 }
 
 message EngineeringState {
-    repeated bool switch = 1;
+    message Component {
+        bool connected = 1;
+        double temperature = 2;
+        double resistance = 3;
+        double voltage = 4;
+        double current = 5;
+    }
 
     message CoolantLoop {
         double coolant_temp = 1;
@@ -123,14 +129,15 @@ message EngineeringState {
         bool functioning = 2;  // If the radiator is stowed or broken, it is not functioning.
     }
 
-    repeated CoolantLoop coolant_loop = 2;
-    repeated Radiator radiator = 3;
-
     enum AlarmState {
         NOMINAL = 0;
         MASTER_ALARM = 1;
         HAB_GNOMES = 2;
     }
+
+    repeated Component components = 1;
+    repeated CoolantLoop coolant_loops = 2;
+    repeated Radiator radiators = 3;
 
     AlarmState alarm = 4;
 }
