@@ -46,7 +46,7 @@ def main(args: argparse.Namespace):
     try:
         # Make sure we have a connection before continuing.
         orbitx_connection.get_state(
-            [network.Request(ident=network.Request.NOOP)])
+            [network.Request()])
     except grpc.RpcError as err:
         log.error(f'Could not connect to Physics Server: {err.code()}')
         StartupFailedGui(args.physics_server, err)
@@ -62,7 +62,7 @@ def main(args: argparse.Namespace):
             print(random.choice(['ASTRONAUT STATUS: DYING',
                                  'astronaut status: okay']))
             print(orbitx_connection.get_state(
-                  [network.Request(ident=network.Request.NOOP)])['Earth'].pos)
+                  [network.Request()])['Earth'].pos)
             time.sleep(1)
     except grpc.RpcError as err:
         log.error(

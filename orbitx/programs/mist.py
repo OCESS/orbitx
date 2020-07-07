@@ -42,7 +42,7 @@ def main(args: argparse.Namespace):
             print(random.choice(['ASTRONAUT STATUS: DYING',
                                  'astronaut status: okay']))
             print(orbitx_connection.get_state(
-                [network.Request(ident=network.Request.NOOP)])['Earth'].pos)
+                [network.Request()])['Earth'].pos)
             time.sleep(1)
     except grpc.RpcError as err:
         log.error(
