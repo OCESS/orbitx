@@ -23,6 +23,7 @@ from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.planet import Planet
 from orbitx.graphics.earth import Earth
 from orbitx.graphics.habitat import Habitat
+from orbitx.graphics.landing_graphic import LandingGraphic
 from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.ayse import AYSE
 from orbitx.graphics.star import Star
@@ -83,10 +84,6 @@ class FlightGui:
             self._3dobjs[entity.name] = self._build_threedeeobj(entity)
 
         self._orbit_projection = OrbitProjection()
-        self._3dobjs[draw_state.reference].draw_landing_graphic(
-            draw_state.reference_entity())
-        self._3dobjs[draw_state.target].draw_landing_graphic(
-            draw_state.target_entity())
 
         self._sidebar = Sidebar(self, running_as_mirror)
         self._scene.bind('keydown', self._handle_keydown)
@@ -96,6 +93,8 @@ class FlightGui:
         while self._scene.range > 600000:
             vpython.rate(100)
             self._scene.range = self._scene.range * 0.92
+        self._landing_graphic = LandingGraphic()
+        self._landing_graphic.draw(self._3dobjs[draw_state.reference])
         self.recentre_camera(common.DEFAULT_CENTRE)
 
     # end of __init__
@@ -251,6 +250,8 @@ class FlightGui:
         # Have to reset origin, reference, and target with new positions
         self._origin = draw_state[self._origin.name]
 
+        self._landing_graphic.update(self._3dobjs[draw_state.craft])
+
         try:
             for entity in draw_state:
                 self._3dobjs[entity.name].draw(
@@ -274,8 +275,7 @@ class FlightGui:
         try:
             self._commands.append(Request(
                 ident=Request.REFERENCE_UPDATE, reference=entity_name))
-            self._3dobjs[entity_name].draw_landing_graphic(
-                self._state[entity_name])
+            self._landing_graphic.draw(self._3dobjs[entity_name])
             if self._show_trails:
                 self._clear_trails()
         except IndexError:
@@ -285,8 +285,6 @@ class FlightGui:
         try:
             self._commands.append(Request(
                 ident=Request.TARGET_UPDATE, target=entity_name))
-            self._3dobjs[entity_name].draw_landing_graphic(
-                self._state[entity_name])
         except IndexError:
             log.error(f'Tried to set non-existent target "{entity_name}"')
 

@@ -2,6 +2,7 @@ from typing import Optional
 
 import vpython
 
+from orbitx.common import DEFAULT_FORWARD, DEFAULT_UP
 from orbitx.physics import calc
 from orbitx.data_structures import Entity
 from orbitx.graphics.threedeeobj import ThreeDeeObj
@@ -16,9 +17,9 @@ class Planet(ThreeDeeObj):
         return vpython.sphere(
             pos=entity.screen_pos(origin),
             axis=calc.angle_to_vpy(entity.heading),
-            up=vpython.vector(0, 0, 1),
-            # So the planet doesn't intersect the landing graphic
-            radius=entity.r * 0.9,
+            up=DEFAULT_UP,
+            forward=DEFAULT_FORWARD,
+            radius=entity.r,
             make_trail=True,
             retain=10000,
             texture=texture,

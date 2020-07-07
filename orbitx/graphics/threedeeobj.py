@@ -5,10 +5,8 @@ from pathlib import Path
 from typing import Optional, Union
 
 import vpython
-import numpy as np
 
 from orbitx.physics import calc
-from orbitx import common
 from orbitx.data_structures import Entity, PhysicsState
 
 log = logging.getLogger()
@@ -55,12 +53,8 @@ class ThreeDeeObj(metaclass=ABCMeta):
     # When creating a new 3D object, usually you don't have to worry about
     # anything below here. All you have to do is override the three above
     # methods in your derived class.
-    # Sometimes you'll want to do something special, e.g. AYSE disables
-    # landing graphics being drawn by overriding draw_landing_graphic below
-    # to be a no-op, which you can do. But most of the time, it's not needed.
-
-    LANDING_GRAPHIC_OPAQUE_ALTITUDE = 100_000
-    LANDING_GRAPHIC_TRANSPARENT_ALTITUDE = 750_000
+    # Sometimes you'll want to do something special. But most of the time, it's
+    # not needed.
 
     def __init__(self, entity: Entity,
                  origin: Entity, texture_path: Path) -> None:
@@ -70,79 +64,9 @@ class ThreeDeeObj(metaclass=ABCMeta):
         self._obj = self._create_obj(entity, origin, texture)
         assert self._obj is not None
 
-        self._small_landing_graphic: Optional[vpython.compound] = None
-        self._large_landing_graphic: Optional[vpython.compound] = None
         self._label = vpython.label(
             pos=self._obj.pos, xoffset=10, yoffset=10, border=4, font='sans',
             text=self._label_text(entity))
-
-    def draw_landing_graphic(self, entity: Entity) -> None:
-        log.debug(f'drawing landing graphic for {entity.name}')
-        """Draw something that simulates a flat surface at near zoom levels."""
-
-        def graphic(size: float):
-            # Iterate over a list of Point 3-tuples, each representing the
-            # vertices of a triangle in the sphere segment.
-            vpython_tris = []
-            for tri in calc._build_sphere_segment_vertices(entity.r, size):
-                # TODO: we pick an ocean blue colour for Earth, but really we
-                # should find a better way to make the landing graphic not a
-                # hardcoded value after the demo.
-                vpython_verts = [vpython.vertex(
-                    pos=vpython.vector(*coord),
-                    color=(vpython.vector(0, 0.6, 0.8)
-                           if entity.name == common.EARTH else
-                           vpython.vector(0.5, 0.5, 0.5)))
-                    for coord in tri]
-                vpython_tris.append(vpython.triangle(vs=vpython_verts))
-            return vpython.compound(
-                vpython_tris,
-                opacity=0,
-                pos=self._obj.pos,
-                up=common.DEFAULT_UP)
-
-        # We have to have to sizes because we want our landing graphic to be
-        # visible at large zoom levels (the large one won't be, because vpython
-        # is weird like that), but also show a seamless transition to the
-        # planet (the small one will look like a line from a top-down view)
-        self._small_landing_graphic = graphic(5000)
-        self._large_landing_graphic = graphic(
-            entity.r * np.tan(np.degrees(30)))
-
-    def _update_landing_graphic(
-            self, graphic: vpython.compound,
-            entity: Entity, craft: Entity
-    ) -> None:
-        """Rotate the landing graphic to always be facing the Habitat.
-
-        The landing graphic has to be on the surface of the planet,
-        but also the part of the planet closest to the habitat."""
-        if graphic is None:
-            # We haven't drawn a landing graphic yet.
-            return
-
-        axis = vpython.vector(
-            craft.x - entity.x,
-            craft.y - entity.y,
-            0
-        )
-
-        graphic.axis = vpython.vector(-axis.y, axis.x, 0).norm()
-        graphic.pos = (
-                self._obj.pos + axis.norm() * (entity.r - graphic.width / 2)
-        )
-
-        # Make the graphic transparent when far, but opaque when close.
-        # This is a y = mx + b line, clamped to [0, 1]
-        slope = 1 / (self.LANDING_GRAPHIC_OPAQUE_ALTITUDE -
-                     self.LANDING_GRAPHIC_TRANSPARENT_ALTITUDE)
-        y_intercept = -slope * self.LANDING_GRAPHIC_TRANSPARENT_ALTITUDE
-        opacity = slope * (axis.mag - entity.r) + y_intercept
-        graphic.opacity = max(0, min(opacity, 1))
-        if graphic.opacity == 0:
-            graphic.visible = False
-        else:
-            graphic.visible = True
 
     def _show_hide_label(self) -> None:
         self._label.visible = not self._label.visible
@@ -156,11 +80,6 @@ class ThreeDeeObj(metaclass=ABCMeta):
         # update label objects
         self._label.text = self._label_text(entity)
         self._label.pos = entity.screen_pos(origin)
-        # update landing graphic objects
-        self._update_landing_graphic(self._small_landing_graphic,
-                                     entity, state.craft_entity())
-        self._update_landing_graphic(self._large_landing_graphic,
-                                     entity, state.craft_entity())
 
     def pos(self) -> vpython.vector:
         return self._obj.pos
