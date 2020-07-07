@@ -20,6 +20,7 @@ This project is maintained by
 As part of CS493 and CS494, a final year project course at Waterloo.
 
 Furthermore, several members and alumni of OCESS are contributing, such as:
+- Stefano DeYoung
 - Cesare Corazza
 - Jamie Tait
 - Jonah Hamer-Wilson
