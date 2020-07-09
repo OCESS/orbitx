@@ -12,6 +12,8 @@ import time
 
 import grpc
 
+from orbitx import common
+from orbitx import physics
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
@@ -52,7 +54,16 @@ def main(args: argparse.Namespace):
         StartupFailedGui(args.physics_server, err)
         return
 
+    server_state = orbitx_connection.get_state()
+    physics_engine = physics.PhysicsEngine(server_state)
+
+    def update():
+        state = physics_engine.get_state()
+        gui.update_labels(state[common.HABITAT].pos[0])
+        gui.after(int(1000 / common.FRAMERATE), update)
+
     gui = MainApplication()
+    update()
     gui.mainloop()
 
     random.seed()
