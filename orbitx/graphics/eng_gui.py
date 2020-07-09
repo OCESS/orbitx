@@ -1,8 +1,10 @@
 """
-Defines FlightGui, a class that provides a main loop for flight.
+Defines classes that make a tkinter GUI for Engineering
+Main Application provides the root application window
 
-Call FlightGui.draw() in the main loop to update positions in the GUI.
-Call FlightGui.pop_commands() to collect user input.
+The main lives inside hab_eng.py:
+gui = MainApplication()
+gui.mainloop()
 """
 
 import logging
@@ -33,10 +35,6 @@ class MainApplication(tk.Tk):
         # Create menubar
         menubar = self._create_menu()
         tk.Tk.config(self, menu=menubar)
-
-        # Initialise main page
-        self.page = HabPage(self)
-        self.page.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
     def _create_menu(self):
         menubar = tk.Menu(self)
