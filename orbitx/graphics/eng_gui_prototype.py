@@ -1,9 +1,13 @@
 import tkinter as tk
 import orbitx.graphics.tkinter_widgets as cw
+from PIL import Image, ImageTk
 
 
 # Main widget dictionary holds all objects in the gui
 widgets = {}
+
+# Python garbage collection deletes ImageTk images, unless you save them
+images = {}
 
 # Radiator States
 ISOLATED = 'ISOL'
@@ -160,23 +164,76 @@ class HabPage(tk.Frame):
         subsystems.grid_columnconfigure(1, weight=1, minsize=60)
 
     def _render_right_top(self):
-        # Electrical Grid
-        hegrid = tk.LabelFrame(self.right_frame_top,
-                               text="Habitat Electrical Grid",
-                               bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
-        hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+#        # Electrical Grid
+#        hegrid = cw.ENGLabelFrame(self.right_frame_top,
+#                                  text="Habitat Electrical Grid")
+#        hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+#
+#        widgets['he_grid'] = tk.Canvas(hegrid, width=750, height=350)
+#        widgets['he_grid'].pack()
 
-        widgets['he_grid'] = tk.Canvas(hegrid, width=750, height=350)
-        widgets['he_grid'].pack()
+        # Method 1
+        # Draw all objects on a canvas including the switches
+        method1 = cw.ENGLabelFrame(self.right_frame_top,
+                                  text="Method 1")
+        method1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        widgets['m1_he_grid'] = tk.Canvas(method1, width=375, height=350)
+        widgets['m1_he_grid'].pack(padx=5, pady=5)
+
+        # Method 2
+        # Draw the unactive parts as an image, and superimpose buttons
+        # and labels
+        method2 = cw.ENGLabelFrame(self.right_frame_top,
+                                  text="Method 2")
+        method2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        images['ECS_bg'] = ImageTk.PhotoImage(Image.open(
+            "../../data/textures/eng_mockup.PNG").resize((375, 95)))
+        widgets['m2_he_grid'] = tk.Label(method2, image=images['ECS_bg'],
+                                         width=375, height=95)
+        widgets['m2_he_grid'].pack(padx=5, pady=5)
+
+        sw_width = 15
+        sw_height = 23
+        images['sw_open'] = ImageTk.PhotoImage(Image.open(
+            "../../data/textures/eng_switch_open.PNG").resize((sw_width, sw_height)))
+
+        images['sw_closed'] = ImageTk.PhotoImage(Image.open(
+            "../../data/textures/eng_switch_closed.PNG").resize((sw_width, sw_height)))
+
+        def switch(event):
+            event.widget.configure(image=images['sw_closed'])
+
+        widgets['sw_ln1'] = tk.Button(widgets['m2_he_grid'],
+                                      width=sw_width, height=sw_height,
+                                      image=images['sw_open'],
+                                      relief=tk.FLAT,
+                                      bd=0,
+                                      bg=cw.BLACK)
+        widgets['sw_ln1'].place(x=125, y=35)
+
+        widgets['sw_ln1'].bind('<Button-1>', switch)
+        widgets['sw_ln1'].bind_all('a', switch)
+
+        def get_pos(event):
+            position_display.configure(
+                text='x = ' + str(event.x) + '  '
+                     'y = ' + str(event.y))
+
+        widgets['m2_he_grid'].bind('<Button-1>', get_pos)
+
+        position_display = tk.Label(method2)
+        position_display.pack()
 
     def _render_right_mid(self):
         # Coolant Loops
-        loops = cw.ENGLabelFrame(self.right_frame_mid, text="Coolant Loops")
+        loops = cw.ENGLabelFrame(self.right_frame_mid, text="")
         loops.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         for cl in range(2):
             prefix = 'hl{}_'.format(cl+1)
-            loop = cw.ENGLabelFrame(loops, text='Loop {}'.format(cl+1))
+            loop = cw.ENGLabelFrame(loops, text='Coolant Loop {}'.format(cl+1))
             loop.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
             widgets[prefix + 'pump'] = cw.ENGLabel(loop, text='PUMP',
@@ -317,9 +374,9 @@ class HabPage(tk.Frame):
 app = MainApplication()    # Essential. Do not remove.
 
 # Testing
-widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
-widgets['a_master'].alert()
-widgets['a_hab_gnomes'].alert()
+#widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
+#widgets['a_master'].alert()
+#widgets['a_hab_gnomes'].alert()
 # /Testing
 
 app.mainloop()    # Essential. Do not remove.
