@@ -14,8 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import tkinter as tk
-# import custom_widgets as cw
-# import eng_engine as eng
+import orbitx.graphics.tkinter_widgets as cw
 
 widgets = {}
 
@@ -36,6 +35,9 @@ class MainApplication(tk.Tk):
         menubar = self._create_menu()
         tk.Tk.config(self, menu=menubar)
 
+        self.label = cw.ENGLabel(self, text='Fuel', value=1000, unit='kg')
+        self.label.pack()
+
     def _create_menu(self):
         menubar = tk.Menu(self)
 
@@ -45,3 +47,7 @@ class MainApplication(tk.Tk):
         menubar.add_cascade(label="File", menu=file)
 
         return menubar
+
+    def update_labels(self, new_value):
+        self.label.value = new_value
+        self.label.update()
