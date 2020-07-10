@@ -15,8 +15,6 @@ This project is maintained by
 - Patrick
 - Stefan De Young
 
-As part of CS493 and CS494, a final year project course at Waterloo.
-
 Furthermore, OCESS and UWaterloo CS494 members have contribued:
 - Ye Qin
 - Sean
