@@ -13,13 +13,13 @@ For a guide on how the actual OrbitX codebase is structured, read `ARCHITECTURE.
 
 This project is maintained by
 - Patrick
-- Ye Qin
-- Sean
 - Stefan De Young
 
 As part of CS493 and CS494, a final year project course at Waterloo.
 
-Furthermore, several members and alumni of OCESS are contributing, such as:
+Furthermore, OCESS and UWaterloo CS494 members have contribued:
+- Ye Qin
+- Sean
 - Stefano DeYoung
 - Cesare Corazza
 - Jamie Tait
