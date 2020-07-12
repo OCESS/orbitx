@@ -48,6 +48,8 @@ class MiscCommand(Enum):
 
 class FlightGui:
 
+    MAP_MODE_BOUNDARY = 10_000
+
     def __init__(
             self,
             draw_state: PhysicsState,
@@ -61,6 +63,7 @@ class FlightGui:
         # create a vpython canvas, onto which all 3D and HTML drawing happens.
         self._scene = self._init_canvas(title)
 
+        self._map_mode = False
         self._show_label: bool = True
         self._show_trails: bool = DEFAULT_TRAILS
         self._paused: bool = False
@@ -75,13 +78,18 @@ class FlightGui:
             opacity=1, visible=False)
 
         self._3dobjs: Dict[str, ThreeDeeObj] = {}
-        # remove vpython ambient lighting
-        self._scene.lights = []  # This line shouldn't be removed
+        # Remove vpython ambient lighting:
+        self._scene.lights = []  # This line shouldn't be removed.
 
         self._set_origin(common.DEFAULT_CENTRE)
 
+        # When very zoomed out, we only draw planets, scaled so that the
+        # smallest planet is radius 1.
+        self._map_scale_factor = np.inf
         for entity in draw_state:
             self._3dobjs[entity.name] = self._build_threedeeobj(entity)
+            if entity.r < self._map_scale_factor:
+                self._map_scale_factor = entity.r
 
         self._orbit_projection = OrbitProjection()
 
@@ -247,14 +255,31 @@ class FlightGui:
     def draw(self, draw_state: PhysicsState) -> None:
         self._state = draw_state
 
-        # Have to reset origin, reference, and target with new positions
+        # Have to reset origin with new position
         self._origin = draw_state[self._origin.name]
 
-        self._landing_graphic.update(self._3dobjs[draw_state.craft])
+        change_map_mode: bool
+        if self._scene.range < self.MAP_MODE_BOUNDARY and self._map_mode:
+            # Drop out of map mode
+            change_map_mode = True
+            self._map_mode = False
+        elif self._scene.range > self.MAP_MODE_BOUNDARY and not self._map_mode:
+            # Enter map mode
+            change_map_mode = True
+            self._map_mode = True
+        else:
+            change_map_mode = False
+
+        self._landing_graphic.update(self._3dobjs[draw_state.craft],
+                                     self._map_mode)
 
         try:
             for entity in draw_state:
-                self._3dobjs[entity.name].draw(
+                threedeeobj = self._3dobjs[entity.name]
+                if change_map_mode:
+                    threedeeobj.set_map_mode(self._map_scale_factor,
+                                             self._map_mode)
+                threedeeobj.draw(
                     entity, draw_state, self.origin())
         except KeyError as e:
             # If we find an entity that doesn't have an associated 3dobj, try

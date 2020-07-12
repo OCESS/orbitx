@@ -47,13 +47,13 @@ class AYSE(ThreeDeeObj):
 
         return obj
 
-    def draw_landing_graphic(self, entity: Entity) -> None:
-        # AYSE doesn't have landing graphics
-        pass
-
     def _label_text(self, entity: Entity) -> str:
         return (
                 f'{entity.name}\n'
                 f'Fuel: {common.format_num(entity.fuel, " kg")}' +
                 ('\nLanded' if entity.landed() else '')
         )
+
+    def set_map_mode(self, _, map_mode: bool) -> None:
+        """Just don't render in map mode."""
+        self._obj.visible = not map_mode

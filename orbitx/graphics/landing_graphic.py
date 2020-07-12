@@ -6,7 +6,6 @@ import vpython
 
 import orbitx.common as common
 from orbitx.graphics.planet import Planet
-from orbitx.graphics.earth import Earth
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 
 
@@ -32,7 +31,7 @@ class LandingGraphic:
         else:
             print("BARP")
 
-    def update(self, craft: ThreeDeeObj) -> None:
+    def update(self, craft: ThreeDeeObj, map_mode: bool) -> None:
         """Rotate the landing graphic to always be facing the Habitat.
 
         The landing graphic has to be on the surface of the planet,
@@ -40,6 +39,12 @@ class LandingGraphic:
         if self._landing_graphic is None:
             # We haven't drawn a landing graphic yet.
             return
+        if map_mode:
+            # Don't draw the landing graphic in map mode.
+            self._landing_graphic.visible = False
+            return
+        else:
+            self._landing_graphic.visible = True
 
         self._landing_graphic.axis = (
             craft._obj.pos - self._attached_3dobj._obj.pos

@@ -129,10 +129,6 @@ class Habitat(ThreeDeeObj):
 
         return habitat
 
-    def draw_landing_graphic(self, entity: Entity) -> None:
-        # Habitats don't have landing graphics
-        pass
-
     def _label_text(self, entity: Entity) -> str:
         label = entity.name
         if entity.broken:
@@ -144,14 +140,16 @@ class Habitat(ThreeDeeObj):
             label += '\nLanded'
         return label
 
-    def draw(self, entity: Entity,
-             state: PhysicsState, origin: Entity):
-        self._update_obj(entity, state, origin)
+    def _update_obj(self, entity: Entity,
+                    state: PhysicsState, origin: Entity):
+        super()._update_obj(entity, state, origin)
         self._obj.boosters.pos = self._obj.pos
         self._obj.boosters.axis = self._obj.axis
         # Attach the parachute to the forward cone of the habitat.
         self._obj.parachute.pos = (
-                self._obj.pos + calc.angle_to_vpy(entity.heading) * entity.r * 0.8)
+                self._obj.pos
+                + calc.angle_to_vpy(entity.heading) * entity.r * 0.8
+        )
 
         parachute_is_visible = (
                 (state.craft == entity.name) and state.parachute_deployed)
@@ -217,3 +215,9 @@ class Habitat(ThreeDeeObj):
         if state.srb_time == common.SRB_EMPTY and self._obj.boosters.visible:
             self._obj.boosters.visible = False
             self._small_habitat.boosters.visible = False
+
+    def set_map_mode(self, _, map_mode: bool) -> None:
+        """Just don't render in map mode."""
+        self._obj.visible = not map_mode
+        self._obj.boosters.visible = not map_mode
+        self._obj.parachute.visible = not map_mode
