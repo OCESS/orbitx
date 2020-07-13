@@ -1,20 +1,71 @@
 import tkinter as tk
 from typing import Union, Optional
 
-# Colour reference
-BLUE = '#4d4dff'    # Text colour
-BLACK = '#1a1a1a'   # Background colour
-GRAY = '#b3b3b3'    # Indicator inactive
-GREEN = '#009933'   # Indicator active
-RED = '#cc0000'    # Alert flash
-WHITE = '#d9d9d9'    # Alert flash text
-DARK_GRAY = '#4d4d4d'    # OneTimeButton, used
+STYLE_DEFAULT = 'default'
+STYLE_CA = 'ca_palette'
 
-# Fonts
-# Orbit V uses Lucida Console 14, but it looks awful in tkinter
-LARGE_FONT = ('Arial', 14)
-NORMAL_FONT = ('Arial', 12)
-SMALL_FONT = ('Arial', 10)
+
+class Style:
+
+    def __init__(self, style='default'):
+        if style=='ca_palette':
+            self.ca_palette()
+        else:
+            self.default()
+
+    def default(self):
+        self.bg = '#1a1a1a'
+        self.text = '#4d4dff'
+
+        # Buttons
+        self.ind_off = '#b3b3b3'  # Indicator inactive
+        self.ind_on = '#009933'  # Indicator active
+        self.otb_unused = self.ind_off
+        self.otb_used = '#4d4d4d'  # OneTimeButton, used
+
+        # Alerts
+        self.alert_bg = '#cc0000'  # Alert flash
+        self.alert_text = '#d9d9d9'  # Alert flash text
+
+        # Electrical Grid
+        self.sw_off = '#4d4d4d'
+        self.sw_on = '#e0dc11'
+        self.temp_nom = '#45e011'
+        self.temp_med = '#e09411'
+        self.temp_hi = '#e01c11'
+
+        # Fonts
+        self.large = ('Arial', 14)
+        self.normal = ('Arial', 12)
+        self.small = ('Arial', 10)
+
+    def ca_palette(self):
+        # https://flatuicolors.com/palette/ca
+
+        self.bg = '#8395a7'    # Storm Petrel
+        self.text = '#54a0ff'   # Joust Blue
+
+        # Buttons
+        self.ind_off = '#c8d6e5'  # Indicator inactive; Light Blue Ballerina
+        self.ind_on = '#1dd1a1'  # Indicator active; Wild Caribbean Green
+        self.otb_unused = self.ind_off
+        self.otb_used = '#576574'  # OneTimeButton, used; Fuel Town
+
+        # Alerts
+        self.alert_bg = '#ee5253'  # Alert flash; Amour
+        self.alert_text = '#c8d6e5'  # Alert flash text; Light Blue Ballerina
+
+        # Electrical Grid
+        self.sw_off = '#00d2d3'    # Jade Dust
+        self.sw_on = '#feca57'    # Casandora Yellow
+        self.temp_nom = '#10ac84'   # Dark Mountain Meadow
+        self.temp_med = '#ff9f43'   # Double Dragon Skin
+        self.temp_hi = '#ee5253'    # Amour
+
+        # Fonts
+        self.large = ('Arial', 14)
+        self.normal = ('Arial', 12)
+        self.small = ('Arial', 10)
 
 
 class ENGLabel(tk.Label):
@@ -24,13 +75,16 @@ class ENGLabel(tk.Label):
     """
 
     def __init__(self, parent: tk.Widget, text: str, value: Union[int, str],
-                 unit: Optional[str] = None):
+                 unit: Optional[str] = None, style=Style('default')):
         super().__init__(parent)
         self.text = text
         self.value = value
         self.unit = unit
 
-        self.update()
+        self.configure(anchor=tk.W, justify=tk.LEFT)
+
+        self.update_value()
+        self.update_style(style)
 
     def text_decorator(self) -> str:
         if self.unit is not None:
@@ -38,14 +92,13 @@ class ENGLabel(tk.Label):
         else:
             return self.text + ' ' + str(self.value)
 
-    def update(self):
-        self.configure(text=self.text_decorator(),
-                       bg=BLACK,
-                       fg=BLUE,
-                       font=NORMAL_FONT,
-                       anchor=tk.W,
-                       justify=tk.LEFT
-                       )
+    def update_value(self):
+        self.configure(text=self.text_decorator())
+
+    def update_style(self, style):
+        self.configure(bg=style.bg,
+                       fg=style.text,
+                       font=style.normal)
 
 
 class ENGLabelFrame(tk.LabelFrame):
@@ -53,9 +106,9 @@ class ENGLabelFrame(tk.LabelFrame):
     E.g. master = ENGLabelFrame(parent, text='Master Control')
     """
 
-    def __init__(self, parent: tk.Widget, text: str):
-        font = NORMAL_FONT
-        super().__init__(parent, text=text, font=font, fg=BLUE, bg=BLACK)
+    def __init__(self, parent: tk.Widget, text: str, style=Style('default')):
+        font = style.normal
+        super().__init__(parent, text=text, font=font, fg=style.text, bg=style.bg)
 
 
 class Indicator(tk.Button):
@@ -64,7 +117,7 @@ class Indicator(tk.Button):
     E.g. radar = Indicator(parent, text='RAD')
     """
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, style=Style('default'), *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -75,22 +128,18 @@ class Indicator(tk.Button):
                        width=50,
                        height=50,
                        command=self.press,
-                       font=NORMAL_FONT
+                       font=style.normal
                        )
         self.value = 1    # Will be set to 0, on next line
         self.invoke()
 
-    def press(self):
+    def press(self, style=Style('default')):
         if self.value == 0:
             self.value = 1
-            self.configure(relief=tk.RAISED,
-                           bg=GREEN
-                           )
+            self.configure(relief=tk.RAISED, bg=style.ind_on)
         else:
             self.value = 0
-            self.configure(relief=tk.SUNKEN,
-                           bg=GRAY
-                           )
+            self.configure(relief=tk.SUNKEN, bg=style.ind_off)
 
 
 class OneTimeButton(tk.Button):
@@ -98,7 +147,7 @@ class OneTimeButton(tk.Button):
     A button, which can only be pressed once.
     """
 
-    def __init__(self, parent, command=None, *args, **kwargs):
+    def __init__(self, parent, command=None, style=Style('default'), *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -108,21 +157,18 @@ class OneTimeButton(tk.Button):
                        compound='c',
                        width=100,
                        height=40,
-                       font=NORMAL_FONT,
+                       font=style.normal,
                        relief=tk.RIDGE,
-                       bg=GRAY
+                       bg=style.otb_unused
                        )
-        # TODO This doesn't work for binding multiple functions
-        if command is None:
-            self.configure(command=self.press)
 
         self.value = 0
 
-    def press(self):
+    def update_style(self, style=Style('default')):
         self.configure(state=tk.DISABLED,
                        relief=tk.FLAT,
-                       bg=DARK_GRAY,
-                       fg=GRAY
+                       bg=style.otb_used,
+                       fg=style.otb_unused
                        )
 
 
@@ -141,16 +187,18 @@ class Alert(tk.Button):
     """
 
     def __init__(self, parent, invis: bool = False, counter: int = None,
-                 *args, **kwargs):
+                 style=Style('default'), *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
+
+        self.style = style
+
         # Allows for button width, height to be specified in px
         self.px_img = tk.PhotoImage(width=1, height=1)
-
         self.configure(image=self.px_img,
                        compound='c',
                        width=80,
                        height=35,
-                       font=NORMAL_FONT,
+                       font=style.normal,
                        state=tk.DISABLED,
                        command=self.quiet
                        )
@@ -176,8 +224,8 @@ class Alert(tk.Button):
     def alerted_state(self):
         # print('Alerted State')
         self.configure(relief=tk.RAISED,
-                       bg=RED,
-                       fg=WHITE,
+                       bg=self.style.alert_bg,
+                       fg=self.style.alert_text,
                        state=tk.NORMAL)
         if self.alerted:
             self.after(int(self.duty_cycle * self.flash_period),
@@ -186,8 +234,8 @@ class Alert(tk.Button):
     def normal_state(self):
         # print('Normal State', self.value==True)
         self.configure(relief=tk.FLAT,
-                       bg=BLACK,
-                       fg=GRAY,
+                       bg=self.style.bg,
+                       fg=self.style.text
                        )
         if self.alerted:
             self.after(int((1-self.duty_cycle)*self.flash_period),
@@ -204,7 +252,7 @@ class Alert(tk.Button):
 class ENGScale(tk.Scale):
     """A slider."""
 
-    def __init__(self, parent, label: ENGLabel):
+    def __init__(self, parent, label: ENGLabel, style=Style('default')):
         super().__init__(parent)
 
         self.label = label
@@ -213,9 +261,9 @@ class ENGScale(tk.Scale):
                        to_=100,
                        resolution=5,
                        orient=tk.HORIZONTAL,
-                       bg=BLACK,
-                       fg=GRAY,
-                       troughcolor=BLACK,
+                       bg=style.bg,
+                       fg=style.text,
+                       troughcolor=style.bg,
                        showvalue=0,
                        command=self.update_slider_label
                        )
