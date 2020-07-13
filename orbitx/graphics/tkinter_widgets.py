@@ -46,9 +46,9 @@ class Style:
         self.text = '#bdc3c7'   # Sliver
 
         # Buttons
-        self.ind_off = '#bdc3c7'  # Indicator inactive; Concrete
+        self.ind_off = '#bdc3c7'  # Indicator inactive; Silver
         self.ind_on = '#27ae60'  # Indicator active; Nephritis
-        self.otb_unused = '#bdc3c7'    # Concrete
+        self.otb_unused = '#bdc3c7'    # Silver
         self.otb_used = '#7f8c8d'  # OneTimeButton, used; Asbestos
 
         # Alerts
@@ -230,8 +230,8 @@ class Alert(tk.Button):
                        fg=self.style.alert_text,
                        state=tk.NORMAL)
         if self.alerted:
-            self.after(int(self.duty_cycle * self.flash_period),
-                       lambda: self.normal_state())
+            self.event = self.after(int(self.duty_cycle * self.flash_period),
+                                    lambda: self.normal_state())
 
     def normal_state(self):
         # print('Normal State', self.value==True)
@@ -240,12 +240,12 @@ class Alert(tk.Button):
                        fg=self.style.text
                        )
         if self.alerted:
-            self.after(int((1-self.duty_cycle)*self.flash_period),
-                       lambda: self.alerted_state())
+            self.event = self.after(int((1-self.duty_cycle)*self.flash_period),
+                                    lambda: self.alerted_state())
 
     def quiet(self):
         # Stop flashing, but stay alerted
-        self.update_idletasks()    # Clear the buffer of any remaining flashes
+        self.after_cancel(self.event)
         self.alerted = False
         self.alerted_state()
         self.configure(state=tk.DISABLED, relief=tk.GROOVE)
