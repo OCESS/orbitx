@@ -18,6 +18,8 @@ LOOP2 = 'HLP2'
 LOOP3 = 'ALP3'
 BOTH = 'BOTH'
 
+style = cw.Style(cw.STYLE_CA)
+
 
 class MainApplication(tk.Tk):
     """The main application window in which lives the HabPage, and potentially
@@ -61,7 +63,7 @@ class HabPage(tk.Frame):
         tk.Frame.__init__(self, parent)
 
         # Divide the page into two columns
-        self.left_frame = tk.Frame(self, bg=cw.BLACK)
+        self.left_frame = tk.Frame(self, bg=style.bg)
 
         # If Red, Blue, Yellow, or Gray are showing through
         # something has gone wrong
@@ -87,20 +89,24 @@ class HabPage(tk.Frame):
 
     def _render_left(self):
         # Master
-        master = cw.ENGLabelFrame(self.left_frame, text="Master")
+        master = cw.ENGLabelFrame(self.left_frame, text="Master", style=style)
         master.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         widgets['master_freeze'] = cw.Indicator(master,
-                                                text='Freeze\nControls')
+                                                text='Freeze\nControls',
+                                                style=style)
         widgets['master_freeze'].configure(width=60, height=60)
 
         widgets['a_master'] = cw.Alert(master, text='MASTER\nALARM',
-                                       font=cw.LARGE_FONT)
+                                       font=style.large, style=style)
         widgets['a_master'].configure(width=100, height=100)
 
-        widgets['a_asteroid'] = cw.Alert(master, text='ASTEROID')
-        widgets['a_radiation'] = cw.Alert(master, text='RADIATION')
-        widgets['a_hab_gnomes'] = cw.Alert(master, text='HAB\nGNOMES')
+        widgets['a_asteroid'] = cw.Alert(master, text='ASTEROID',
+                                         style=style)
+        widgets['a_radiation'] = cw.Alert(master, text='RADIATION',
+                                          style=style)
+        widgets['a_hab_gnomes'] = cw.Alert(master, text='HAB\nGNOMES',
+                                           style=style)
 
         widgets['master_freeze'].grid(row=0, column=0)
         widgets['a_master'].grid(row=0, column=1, rowspan=2)
@@ -109,14 +115,16 @@ class HabPage(tk.Frame):
         widgets['a_hab_gnomes'].grid(row=3, column=0, pady=5)
 
         # Engines
-        engines = cw.ENGLabelFrame(self.left_frame, text="Engines")
+        engines = cw.ENGLabelFrame(self.left_frame, text="Engines",
+                                   style=style)
         engines.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        widgets['h_INJ1'] = cw.Indicator(engines, text="INJ-1")
-        widgets['h_INJ2'] = cw.Indicator(engines, text="INJ-2")
-        widgets["fuel"] = cw.ENGLabel(engines, text='FUEL', value=0, unit='kg')
+        widgets['h_INJ1'] = cw.Indicator(engines, text="INJ-1", style=style)
+        widgets['h_INJ2'] = cw.Indicator(engines, text="INJ-2", style=style)
+        widgets["fuel"] = cw.ENGLabel(engines, text='FUEL', value=0, unit='kg',
+                                      style=style)
         widgets['h_br'] = cw.ENGLabel(engines, text='BURN RATE',
-                                      value=0, unit='kg/hr')
+                                      value=0, unit='kg/hr', style=style)
 
         widgets['h_INJ1'].grid(row=0, column=0)
         widgets['h_INJ2'].grid(row=1, column=0)
@@ -125,31 +133,35 @@ class HabPage(tk.Frame):
 
         # Engines > Fuel Management
 
-        fuelmanager = cw.ENGLabelFrame(engines, text="")
+        fuelmanager = cw.ENGLabelFrame(engines, text="", style=style)
         fuelmanager.grid(row=2, column=0, columnspan=2, pady=5)
 
-        widgets['a_fuel_connected'] = cw.Alert(fuelmanager, text='TETHERED')
-        widgets['h_load'] = cw.Indicator(fuelmanager, text="LOAD")
-        widgets['h_dump'] = cw.Indicator(fuelmanager, text="DUMP")
+        widgets['a_fuel_connected'] = cw.Alert(fuelmanager, text='TETHERED',
+                                               style=style)
+        widgets['h_load'] = cw.Indicator(fuelmanager, text="LOAD",
+                                         style=style)
+        widgets['h_dump'] = cw.Indicator(fuelmanager, text="DUMP",
+                                         style=style)
 
         widgets['a_fuel_connected'].grid(row=0, column=0, padx=10)
         widgets['h_dump'].grid(row=0, column=1)
         widgets['h_load'].grid(row=0, column=2)
 
         # Subsystems
-        subsystems = tk.LabelFrame(
-            self.left_frame, text="Subsystems",
-            bg=cw.BLACK, fg=cw.BLUE, font=cw.NORMAL_FONT)
+        subsystems = cw.ENGLabelFrame(self.left_frame, text="Subsystems",
+                                      style=style)
         subsystems.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        widgets['INS'] = cw.Indicator(subsystems, text='INS')
-        widgets['RADAR'] = cw.Indicator(subsystems, text='RAD')
-        widgets['LOS'] = cw.Indicator(subsystems, text='LOS')
-        widgets['GNC'] = cw.Indicator(subsystems, text='GNC')
-        widgets['a_ATMO'] = cw.Alert(subsystems, text='IN ATMO')
-        widgets['CHUTE'] = cw.OneTimeButton(subsystems, text='CHUTE')
-        widgets['a_SRBTIME'] = cw.Alert(subsystems, text='120s', invis=True)
-        widgets['SRB'] = cw.OneTimeButton(subsystems, text='SRB')
+        widgets['INS'] = cw.Indicator(subsystems, text='INS', style=style)
+        widgets['RADAR'] = cw.Indicator(subsystems, text='RAD', style=style)
+        widgets['LOS'] = cw.Indicator(subsystems, text='LOS', style=style)
+        widgets['GNC'] = cw.Indicator(subsystems, text='GNC', style=style)
+        widgets['a_ATMO'] = cw.Alert(subsystems, text='IN ATMO', style=style)
+        widgets['CHUTE'] = cw.OneTimeButton(subsystems, text='CHUTE',
+                                            style=style)
+        widgets['a_SRBTIME'] = cw.Alert(subsystems, text='120s', invis=True,
+                                        style=style)
+        widgets['SRB'] = cw.OneTimeButton(subsystems, text='SRB', style=style)
 
         widgets['INS'].grid(row=0, column=0)
         widgets['RADAR'].grid(row=1, column=0)
@@ -174,8 +186,8 @@ class HabPage(tk.Frame):
 
         # Method 1
         # Draw all objects on a canvas including the switches
-        method1 = cw.ENGLabelFrame(self.right_frame_top,
-                                  text="Method 1")
+        method1 = cw.ENGLabelFrame(self.right_frame_top, text="Method 1",
+                                   style=style)
         method1.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         widgets['m1_he_grid'] = tk.Canvas(method1, width=375, height=350)
@@ -184,8 +196,8 @@ class HabPage(tk.Frame):
         # Method 2
         # Draw the unactive parts as an image, and superimpose buttons
         # and labels
-        method2 = cw.ENGLabelFrame(self.right_frame_top,
-                                  text="Method 2")
+        method2 = cw.ENGLabelFrame(self.right_frame_top, text="Method 2",
+                                   style=style)
         method2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         images['ECS_bg'] = ImageTk.PhotoImage(Image.open(
@@ -197,10 +209,12 @@ class HabPage(tk.Frame):
         sw_width = 15
         sw_height = 23
         images['sw_open'] = ImageTk.PhotoImage(Image.open(
-            "../../data/textures/eng_switch_open.PNG").resize((sw_width, sw_height)))
+            "../../data/textures/eng_switch_open.PNG").resize(
+            (sw_width, sw_height)))
 
         images['sw_closed'] = ImageTk.PhotoImage(Image.open(
-            "../../data/textures/eng_switch_closed.PNG").resize((sw_width, sw_height)))
+            "../../data/textures/eng_switch_closed.PNG").resize(
+            (sw_width, sw_height)))
 
         def switch(event):
             event.widget.configure(image=images['sw_closed'])
@@ -210,7 +224,7 @@ class HabPage(tk.Frame):
                                       image=images['sw_open'],
                                       relief=tk.FLAT,
                                       bd=0,
-                                      bg=cw.BLACK)
+                                      bg=style.bg)
         widgets['sw_ln1'].place(x=125, y=35)
 
         widgets['sw_ln1'].bind('<Button-1>', switch)
@@ -228,20 +242,22 @@ class HabPage(tk.Frame):
 
     def _render_right_mid(self):
         # Coolant Loops
-        loops = cw.ENGLabelFrame(self.right_frame_mid, text="")
+        loops = cw.ENGLabelFrame(self.right_frame_mid, text="", style=style)
         loops.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         for cl in range(2):
             prefix = 'hl{}_'.format(cl+1)
-            loop = cw.ENGLabelFrame(loops, text='Coolant Loop {}'.format(cl+1))
+            loop = cw.ENGLabelFrame(loops, text='Coolant Loop {}'.format(cl+1),
+                                    style=style)
             loop.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
             widgets[prefix + 'pump'] = cw.ENGLabel(loop, text='PUMP',
-                                                   value=96, unit='%')
+                                                   value=96, unit='%',
+                                                   style=style)
             widgets[prefix + 'pump_sldr'] = cw.ENGScale(
-                loop, widgets[prefix + 'pump'])
+                loop, widgets[prefix + 'pump'], style=style)
             widgets[prefix + 'temp'] = cw.ENGLabel(
-                loop, text='TEMP', value=47, unit='*C')
+                loop, text='TEMP', value=47, unit='*C', style=style)
 
             widgets[prefix + 'pump'].grid(row=0, column=0)
             widgets[prefix + 'pump_sldr'].grid(row=0, column=1,
@@ -251,42 +267,45 @@ class HabPage(tk.Frame):
             for i in range(2):
                 for j in range(3):
                     rad = 'R{}'.format(i * 3 + j + 1)
-                    widgets[prefix + rad] = cw.Indicator(loop, text=rad)
+                    widgets[prefix + rad] = cw.Indicator(loop, text=rad,
+                                                         style=style)
                     widgets[prefix + rad].grid(row=i+2, column=j, sticky=tk.E)
 
         # Radiators
-        radiators = cw.ENGLabelFrame(self.right_frame_mid, text="Radiators")
+        radiators = cw.ENGLabelFrame(self.right_frame_mid, text="Radiators",
+                                     style=style)
         radiators.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
 
         for i in range(6):
             rad = 'R{}'.format(i+1)
 
             widgets['r_' + rad + '_isol'] = tk.Button(
-                radiators, text=ISOLATED, width=10, bg=cw.GRAY,
+                radiators, text=ISOLATED, width=10, bg=style.ind_off,
                 command=lambda v=(i+1): rad_isol(v))
             if i < 3:
                 widgets['r_' + rad] = cw.ENGLabel(
-                    radiators, text=rad, value=STOWED)
+                    radiators, text=rad, value=STOWED, style=style)
                 widgets['r_' + rad + '_stow'] = tk.Button(
-                    radiators, text=STOWED, width=10, bg=cw.GRAY,
+                    radiators, text=STOWED, width=10, bg=style.ind_off,
                     command=lambda v=(i+1): rad_stow(v))
             else:
                 widgets['r_' + rad] = cw.ENGLabel(radiators,
-                                                  text=rad, value=ISOLATED)
+                                                  text=rad, value=ISOLATED,
+                                                  style=style)
 
             widgets['r_' + rad].grid(row=i, column=0, padx=15)
             widgets['r_' + rad + '_isol'].grid(row=i, column=1, padx=5, pady=5)
             if i < 3:
                 widgets['r_' + rad + '_stow'].grid(row=i, column=2, padx=5)
 
-        all_buttons = cw.ENGLabelFrame(radiators, text='')
+        all_buttons = cw.ENGLabelFrame(radiators, text='', style=style)
         all_buttons.grid(row=3, column=2, rowspan=3, ipadx=5, ipady=5)
 
         widgets['r_stow_all'] = tk.Button(
-            all_buttons, text='STOW-A', width=8, height=2, bg=cw.GRAY,
+            all_buttons, text='STOW-A', width=8, height=2, bg=style.ind_off,
             command=lambda: [rad_stow(v+1) for v in range(3)])
         widgets['r_isol_all'] = tk.Button(
-            all_buttons, text='ISOL-A', width=8, height=2, bg=cw.GRAY,
+            all_buttons, text='ISOL-A', width=8, height=2, bg=style.ind_off,
             command=lambda: [rad_isol(v+1) for v in range(6)])
 
         widgets['r_stow_all'].pack(pady=5)
@@ -315,17 +334,21 @@ class HabPage(tk.Frame):
     def _render_right_bot(self):
         # Hab Reactor
         hreactor = cw.ENGLabelFrame(self.right_frame_bot,
-                                    text="Habitat Reactor")
+                                    text="Habitat Reactor", style=style)
         hreactor.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
 
-        widgets['hr_INJ-1'] = cw.Indicator(hreactor, text="R-INJ-1")
-        widgets['hr_INJ-2'] = cw.Indicator(hreactor, text="R-INJ-2")
-        widgets['hr_heater'] = cw.Indicator(hreactor, text="HEAT")
+        widgets['hr_INJ-1'] = cw.Indicator(hreactor, text="R-INJ-1",
+                                           style=style)
+        widgets['hr_INJ-2'] = cw.Indicator(hreactor, text="R-INJ-2",
+                                           style=style)
+        widgets['hr_heater'] = cw.Indicator(hreactor, text="HEAT",
+                                            style=style)
         widgets["hr_curr"] = cw.ENGLabel(hreactor, text='CURR',
-                                         value=0, unit='A')
+                                         value=0, unit='A', style=style)
         widgets['hr_temp'] = cw.ENGLabel(hreactor, text='TEMP',
-                                         value=81, unit='*C')
-        widgets['a_hr_overtemp'] = cw.Alert(hreactor, text="OVERTEMP")
+                                         value=81, unit='*C', style=style)
+        widgets['a_hr_overtemp'] = cw.Alert(hreactor, text="OVERTEMP",
+                                            style=style)
 
         widgets['hr_INJ-1'].grid(row=0, column=0, padx=10)
         widgets['hr_INJ-2'].grid(row=1, column=0)
@@ -346,18 +369,25 @@ class HabPage(tk.Frame):
         hreactor.grid_columnconfigure(2, weight=3, minsize=graph_width)
 
         hrconfinement = cw.ENGLabelFrame(self.right_frame_bot,
-                                         text="Reactor Confinement")
+                                         text="Reactor Confinement",
+                                         style=style)
         hrconfinement.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        widgets['hr_RCON-1'] = cw.Indicator(hrconfinement, text="RCON-1")
-        widgets['hr_RCON-2'] = cw.Indicator(hrconfinement, text="RCON-2")
+        widgets['hr_RCON-1'] = cw.Indicator(hrconfinement, text="RCON-1",
+                                            style=style)
+        widgets['hr_RCON-2'] = cw.Indicator(hrconfinement, text="RCON-2",
+                                            style=style)
         widgets["hr_RCON-1_temp"] = cw.ENGLabel(hrconfinement, text='TEMP',
-                                                value=84, unit='*C')
+                                                value=84, unit='*C',
+                                                style=style)
         widgets['hr_RCON-2_temp'] = cw.ENGLabel(hrconfinement, text='TEMP',
-                                                value=80, unit='*C')
+                                                value=80, unit='*C',
+                                                style=style)
         widgets['hr_BATT'] = cw.ENGLabel(hrconfinement, text='BATT',
-                                         value=2000, unit='As')
-        widgets['a_hr_lowBatt'] = cw.Alert(hrconfinement, text='LOW BATT')
+                                         value=2000, unit='As',
+                                         style=style)
+        widgets['a_hr_lowBatt'] = cw.Alert(hrconfinement, text='LOW BATT',
+                                           style=style)
 
         widgets['hr_RCON-1'].grid(row=0, column=0)
         widgets['hr_RCON-2'].grid(row=1, column=0)
@@ -375,7 +405,7 @@ app = MainApplication()    # Essential. Do not remove.
 
 # Testing
 #widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
-#widgets['a_master'].alert()
+widgets['a_master'].alert()
 #widgets['a_hab_gnomes'].alert()
 # /Testing
 
