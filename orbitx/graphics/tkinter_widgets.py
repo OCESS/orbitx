@@ -2,14 +2,14 @@ import tkinter as tk
 from typing import Union, Optional
 
 STYLE_DEFAULT = 'default'
-STYLE_CA = 'ca_palette'
+STYLE_FLAT = 'flat'
 
 
 class Style:
 
     def __init__(self, style='default'):
-        if style=='ca_palette':
-            self.ca_palette()
+        if style == 'flat':
+            self.flat()
         else:
             self.default()
 
@@ -39,28 +39,28 @@ class Style:
         self.normal = ('Arial', 12)
         self.small = ('Arial', 10)
 
-    def ca_palette(self):
-        # https://flatuicolors.com/palette/ca
+    def flat(self):
+        # https://flatuicolors.com/palette/defo
 
-        self.bg = '#8395a7'    # Storm Petrel
-        self.text = '#54a0ff'   # Joust Blue
+        self.bg = '#2c3e50'    # Midnight Blue
+        self.text = '#bdc3c7'   # Sliver
 
         # Buttons
-        self.ind_off = '#c8d6e5'  # Indicator inactive; Light Blue Ballerina
-        self.ind_on = '#1dd1a1'  # Indicator active; Wild Caribbean Green
-        self.otb_unused = self.ind_off
-        self.otb_used = '#576574'  # OneTimeButton, used; Fuel Town
+        self.ind_off = '#bdc3c7'  # Indicator inactive; Concrete
+        self.ind_on = '#27ae60'  # Indicator active; Nephritis
+        self.otb_unused = '#bdc3c7'    # Concrete
+        self.otb_used = '#7f8c8d'  # OneTimeButton, used; Asbestos
 
         # Alerts
-        self.alert_bg = '#ee5253'  # Alert flash; Amour
-        self.alert_text = '#c8d6e5'  # Alert flash text; Light Blue Ballerina
+        self.alert_bg = '#c0392b'  # Alert flash; Pomegranate
+        self.alert_text = '#ecf0f1'  # Alert flash text; Clouds
 
         # Electrical Grid
-        self.sw_off = '#00d2d3'    # Jade Dust
-        self.sw_on = '#feca57'    # Casandora Yellow
-        self.temp_nom = '#10ac84'   # Dark Mountain Meadow
-        self.temp_med = '#ff9f43'   # Double Dragon Skin
-        self.temp_hi = '#ee5253'    # Amour
+        self.sw_off = '#34495e'    # Wet Asphalt
+        self.sw_on = '#f1c40f'    # Sunflower
+        self.temp_nom = '#16a085'   # Green Sea
+        self.temp_med = '#e67e22'   # Carrot
+        self.temp_hi = '#e74c3c'    # Alizarin
 
         # Fonts
         self.large = ('Arial', 14)
@@ -130,16 +130,18 @@ class Indicator(tk.Button):
                        command=self.press,
                        font=style.normal
                        )
+
+        self.style = style
         self.value = 1    # Will be set to 0, on next line
         self.invoke()
 
     def press(self, style=Style('default')):
         if self.value == 0:
             self.value = 1
-            self.configure(relief=tk.RAISED, bg=style.ind_on)
+            self.configure(relief=tk.RAISED, bg=self.style.ind_on)
         else:
             self.value = 0
-            self.configure(relief=tk.SUNKEN, bg=style.ind_off)
+            self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
 
 
 class OneTimeButton(tk.Button):
