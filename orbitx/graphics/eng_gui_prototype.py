@@ -18,7 +18,7 @@ LOOP2 = 'HLP2'
 LOOP3 = 'ALP3'
 BOTH = 'BOTH'
 
-style = cw.Style(cw.STYLE_CA)
+style = cw.Style(cw.STYLE_FLAT)
 
 
 class MainApplication(tk.Tk):
