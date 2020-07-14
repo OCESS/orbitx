@@ -181,11 +181,6 @@ class Alert(tk.Button):
     stop flashing, but stay red until the issue causing the alert is cleared.
 
     Optional invisible tag sets the text to the same colour as the background.
-
-    TODO Invisible doesn't work
-    TODO Sometimes, when you quiet the alert, it goes back to normal_state
-    save the id of the after call id=after()
-    then after_cancel(id)
     """
 
     def __init__(self, parent, invis: bool = False, counter: int = None,
