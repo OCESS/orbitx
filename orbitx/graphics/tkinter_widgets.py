@@ -209,7 +209,7 @@ class Alert(tk.Button):
 
         # Invis doesn't seem to work?
         if invis:
-            self.configure(fg=parent['bg'], bg=parent['bg'])
+            self.configure(disabledforeground=self.style.bg)
 
         if counter is not None:
             self.counter = counter
