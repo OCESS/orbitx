@@ -162,7 +162,9 @@ class HabPage(tk.Frame):
                                             style=style)
         widgets['a_SRBTIME'] = cw.Alert(subsystems, text='120s', invis=True,
                                         style=style)
+
         widgets['SRB'] = cw.OneTimeButton(subsystems, text='SRB', style=style)
+        widgets['SRB'].bind_all('s', lambda x: widgets['SRB'].press())
 
         widgets['INS'].grid(row=0, column=0)
         widgets['RADAR'].grid(row=1, column=0)
