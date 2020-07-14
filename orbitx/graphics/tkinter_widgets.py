@@ -149,7 +149,7 @@ class OneTimeButton(tk.Button):
     A button, which can only be pressed once.
     """
 
-    def __init__(self, parent, command=None, style=Style('default'), *args, **kwargs):
+    def __init__(self, parent, style=Style('default'), *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -163,14 +163,18 @@ class OneTimeButton(tk.Button):
                        relief=tk.RIDGE,
                        bg=style.otb_unused
                        )
+        self.bind('<Button-1>', lambda x: self.press())
 
         self.value = 0
+        self.style = style
 
-    def update_style(self, style=Style('default')):
+
+    def press(self):
+        self.value = 1
         self.configure(state=tk.DISABLED,
                        relief=tk.FLAT,
-                       bg=style.otb_used,
-                       fg=style.otb_unused
+                       bg=self.style.otb_used,
+                       fg=self.style.otb_unused
                        )
 
 
