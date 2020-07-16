@@ -96,7 +96,8 @@ class OneTimeButton(tk.Button):
                        height=40,
                        font=style.normal,
                        relief=tk.RIDGE,
-                       bg=style.otb_unused
+                       bg=style.otb_unused,
+                       command=self.press
                        )
         self.bind('<Button-1>', lambda x: self.press())
 
