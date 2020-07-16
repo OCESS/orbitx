@@ -15,16 +15,7 @@ import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import data_structures
-
-# Frequently-used entity names are here as constants. You can use string
-# literals instead, but that's more prone to mipsellings.
-HABITAT = 'Habitat'
-AYSE = 'AYSE'
-SUN = 'Sun'
-EARTH = 'Earth'
-MODULE = 'Module'
-SUN = 'Sun'
-OCESS = 'OCESS'
+from orbitx.strings import AYSE, COMPONENT_NAMES, EARTH, HABITAT
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
@@ -113,11 +104,6 @@ SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
 
 # ---------- Engineering constants -----------
-
-COMPONENT_NAMES = [
-    'INS', 'LOS', 'GNC', 'ION1', 'ACC1', 'ION2', 'ACC2', 'ION3', 'ACC3', 'AUXCOM'
-]
-
 N_COMPONENTS = len(COMPONENT_NAMES)
 N_RADIATORS = 8
 N_COOLANT_LOOPS = 3

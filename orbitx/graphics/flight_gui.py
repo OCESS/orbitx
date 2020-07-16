@@ -17,7 +17,8 @@ import vpython
 
 from orbitx import common
 from orbitx.data_structures import Entity, Navmode, PhysicsState
-from orbitx.graphics.ayse import AYSE
+from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
+from orbitx.graphics.ayse import Ayse
 from orbitx.graphics.earth import Earth
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.orbit_projection import OrbitProjection
@@ -121,15 +122,15 @@ class FlightGui:
 
     def _build_threedeeobj(self, entity: Entity) -> ThreeDeeObj:
         obj: ThreeDeeObj
-        if entity.name == common.HABITAT:
+        if entity.name == HABITAT:
             obj = Habitat(entity, self.origin(), self.texture_path)
-        elif entity.name == common.AYSE:
-            obj = AYSE(entity, self.origin(), self.texture_path)
-        elif entity.name == common.SUN:
+        elif entity.name == AYSE:
+            obj = Ayse(entity, self.origin(), self.texture_path)
+        elif entity.name == SUN:
             obj = Star(entity, self.origin(), self.texture_path)
-        elif entity.name == common.MODULE:
+        elif entity.name == MODULE:
             obj = ScienceModule(entity, self.origin(), self.texture_path)
-        elif entity.name == common.EARTH:
+        elif entity.name == EARTH:
             obj = Earth(entity, self.origin(), self.texture_path)
         else:
             obj = Planet(entity, self.origin(), self.texture_path)
@@ -401,7 +402,7 @@ class FlightGui:
             # The file we loaded will have a non-zero time acc, unpause.
             self.pause(False)
             # Re-centre on the habitat.
-            self._sidebar.centre_menu._menu.selected = common.HABITAT
+            self._sidebar.centre_menu._menu.selected = HABITAT
             self._recentre_dropdown_hook(self._sidebar.centre_menu._menu)
         else:
             log.warning(f'Ignored non-existent loadfile: {full_path}')
@@ -534,7 +535,7 @@ class Sidebar:
 
         self._wtexts.append(TableText(
             # The H in HRT stands for Habitat, even though craft is more
-            # general and covers AYSE, but HRT is the familiar triple name and
+            # general and covers Ayse, but HRT is the familiar triple name and
             # the Hawking III says trans rights.
             "HRT phase θ",
             lambda state: common.format_num(
@@ -665,7 +666,7 @@ class Sidebar:
         # the Module (and in the future maybe other objects) can be created.
         # Have them in the choices list at the beginning, and handle when they
         # are selected without the corresponding entity existing yet.
-        entity_names = list(self._parent._3dobjs) + [common.MODULE]
+        entity_names = list(self._parent._3dobjs) + [MODULE]
 
         self.centre_menu = Menu(
             choices=entity_names,

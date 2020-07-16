@@ -17,6 +17,7 @@ from orbitx import common
 from orbitx import network
 from orbitx import orbitx_pb2 as protos
 from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.strings import AYSE, EARTH, HABITAT, MODULE, OCESS, SUN
 
 log = logging.getLogger()
 
@@ -138,15 +139,15 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
             name = entity_name_line[0].strip()
             proto_state.entities[entity_index].name = name
 
-            if name == common.HABITAT:
+            if name == HABITAT:
                 hab_index = entity_index
-            elif name == common.AYSE:
+            elif name == AYSE:
                 ayse_index = entity_index
 
             entity_index += 1
             entity_name_line = next(starsr)
 
-    assert proto_state.entities[0].name == common.SUN, (
+    assert proto_state.entities[0].name == SUN, (
         'We assume that the Sun is the first OrbitV entity, this has '
         'implications for how we populate entity positions.')
     assert hab_index is not None, \
@@ -209,7 +210,7 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
         hab.spin = numpy.radians(_read_single(rnd))
         docked_constant = _read_int(rnd)
         if docked_constant != 0:
-            hab.landed_on = common.AYSE
+            hab.landed_on = AYSE
 
         _read_single(rnd)  # Rad shields, overwritten by enghabv.bas.
         # TODO: once module is implemented, have it be launched here.
@@ -264,8 +265,8 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
     while entity_index < len(proto_state.entities):
         proto_entity = proto_state.entities[entity_index]
         if round(proto_entity.x) == 0 and round(proto_entity.y) == 0 and \
-                proto_entity.name != common.SUN or \
-                proto_entity.name == common.OCESS:
+                proto_entity.name != SUN or \
+                proto_entity.name == OCESS:
             del proto_state.entities[entity_index]
         else:
             entity_index += 1
@@ -277,8 +278,8 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
     ayse.mass = 20000000
 
     orbitx_state = PhysicsState(None, proto_state)
-    orbitx_state[common.HABITAT] = Entity(hab)
-    orbitx_state[common.AYSE] = Entity(ayse)
+    orbitx_state[HABITAT] = Entity(hab)
+    orbitx_state[AYSE] = Entity(ayse)
 
     craft = orbitx_state.craft_entity()
     craft.throttle = craft_throttle
@@ -318,8 +319,8 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
     (enghabv.bas) and seeing what information it reads from OSbackup.RND"""
     assert orbitx_state.craft
 
-    hab = orbitx_state[common.HABITAT]
-    ayse = orbitx_state[common.AYSE]
+    hab = orbitx_state[HABITAT]
+    ayse = orbitx_state[AYSE]
     craft = orbitx_state.craft_entity()
     max_thrust = common.craft_capabilities[craft.name].thrust
     timestamp = datetime.fromtimestamp(orbitx_state.timestamp)
@@ -397,10 +398,10 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
         _write_single(0, osbackup)
 
         _write_single(numpy.degrees(hab.spin), osbackup)
-        _write_int(150 if hab.landed_on == common.AYSE else 0, osbackup)
+        _write_int(150 if hab.landed_on == AYSE else 0, osbackup)
         _write_single(0, osbackup)  # Rad shields, written by enghabv.bas.
         _write_int(MODSTATE_TO_MODFLAG[network.Request.DETACHED_MODULE]
-                   if common.MODULE in orbitx_state._entity_names
+                   if MODULE in orbitx_state._entity_names
                    else MODSTATE_TO_MODFLAG[network.Request.NO_MODULE],
                    osbackup)
 
@@ -409,9 +410,9 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
         # OCESS or AYSE. Also, if you can dock with AYSE. So we just tell
         # engineering if we're landed, but don't tell it any more deets.
         _write_single(
-            150 if hab.landed_on == common.AYSE else 1000, osbackup)
+            150 if hab.landed_on == AYSE else 1000, osbackup)
         _write_single(
-            150 if hab.landed_on == common.EARTH else 1000, osbackup)
+            150 if hab.landed_on == EARTH else 1000, osbackup)
 
         _write_int(hab.broken, osbackup)  # I think an explosion flag.
         _write_int(ayse.broken, osbackup)  # Same as above.

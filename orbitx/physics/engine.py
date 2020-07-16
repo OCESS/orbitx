@@ -31,6 +31,7 @@ from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
 from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, \
     _FIELD_ORDERING
+from orbitx.strings import AYSE, HABITAT, MODULE
 
 SOLUTION_CACHE_SIZE = 2
 
@@ -343,11 +344,11 @@ class PhysicsEngine:
                               * calc.heading_vector(entity.heading))
                 mass = entity.mass + entity.fuel
 
-                if entity.name == common.AYSE and \
-                        y[common.HABITAT].landed_on == common.AYSE:
+                if entity.name == AYSE and \
+                        y[HABITAT].landed_on == AYSE:
                     # It's bad that this is hardcoded, but it's also the only
                     # place that this comes up so IMO it's not too bad.
-                    hab = y[common.HABITAT]
+                    hab = y[HABITAT]
                     mass += hab.mass + hab.fuel
 
                 eng_acc = eng_thrust / mass
@@ -357,7 +358,7 @@ class PhysicsEngine:
         srb_usage = 0
         try:
             if y.srb_time >= 0:
-                hab_index = y._name_to_index(common.HABITAT)
+                hab_index = y._name_to_index(HABITAT)
                 hab = y[hab_index]
                 srb_acc = common.SRB_THRUST / (hab.mass + hab.fuel)
                 srb_acc_vector = srb_acc * calc.heading_vector(hab.heading)
@@ -617,7 +618,7 @@ class LiftoffEvent(Event):
             return np.inf
 
         thrust = common.craft_capabilities[craft.name].thrust * craft.throttle
-        if y.srb_time > 0 and y.craft == common.HABITAT:
+        if y.srb_time > 0 and y.craft == HABITAT:
             thrust += common.SRB_THRUST
 
         pos = craft.pos - planet.pos
@@ -673,7 +674,7 @@ def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
         lander = y[index]
         ground = y[landed_on[index]]
 
-        if ground.name == common.AYSE and lander.name == common.HABITAT:
+        if ground.name == AYSE and lander.name == HABITAT:
             # Always put the Habitat at the docking port.
             lander.pos = (
                     ground.pos
@@ -832,24 +833,24 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.ENGINEERING_UPDATE:
         # Multiply this value by 100, because OrbitV considers engines at
         # 100% to be 100x the maximum thrust.
-        common.craft_capabilities[common.HABITAT] = \
-            common.craft_capabilities[common.HABITAT]._replace(
+        common.craft_capabilities[HABITAT] = \
+            common.craft_capabilities[HABITAT]._replace(
                 thrust=100 * request.engineering_update.max_thrust)
-        hab = y0[common.HABITAT]
-        ayse = y0[common.AYSE]
+        hab = y0[HABITAT]
+        ayse = y0[AYSE]
         hab.fuel = request.engineering_update.hab_fuel
         ayse.fuel = request.engineering_update.ayse_fuel
-        y0[common.HABITAT] = hab
-        y0[common.AYSE] = ayse
+        y0[HABITAT] = hab
+        y0[AYSE] = ayse
 
         if request.engineering_update.module_state == \
                 Request.DETACHED_MODULE and \
-                common.MODULE not in y0._entity_names and \
+                MODULE not in y0._entity_names and \
                 not hab.landed():
             # If the Habitat is freely floating and engineering asks us to
             # detach the Module, spawn in the Module.
             module = Entity(protos.Entity(
-                name=common.MODULE, mass=100, r=10, artificial=True))
+                name=MODULE, mass=100, r=10, artificial=True))
             module.pos = (hab.pos - (module.r + hab.r) *
                           calc.heading_vector(hab.heading))
             module.v = calc.rotational_speed(module, hab)
@@ -859,10 +860,10 @@ def _one_request(request: Request, y0: PhysicsState) \
             y0 = PhysicsState(None, y0_proto)
 
     elif request.ident == Request.UNDOCK:
-        habitat = y0[common.HABITAT]
+        habitat = y0[HABITAT]
 
-        if habitat.landed_on == common.AYSE:
-            ayse = y0[common.AYSE]
+        if habitat.landed_on == AYSE:
+            ayse = y0[AYSE]
             habitat.landed_on = ''
 
             norm = habitat.pos - ayse.pos
@@ -870,7 +871,7 @@ def _one_request(request: Request, y0: PhysicsState) \
             habitat.v += unit_norm * common.UNDOCK_PUSH
             habitat.spin = ayse.spin
 
-            y0[common.HABITAT] = habitat
+            y0[HABITAT] = habitat
 
     elif request.ident == Request.REFERENCE_UPDATE:
         y0.reference = request.reference

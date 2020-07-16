@@ -10,6 +10,7 @@ import numpy as np
 
 from orbitx import common
 from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.strings import HABITAT
 
 log = logging.getLogger()
 
@@ -104,7 +105,7 @@ def h_speed(A: Entity, B: Entity) -> float:
 def engine_acceleration(state: PhysicsState) -> float:
     """Acceleration due to engine thrust."""
     craft = state.craft_entity()
-    if craft.name == common.HABITAT and state.srb_time > 0:
+    if craft.name == HABITAT and state.srb_time > 0:
         srb_thrust = common.SRB_THRUST
     else:
         srb_thrust = 0

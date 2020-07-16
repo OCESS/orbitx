@@ -7,6 +7,7 @@ from orbitx import common
 from orbitx.data_structures import Entity, PhysicsState
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.physics import calc
+from orbitx.strings import AYSE
 
 
 class Habitat(ThreeDeeObj):
@@ -138,7 +139,7 @@ class Habitat(ThreeDeeObj):
         if entity.broken:
             label += ' [BROKEN]'
         label += '\nFuel: ' + common.format_num(entity.fuel, " kg")
-        if entity.landed_on == common.AYSE:
+        if entity.landed_on == AYSE:
             label += '\nDocked'
         elif entity.landed():
             label += '\nLanded'

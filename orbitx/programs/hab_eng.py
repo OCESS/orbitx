@@ -18,6 +18,7 @@ from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
 from orbitx.graphics.eng_gui import MainApplication
+from orbitx.strings import HABITAT
 
 
 log = logging.getLogger()
@@ -59,7 +60,7 @@ def main(args: argparse.Namespace):
 
     def update():
         state = physics_engine.get_state()
-        gui.update_labels(state[common.HABITAT].pos[0])
+        gui.update_labels(state[HABITAT].pos[0])
         gui.after(int(1000 / common.FRAMERATE), update)
 
     gui = MainApplication()

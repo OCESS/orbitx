@@ -14,6 +14,7 @@ from orbitx import network
 from orbitx import orbitx_pb2
 from orbitx.graphics import vpython_widgets
 from orbitx.orbitv_file_interface import OrbitVIntermediary
+from orbitx.strings import OCESS
 
 
 class CompatGui:
@@ -125,7 +126,7 @@ class CompatGui:
                     ", ".join(set_difference)
                 self._missing_entities_warning.text += "</span>."
 
-                if common.OCESS in set_difference:
+                if OCESS in set_difference:
                     self._missing_entities_warning.text += (
                         " (OCESS has not been implemented in OrbitX yet, "
                         "sorry!)"

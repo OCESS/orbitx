@@ -13,6 +13,7 @@ import vpython
 
 from orbitx import common
 from orbitx import orbitx_pb2 as protos
+from orbitx.strings import AYSE, HABITAT
 
 log = logging.getLogger()
 
@@ -105,7 +106,7 @@ class Entity:
 
     @property
     def dockable(self):
-        return self.name == common.AYSE
+        return self.name == AYSE
 
     def landed(self) -> bool:
         """Convenient and more elegant check to see if the entity is landed."""
@@ -257,7 +258,9 @@ class EngineeringState:
     AlarmState = protos.EngineeringState.AlarmState
 
     def __init__(self, proto_state: protos.EngineeringState):
-        assert len(proto_state.components) == common.N_COMPONENTS
+        # TODO: enable this check once we've fully hashed out what components exist.
+        # assert len(proto_state.components) == common.N_COMPONENTS
+        assert len(proto_state.components) > 0
         assert len(proto_state.radiators) == common.N_RADIATORS
         assert len(proto_state.coolant_loops) == common.N_COOLANT_LOOPS
 
@@ -325,7 +328,7 @@ class PhysicsState:
     y = PhysicsState(y_1d, physical_state)
 
     entity = y[0]
-    y[common.HABITAT] = habitat
+    y[HABITAT] = habitat
     scipy.solve_ivp(y.y0())
 
     See help(PhysicsState.__init__) for how to initialize. Basically, the `y`
@@ -485,7 +488,7 @@ class PhysicsState:
 
         Allows the following:
         entity = physics_state[2]
-        entity = physics_state[common.HABITAT]
+        entity = physics_state[HABITAT]
         entity.x = 5  # Propagates to physics_state.
         """
         if isinstance(index, str):
@@ -500,7 +503,7 @@ class PhysicsState:
 
         Allows the following:
         PhysicsState[2] = physics_entity
-        PhysicsState[common.HABITAT] = physics_entity
+        PhysicsState[HABITAT] = physics_entity
         """
         if isinstance(val, _EntityView) and val._creator == self:
             # The _EntityView is a view into our own data, so we already have
@@ -637,19 +640,19 @@ class PhysicsState:
     def craft(self) -> Optional[str]:
         """Returns the currently-controlled craft.
         Not actually backed by any stored field, just a calculation."""
-        if common.HABITAT not in self._entity_names and \
-                common.AYSE not in self._entity_names:
+        if HABITAT not in self._entity_names and \
+                AYSE not in self._entity_names:
             return None
-        if common.AYSE not in self._entity_names:
-            return common.HABITAT
+        if AYSE not in self._entity_names:
+            return HABITAT
 
-        hab_index = self._name_to_index(common.HABITAT)
-        ayse_index = self._name_to_index(common.AYSE)
+        hab_index = self._name_to_index(HABITAT)
+        ayse_index = self._name_to_index(AYSE)
         if self._y_component('landed_on')[hab_index] == ayse_index:
             # Habitat is docked with AYSE, AYSE is active craft
-            return common.AYSE
+            return AYSE
         else:
-            return common.HABITAT
+            return HABITAT
 
     def reference_entity(self):
         """Convenience function, a full Entity representing the reference."""

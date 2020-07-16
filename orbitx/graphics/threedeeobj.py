@@ -10,6 +10,7 @@ import numpy as np
 from orbitx.physics import calc
 from orbitx import common
 from orbitx.data_structures import Entity, PhysicsState
+from orbitx.strings import EARTH
 
 log = logging.getLogger()
 
@@ -91,7 +92,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
                 vpython_verts = [vpython.vertex(
                     pos=vpython.vector(*coord),
                     color=(vpython.vector(0, 0.6, 0.8)
-                           if entity.name == common.EARTH else
+                           if entity.name == EARTH else
                            vpython.vector(0.5, 0.5, 0.5)))
                     for coord in tri]
                 vpython_tris.append(vpython.triangle(vs=vpython_verts))

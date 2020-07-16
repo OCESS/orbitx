@@ -13,6 +13,7 @@ from orbitx import logs
 from orbitx import network
 from orbitx import physics
 from orbitx.data_structures import _EntityView, Entity, PhysicsState
+from orbitx.strings import HABITAT
 
 log = logging.getLogger()
 
@@ -131,14 +132,14 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 moved[0].fuel,
                 (initial[0].fuel -
                  t_delta * throttle *
-                 common.craft_capabilities[common.HABITAT].fuel_cons))
+                 common.craft_capabilities[HABITAT].fuel_cons))
             self.assertTrue(
                 moved[0].vx <
                 (t_delta * calc.engine_acceleration(moved)))
 
             t_no_fuel = (initial[0].fuel
                          / (throttle *
-                            common.craft_capabilities[common.HABITAT].fuel_cons
+                            common.craft_capabilities[HABITAT].fuel_cons
                             )
                          )
             empty_fuel = physics_engine.get_state(t_no_fuel)
