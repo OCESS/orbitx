@@ -7,8 +7,11 @@ gui = MainApplication()
 gui.mainloop()
 """
 
+from typing import List
+
 import tkinter as tk
 import orbitx.graphics.tkinter_widgets as cw
+from orbitx.data_structures import Request
 
 widgets = {}
 
@@ -31,6 +34,17 @@ class MainApplication(tk.Tk):
 
         self.label = cw.ENGLabel(self, text='Fuel', value=1000, unit='kg')
         self.label.pack()
+
+        self._commands: List[Request] = []
+
+    def pop_commands(self) -> List[Request]:
+        """Take user input since last frame and send it off."""
+        old_commands = self._commands
+        self._commands = []
+        return old_commands
+
+    def contrived_keybind_function(self):
+        pass
 
     def _create_menu(self):
         menubar = tk.Menu(self)

@@ -42,29 +42,26 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.NetworkedStateClient(
-        network.Request.HAB_ENG, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
     try:
         # Make sure we have a connection before continuing.
-        orbitx_connection.get_state(
-            [network.Request()])
+        orbitx_connection = network.NetworkedStateClient(
+            network.Request.HAB_ENG, args.physics_server)
     except grpc.RpcError as err:
         log.error(f'Could not connect to Physics Server: {err.code()}')
         StartupFailedGui(args.physics_server, err)
         return
 
-    server_state = orbitx_connection.get_state()
-    physics_engine = physics.PhysicsEngine(server_state)
-
-    def update():
-        state = physics_engine.get_state()
-        gui.update_labels(state[HABITAT].pos[0])
-        gui.after(int(1000 / common.FRAMERATE), update)
-
     gui = MainApplication()
-    update()
+
+    def network_task():
+        user_commands = gui.pop_commands()
+        state = orbitx_connection.get_state(user_commands)
+        gui.update_labels(state[HABITAT].pos[0])
+        gui.after(int(1000 / common.FRAMERATE), network_task)
+
+    network_task()
     gui.mainloop()
 
 
