@@ -886,5 +886,9 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.IGNITE_SRBS:
         if round(y0.srb_time) == common.SRB_FULL:
             y0.srb_time = common.SRB_BURNTIME
+    elif request.ident == Request.SWITCH_TOGGLE:
+        pass  # Implement this
+    elif request.ident == Request.RADIATOR_TOGGLE:
+        pass  # Implement this
 
     return y0

@@ -11,6 +11,7 @@ from typing import List
 
 import tkinter as tk
 import orbitx.graphics.tkinter_widgets as cw
+from orbitx import strings
 from orbitx.data_structures import Request
 
 widgets = {}
@@ -44,7 +45,15 @@ class MainApplication(tk.Tk):
         return old_commands
 
     def contrived_keybind_function(self):
-        pass
+        keypress = 'a'
+        if keypress == 'a':
+            self._commands.append(Request(
+                ident=Request.SWITCH_TOGGLE,
+                switch_to_toggle=strings.COMPONENT_NAMES.index(strings.RCON1)))
+        elif keypress == 'b':
+            self._commands.append(Request(
+                ident=Request.RADIATOR_TOGGLE,
+                radiator_to_toggle=1))
 
     def _create_menu(self):
         menubar = tk.Menu(self)
