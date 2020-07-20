@@ -27,10 +27,8 @@ from google.protobuf.text_format import MessageToString
 
 from orbitx.physics import calc
 from orbitx import common
-from orbitx.network import Request
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, \
-    _FIELD_ORDERING
+from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, Request, _FIELD_ORDERING
 from orbitx.strings import AYSE, HABITAT, MODULE
 
 SOLUTION_CACHE_SIZE = 2

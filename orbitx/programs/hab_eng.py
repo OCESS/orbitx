@@ -42,7 +42,7 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(
+    orbitx_connection = network.NetworkedStateClient(
         network.Request.HAB_ENG, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
@@ -66,19 +66,6 @@ def main(args: argparse.Namespace):
     gui = MainApplication()
     update()
     gui.mainloop()
-
-    random.seed()
-
-    try:
-        while True:
-            print(random.choice(['ASTRONAUT STATUS: DYING',
-                                 'astronaut status: okay']))
-            print(orbitx_connection.get_state(
-                  [network.Request()])['Earth'].pos)
-            time.sleep(1)
-    except grpc.RpcError as err:
-        log.error(
-            f'Got response code {err.code()} from orbitx, shutting down')
 
 
 program = programs.Program(

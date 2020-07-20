@@ -78,7 +78,7 @@ class ThreeDeeObj(metaclass=ABCMeta):
             text=self._label_text(entity))
 
     def draw_landing_graphic(self, entity: Entity) -> None:
-        log.debug(f'drawing landing graphic for {entity.name}')
+        log.info(f'drawing landing graphic for {entity.name}')
         """Draw something that simulates a flat surface at near zoom levels."""
 
         def graphic(size: float):

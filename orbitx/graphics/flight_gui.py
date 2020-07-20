@@ -16,7 +16,7 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.data_structures import Entity, Navmode, PhysicsState, Request
 from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
 from orbitx.graphics.ayse import Ayse
 from orbitx.graphics.earth import Earth
@@ -27,7 +27,6 @@ from orbitx.graphics.science_mod import ScienceModule
 from orbitx.graphics.star import Star
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
-from orbitx.network import Request
 from orbitx.physics import calc
 
 log = logging.getLogger()

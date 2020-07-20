@@ -17,6 +17,11 @@ from orbitx.strings import AYSE, HABITAT
 
 log = logging.getLogger()
 
+# This Request class is just an alias of the Command protobuf message. We
+# provide this so that nobody has to directly import orbitx_pb2, and so that
+# we can this wrapper class in the future.
+Request = protos.Command
+
 # These entity fields do not change during simulation. Thus, we don't have to
 # store them in a big 1D numpy array for use in scipy.solve_ivp.
 _PER_ENTITY_UNCHANGING_FIELDS = [

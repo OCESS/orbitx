@@ -70,8 +70,8 @@ class StartupHandler(LogdirFileHandler):
 
 # Set up the logger.
 # Log WARNING and higher to stderr.
-# Log DEBUG and higher to the logfile (initially the startup logfile).
-logging.getLogger().setLevel(logging.DEBUG)
+# Log INFO and higher to the logfile (initially the startup logfile).
+logging.getLogger().setLevel(logging.INFO)
 logging.captureWarnings(True)
 
 print_handler = logging.StreamHandler()
@@ -79,7 +79,7 @@ print_handler.setLevel(logging.WARNING)
 print_handler.setFormatter(print_formatter)
 
 startup_handler = StartupHandler()
-startup_handler.setLevel(logging.DEBUG)
+startup_handler.setLevel(logging.INFO)
 startup_handler.setFormatter(debug_formatter)
 logfile_name = startup_handler.baseFilename
 
@@ -89,11 +89,11 @@ logging.getLogger().addHandler(startup_handler)
 
 
 def make_program_logfile(program_name: str):
-    """Starts logging DEBUG messages to program-specific logfile."""
+    """Starts logging INFO messages to program-specific logfile."""
     # mode='w' implies that we discard any pre-existing contents of this file.
     global logfile_name
     logfile_handler = LogdirFileHandler(program_name, delay=True)
-    logfile_handler.setLevel(logging.DEBUG)
+    logfile_handler.setLevel(logging.INFO)
     logfile_handler.setFormatter(debug_formatter)
 
     logging.getLogger().info(
@@ -110,4 +110,4 @@ def make_program_logfile(program_name: str):
 
 def enable_verbose_logging():
     """Enables logging of all messages to stdout, from DEBUG upwards"""
-    print_handler.setLevel(logging.DEBUG)
+    print_handler.setLevel(logging.INFO)

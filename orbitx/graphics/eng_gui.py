@@ -7,12 +7,6 @@ gui = MainApplication()
 gui.mainloop()
 """
 
-import logging
-from datetime import datetime
-from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Optional
-
 import tkinter as tk
 import orbitx.graphics.tkinter_widgets as cw
 

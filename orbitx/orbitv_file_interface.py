@@ -284,8 +284,8 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
     craft = orbitx_state.craft_entity()
     craft.throttle = craft_throttle
 
-    log.debug(f'Interpreted {rnd_path} and {starsr_path} into this state:')
-    log.debug(repr(orbitx_state))
+    log.info(f'Interpreted {rnd_path} and {starsr_path} into this state:')
+    log.info(repr(orbitx_state))
     orbitx_state = _separate_landed_entities(orbitx_state)
     return orbitx_state
 
