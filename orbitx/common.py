@@ -197,14 +197,21 @@ def start_flamegraphing():
     # browser (in Firefox, F12 > Performance > Start Recording Performance)
     # And profiling python simulation code is done by running this function,
     # then processing PERF_FILE with https://github.com/brendangregg/FlameGraph
-    # The command is, without appropriate paths, is:
-    # dos2unix PERF_FILE && flamegraph.pl PERF_FILE > orbitx-perf.svg
+    # The command is:
+    # dos2unix flamegraph-data.log; perl flamegraph.pl flamegraph-data.log > orbitx-perf.svg
     # Where flamegraph.pl is from that brendangregg repo.
-    import flamegraph
-    flamegraph.start_profile_thread(
+    from flamegraph import flamegraph
+    t = flamegraph.ProfileThread(
         fd=open(PERF_FILE, 'w'),
-        filter=r'(simthread|MainThread)'
+        interval=0.001,
+        filter=r'simthread'
     )
+    t.start()
+
+    def cleanup():
+        t.stop()
+        t.join()
+    atexit.register(cleanup)
 
 
 def start_profiling():
