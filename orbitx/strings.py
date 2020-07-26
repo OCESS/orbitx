@@ -51,7 +51,16 @@ LOAD = 'LOAD'
 LP1 = 'LP-1'
 LP2 = 'LP-2'
 LP3 = 'LP-3'
+RAD1 = 'RAD 1'
+RAD2 = 'RAD 2'
+RAD3 = 'RAD 3'
+RAD4 = 'RAD 4'
+RAD5 = 'RAD 5'
+RAD6 = 'RAD 6'
+RAD7 = 'RAD 7'
+RAD8 = 'RAD 8'
 
+# This is referenced by data_structures.ComponentView.name!
 COMPONENT_NAMES = [
     RADS1,
     RADS2,
@@ -84,3 +93,9 @@ COMPONENT_NAMES = [
     RADAR,
     INS,
 ]
+
+# This is referenced by data_structures.CoolantView.name!
+COOLANT_LOOP_NAMES = [LP1, LP2, LP3]
+
+# This is referenced by data_structures.RadiatorView.name!
+RADIATOR_NAMES = [RAD1, RAD2, RAD3, RAD4, RAD5, RAD6, RAD7, RAD8]

@@ -28,7 +28,7 @@ from google.protobuf.text_format import MessageToString
 from orbitx.physics import calc
 from orbitx import common
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, Request, _FIELD_ORDERING
+from orbitx.data_structures import protos, EngineeringState, Entity, Navmode, PhysicsState, Request, _ENTITY_FIELD_ORDER
 from orbitx.strings import AYSE, HABITAT, MODULE
 
 SOLUTION_CACHE_SIZE = 2
@@ -392,7 +392,8 @@ class PhysicsEngine:
 
         return np.concatenate((
             y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
-            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0])
+            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
+            np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
         ), axis=None)
 
     def _run_simulation(self, t: float, y: PhysicsState) -> None:
@@ -637,8 +638,8 @@ class HighAccEvent(Event):
         self.artificials = artificials
         self.acc_bound = acc_bound
         self.current_acc = round(current_acc)
-        self.ax_offset = n_entities * _FIELD_ORDERING['vx']
-        self.ay_offset = n_entities * _FIELD_ORDERING['vy']
+        self.ax_offset = n_entities * _ENTITY_FIELD_ORDER['vx']
+        self.ay_offset = n_entities * _ENTITY_FIELD_ORDER['vy']
 
     def __call__(self, t: float, y_1d: np.ndarray) -> float:
         """Return positive if the current time acceleration is accurate, zero
