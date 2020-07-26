@@ -11,9 +11,8 @@ from typing import List, Dict, Optional, Union
 import numpy as np
 import vpython
 
-from orbitx import common
 from orbitx import orbitx_pb2 as protos
-from orbitx.strings import AYSE, HABITAT
+from orbitx import strings
 
 log = logging.getLogger()
 
@@ -32,9 +31,15 @@ _PER_ENTITY_UNCHANGING_FIELDS = [
 _PER_ENTITY_MUTABLE_FIELDS = [field.name for
                               field in protos.Entity.DESCRIPTOR.fields if
                               field.name not in _PER_ENTITY_UNCHANGING_FIELDS]
+_ENTITY_FIELD_ORDER = {name: index for index, name in
+                       enumerate(_PER_ENTITY_MUTABLE_FIELDS)}
 
-_FIELD_ORDERING = {name: index for index, name in
-                   enumerate(_PER_ENTITY_MUTABLE_FIELDS)}
+_N_COMPONENTS = len(strings.COMPONENT_NAMES)
+_N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
+_N_RADIATORS = len(strings.RADIATOR_NAMES)
+_N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
+_N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)
+_N_RADIATOR_FIELDS = len(protos.EngineeringState.Radiator.DESCRIPTOR.fields)
 
 # A special field, we reference it a couple times so turn it into a symbol
 # to guard against string literal typos.
@@ -111,7 +116,7 @@ class Entity:
 
     @property
     def dockable(self):
-        return self.name == AYSE
+        return self.name == strings.AYSE
 
     def landed(self) -> bool:
         """Convenient and more elegant check to see if the entity is landed."""
@@ -183,7 +188,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
 
     field_n: Optional[int]
     if field.name in _PER_ENTITY_MUTABLE_FIELDS:
-        field_n = _FIELD_ORDERING[field.name]
+        field_n = _ENTITY_FIELD_ORDER[field.name]
     else:
         field_n = None
 
@@ -250,53 +255,243 @@ for field in protos.Entity.DESCRIPTOR.fields:
         ))
 
 
+class ComponentView:
+    """Represents a single Component.
+
+    Should not be instantiated outside of EngineeringState."""
+
+    def __init__(self, array_rep: np.ndarray, component_n: int):
+        """Called by an EngineeringState factory.
+
+        array_rep: an array that, starting at 0, contains all data for all components.
+        component_n: an index specifying which component, starting at 0.
+        """
+        self._array = array_rep
+        self._n = component_n
+
+    def name(self):
+        return strings.COMPONENT_NAMES[self._n]
+
+    @property
+    def connected(self) -> bool:
+        return bool(self._array[self._n * _N_COMPONENT_FIELDS + 0])
+
+    @connected.setter
+    def connected(self, val: bool):
+        self._array[self._n * _N_COMPONENT_FIELDS + 0] = val
+
+    @property
+    def temperature(self) -> float:
+        return self._array[self._n * _N_COMPONENT_FIELDS + 1]
+
+    @temperature.setter
+    def temperature(self, val: float):
+        self._array[self._n * _N_COMPONENT_FIELDS + 1] = val
+
+    @property
+    def resistance(self) -> float:
+        return self._array[self._n * _N_COMPONENT_FIELDS + 2]
+
+    @resistance.setter
+    def resistance(self, val: float):
+        self._array[self._n * _N_COMPONENT_FIELDS + 2] = val
+
+    @property
+    def voltage(self) -> float:
+        return self._array[self._n * _N_COMPONENT_FIELDS + 3]
+
+    @voltage.setter
+    def voltage(self, val: float):
+        self._array[self._n * _N_COMPONENT_FIELDS + 3] = val
+
+    @property
+    def current(self) -> float:
+        return self._array[self._n * _N_COMPONENT_FIELDS + 4]
+
+    @current.setter
+    def current(self, val: float):
+        self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
+
+
+class CoolantView:
+    """Represents a single Coolant Loop.
+
+    Should not be instantiated outside of EngineeringState."""
+
+    def __init__(self, array_rep: np.ndarray, coolant_n: int):
+        """Called by an EngineeringState factory.
+
+        array_rep: an array that, starting at 0, contains all data for all components.
+        coolant_n: an index specifying which coolant loop, starting at 0.
+        """
+        self._array = array_rep
+        self._n = coolant_n
+
+    def name(self):
+        return strings.COOLANT_LOOP_NAMES[self._n]
+
+    @property
+    def coolant_temp(self) -> float:
+        return self._array[self._n * _N_COOLANT_FIELDS + 0]
+
+    @coolant_temp.setter
+    def coolant_temp(self, val: float):
+        self._array[self._n * _N_COOLANT_FIELDS + 0] = val
+
+    @property
+    def primary_pump_on(self) -> bool:
+        return bool(self._array[self._n * _N_COOLANT_FIELDS + 1])
+
+    @primary_pump_on.setter
+    def primary_pump_on(self, val: bool):
+        self._array[self._n * _N_COOLANT_FIELDS + 1] = val
+
+    @property
+    def secondary_pump_on(self) -> bool:
+        return bool(self._array[self._n * _N_COOLANT_FIELDS + 2])
+
+    @secondary_pump_on.setter
+    def secondary_pump_on(self, val: bool):
+        self._array[self._n * _N_COOLANT_FIELDS + 2] = val
+
+
+class RadiatorView:
+    """Represents a single Radiator.
+
+    Should not be instantiated outside of EngineeringState.
+
+    Useful function: get_coolant_loop()! Gives the coolant loop this radiator is attached to.
+    e.g.
+
+    physics_state.engineering.radiator[RAD2].get_coolant_loop().coolant_temp
+    """
+
+    def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, radiator_n: int):
+        """Called by an EngineeringState factory.
+
+        parent: an EngineeringState that this RadiatorView will use to get the associated coolant loop.
+        array_rep: an array that, starting at 0, contains all data for all radiators.
+        radiator_n: an index specifying which component, starting at 0.
+        """
+        self._parent = parent
+        self._array = array_rep
+        self._n = radiator_n
+
+    def name(self):
+        return strings.RADIATOR_NAMES[self._n]
+
+    def get_coolant_loop(self) -> CoolantView:
+        return self._parent.coolant_loops[self.coolant_loop]
+
+    @property
+    def attached_to_coolant_loop(self) -> int:
+        return int(self._array[self._n * _N_RADIATOR_FIELDS + 0])
+
+    @attached_to_coolant_loop.setter
+    def attached_to_coolant_loop(self, val: int):
+        self._array[self._n * _N_RADIATOR_FIELDS + 0] = val
+
+    @property
+    def functioning(self) -> bool:
+        return bool(self._array[self._n * _N_RADIATOR_FIELDS + 1])
+
+    @functioning.setter
+    def functioning(self, val: bool):
+        self._array[self._n * _N_RADIATOR_FIELDS + 1] = val
+
+
 class EngineeringState:
     """Wrapper around protos.EngineeringState.
 
     Access with physics_state.engineering, e.g.
         eng_state = physics_state.engineering
         eng_state.alarm = eng_state.AlarmState.NOMINAL
-        print(eng_state['AUXCOM'].resistance)
-        eng_state['LOS'].connected = True
+        print(eng_state.components[AUXCOM].resistance)
+        eng_state.components[LOS].connected = True
+        eng_state.radiators[RAD2].functioning = False
+        eng_state.radiators[RAD2].get_coolant_loop().coolant_temp = 50
     """
+
+    N_ENGINEERING_FIELDS = (
+        _N_COMPONENTS * _N_COMPONENT_FIELDS +
+        _N_COOLANT_LOOPS * _N_COOLANT_FIELDS +
+        _N_RADIATORS * _N_RADIATOR_FIELDS
+    )
 
     AlarmState = protos.EngineeringState.AlarmState
 
-    def __init__(self, proto_state: protos.EngineeringState):
-        # TODO: enable this check once we've fully hashed out what components exist.
-        # assert len(proto_state.components) == common.N_COMPONENTS
-        assert len(proto_state.components) > 0
-        assert len(proto_state.radiators) == common.N_RADIATORS
-        assert len(proto_state.coolant_loops) == common.N_COOLANT_LOOPS
+    class ComponentList:
+        """Allows engineering.components[LOS] style indexing."""
+        def __init__(self, owner: 'EngineeringState'):
+            self._owner = owner
 
+        def __getitem__(self, index: Union[str, int]) -> ComponentView:
+            if isinstance(index, str):
+                index = strings.COMPONENT_NAMES.index(index)
+            elif index >= _N_COMPONENTS:
+                raise IndexError()
+            return ComponentView(self._owner._array, index)
+
+    class CoolantLoopList:
+        """Allows engineering.coolant_loops[LP1] style indexing."""
+        def __init__(self, owner: 'EngineeringState'):
+            self._owner = owner
+
+        def __getitem__(self, index: Union[str, int]) -> CoolantView:
+            if isinstance(index, str):
+                index = strings.COOLANT_LOOP_NAMES.index(index)
+            elif index >= _N_COOLANT_LOOPS:
+                raise IndexError()
+            return CoolantView(self._owner._array, index)
+
+    class RadiatorList:
+        """Allows engineering.radiators[RAD1] style indexing."""
+        def __init__(self, owner: 'EngineeringState'):
+            self._owner = owner
+
+        def __getitem__(self, index: Union[str, int]) -> RadiatorView:
+            if isinstance(index, str):
+                index = strings.RADIATOR_NAMES.index(index)
+            elif index >= _N_RADIATORS:
+                raise IndexError()
+            return RadiatorView(self._owner, self._owner._array, index)
+
+    def __init__(self, array_rep: np.ndarray, proto_state: protos.EngineeringState, populate_array: bool):
+        """Called by a PhysicsState on creation.
+
+        array_rep: a sufficiently-sized array to store all component, coolant,
+                   and radiator data. EngineeringState has full control over
+                   contents, starting at element 0.
+        proto_state: the underlying proto we're wrapping.
+        populate_array: flag that is set when we need to fill array_rep with data.
+        """
+        assert len(proto_state.components) == _N_COMPONENTS
+        assert len(proto_state.coolant_loops) == _N_COOLANT_LOOPS
+        assert len(proto_state.radiators) == _N_RADIATORS
+
+        self.components = self.ComponentList(self)
+        self.coolant_loops = self.CoolantLoopList(self)
+        self.radiators = self.RadiatorList(self)
+
+        self._array = array_rep
         self._proto_state = proto_state
 
-    def __getitem__(self, index: Union[str, int]) -> protos.EngineeringState.Component:
-        """Convenience function to return a Component with a specified name or index."""
-        if isinstance(index, str):
-            # Turn a name-based index into an integer
-            index = common.COMPONENT_NAMES.index(index)
-        i = int(index)
+        if populate_array:
+            # We've been asked to populate the data array.
+            # The order of data in the array is of course important.
+            write_marker = 0
 
-        return self._proto_state.components[i]
-
-    def __repr__(self):
-        return self._proto_state.__repr__()
-
-    def __str__(self):
-        return self._proto_state.__str__()
-
-    @property
-    def components(self):
-        return self._proto_state.components
-
-    @property
-    def coolant_loops(self):
-        return self._proto_state.coolant_loops
-
-    @property
-    def radiators(self):
-        return self._proto_state.radiators
+            # Is this loop janky? I would say yes! Could this result in
+            # out-of-bounds writes? I hope not!
+            for proto_list, descriptor in [
+                (proto_state.components, protos.EngineeringState.Component.DESCRIPTOR),
+                (proto_state.coolant_loops, protos.EngineeringState.CoolantLoop.DESCRIPTOR),
+                (proto_state.radiators, protos.EngineeringState.Radiator.DESCRIPTOR),
+            ]:
+                for proto in proto_list:
+                    for field in descriptor.fields:
+                        array_rep[write_marker] = getattr(proto, field.name)
+                        write_marker += 1
 
     @property
     def alarm(self):
@@ -305,6 +500,36 @@ class EngineeringState:
     @alarm.setter
     def alarm(self, val: protos.EngineeringState.AlarmState):
         self._proto_state.alarm = val
+
+    def as_proto(self) -> protos.EngineeringState:
+        """Returns a deep copy of this EngineeringState as a protobuf."""
+        constructed_protobuf = protos.EngineeringState()
+        constructed_protobuf.CopyFrom(self._proto_state)
+        for component_data, component in zip(self.components, constructed_protobuf.components):
+            (
+                component.connected, component.temperature,
+                component.resistance, component.voltage,
+                component.current
+            ) = (
+                component_data.connected, component_data.temperature,
+                component_data.resistance, component_data.voltage,
+                component_data.current
+            )
+        for coolant_data, coolant in zip(self.coolant_loops, constructed_protobuf.coolant_loops):
+            (
+                coolant.coolant_temp, coolant.primary_pump_on,
+                coolant.secondary_pump_on
+            ) = (
+                coolant_data.coolant_temp, coolant_data.primary_pump_on,
+                coolant_data.secondary_pump_on
+            )
+        for radiator_data, radiator in zip(self.radiators, constructed_protobuf.radiators):
+            (
+                radiator.attached_to_coolant_loop, radiator.functioning,
+            ) = (
+                radiator_data.attached_to_coolant_loop, radiator_data.functioning,
+            )
+        return constructed_protobuf
 
 
 class PhysicsState:
@@ -356,9 +581,10 @@ class PhysicsState:
     # code for .srb_time and .time_acc
     N_SINGULAR_ELEMENTS = 2
 
-    # Constant indices for single-element values of the y-vector.
-    SRB_TIME_INDEX = -2
-    TIME_ACC_INDEX = -1
+    ENTITY_START_INDEX = 0
+    ENGINEERING_START_INDEX = -(EngineeringState.N_ENGINEERING_FIELDS)
+    SRB_TIME_INDEX = ENGINEERING_START_INDEX - 2
+    TIME_ACC_INDEX = SRB_TIME_INDEX + 1
 
     # Datatype of internal y-vector
     DTYPE = np.float64
@@ -396,9 +622,10 @@ class PhysicsState:
             # to, so we have to build up this array representation.
             y = np.empty(
                 len(proto_state.entities) * len(_PER_ENTITY_MUTABLE_FIELDS)
-                + self.N_SINGULAR_ELEMENTS, dtype=self.DTYPE)
+                + self.N_SINGULAR_ELEMENTS
+                + EngineeringState.N_ENGINEERING_FIELDS, dtype=self.DTYPE)
 
-            for field_name, field_n in _FIELD_ORDERING.items():
+            for field_name, field_n in _ENTITY_FIELD_ORDER.items():
                 for entity_index, entity in enumerate(proto_state.entities):
                     proto_value = getattr(entity, field_name)
                     # Internally translate string names to indices, otherwise
@@ -409,22 +636,26 @@ class PhysicsState:
 
                     y[self._n * field_n + entity_index] = proto_value
 
-            y[-2] = proto_state.srb_time
-            y[-1] = proto_state.time_acc
+            y[self.SRB_TIME_INDEX] = proto_state.srb_time
+            y[self.TIME_ACC_INDEX] = proto_state.time_acc
+
+            self.engineering = EngineeringState(y[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=True)
+
             self._array_rep = y
         else:
-            # Take everything except the SRB time, the last element.
             self._array_rep = y.astype(self.DTYPE)
             self._proto_state.srb_time = y[self.SRB_TIME_INDEX]
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
+            self.engineering = EngineeringState(y[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=False )
 
         assert len(self._array_rep.shape) == 1, \
             f'y is not 1D: {self._array_rep.shape}'
-        assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) % \
-               len(_PER_ENTITY_MUTABLE_FIELDS) == 0, self._array_rep.size
-        assert (self._array_rep.size - self.N_SINGULAR_ELEMENTS) // \
-               len(_PER_ENTITY_MUTABLE_FIELDS) == len(proto_state.entities), \
-            f'{self._array_rep.size} mismatches: {len(proto_state.entities)}'
+        n_entities = len(proto_state.entities)
+        assert self._array_rep.size == (
+            n_entities * len(_PER_ENTITY_MUTABLE_FIELDS)
+            + self.N_SINGULAR_ELEMENTS
+            + EngineeringState.N_ENGINEERING_FIELDS
+        )
 
         np.mod(self.Heading, 2 * np.pi, out=self.Heading)
 
@@ -433,8 +664,8 @@ class PhysicsState:
     def _y_component(self, field_name: str) -> np.ndarray:
         """Returns an n-array with the value of a component for each entity."""
         return self._array_rep[
-               _FIELD_ORDERING[field_name] * self._n:
-               (_FIELD_ORDERING[field_name] + 1) * self._n
+               _ENTITY_FIELD_ORDER[field_name] * self._n:
+               (_ENTITY_FIELD_ORDER[field_name] + 1) * self._n
                ]
 
     def _index_to_name(self, index: int) -> str:
@@ -476,6 +707,8 @@ class PhysicsState:
                 entity_data.throttle, entity_data.landed_on,
                 entity_data.broken
             )
+
+        constructed_protobuf.engineering.CopyFrom(self.engineering.as_proto())
 
         return constructed_protobuf
 
@@ -536,11 +769,6 @@ class PhysicsState:
 
     def __str__(self):
         return self.as_proto().__str__()
-
-    @property
-    def engineering(self) -> EngineeringState:
-        representation = EngineeringState(self._proto_state.engineering)
-        return representation
 
     @property
     def timestamp(self) -> float:
@@ -645,19 +873,19 @@ class PhysicsState:
     def craft(self) -> Optional[str]:
         """Returns the currently-controlled craft.
         Not actually backed by any stored field, just a calculation."""
-        if HABITAT not in self._entity_names and \
-                AYSE not in self._entity_names:
+        if strings.HABITAT not in self._entity_names and \
+                strings.AYSE not in self._entity_names:
             return None
-        if AYSE not in self._entity_names:
-            return HABITAT
+        if strings.AYSE not in self._entity_names:
+            return strings.HABITAT
 
-        hab_index = self._name_to_index(HABITAT)
-        ayse_index = self._name_to_index(AYSE)
+        hab_index = self._name_to_index(strings.HABITAT)
+        ayse_index = self._name_to_index(strings.AYSE)
         if self._y_component('landed_on')[hab_index] == ayse_index:
             # Habitat is docked with AYSE, AYSE is active craft
-            return AYSE
+            return strings.AYSE
         else:
-            return HABITAT
+            return strings.HABITAT
 
     def reference_entity(self):
         """Convenience function, a full Entity representing the reference."""

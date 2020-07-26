@@ -12,7 +12,8 @@ from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
-from orbitx.data_structures import _EntityView, Entity, PhysicsState
+from orbitx.data_structures import EngineeringState, _EntityView, Entity, PhysicsState, \
+    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS
 from orbitx.strings import HABITAT
 
 log = logging.getLogger()
@@ -320,7 +321,12 @@ class PhysicsStateTestCase(unittest.TestCase):
                 name='Second', mass=101, r=201, artificial=True,
                 x=11, y=21, vx=31, vy=41, heading=2, spin=51, fuel=61,
                 throttle=71, landed_on='First', broken=True)
-        ]
+        ],
+        engineering=protos.EngineeringState(
+            components=[protos.EngineeringState.Component()] * _N_COMPONENTS,
+            coolant_loops=[protos.EngineeringState.CoolantLoop()] * _N_COOLANT_LOOPS,
+            radiators=[protos.EngineeringState.Radiator()] * _N_RADIATORS
+        )
     )
 
     def test_landed_on(self):
@@ -331,20 +337,22 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
-        y0 = np.array([
-            10, 20,  # x
-            30, 40,  # y
-            50, 60,  # vx
-            0, 0,  # vy
-            0, 0,  # heading
-            70, 80,  # spin
-            90, 100,  # fuel
-            0, 0,  # throttle
-            1, -1,  # only First is landed on Second
-            0, 1,  # Second is broken
-            common.SRB_EMPTY,
-            1  # time_acc
-        ])
+        y0 = np.concatenate((np.array([
+                10, 20,  # x
+                30, 40,  # y
+                50, 60,  # vx
+                0, 0,  # vy
+                0, 0,  # heading
+                70, 80,  # spin
+                90, 100,  # fuel
+                0, 0,  # throttle
+                1, -1,  # only First is landed on Second
+                0, 1,  # Second is broken
+                common.SRB_EMPTY,
+                1  # time_acc
+            ]),
+            np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
+        ))
 
         ps = PhysicsState(y0, self.proto_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
@@ -462,6 +470,35 @@ class CalculationsTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(calc.h_speed(iss, earth), 7665, delta=10)
         self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=0.1)
+
+
+class EngineeringViewTestCase(unittest.TestCase):
+    """Test that the various accessors of EngineeringState are correct."""
+
+    def test_component_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        print(engineering._array)
+        print(engineering.components[0]._array, engineering.components[0]._n)
+        self.assertEqual(engineering.components[0].connected, True)
+        self.assertAlmostEqual(engineering.components[0].temperature, 31.3)
+        self.assertAlmostEqual(engineering.components[0].resistance, 11.0)
+        self.assertAlmostEqual(engineering.components[0].voltage, 120.0)
+        self.assertAlmostEqual(engineering.components[0].current, 0.2)
+
+        # Test setters work
+        engineering.components[1].connected = True
+        engineering.components[1].temperature = 12.3
+        engineering.components[1].resistance = 4.56
+        engineering.components[1].voltage = 7.89
+        engineering.components[1].current = 0.1
+        self.assertEqual(engineering.components[1].connected, True)
+        self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
+        self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
+        self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
+        self.assertAlmostEqual(engineering.components[1].current, 0.1)
 
 
 def test_performance():

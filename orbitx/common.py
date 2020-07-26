@@ -15,7 +15,7 @@ import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import data_structures
-from orbitx.strings import AYSE, COMPONENT_NAMES, EARTH, HABITAT
+from orbitx import strings
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
@@ -45,9 +45,9 @@ TIME_ACCS = [
 ]
 
 # ---------------- Graphics-related constants ---------------
-DEFAULT_CENTRE = HABITAT
-DEFAULT_REFERENCE = EARTH
-DEFAULT_TARGET = AYSE
+DEFAULT_CENTRE = strings.HABITAT
+DEFAULT_REFERENCE = strings.EARTH
+DEFAULT_TARGET = strings.AYSE
 
 DEFAULT_UP = vpython.vector(0, 0.1, 1)
 DEFAULT_FORWARD = vpython.vector(0, 0, -1)
@@ -79,8 +79,8 @@ class Spacecraft(NamedTuple):
 
 # These numbers taken from orbit5vm.bas.
 craft_capabilities = {
-    HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000, hull_strength=50),
-    AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
+    strings.HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000, hull_strength=50),
+    strings.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
 }
 
 SRB_THRUST = 13125000
@@ -102,11 +102,6 @@ LAUNCH_TWR = 1.05
 SRB_FULL = -1
 SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
-
-# ---------- Engineering constants -----------
-N_COMPONENTS = len(COMPONENT_NAMES)
-N_RADIATORS = 8
-N_COOLANT_LOOPS = 3
 
 
 # ---------- Other runtime constants ----------
