@@ -7,13 +7,9 @@ Communicates to orbitx with GRPC.
 
 import argparse
 import logging
-import random
-import time
 
 import grpc
 
-from orbitx import common
-from orbitx import physics
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
@@ -56,10 +52,12 @@ def main(args: argparse.Namespace):
     gui = MainApplication()
 
     def network_task():
+        gui.contrived_keybind_function()
         user_commands = gui.pop_commands()
         state = orbitx_connection.get_state(user_commands)
         gui.update_labels(state[HABITAT].pos[0])
-        gui.after(int(1000 / common.FRAMERATE), network_task)
+        print('R-CON1 is connected?', state.engineering.components['R-CON1'].connected)
+        gui.after(int(1000), network_task)
 
     network_task()
     gui.mainloop()

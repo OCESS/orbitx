@@ -381,7 +381,7 @@ class RadiatorView:
         return strings.RADIATOR_NAMES[self._n]
 
     def get_coolant_loop(self) -> CoolantView:
-        return self._parent.coolant_loops[self.coolant_loop]
+        return self._parent.coolant_loops[self.attached_to_coolant_loop - 1]
 
     @property
     def attached_to_coolant_loop(self) -> int:
@@ -418,6 +418,10 @@ class EngineeringState:
         _N_RADIATORS * _N_RADIATOR_FIELDS
     )
 
+    _COMPONENT_START_INDEX = 0
+    _COOLANT_START_INDEX = _N_COMPONENTS * _N_COMPONENT_FIELDS
+    _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
+
     AlarmState = protos.EngineeringState.AlarmState
 
     class ComponentList:
@@ -430,7 +434,10 @@ class EngineeringState:
                 index = strings.COMPONENT_NAMES.index(index)
             elif index >= _N_COMPONENTS:
                 raise IndexError()
-            return ComponentView(self._owner._array, index)
+            return ComponentView(
+                self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COOLANT_START_INDEX],
+                index
+            )
 
     class CoolantLoopList:
         """Allows engineering.coolant_loops[LP1] style indexing."""
@@ -442,7 +449,10 @@ class EngineeringState:
                 index = strings.COOLANT_LOOP_NAMES.index(index)
             elif index >= _N_COOLANT_LOOPS:
                 raise IndexError()
-            return CoolantView(self._owner._array, index)
+            return CoolantView(
+                self._owner._array[self._owner._COOLANT_START_INDEX:self._owner._RADIATOR_START_INDEX],
+                index
+            )
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
@@ -454,7 +464,11 @@ class EngineeringState:
                 index = strings.RADIATOR_NAMES.index(index)
             elif index >= _N_RADIATORS:
                 raise IndexError()
-            return RadiatorView(self._owner, self._owner._array, index)
+            return RadiatorView(
+                self._owner,
+                self._owner._array[self._owner._RADIATOR_START_INDEX:],
+                index
+            )
 
     def __init__(self, array_rep: np.ndarray, proto_state: protos.EngineeringState, populate_array: bool):
         """Called by a PhysicsState on creation.
@@ -620,7 +634,7 @@ class PhysicsState:
         if y is None:
             # We rely on having an internal array representation we can refer
             # to, so we have to build up this array representation.
-            y = np.empty(
+            self._array_rep = np.empty(
                 len(proto_state.entities) * len(_PER_ENTITY_MUTABLE_FIELDS)
                 + self.N_SINGULAR_ELEMENTS
                 + EngineeringState.N_ENGINEERING_FIELDS, dtype=self.DTYPE)
@@ -634,19 +648,23 @@ class PhysicsState:
                     if field_name == _LANDED_ON:
                         proto_value = self._name_to_index(proto_value)
 
-                    y[self._n * field_n + entity_index] = proto_value
+                    self._array_rep[self._n * field_n + entity_index] = proto_value
 
-            y[self.SRB_TIME_INDEX] = proto_state.srb_time
-            y[self.TIME_ACC_INDEX] = proto_state.time_acc
+            self._array_rep[self.SRB_TIME_INDEX] = proto_state.srb_time
+            self._array_rep[self.TIME_ACC_INDEX] = proto_state.time_acc
 
-            self.engineering = EngineeringState(y[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=True)
-
-            self._array_rep = y
+            # It's IMPORTANT that we pass in self._array_rep, because otherwise the numpy
+            # array will be copied and EngineeringState won't be modifying our numpy array.
+            self.engineering = EngineeringState(
+                self._array_rep[self.ENGINEERING_START_INDEX:],
+                self._proto_state.engineering,
+                populate_array=True
+            )
         else:
             self._array_rep = y.astype(self.DTYPE)
             self._proto_state.srb_time = y[self.SRB_TIME_INDEX]
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
-            self.engineering = EngineeringState(y[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=False )
+            self.engineering = EngineeringState(self._array_rep[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=False )
 
         assert len(self._array_rep.shape) == 1, \
             f'y is not 1D: {self._array_rep.shape}'
