@@ -480,8 +480,6 @@ class EngineeringViewTestCase(unittest.TestCase):
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
-        print(engineering._array)
-        print(engineering.components[0]._array, engineering.components[0]._n)
         self.assertEqual(engineering.components[0].connected, True)
         self.assertAlmostEqual(engineering.components[0].temperature, 31.3)
         self.assertAlmostEqual(engineering.components[0].resistance, 11.0)
@@ -499,6 +497,79 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
         self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
         self.assertAlmostEqual(engineering.components[1].current, 0.1)
+
+    def test_as_proto(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            state = physics_engine.get_state()
+            engineering = state.engineering
+
+        # Change some data
+        engineering.components[1].connected = True
+        engineering.components[1].temperature = 12.3
+        engineering.components[1].resistance = 4.56
+        engineering.components[1].voltage = 7.89
+        engineering.components[1].current = 0.1
+
+        # Check engineering proto
+        eng_proto = engineering.as_proto()
+        self.assertEqual(eng_proto.components[1].connected, True)
+        self.assertAlmostEqual(eng_proto.components[1].temperature, 12.3)
+        self.assertAlmostEqual(eng_proto.components[1].resistance, 4.56)
+        self.assertAlmostEqual(eng_proto.components[1].voltage, 7.89)
+        self.assertAlmostEqual(eng_proto.components[1].current, 0.1)
+
+        # Check physicsstate proto
+        physics_state_proto = state.as_proto()
+        self.assertEqual(physics_state_proto.engineering.components[1].connected, True)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].temperature, 12.3)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].resistance, 4.56)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].voltage, 7.89)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].current, 0.1)
+
+    def test_coolant_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 15.0)
+        self.assertEqual(engineering.coolant_loops[0].primary_pump_on, True)
+        self.assertEqual(engineering.coolant_loops[0].secondary_pump_on, True)
+
+        # Test setters work
+        engineering.coolant_loops[1].coolant_temp = 33.3
+        engineering.coolant_loops[1].primary_pump_on = False
+        engineering.coolant_loops[1].secondary_pump_on = True
+        self.assertAlmostEqual(engineering.coolant_loops[1].coolant_temp, 33.3)
+        self.assertEqual(engineering.coolant_loops[1].primary_pump_on, False)
+        self.assertEqual(engineering.coolant_loops[1].secondary_pump_on, True)
+
+    def test_radiator_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        self.assertEqual(engineering.radiators[0].attached_to_coolant_loop, 1)
+        self.assertEqual(engineering.radiators[0].functioning, True)
+        self.assertEqual(engineering.radiators[0].get_coolant_loop().coolant_temp, 15)
+
+        # Test setters work
+        engineering.radiators[1].attached_to_coolant_loop = 2
+        engineering.radiators[1].functioning = False
+        self.assertEqual(engineering.radiators[1].attached_to_coolant_loop, 2)
+        self.assertEqual(engineering.radiators[1].functioning, False)
+        self.assertEqual(engineering.radiators[1].get_coolant_loop().coolant_temp, 20)
+
+    def test_numpy_arrays_not_copied(self):
+        """Test that the internal array representation of EngineeringState is
+        just a view into PhysicsState._array_rep, otherwise EngineeringState will
+        write new data into the ether and it won't update PhysicsState.y0()."""
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            state = physics_engine.get_state()
+
+        engineering = state.engineering
+        engineering.components[0].voltage = 777777.7
+        self.assertEqual(engineering._array[3], 777777.7)
+        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3], 777777.7)
 
 
 def test_performance():

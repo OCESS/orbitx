@@ -48,11 +48,11 @@ class MainApplication(tk.Tk):
         keypress = 'a'
         if keypress == 'a':
             self._commands.append(Request(
-                ident=Request.SWITCH_TOGGLE,
+                ident=Request.TOGGLE_SWITCH,
                 switch_to_toggle=strings.COMPONENT_NAMES.index(strings.RCON1)))
         elif keypress == 'b':
             self._commands.append(Request(
-                ident=Request.RADIATOR_TOGGLE,
+                ident=Request.TOGGLE_RADIATOR,
                 radiator_to_toggle=1))
 
     def _create_menu(self):
