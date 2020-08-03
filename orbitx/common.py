@@ -103,6 +103,8 @@ SRB_FULL = -1
 SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
 
+DANGEROUS_REACTOR_TEMP = 110  # We can change this later
+
 
 # ---------- Other runtime constants ----------
 PERF_FILE = 'flamegraph-data.log'
