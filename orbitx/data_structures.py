@@ -405,7 +405,7 @@ class EngineeringState:
 
     Access with physics_state.engineering, e.g.
         eng_state = physics_state.engineering
-        eng_state.alarm = eng_state.AlarmState.NOMINAL
+        eng_state.master_alarm = True
         print(eng_state.components[AUXCOM].resistance)
         eng_state.components[LOS].connected = True
         eng_state.radiators[RAD2].functioning = False
@@ -421,8 +421,6 @@ class EngineeringState:
     _COMPONENT_START_INDEX = 0
     _COOLANT_START_INDEX = _N_COMPONENTS * _N_COMPONENT_FIELDS
     _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
-
-    AlarmState = protos.EngineeringState.AlarmState
 
     class ComponentList:
         """Allows engineering.components[LOS] style indexing."""
@@ -508,12 +506,52 @@ class EngineeringState:
                         write_marker += 1
 
     @property
-    def alarm(self):
-        return self._proto_state.alarm
+    def master_alarm(self) -> bool:
+        return self._proto_state.master_alarm
 
-    @alarm.setter
-    def alarm(self, val: protos.EngineeringState.AlarmState):
-        self._proto_state.alarm = val
+    @master_alarm.setter
+    def master_alarm(self, val: bool):
+        self._proto_state.master_alarm = val
+
+    @property
+    def radiation_alarm(self) -> bool:
+        return self._proto_state.radiation_alarm
+
+    @radiation_alarm.setter
+    def radiation_alarm(self, val: bool):
+        self._proto_state.radiation_alarm = val
+
+    @property
+    def asteroid_alarm(self) -> bool:
+        return self._proto_state.asteroid_alarm
+
+    @asteroid_alarm.setter
+    def asteroid_alarm(self, val: bool):
+        self._proto_state.asteroid_alarm = val
+
+    @property
+    def hab_reactor_alarm(self) -> bool:
+        return self._proto_state.hab_reactor_alarm
+
+    @hab_reactor_alarm.setter
+    def hab_reactor_alarm(self, val: bool):
+        self._proto_state.hab_reactor_alarm = val
+
+    @property
+    def ayse_reactor_alarm(self) -> bool:
+        return self._proto_state.ayse_reactor_alarm
+
+    @ayse_reactor_alarm.setter
+    def ayse_reactor_alarm(self, val: bool):
+        self._proto_state.ayse_reactor_alarm = val
+
+    @property
+    def hab_gnomes(self) -> bool:
+        return self._proto_state.hab_gnomes
+
+    @hab_gnomes.setter
+    def hab_gnomes(self, val: bool):
+        self._proto_state.hab_gnomes = val
 
     def as_proto(self) -> protos.EngineeringState:
         """Returns a deep copy of this EngineeringState as a protobuf."""
