@@ -26,9 +26,9 @@ import scipy.special
 from google.protobuf.text_format import MessageToString
 
 from orbitx.physics import calc
-from orbitx import common
+from orbitx import common, strings, data_structures
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import protos, EngineeringState, Entity, Navmode, PhysicsState, Request, _ENTITY_FIELD_ORDER
+from orbitx.data_structures import protos, EngineeringState, Entity, Navmode, PhysicsState, Request
 from orbitx.strings import AYSE, HABITAT, MODULE
 
 SOLUTION_CACHE_SIZE = 2
@@ -418,7 +418,7 @@ class PhysicsEngine:
 
             events: List[Event] = [
                 CollisionEvent(y, self.R), HabFuelEvent(y), LiftoffEvent(y),
-                SrbFuelEvent()
+                SrbFuelEvent(), HabReactorTempEvent(), AyseReactorTempEvent()
             ]
             if y.craft is not None:
                 events.append(HighAccEvent(
@@ -518,6 +518,10 @@ class PhysicsEngine:
                         # We should lower the time acc.
                         y.time_acc = slower_time_acc.value
                         raise PhysicsEngine.RestartSimulationException(t, y)
+                    if isinstance(event, HabReactorTempEvent):
+                        y.engineering.hab_reactor_alarm = not y.engineering.hab_reactor_alarm
+                    if isinstance(event, AyseReactorTempEvent):
+                        y.engineering.ayse_reactor_alarm = not y.engineering.ayse_reactor_alarm
 
 
 class Event:
@@ -638,8 +642,8 @@ class HighAccEvent(Event):
         self.artificials = artificials
         self.acc_bound = acc_bound
         self.current_acc = round(current_acc)
-        self.ax_offset = n_entities * _ENTITY_FIELD_ORDER['vx']
-        self.ay_offset = n_entities * _ENTITY_FIELD_ORDER['vy']
+        self.ax_offset = n_entities * data_structures._ENTITY_FIELD_ORDER['vx']
+        self.ay_offset = n_entities * data_structures._ENTITY_FIELD_ORDER['vy']
 
     def __call__(self, t: float, y_1d: np.ndarray) -> float:
         """Return positive if the current time acceleration is accurate, zero
@@ -656,6 +660,46 @@ class HighAccEvent(Event):
             if acc_mag > max_acc_mag:
                 max_acc_mag = acc_mag
         return max(self.acc_bound - acc_mag, 0)
+
+
+class HabReactorTempEvent(Event):
+    # Trigger this event if we're going above or below dangerous temperature.
+    direction = 0
+
+    def __call__(self, t, y_1d) -> float:
+        """Returns how close reactor temp is to danger.
+        This will cause simulation to stop at the dangerous temp."""
+        # This janky manual array accessing negates the need to build an
+        # EngineeringState at every simulation step. But! This should be
+        # kept in sync with ComponentView.temperature.
+        return y_1d[
+            PhysicsState.ENGINEERING_START_INDEX
+            + EngineeringState._COMPONENT_START_INDEX
+            + (
+                strings.COMPONENT_NAMES.index(strings.HAB_REACT)
+                * data_structures._N_COMPONENT_FIELDS
+                + 1)
+        ] - common.DANGEROUS_REACTOR_TEMP
+
+
+class AyseReactorTempEvent(Event):
+    # Trigger this event if we're going above or below dangerous temperature.
+    direction = 0
+
+    def __call__(self, t, y_1d) -> float:
+        """Returns how close reactor temp is to danger.
+        This will cause simulation to stop at the dangerous temp."""
+        # This janky manual array accessing negates the need to build an
+        # EngineeringState at every simulation step. But! This should be
+        # kept in sync with ComponentView.temperature.
+        return y_1d[
+            PhysicsState.ENGINEERING_START_INDEX
+            + EngineeringState._COMPONENT_START_INDEX
+            + (
+                strings.COMPONENT_NAMES.index(strings.AYSE_REACT)
+                * data_structures._N_COMPONENT_FIELDS
+                + 1)
+        ] - common.DANGEROUS_REACTOR_TEMP
 
 
 def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
