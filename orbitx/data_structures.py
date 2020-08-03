@@ -255,17 +255,60 @@ for field in protos.Entity.DESCRIPTOR.fields:
         ))
 
 
+class CoolantView:
+    """Represents a single Coolant Loop.
+
+    Should not be instantiated outside of EngineeringState."""
+
+    def __init__(self, array_rep: np.ndarray, coolant_n: int):
+        """Called by an EngineeringState factory.
+
+        array_rep: an array that, starting at 0, contains all data for all components.
+        coolant_n: an index specifying which coolant loop, starting at 0.
+        """
+        self._array = array_rep
+        self._n = coolant_n
+
+    def name(self):
+        return strings.COOLANT_LOOP_NAMES[self._n]
+
+    @property
+    def coolant_temp(self) -> float:
+        return self._array[self._n * _N_COOLANT_FIELDS + 0]
+
+    @coolant_temp.setter
+    def coolant_temp(self, val: float):
+        self._array[self._n * _N_COOLANT_FIELDS + 0] = val
+
+    @property
+    def primary_pump_on(self) -> bool:
+        return bool(self._array[self._n * _N_COOLANT_FIELDS + 1])
+
+    @primary_pump_on.setter
+    def primary_pump_on(self, val: bool):
+        self._array[self._n * _N_COOLANT_FIELDS + 1] = val
+
+    @property
+    def secondary_pump_on(self) -> bool:
+        return bool(self._array[self._n * _N_COOLANT_FIELDS + 2])
+
+    @secondary_pump_on.setter
+    def secondary_pump_on(self, val: bool):
+        self._array[self._n * _N_COOLANT_FIELDS + 2] = val
+
+
 class ComponentView:
     """Represents a single Component.
 
     Should not be instantiated outside of EngineeringState."""
 
-    def __init__(self, array_rep: np.ndarray, component_n: int):
+    def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, component_n: int):
         """Called by an EngineeringState factory.
 
         array_rep: an array that, starting at 0, contains all data for all components.
         component_n: an index specifying which component, starting at 0.
         """
+        self._parent = parent
         self._array = array_rep
         self._n = component_n
 
@@ -312,47 +355,16 @@ class ComponentView:
     def current(self, val: float):
         self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
 
-
-class CoolantView:
-    """Represents a single Coolant Loop.
-
-    Should not be instantiated outside of EngineeringState."""
-
-    def __init__(self, array_rep: np.ndarray, coolant_n: int):
-        """Called by an EngineeringState factory.
-
-        array_rep: an array that, starting at 0, contains all data for all components.
-        coolant_n: an index specifying which coolant loop, starting at 0.
-        """
-        self._array = array_rep
-        self._n = coolant_n
-
-    def name(self):
-        return strings.COOLANT_LOOP_NAMES[self._n]
+    def get_coolant_loop(self) -> CoolantView:
+        return self._parent.coolant_loops[self.attached_to_coolant_loop - 1]
 
     @property
-    def coolant_temp(self) -> float:
-        return self._array[self._n * _N_COOLANT_FIELDS + 0]
+    def attached_to_coolant_loop(self) -> int:
+        return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
 
-    @coolant_temp.setter
-    def coolant_temp(self, val: float):
-        self._array[self._n * _N_COOLANT_FIELDS + 0] = val
-
-    @property
-    def primary_pump_on(self) -> bool:
-        return bool(self._array[self._n * _N_COOLANT_FIELDS + 1])
-
-    @primary_pump_on.setter
-    def primary_pump_on(self, val: bool):
-        self._array[self._n * _N_COOLANT_FIELDS + 1] = val
-
-    @property
-    def secondary_pump_on(self) -> bool:
-        return bool(self._array[self._n * _N_COOLANT_FIELDS + 2])
-
-    @secondary_pump_on.setter
-    def secondary_pump_on(self, val: bool):
-        self._array[self._n * _N_COOLANT_FIELDS + 2] = val
+    @attached_to_coolant_loop.setter
+    def attached_to_coolant_loop(self, val: int):
+        self._array[self._n * _N_COMPONENT_FIELDS + 5] = val
 
 
 class RadiatorView:
@@ -433,6 +445,7 @@ class EngineeringState:
             elif index >= _N_COMPONENTS:
                 raise IndexError()
             return ComponentView(
+                self._owner,
                 self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COOLANT_START_INDEX],
                 index
             )

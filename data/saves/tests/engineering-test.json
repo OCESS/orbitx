@@ -17,7 +17,8 @@
         "temperature": 31.3,
         "resistance": 11.0,
         "voltage": 120.0,
-        "current": 0.2
+        "current": 0.2,
+        "attachedToCoolantLoop": 1
       },
       {},
       {},
