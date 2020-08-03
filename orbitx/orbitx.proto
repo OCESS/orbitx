@@ -120,6 +120,7 @@ message EngineeringState {
         double resistance = 3;
         double voltage = 4;
         double current = 5;
+        int32 attached_to_coolant_loop = 6;
     }
 
     message CoolantLoop {
