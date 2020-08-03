@@ -133,17 +133,16 @@ message EngineeringState {
         bool functioning = 2;  // If the radiator is stowed or broken, it is not functioning.
     }
 
-    enum AlarmState {
-        NOMINAL = 0;
-        MASTER_ALARM = 1;
-        HAB_GNOMES = 2;
-    }
-
     repeated Component components = 1;
     repeated CoolantLoop coolant_loops = 2;
     repeated Radiator radiators = 3;
 
-    AlarmState alarm = 4;
+    bool master_alarm = 4;
+    bool radiation_alarm = 5;
+    bool asteroid_alarm = 6;
+    bool hab_reactor_alarm = 7;
+    bool ayse_reactor_alarm = 8;
+    bool hab_gnomes = 9;
 }
 
 // This is wrapped by state.py.

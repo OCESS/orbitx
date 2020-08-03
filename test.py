@@ -571,6 +571,31 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering._array[3], 777777.7)
         self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3], 777777.7)
 
+    def test_alarms(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        self.assertEqual(engineering.master_alarm, False)
+        self.assertEqual(engineering.radiation_alarm, False)
+        self.assertEqual(engineering.asteroid_alarm, False)
+        self.assertEqual(engineering.hab_reactor_alarm, False)
+        self.assertEqual(engineering.ayse_reactor_alarm, False)
+        self.assertEqual(engineering.hab_gnomes, False)
+
+        engineering.master_alarm = True
+        engineering.radiation_alarm = True
+        engineering.asteroid_alarm = True
+        engineering.hab_reactor_alarm = True
+        engineering.ayse_reactor_alarm = True
+        engineering.hab_gnomes = True
+
+        self.assertEqual(engineering.master_alarm, True)
+        self.assertEqual(engineering.radiation_alarm, True)
+        self.assertEqual(engineering.asteroid_alarm, True)
+        self.assertEqual(engineering.hab_reactor_alarm, True)
+        self.assertEqual(engineering.ayse_reactor_alarm, True)
+        self.assertEqual(engineering.hab_gnomes, True)
+
 
 def test_performance():
     # This just runs for 10 seconds and collects profiling data.
