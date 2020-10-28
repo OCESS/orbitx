@@ -23,6 +23,7 @@ Furthermore, OCESS and UWaterloo CS494 members have contribued:
 - Jamie Tait
 - Jonah Hamer-Wilson
 - Calum Wheaton
+- Gavin McDowell
 
 ## First Time Contributors
 
