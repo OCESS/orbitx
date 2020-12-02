@@ -54,6 +54,16 @@ class AYSE(ThreeDeeObj):
                 ('\nLanded' if entity.landed() else '')
         )
 
-    def set_map_mode(self, _, map_mode: bool) -> None:
+    def set_map_mode(self, scale_factor, map_mode: bool) -> None:
         """Just don't render in map mode."""
+
+        # We can't let the radius get super small due to vpython rendering issues
+        if map_mode:
+            self._obj.radius *= scale_factor
+
+        super().set_map_mode(scale_factor, map_mode)
+
+        if not map_mode:
+            self._obj.radius /= scale_factor
+
         self._obj.visible = not map_mode
