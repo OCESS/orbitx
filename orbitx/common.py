@@ -56,6 +56,8 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 
 # ---------------- Physics-related constants ----------------
 G = 6.674e-11
+eta = 0.9  # Efficiency of engineering components
+alpha = 0.1  # Heat gain due to inefficiences ratio
 
 MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1.00  # 100%

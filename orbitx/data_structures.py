@@ -450,6 +450,18 @@ class EngineeringState:
                 index
             )
 
+        # Use list slicing (with strides, so there's two colons) to get a list of
+        # all values of each quantity for each Component.
+        # We only define this accessor for fields we use in _derive.
+        def Temperature(self) -> np.ndarray:
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+1:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+        def Resistance(self) -> np.ndarray:
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+2:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+        def Voltage(self) -> np.ndarray:
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+3:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+        def Current(self) -> np.ndarray:
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+4:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+
     class CoolantLoopList:
         """Allows engineering.coolant_loops[LP1] style indexing."""
         def __init__(self, owner: 'EngineeringState'):
@@ -464,6 +476,10 @@ class EngineeringState:
                 self._owner._array[self._owner._COOLANT_START_INDEX:self._owner._RADIATOR_START_INDEX],
                 index
             )
+
+        # As above, list slicing with strides.
+        def CoolantTemp(self) -> np.ndarray:
+            return self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._RADIATOR_START_INDEX:_N_COOLANT_FIELDS]
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
@@ -480,6 +496,10 @@ class EngineeringState:
                 self._owner._array[self._owner._RADIATOR_START_INDEX:],
                 index
             )
+
+        # And as above, list slicing with strides.
+        def Functioning(self) -> np.ndarray:
+            return self._owner._array[self._owner._RADIATOR_START_INDEX+1::_N_RADIATOR_FIELDS]
 
     def __init__(self, array_rep: np.ndarray, proto_state: protos.EngineeringState, populate_array: bool):
         """Called by a PhysicsState on creation.

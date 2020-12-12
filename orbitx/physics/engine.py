@@ -302,7 +302,8 @@ class PhysicsEngine:
         """
         y_1d =
          [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
-         SRB_time_left + time_acc (these are both single values)
+         SRB_time_left + time_acc (these are both single values) +
+         [ComponentData, CoolantLoopData, RadiatorData]
         returns the derivative of y_1d, i.e.
         [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
         (zeroed-out fields are changed elsewhere)
@@ -366,6 +367,16 @@ class PhysicsEngine:
             # The Habitat doesn't exist.
             pass
 
+        # Engineering values
+        R = y.engineering.components.Resistance()
+        I = y.engineering.components.Current()  # noqa: E741
+
+        # Eventually radiators will affect the temperature.
+        T_deriv = common.eta * np.square(I) * R
+        R_deriv = common.alpha * T_deriv
+        # Voltage we set to be constant. Since I = V/R, I' = V'/R' = 0/R' = 0
+        V_deriv = I_deriv = np.zeros(data_structures._N_COMPONENTS)
+
         # Drag effects
         craft = y.craft
         if craft is not None:
@@ -393,7 +404,11 @@ class PhysicsEngine:
         return np.concatenate((
             y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
             zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
-            np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
+            np.zeros(data_structures._N_COMPONENTS),  # connected field doesn't change
+            T_deriv, R_deriv, V_deriv, I_deriv,
+            np.zeros(data_structures._N_COMPONENTS),  # attached_to_coolant_loop field doesn't change
+            np.zeros(data_structures._N_COOLANT_LOOPS * data_structures._N_COOLANT_FIELDS),
+            np.zeros(data_structures._N_RADIATORS * data_structures._N_RADIATOR_FIELDS)
         ), axis=None)
 
     def _run_simulation(self, t: float, y: PhysicsState) -> None:
