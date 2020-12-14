@@ -1,0 +1,47 @@
+a	RAD-S1
+b	RAD-S3
+c	A GRAV
+d	R-CON1
+e 	R-CON2
+f	ACC1
+g	ION1
+h	ACC2
+i	ION2
+j	ACC3
+k	ION3
+l	ACC4
+m	ION4
+o	TRN [2ndary bus]
+p	tertiary bus and battery
+q	TRN [1mary bus]
+r	BAT
+s	RCSP
+t	COM
+u	[RCSP mode (PLS/CNT)]
+v	[blank]
+w	[blank]
+x	HAB reactor heating?
+y	[blank]
+z	HAB reactor
+1	INJECTOR 1
+2	INJECTOR 2
+3	DUMP
+4	LOAD
+5	REACT INJ1
+6	REACT INJ2
+7	F-CELL INJ
+8	AYSE DUMP
+9	AYSE LOAD
+0	AYSE reactor heating?
+[	AYSE REACT INJ1
+]	AYSE REACT INJ2
+P	DETACH MOD
+Q	DOCK MOD
+R	RADAR
+S	INS
+T	DEPLY PAK
+U	ACTVT PAK
+V	GNC
+W	LOS
+Z	SRB
+and there's some stuff about radiators, coolant, and the AYSE latch

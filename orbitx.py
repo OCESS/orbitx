@@ -49,13 +49,13 @@ def vpython_error_message():
             "some reason.</p>"
 
             "<p>Any information that OrbitX has on the crash has "
-            "been saved to a logfile. If you want to get this problem fixed, send "
-            "the contents of the log file "
+            "been saved to a logfile. If you want to get this problem fixed,"
+            " send the contents of the log file "
             "<blockquote>" +
             logs.logfile_name.replace('\\', '\\\\') +
             "</blockquote> "
-            "to Patrick Melanson along with a description of what was happening "
-            "in the program when it crashed.</p>"
+            "to Patrick Melanson along with a description of what was "
+            "happening in the program when it crashed.</p>"
 
             "<p>Again, thank you for using OrbitX!</p>"
     )

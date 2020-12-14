@@ -7,6 +7,7 @@ from orbitx import common
 from orbitx.data_structures import Entity, PhysicsState
 from orbitx.graphics.threedeeobj import ThreeDeeObj
 from orbitx.physics import calc
+from orbitx.strings import AYSE
 
 
 class Habitat(ThreeDeeObj):
@@ -134,7 +135,7 @@ class Habitat(ThreeDeeObj):
         if entity.broken:
             label += ' [BROKEN]'
         label += '\nFuel: ' + common.format_num(entity.fuel, " kg")
-        if entity.landed_on == common.AYSE:
+        if entity.landed_on == AYSE:
             label += '\nDocked'
         elif entity.landed():
             label += '\nLanded'
@@ -147,9 +148,8 @@ class Habitat(ThreeDeeObj):
         self._obj.boosters.axis = self._obj.axis
         # Attach the parachute to the forward cone of the habitat.
         self._obj.parachute.pos = (
-                self._obj.pos
-                + calc.angle_to_vpy(entity.heading) * entity.r * 0.8
-        )
+                self._obj.pos + calc.angle_to_vpy(entity.heading)
+                * entity.r * 0.8)
 
         parachute_is_visible = (
                 (state.craft == entity.name) and state.parachute_deployed)

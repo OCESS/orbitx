@@ -22,7 +22,7 @@ class ServerGui:
 
     def __init__(self):
         self._commands: List[network.Request] = []
-        self._last_state: PhysicsState
+        self._last_state_for_saving: PhysicsState
         canvas = vpython.canvas(width=1, height=1)
 
         common.include_vpython_footer_file(
@@ -57,7 +57,7 @@ class ServerGui:
         vpython_widgets.Input(
             bind=self._load_hook, placeholder='Load savefile')
         vpython_widgets.Input(
-            bind=self._load_hook, placeholder='Save savefile')
+            bind=self._save_hook, placeholder='Save savefile')
         vpython_widgets.stuff_widgets_into_flex_box([
             vpython_widgets.last_div_id - 1, vpython_widgets.last_div_id
         ])
@@ -99,6 +99,7 @@ document.querySelector(
 
             wtext.text = f'{relative_last_message_time:.1f} seconds ago'
 
+        self._last_state_for_saving = state
         vpython.rate(self.UPDATES_PER_SECOND)
 
     def _build_clients_table(self, clients: List[SimpleNamespace]):
@@ -130,7 +131,7 @@ document.querySelector(
     def _save_hook(self, textbox: vpython.winput):
         full_path = common.savefile(textbox.text)
         try:
-            full_path = common.write_savefile(self._last_state, full_path)
+            full_path = common.write_savefile(self._last_state_for_saving, full_path)
             textbox.text = f'Saved to {full_path}!'
         except OSError:
             log.exception('Caught exception during file saving')

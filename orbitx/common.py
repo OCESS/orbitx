@@ -15,16 +15,7 @@ import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import data_structures
-
-# Frequently-used entity names are here as constants. You can use string
-# literals instead, but that's more prone to mipsellings.
-HABITAT = 'Habitat'
-AYSE = 'AYSE'
-SUN = 'Sun'
-EARTH = 'Earth'
-MODULE = 'Module'
-SUN = 'Sun'
-OCESS = 'OCESS'
+from orbitx import strings
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
@@ -54,9 +45,9 @@ TIME_ACCS = [
 ]
 
 # ---------------- Graphics-related constants ---------------
-DEFAULT_CENTRE = HABITAT
-DEFAULT_REFERENCE = EARTH
-DEFAULT_TARGET = AYSE
+DEFAULT_CENTRE = strings.HABITAT
+DEFAULT_REFERENCE = strings.EARTH
+DEFAULT_TARGET = strings.AYSE
 
 DEFAULT_UP = vpython.vector(0, 0.1, 1)
 DEFAULT_FORWARD = vpython.vector(0, 0, -1)
@@ -65,6 +56,8 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 
 # ---------------- Physics-related constants ----------------
 G = 6.674e-11
+eta = 0.9  # Efficiency of engineering components
+alpha = 0.1  # Heat gain due to inefficiences ratio
 
 MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1.00  # 100%
@@ -88,8 +81,8 @@ class Spacecraft(NamedTuple):
 
 # These numbers taken from orbit5vm.bas.
 craft_capabilities = {
-    HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000, hull_strength=50),
-    AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
+    strings.HABITAT: Spacecraft(fuel_cons=4.824, thrust=4375000, hull_strength=50),
+    strings.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
 }
 
 SRB_THRUST = 13125000
@@ -111,6 +104,9 @@ LAUNCH_TWR = 1.05
 SRB_FULL = -1
 SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
+
+DANGEROUS_REACTOR_TEMP = 110  # We can change this later
+
 
 # ---------- Other runtime constants ----------
 PERF_FILE = 'flamegraph-data.log'
@@ -200,14 +196,21 @@ def start_flamegraphing():
     # browser (in Firefox, F12 > Performance > Start Recording Performance)
     # And profiling python simulation code is done by running this function,
     # then processing PERF_FILE with https://github.com/brendangregg/FlameGraph
-    # The command is, without appropriate paths, is:
-    # dos2unix PERF_FILE && flamegraph.pl PERF_FILE > orbitx-perf.svg
+    # The command is:
+    # dos2unix flamegraph-data.log; perl flamegraph.pl flamegraph-data.log > orbitx-perf.svg
     # Where flamegraph.pl is from that brendangregg repo.
-    import flamegraph
-    flamegraph.start_profile_thread(
+    from flamegraph import flamegraph
+    t = flamegraph.ProfileThread(
         fd=open(PERF_FILE, 'w'),
-        filter=r'(simthread|MainThread)'
+        interval=0.001,
+        filter=r'simthread'
     )
+    t.start()
+
+    def cleanup():
+        t.stop()
+        t.join()
+    atexit.register(cleanup)
 
 
 def start_profiling():

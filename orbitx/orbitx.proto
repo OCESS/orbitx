@@ -45,6 +45,7 @@ message Command {
         HAB_FLIGHT = 2;
         COMPAT = 3;
         MIST = 4;
+        HAB_ENG = 5;
     }
 
     enum Idents {
@@ -61,6 +62,8 @@ message Command {
         NAVMODE_SET = 10;
         PARACHUTE = 11;
         IGNITE_SRBS = 12;
+        TOGGLE_SWITCH = 13;
+        TOGGLE_RADIATOR = 14;
     }
 
     enum ModuleState {
@@ -75,7 +78,7 @@ message Command {
         DETACHED_MODULE = 30;
     }
 
-    message EngineeringUpdate {
+    message OrbitVEngineeringUpdate {
         int32 nav_malfunction = 1;
         double max_thrust = 2;
         double hab_fuel = 3;
@@ -99,13 +102,48 @@ message Command {
         double throttle_change = 4;
         double throttle_set = 5;
         double time_acc_set = 6;
-        EngineeringUpdate engineering_update = 7;
+        OrbitVEngineeringUpdate engineering_update = 7;
         string reference = 8;
         string target = 9;
         string loadfile = 10;
         Navmode navmode = 11;
         bool deploy_parachute = 12;
+        int32 switch_to_toggle = 13;
+        int32 radiator_to_toggle = 14;
     }
+}
+
+message EngineeringState {
+    message Component {
+        bool connected = 1;
+        double temperature = 2;
+        double resistance = 3;
+        double voltage = 4;
+        double current = 5;
+        int32 attached_to_coolant_loop = 6;
+    }
+
+    message CoolantLoop {
+        double coolant_temp = 1;
+        bool primary_pump_on = 2;
+        bool secondary_pump_on = 3;
+    }
+
+    message Radiator {
+        int32 attached_to_coolant_loop = 1;
+        bool functioning = 2;  // If the radiator is stowed or broken, it is not functioning.
+    }
+
+    repeated Component components = 1;
+    repeated CoolantLoop coolant_loops = 2;
+    repeated Radiator radiators = 3;
+
+    bool master_alarm = 4;
+    bool radiation_alarm = 5;
+    bool asteroid_alarm = 6;
+    bool hab_reactor_alarm = 7;
+    bool ayse_reactor_alarm = 8;
+    bool hab_gnomes = 9;
 }
 
 // This is wrapped by state.py.
@@ -159,4 +197,6 @@ message PhysicalState {
     // srb_time = -2 means the SRB is empty. These contants are in common.py
     double srb_time = 8;
     bool parachute_deployed = 9;
+
+    EngineeringState engineering = 10;
 }

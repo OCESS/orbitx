@@ -43,7 +43,7 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(
+    orbitx_connection = network.NetworkedStateClient(
         network.Request.COMPAT, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 

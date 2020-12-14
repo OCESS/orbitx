@@ -31,7 +31,7 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    orbitx_connection = network.StateClient(
+    orbitx_connection = network.NetworkedStateClient(
         network.Request.MIST, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
@@ -42,7 +42,7 @@ def main(args: argparse.Namespace):
             print(random.choice(['ASTRONAUT STATUS: DYING',
                                  'astronaut status: okay']))
             print(orbitx_connection.get_state(
-                [network.Request(ident=network.Request.NOOP)])['Earth'].pos)
+                [network.Request()])['Earth'].pos)
             time.sleep(1)
     except grpc.RpcError as err:
         log.error(

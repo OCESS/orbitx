@@ -12,7 +12,9 @@ from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
-from orbitx.data_structures import _EntityView, Entity, PhysicsState
+from orbitx.data_structures import EngineeringState, _EntityView, Entity, PhysicsState, \
+    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS
+from orbitx.strings import HABITAT
 
 log = logging.getLogger()
 
@@ -131,13 +133,16 @@ class PhysicsEngineTestCase(unittest.TestCase):
                 moved[0].fuel,
                 (initial[0].fuel -
                  t_delta * throttle *
-                 common.craft_capabilities[common.HABITAT].fuel_cons))
+                 common.craft_capabilities[HABITAT].fuel_cons))
             self.assertTrue(
                 moved[0].vx <
                 (t_delta * calc.engine_acceleration(moved)))
 
-            t_no_fuel = (initial[0].fuel / (throttle *
-                                            common.craft_capabilities[common.HABITAT].fuel_cons))
+            t_no_fuel = (initial[0].fuel
+                         / (throttle *
+                            common.craft_capabilities[HABITAT].fuel_cons
+                            )
+                         )
             empty_fuel = physics_engine.get_state(t_no_fuel)
             after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
 
@@ -218,8 +223,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
                                  common.G * physics_state[0].mass /
                                  (y0.Y[2] - y0.Y[0]) ** 2 +
 
-                                 np.sqrt(2) * common.G * physics_state[1].mass /
-                                 (y0.Y[2] - y0.Y[1]) ** 2
+                                 np.sqrt(2) * common.G * physics_state[1].mass
+                                 / (y0.Y[2] - y0.Y[1]) ** 2
                              ))
 
     def test_landing(self):
@@ -316,7 +321,12 @@ class PhysicsStateTestCase(unittest.TestCase):
                 name='Second', mass=101, r=201, artificial=True,
                 x=11, y=21, vx=31, vy=41, heading=2, spin=51, fuel=61,
                 throttle=71, landed_on='First', broken=True)
-        ]
+        ],
+        engineering=protos.EngineeringState(
+            components=[protos.EngineeringState.Component()] * _N_COMPONENTS,
+            coolant_loops=[protos.EngineeringState.CoolantLoop()] * _N_COOLANT_LOOPS,
+            radiators=[protos.EngineeringState.Radiator()] * _N_RADIATORS
+        )
     )
 
     def test_landed_on(self):
@@ -327,20 +337,22 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
-        y0 = np.array([
-            10, 20,  # x
-            30, 40,  # y
-            50, 60,  # vx
-            0, 0,  # vy
-            0, 0,  # heading
-            70, 80,  # spin
-            90, 100,  # fuel
-            0, 0,  # throttle
-            1, -1,  # only First is landed on Second
-            0, 1,  # Second is broken
-            common.SRB_EMPTY,
-            1  # time_acc
-        ])
+        y0 = np.concatenate((np.array([
+                10, 20,  # x
+                30, 40,  # y
+                50, 60,  # vx
+                0, 0,  # vy
+                0, 0,  # heading
+                70, 80,  # spin
+                90, 100,  # fuel
+                0, 0,  # throttle
+                1, -1,  # only First is landed on Second
+                0, 1,  # Second is broken
+                common.SRB_EMPTY,
+                1  # time_acc
+            ]),
+            np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
+        ))
 
         ps = PhysicsState(y0, self.proto_state)
         self.assertTrue(np.array_equal(ps.y0(), y0.astype(ps.y0().dtype)))
@@ -458,6 +470,136 @@ class CalculationsTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(calc.h_speed(iss, earth), 7665, delta=10)
         self.assertAlmostEqual(calc.v_speed(iss, earth), -0.1, delta=0.1)
+
+
+class EngineeringViewTestCase(unittest.TestCase):
+    """Test that the various accessors of EngineeringState are correct."""
+
+    def test_component_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        self.assertEqual(engineering.components[0].connected, True)
+        self.assertAlmostEqual(engineering.components[0].temperature, 31.3)
+        self.assertAlmostEqual(engineering.components[0].resistance, 11.0)
+        self.assertAlmostEqual(engineering.components[0].voltage, 120.0)
+        self.assertAlmostEqual(engineering.components[0].current, 0.2)
+        self.assertEqual(engineering.components[0].attached_to_coolant_loop, 1)
+        self.assertAlmostEqual(engineering.components[0].get_coolant_loop().coolant_temp, 15.0)
+
+        # Test setters work
+        engineering.components[1].connected = True
+        engineering.components[1].temperature = 12.3
+        engineering.components[1].resistance = 4.56
+        engineering.components[1].voltage = 7.89
+        engineering.components[1].current = 0.1
+        engineering.components[1].attached_to_coolant_loop = 2
+        self.assertEqual(engineering.components[1].connected, True)
+        self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
+        self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
+        self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
+        self.assertAlmostEqual(engineering.components[1].current, 0.1)
+        self.assertEqual(engineering.components[1].attached_to_coolant_loop, 2)
+        self.assertAlmostEqual(engineering.components[1].get_coolant_loop().coolant_temp, 20.0)
+
+    def test_as_proto(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            state = physics_engine.get_state()
+            engineering = state.engineering
+
+        # Change some data
+        engineering.components[1].connected = True
+        engineering.components[1].temperature = 12.3
+        engineering.components[1].resistance = 4.56
+        engineering.components[1].voltage = 7.89
+        engineering.components[1].current = 0.1
+
+        # Check engineering proto
+        eng_proto = engineering.as_proto()
+        self.assertEqual(eng_proto.components[1].connected, True)
+        self.assertAlmostEqual(eng_proto.components[1].temperature, 12.3)
+        self.assertAlmostEqual(eng_proto.components[1].resistance, 4.56)
+        self.assertAlmostEqual(eng_proto.components[1].voltage, 7.89)
+        self.assertAlmostEqual(eng_proto.components[1].current, 0.1)
+
+        # Check physicsstate proto
+        physics_state_proto = state.as_proto()
+        self.assertEqual(physics_state_proto.engineering.components[1].connected, True)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].temperature, 12.3)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].resistance, 4.56)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].voltage, 7.89)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].current, 0.1)
+
+    def test_coolant_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 15.0)
+        self.assertEqual(engineering.coolant_loops[0].primary_pump_on, True)
+        self.assertEqual(engineering.coolant_loops[0].secondary_pump_on, True)
+
+        # Test setters work
+        engineering.coolant_loops[1].coolant_temp = 33.3
+        engineering.coolant_loops[1].primary_pump_on = False
+        engineering.coolant_loops[1].secondary_pump_on = True
+        self.assertAlmostEqual(engineering.coolant_loops[1].coolant_temp, 33.3)
+        self.assertEqual(engineering.coolant_loops[1].primary_pump_on, False)
+        self.assertEqual(engineering.coolant_loops[1].secondary_pump_on, True)
+
+    def test_radiator_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        # Test getters work
+        self.assertEqual(engineering.radiators[0].attached_to_coolant_loop, 1)
+        self.assertEqual(engineering.radiators[0].functioning, True)
+        self.assertEqual(engineering.radiators[0].get_coolant_loop().coolant_temp, 15)
+
+        # Test setters work
+        engineering.radiators[1].attached_to_coolant_loop = 2
+        engineering.radiators[1].functioning = False
+        self.assertEqual(engineering.radiators[1].attached_to_coolant_loop, 2)
+        self.assertEqual(engineering.radiators[1].functioning, False)
+        self.assertEqual(engineering.radiators[1].get_coolant_loop().coolant_temp, 20)
+
+    def test_numpy_arrays_not_copied(self):
+        """Test that the internal array representation of EngineeringState is
+        just a view into PhysicsState._array_rep, otherwise EngineeringState will
+        write new data into the ether and it won't update PhysicsState.y0()."""
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            state = physics_engine.get_state()
+
+        engineering = state.engineering
+        engineering.components[0].voltage = 777777.7
+        self.assertEqual(engineering._array[3], 777777.7)
+        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3], 777777.7)
+
+    def test_alarms(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        self.assertEqual(engineering.master_alarm, False)
+        self.assertEqual(engineering.radiation_alarm, False)
+        self.assertEqual(engineering.asteroid_alarm, False)
+        self.assertEqual(engineering.hab_reactor_alarm, False)
+        self.assertEqual(engineering.ayse_reactor_alarm, False)
+        self.assertEqual(engineering.hab_gnomes, False)
+
+        engineering.master_alarm = True
+        engineering.radiation_alarm = True
+        engineering.asteroid_alarm = True
+        engineering.hab_reactor_alarm = True
+        engineering.ayse_reactor_alarm = True
+        engineering.hab_gnomes = True
+
+        self.assertEqual(engineering.master_alarm, True)
+        self.assertEqual(engineering.radiation_alarm, True)
+        self.assertEqual(engineering.asteroid_alarm, True)
+        self.assertEqual(engineering.hab_reactor_alarm, True)
+        self.assertEqual(engineering.ayse_reactor_alarm, True)
+        self.assertEqual(engineering.hab_gnomes, True)
 
 
 def test_performance():

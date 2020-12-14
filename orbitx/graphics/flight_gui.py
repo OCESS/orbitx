@@ -16,19 +16,19 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx.physics import calc
-from orbitx.data_structures import Entity, Navmode, PhysicsState
-from orbitx.network import Request
-from orbitx.graphics.threedeeobj import ThreeDeeObj
-from orbitx.graphics.planet import Planet
+from orbitx.data_structures import Entity, Navmode, PhysicsState, Request
+from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
+from orbitx.graphics.ayse import Ayse
 from orbitx.graphics.earth import Earth
 from orbitx.graphics.habitat import Habitat
 from orbitx.graphics.landing_graphic import LandingGraphic
-from orbitx.graphics.science_mod import ScienceModule
-from orbitx.graphics.ayse import AYSE
-from orbitx.graphics.star import Star
-from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.graphics.orbit_projection import OrbitProjection
+from orbitx.graphics.planet import Planet
+from orbitx.graphics.science_mod import ScienceModule
+from orbitx.graphics.star import Star
+from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
+from orbitx.physics import calc
 
 log = logging.getLogger()
 
@@ -128,15 +128,15 @@ class FlightGui:
 
     def _build_threedeeobj(self, entity: Entity) -> ThreeDeeObj:
         obj: ThreeDeeObj
-        if entity.name == common.HABITAT:
+        if entity.name == HABITAT:
             obj = Habitat(entity, self.origin(), self.texture_path)
-        elif entity.name == common.AYSE:
-            obj = AYSE(entity, self.origin(), self.texture_path)
-        elif entity.name == common.SUN:
+        elif entity.name == AYSE:
+            obj = Ayse(entity, self.origin(), self.texture_path)
+        elif entity.name == SUN:
             obj = Star(entity, self.origin(), self.texture_path)
-        elif entity.name == common.MODULE:
+        elif entity.name == MODULE:
             obj = ScienceModule(entity, self.origin(), self.texture_path)
-        elif entity.name == common.EARTH:
+        elif entity.name == EARTH:
             obj = Earth(entity, self.origin(), self.texture_path)
         else:
             obj = Planet(entity, self.origin(), self.texture_path)
@@ -424,7 +424,7 @@ class FlightGui:
             # The file we loaded will have a non-zero time acc, unpause.
             self.pause(False)
             # Re-centre on the habitat.
-            self._sidebar.centre_menu._menu.selected = common.HABITAT
+            self._sidebar.centre_menu._menu.selected = HABITAT
             self._recentre_dropdown_hook(self._sidebar.centre_menu._menu)
         else:
             log.warning(f'Ignored non-existent loadfile: {full_path}')
@@ -515,7 +515,8 @@ class Sidebar:
         """Enable or disable all inputs, except for networking checkbox."""
         for menu in [
             self.centre_menu, self.reference_menu, self.target_menu,
-            self.navmode_menu, self.time_acc_menu, self.misc_menu]:
+            self.navmode_menu, self.time_acc_menu, self.misc_menu
+        ]:
             menu._menu.disabled = disabled
         for checkbox in [self.trails_checkbox, self.orbits_checkbox]:
             checkbox._checkbox.disabled = disabled
@@ -556,14 +557,16 @@ class Sidebar:
 
         self._wtexts.append(TableText(
             # The H in HRT stands for Habitat, even though craft is more
-            # general and covers AYSE, but HRT is the familiar triple name and
+            # general and covers Ayse, but HRT is the familiar triple name and
             # the Hawking III says trans rights.
             "HRT phase θ",
-            lambda state: common.format_num(calc.phase_angle(
-                state.craft_entity(),
-                state.reference_entity(),
-                state.target_entity()), "°") or
-                          "Same ref and targ",
+            lambda state: common.format_num(
+                calc.phase_angle(
+                    state.craft_entity(),
+                    state.reference_entity(),
+                    state.target_entity()),
+                "°")
+            or "Same ref and targ",
             "Angle between Habitat, Reference, and Target",
             new_section=False))
 
@@ -670,8 +673,9 @@ class Sidebar:
             "Landing acc",
             lambda state: common.format_num(calc.landing_acceleration(
                 state.craft_entity(),
-                state.target_entity()), " m/s/s") or
-                          "no vertical landing",
+                state.target_entity()),
+                " m/s/s")
+            or "no vertical landing",
             "Constant engine acc to land during vertical descent to target",
             new_section=False))
 
@@ -684,7 +688,7 @@ class Sidebar:
         # the Module (and in the future maybe other objects) can be created.
         # Have them in the choices list at the beginning, and handle when they
         # are selected without the corresponding entity existing yet.
-        entity_names = list(self._parent._3dobjs) + [common.MODULE]
+        entity_names = list(self._parent._3dobjs) + [MODULE]
 
         self.centre_menu = Menu(
             choices=entity_names,

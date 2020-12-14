@@ -1,14 +1,12 @@
 import argparse
 import atexit
 import logging
-import time
 
 from orbitx import common
 from orbitx import network
-from orbitx import physics
 from orbitx import programs
 from orbitx.graphics import flight_gui
-from orbitx.network import Request
+from orbitx.data_structures import Request
 
 log = logging.getLogger()
 
@@ -30,14 +28,13 @@ argument_parser.add_argument(
 
 
 def main(args: argparse.Namespace):
-    time_of_last_network_update = 0.0
     networking = True  # Whether data is requested over the network
 
     log.info(f'Connecting to physics server {args.physics_server}.')
-    lead_server_connection = network.StateClient(
+    lead_server_connection = network.NetworkedStateClient(
         Request.MC_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
-    physics_engine = physics.PhysicsEngine(state)
+    physics_engine = lead_server_connection._caching_physics_engine
 
     gui = flight_gui.FlightGui(state, title=name, running_as_mirror=True)
     atexit.register(gui.shutdown)
@@ -51,14 +48,8 @@ def main(args: argparse.Namespace):
                 ' networking with the physics server at ' +
                 args.physics_server)
 
-        if (networking and
-                time.monotonic() - time_of_last_network_update >
-                common.TIME_BETWEEN_NETWORK_UPDATES):
-            # Our state is stale, get the latest update
-            # TODO: what if this fails? Set networking to False?
+        if networking:
             state = lead_server_connection.get_state()
-            physics_engine.set_state(state)
-            time_of_last_network_update = time.monotonic()
         else:
             state = physics_engine.get_state()
 

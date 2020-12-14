@@ -329,5 +329,91 @@
       "r": 1287000.0,
       "mass": 1.7457056248206e+22
     }
-  ]
+  ],
+
+  "engineering": {
+    "components": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ],
+    "coolantLoops": [
+      {
+        "coolantTemp": 20.0,
+        "primaryPumpOn": true,
+        "secondaryPumpOn": true
+      },
+      {
+        "coolantTemp": 20.0,
+        "primaryPumpOn": true,
+        "secondaryPumpOn": true
+      },
+      {
+        "coolantTemp": 20.0,
+        "primaryPumpOn": true,
+        "secondaryPumpOn": true
+      }
+    ],
+    "radiators": [
+      {
+        "attachedToCoolantLoop": 1,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 2,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 1,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 2,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 1,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 2,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 3,
+        "functioning": true
+      },
+      {
+        "attachedToCoolantLoop": 3,
+        "functioning": true
+      }
+    ]
+  }
 }

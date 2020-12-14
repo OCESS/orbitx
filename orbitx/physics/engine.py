@@ -26,11 +26,10 @@ import scipy.special
 from google.protobuf.text_format import MessageToString
 
 from orbitx.physics import calc
-from orbitx import common
-from orbitx.network import Request
+from orbitx import common, strings, data_structures
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import protos, Entity, Navmode, PhysicsState, \
-    _FIELD_ORDERING
+from orbitx.data_structures import protos, EngineeringState, Entity, Navmode, PhysicsState, Request
+from orbitx.strings import AYSE, HABITAT, MODULE
 
 SOLUTION_CACHE_SIZE = 2
 
@@ -303,7 +302,8 @@ class PhysicsEngine:
         """
         y_1d =
          [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
-         SRB_time_left + time_acc (these are both single values)
+         SRB_time_left + time_acc (these are both single values) +
+         [ComponentData, CoolantLoopData, RadiatorData]
         returns the derivative of y_1d, i.e.
         [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
         (zeroed-out fields are changed elsewhere)
@@ -339,15 +339,15 @@ class PhysicsEngine:
 
                 fuel_cons[artif_index] = \
                     -abs(capability.fuel_cons * entity.throttle)
-                eng_thrust = capability.thrust * entity.throttle * \
-                             calc.heading_vector(entity.heading)
+                eng_thrust = (capability.thrust * entity.throttle
+                              * calc.heading_vector(entity.heading))
                 mass = entity.mass + entity.fuel
 
-                if entity.name == common.AYSE and \
-                        y[common.HABITAT].landed_on == common.AYSE:
+                if entity.name == AYSE and \
+                        y[HABITAT].landed_on == AYSE:
                     # It's bad that this is hardcoded, but it's also the only
                     # place that this comes up so IMO it's not too bad.
-                    hab = y[common.HABITAT]
+                    hab = y[HABITAT]
                     mass += hab.mass + hab.fuel
 
                 eng_acc = eng_thrust / mass
@@ -357,7 +357,7 @@ class PhysicsEngine:
         srb_usage = 0
         try:
             if y.srb_time >= 0:
-                hab_index = y._name_to_index(common.HABITAT)
+                hab_index = y._name_to_index(HABITAT)
                 hab = y[hab_index]
                 srb_acc = common.SRB_THRUST / (hab.mass + hab.fuel)
                 srb_acc_vector = srb_acc * calc.heading_vector(hab.heading)
@@ -366,6 +366,16 @@ class PhysicsEngine:
         except PhysicsState.NoEntityError:
             # The Habitat doesn't exist.
             pass
+
+        # Engineering values
+        R = y.engineering.components.Resistance()
+        I = y.engineering.components.Current()  # noqa: E741
+
+        # Eventually radiators will affect the temperature.
+        T_deriv = common.eta * np.square(I) * R
+        R_deriv = common.alpha * T_deriv
+        # Voltage we set to be constant. Since I = V/R, I' = V'/R' = 0/R' = 0
+        V_deriv = I_deriv = np.zeros(data_structures._N_COMPONENTS)
 
         # Drag effects
         craft = y.craft
@@ -393,7 +403,12 @@ class PhysicsEngine:
 
         return np.concatenate((
             y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
-            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0])
+            zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
+            np.zeros(data_structures._N_COMPONENTS),  # connected field doesn't change
+            T_deriv, R_deriv, V_deriv, I_deriv,
+            np.zeros(data_structures._N_COMPONENTS),  # attached_to_coolant_loop field doesn't change
+            np.zeros(data_structures._N_COOLANT_LOOPS * data_structures._N_COOLANT_FIELDS),
+            np.zeros(data_structures._N_RADIATORS * data_structures._N_RADIATOR_FIELDS)
         ), axis=None)
 
     def _run_simulation(self, t: float, y: PhysicsState) -> None:
@@ -418,7 +433,7 @@ class PhysicsEngine:
 
             events: List[Event] = [
                 CollisionEvent(y, self.R), HabFuelEvent(y), LiftoffEvent(y),
-                SrbFuelEvent()
+                SrbFuelEvent(), HabReactorTempEvent(), AyseReactorTempEvent()
             ]
             if y.craft is not None:
                 events.append(HighAccEvent(
@@ -518,6 +533,10 @@ class PhysicsEngine:
                         # We should lower the time acc.
                         y.time_acc = slower_time_acc.value
                         raise PhysicsEngine.RestartSimulationException(t, y)
+                    if isinstance(event, HabReactorTempEvent):
+                        y.engineering.hab_reactor_alarm = not y.engineering.hab_reactor_alarm
+                    if isinstance(event, AyseReactorTempEvent):
+                        y.engineering.ayse_reactor_alarm = not y.engineering.ayse_reactor_alarm
 
 
 class Event:
@@ -617,7 +636,7 @@ class LiftoffEvent(Event):
             return np.inf
 
         thrust = common.craft_capabilities[craft.name].thrust * craft.throttle
-        if y.srb_time > 0 and y.craft == common.HABITAT:
+        if y.srb_time > 0 and y.craft == HABITAT:
             thrust += common.SRB_THRUST
 
         pos = craft.pos - planet.pos
@@ -638,8 +657,8 @@ class HighAccEvent(Event):
         self.artificials = artificials
         self.acc_bound = acc_bound
         self.current_acc = round(current_acc)
-        self.ax_offset = n_entities * _FIELD_ORDERING['vx']
-        self.ay_offset = n_entities * _FIELD_ORDERING['vy']
+        self.ax_offset = n_entities * data_structures._ENTITY_FIELD_ORDER['vx']
+        self.ay_offset = n_entities * data_structures._ENTITY_FIELD_ORDER['vy']
 
     def __call__(self, t: float, y_1d: np.ndarray) -> float:
         """Return positive if the current time acceleration is accurate, zero
@@ -658,6 +677,46 @@ class HighAccEvent(Event):
         return max(self.acc_bound - acc_mag, 0)
 
 
+class HabReactorTempEvent(Event):
+    # Trigger this event if we're going above or below dangerous temperature.
+    direction = 0
+
+    def __call__(self, t, y_1d) -> float:
+        """Returns how close reactor temp is to danger.
+        This will cause simulation to stop at the dangerous temp."""
+        # This janky manual array accessing negates the need to build an
+        # EngineeringState at every simulation step. But! This should be
+        # kept in sync with ComponentView.temperature.
+        return y_1d[
+            PhysicsState.ENGINEERING_START_INDEX
+            + EngineeringState._COMPONENT_START_INDEX
+            + (
+                strings.COMPONENT_NAMES.index(strings.HAB_REACT)
+                * data_structures._N_COMPONENT_FIELDS
+                + 1)
+        ] - common.DANGEROUS_REACTOR_TEMP
+
+
+class AyseReactorTempEvent(Event):
+    # Trigger this event if we're going above or below dangerous temperature.
+    direction = 0
+
+    def __call__(self, t, y_1d) -> float:
+        """Returns how close reactor temp is to danger.
+        This will cause simulation to stop at the dangerous temp."""
+        # This janky manual array accessing negates the need to build an
+        # EngineeringState at every simulation step. But! This should be
+        # kept in sync with ComponentView.temperature.
+        return y_1d[
+            PhysicsState.ENGINEERING_START_INDEX
+            + EngineeringState._COMPONENT_START_INDEX
+            + (
+                strings.COMPONENT_NAMES.index(strings.AYSE_REACT)
+                * data_structures._N_COMPONENT_FIELDS
+                + 1)
+        ] - common.DANGEROUS_REACTOR_TEMP
+
+
 def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
     """Idempotent helper that sets velocities and spins of some entities.
     This is in its own function because it has a couple calling points."""
@@ -673,11 +732,12 @@ def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
         lander = y[index]
         ground = y[landed_on[index]]
 
-        if ground.name == common.AYSE and lander.name == common.HABITAT:
+        if ground.name == AYSE and lander.name == HABITAT:
             # Always put the Habitat at the docking port.
             lander.pos = (
-                    ground.pos -
-                    calc.heading_vector(ground.heading) * (lander.r + ground.r))
+                    ground.pos
+                    - calc.heading_vector(ground.heading)
+                    * (lander.r + ground.r))
         else:
             norm = lander.pos - ground.pos
             unit_norm = norm / calc.fastnorm(norm)
@@ -831,26 +891,26 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.ENGINEERING_UPDATE:
         # Multiply this value by 100, because OrbitV considers engines at
         # 100% to be 100x the maximum thrust.
-        common.craft_capabilities[common.HABITAT] = \
-            common.craft_capabilities[common.HABITAT]._replace(
+        common.craft_capabilities[HABITAT] = \
+            common.craft_capabilities[HABITAT]._replace(
                 thrust=100 * request.engineering_update.max_thrust)
-        hab = y0[common.HABITAT]
-        ayse = y0[common.AYSE]
+        hab = y0[HABITAT]
+        ayse = y0[AYSE]
         hab.fuel = request.engineering_update.hab_fuel
         ayse.fuel = request.engineering_update.ayse_fuel
-        y0[common.HABITAT] = hab
-        y0[common.AYSE] = ayse
+        y0[HABITAT] = hab
+        y0[AYSE] = ayse
 
         if request.engineering_update.module_state == \
                 Request.DETACHED_MODULE and \
-                common.MODULE not in y0._entity_names and \
+                MODULE not in y0._entity_names and \
                 not hab.landed():
             # If the Habitat is freely floating and engineering asks us to
             # detach the Module, spawn in the Module.
             module = Entity(protos.Entity(
-                name=common.MODULE, mass=100, r=10, artificial=True))
-            module.pos = hab.pos - (module.r + hab.r) * \
-                         calc.heading_vector(hab.heading)
+                name=MODULE, mass=100, r=10, artificial=True))
+            module.pos = (hab.pos - (module.r + hab.r) *
+                          calc.heading_vector(hab.heading))
             module.v = calc.rotational_speed(module, hab)
 
             y0_proto = y0.as_proto()
@@ -858,10 +918,10 @@ def _one_request(request: Request, y0: PhysicsState) \
             y0 = PhysicsState(None, y0_proto)
 
     elif request.ident == Request.UNDOCK:
-        habitat = y0[common.HABITAT]
+        habitat = y0[HABITAT]
 
-        if habitat.landed_on == common.AYSE:
-            ayse = y0[common.AYSE]
+        if habitat.landed_on == AYSE:
+            ayse = y0[AYSE]
             habitat.landed_on = ''
 
             norm = habitat.pos - ayse.pos
@@ -869,7 +929,7 @@ def _one_request(request: Request, y0: PhysicsState) \
             habitat.v += unit_norm * common.UNDOCK_PUSH
             habitat.spin = ayse.spin
 
-            y0[common.HABITAT] = habitat
+            y0[HABITAT] = habitat
 
     elif request.ident == Request.REFERENCE_UPDATE:
         y0.reference = request.reference
@@ -886,5 +946,11 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.IGNITE_SRBS:
         if round(y0.srb_time) == common.SRB_FULL:
             y0.srb_time = common.SRB_BURNTIME
+    elif request.ident == Request.TOGGLE_SWITCH:
+        component = y0.engineering.components[request.switch_to_toggle]
+        component.connected = not component.connected
+    elif request.ident == Request.TOGGLE_RADIATOR:
+        radiator = y0.engineering.radiators[request.radiator_to_toggle]
+        radiator.functioning = not radiator.functioning
 
     return y0

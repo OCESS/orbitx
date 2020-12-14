@@ -9,18 +9,15 @@ from typing import Dict, List, Optional, Iterable
 
 import grpc
 
+from orbitx import common
+from orbitx import physics
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
-from orbitx.data_structures import PhysicsState
+from orbitx.data_structures import PhysicsState, Request
 
 log = logging.getLogger()
 
 DEFAULT_PORT = 28430
-
-# This Request class is just an alias of the Command protobuf message. We
-# provide this so that nobody has to directly import orbitx_pb2, and so that
-# we can this wrapper class in the future.
-Request = protos.Command
 
 
 class StateServer(grpc_stubs.StateServerServicer):
@@ -45,7 +42,8 @@ class StateServer(grpc_stubs.StateServerServicer):
         'MC Flight',
         'Habitat Flight',
         'OrbitV Compatibility Server',
-        'MIST'
+        'MIST',
+        'Hab Engineering'
     ]
 
     def __init__(self):
@@ -112,12 +110,12 @@ class StateServer(grpc_stubs.StateServerServicer):
         self.addr_to_connected_clients.clear()
 
 
-class StateClient:
+class NetworkedStateClient:
     """
     Allows clients to easily communicate to the Physics Server.
 
     Usage:
-        connection = StateClient('localhost')
+        connection = NetworkedStateClient('localhost')
         while True:
             physics_state = connection.get_state()
     """
@@ -128,8 +126,17 @@ class StateClient:
         self.stub = grpc_stubs.StateServerStub(self.channel)
         self.client_type = client
 
+        initial_state = PhysicsState(None, self.stub.get_physical_state(iter([
+                Request(ident=Request.NOOP, client=self.client_type)])))
+
+        self._caching_physics_engine = physics.PhysicsEngine(initial_state)
+        self._time_of_next_network_update = 0.0
+
     def get_state(self, commands: List[Request] = None) \
             -> PhysicsState:
+
+        current_time = time.monotonic()
+        commands_to_send = False
 
         if commands is None or len(commands) == 0:
             commands_iter = iter([
@@ -138,5 +145,32 @@ class StateClient:
             for command in commands:
                 command.client = self.client_type
             commands_iter = iter(commands)
-        return PhysicsState(None,
-                            self.stub.get_physical_state(commands_iter))
+            commands_to_send = True
+
+        returned_state: PhysicsState
+
+        if commands_to_send or current_time > self._time_of_next_network_update:
+            # We need to make a network request.
+            # TODO: what if this fails? Do anything smarter than an exception?
+            returned_state = PhysicsState(
+                None, self.stub.get_physical_state(commands_iter))
+            self._caching_physics_engine.set_state(returned_state)
+
+            if commands_to_send:
+                # If we sent a user command, still ask for an update soon so
+                # the user input can be reflected in hab flight's GUI as soon
+                # as possible.
+                # Magic number alert! The constant we add should be enough that
+                # the physics server has had enough time to simulate the effect
+                # of our input, but we should minimize the constant to minimize
+                # input lag.
+                self._time_of_next_network_update = current_time + 0.15
+            else:
+                self._time_of_next_network_update = (
+                        current_time + common.TIME_BETWEEN_NETWORK_UPDATES
+                )
+
+        else:
+            returned_state = self._caching_physics_engine.get_state()
+
+        return returned_state
