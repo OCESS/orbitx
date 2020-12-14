@@ -38,6 +38,12 @@ class MainApplication(tk.Tk):
         self.page = HabPage(self)
         self.page.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
+    def pop_commands(self):
+        return []
+
+    def update_labels(self, _):
+        pass
+
 
 class HabPage(tk.Frame):
 
@@ -83,10 +89,3 @@ class HabPage(tk.Frame):
         widgets['cl1_pump'].grid(row=1, column=3, padx=5, pady=5)
         widgets['event_display'].grid(row=3, column=0, padx=5, pady=40,
                                       columnspan=4)
-
-
-# MAIN
-app = MainApplication()    # Essential. Do not remove.
-app.bind_all('<Key>', lambda e: keybinds(e))
-widgets['a_asteroid'].alert()
-app.mainloop()    # Essential. Do not remove.

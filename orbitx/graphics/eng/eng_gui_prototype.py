@@ -42,6 +42,18 @@ class MainApplication(tk.Tk):
         self.page = HabPage(self)
         self.page.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
+        # Testing
+        widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
+        widgets['a_master'].alert()
+        widgets['a_hab_gnomes'].alert()
+        # /Testing
+
+    def pop_commands(self):
+        return []
+
+    def update_labels(self, _):
+        pass
+
     def _create_menu(self):
         menubar = tk.Menu(self)
 
@@ -402,15 +414,3 @@ class HabPage(tk.Frame):
 
         hrconfinement.grid_columnconfigure(0, weight=1, minsize=60)
         hrconfinement.grid_columnconfigure(1, weight=1, minsize=70)
-
-
-# MAIN LOOP
-app = MainApplication()    # Essential. Do not remove.
-
-# Testing
-widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
-widgets['a_master'].alert()
-widgets['a_hab_gnomes'].alert()
-# /Testing
-
-app.mainloop()    # Essential. Do not remove.

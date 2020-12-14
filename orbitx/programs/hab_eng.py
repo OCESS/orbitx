@@ -13,7 +13,16 @@ import grpc
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
+
+# Comment this and uncomment one of the other prototypes
 from orbitx.graphics.eng.eng_gui import MainApplication
+
+# Uncomment this for prototype 1
+#from orbitx.graphics.eng.eng_gui_prototype import MainApplication
+
+# Uncomment this for prototype 2
+#from orbitx.graphics.eng.eng_gui_prototype_small import MainApplication
+
 from orbitx.strings import HABITAT
 
 
@@ -52,7 +61,6 @@ def main(args: argparse.Namespace):
     gui = MainApplication()
 
     def network_task():
-        gui.contrived_keybind_function()
         user_commands = gui.pop_commands()
         state = orbitx_connection.get_state(user_commands)
         gui.update_labels(state[HABITAT].pos[0])
