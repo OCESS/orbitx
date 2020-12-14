@@ -5,7 +5,7 @@ import vpython
 from orbitx.common import DEFAULT_FORWARD, DEFAULT_UP
 from orbitx.physics import calc
 from orbitx.data_structures import Entity
-from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 
 
 class Planet(ThreeDeeObj):

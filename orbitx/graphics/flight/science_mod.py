@@ -4,7 +4,7 @@ import vpython
 
 from orbitx.physics import calc
 from orbitx.data_structures import Entity
-from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 
 
 class ScienceModule(ThreeDeeObj):

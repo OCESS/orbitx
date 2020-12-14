@@ -5,8 +5,8 @@ from typing import Optional
 import vpython
 
 import orbitx.common as common
-from orbitx.graphics.planet import Planet
-from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.flight.planet import Planet
+from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 
 
 class LandingGraphic:

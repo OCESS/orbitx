@@ -5,7 +5,7 @@ import logging
 from orbitx import common
 from orbitx import network
 from orbitx import programs
-from orbitx.graphics import flight_gui
+from orbitx.graphics.flight import flight_gui
 from orbitx.data_structures import Request
 
 log = logging.getLogger()

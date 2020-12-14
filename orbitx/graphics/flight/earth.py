@@ -4,7 +4,7 @@ import vpython
 
 from orbitx.physics import calc
 from orbitx.data_structures import Entity, PhysicsState
-from orbitx.graphics.planet import Planet
+from orbitx.graphics.flight.planet import Planet
 
 
 class Earth(Planet):

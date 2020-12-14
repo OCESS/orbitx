@@ -2,7 +2,7 @@
 # from tkinter_widgets.py
 
 import tkinter as tk
-import orbitx.graphics.tkinter_widgets as cw
+import orbitx.graphics.eng.tkinter_widgets as cw
 
 # Main widget dictionary holds all objects in the gui
 widgets = {}

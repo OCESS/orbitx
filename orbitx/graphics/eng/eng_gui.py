@@ -10,7 +10,7 @@ gui.mainloop()
 from typing import List
 
 import tkinter as tk
-import orbitx.graphics.tkinter_widgets as cw
+import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx import strings
 from orbitx.data_structures import Request
 

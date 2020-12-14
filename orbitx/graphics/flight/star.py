@@ -3,8 +3,8 @@ from typing import Optional
 import vpython
 
 from orbitx.data_structures import Entity, PhysicsState
-from orbitx.graphics.planet import Planet
-from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.flight.planet import Planet
+from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 
 
 class Star(Planet):

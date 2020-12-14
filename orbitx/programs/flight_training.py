@@ -7,7 +7,7 @@ from pathlib import Path
 from orbitx import common
 from orbitx import physics
 from orbitx import programs
-from orbitx.graphics import flight_gui
+from orbitx.graphics.flight import flight_gui
 
 log = logging.getLogger()
 

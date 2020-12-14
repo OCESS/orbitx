@@ -13,7 +13,7 @@ import grpc
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
-from orbitx.graphics.eng_gui import MainApplication
+from orbitx.graphics.eng.eng_gui import MainApplication
 from orbitx.strings import HABITAT
 
 

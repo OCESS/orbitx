@@ -17,7 +17,7 @@ import vpython
 
 from orbitx import logs
 from orbitx import programs
-from orbitx.graphics import launcher
+from orbitx.graphics.flight import launcher
 
 log = logging.getLogger()
 

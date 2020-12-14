@@ -1,5 +1,5 @@
 import tkinter as tk
-from orbitx.graphics.tkinter_style import Style
+from orbitx.graphics.eng.tkinter_style import Style
 from typing import Union, Optional
 
 

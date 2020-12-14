@@ -18,15 +18,15 @@ import vpython
 from orbitx import common
 from orbitx.data_structures import Entity, Navmode, PhysicsState, Request
 from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
-from orbitx.graphics.ayse import Ayse
-from orbitx.graphics.earth import Earth
-from orbitx.graphics.habitat import Habitat
-from orbitx.graphics.landing_graphic import LandingGraphic
-from orbitx.graphics.orbit_projection import OrbitProjection
-from orbitx.graphics.planet import Planet
-from orbitx.graphics.science_mod import ScienceModule
-from orbitx.graphics.star import Star
-from orbitx.graphics.threedeeobj import ThreeDeeObj
+from orbitx.graphics.flight.ayse import Ayse
+from orbitx.graphics.flight.earth import Earth
+from orbitx.graphics.flight.habitat import Habitat
+from orbitx.graphics.flight.landing_graphic import LandingGraphic
+from orbitx.graphics.flight.orbit_projection import OrbitProjection
+from orbitx.graphics.flight.planet import Planet
+from orbitx.graphics.flight.science_mod import ScienceModule
+from orbitx.graphics.flight.star import Star
+from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.physics import calc
 
@@ -509,7 +509,7 @@ class Sidebar:
 
         common.remove_vpython_css()
         common.include_vpython_footer_file(
-            Path('orbitx', 'graphics', 'flight_gui_footer.html'))
+            Path('orbitx', 'graphics', 'flight', 'flight_gui_footer.html'))
 
     def _disable_inputs(self, disabled: bool):
         """Enable or disable all inputs, except for networking checkbox."""
