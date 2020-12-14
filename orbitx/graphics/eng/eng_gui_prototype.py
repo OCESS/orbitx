@@ -205,7 +205,7 @@ class HabPage(tk.Frame):
         method2.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         images['ECS_bg'] = ImageTk.PhotoImage(Image.open(
-            "../../../data/textures/eng_mockup.PNG").resize((375, 95)))
+            "data/textures/eng_mockup.PNG").resize((375, 95)))  # TODO: make this relative to orbitx.py
         widgets['m2_he_grid'] = tk.Label(method2, image=images['ECS_bg'],
                                          width=375, height=95)
         widgets['m2_he_grid'].pack(padx=5, pady=5)
@@ -213,11 +213,11 @@ class HabPage(tk.Frame):
         sw_width = 15
         sw_height = 23
         images['sw_open'] = ImageTk.PhotoImage(Image.open(
-            "../../../data/textures/eng_switch_open.PNG").resize(
+            "data/textures/eng_switch_open.PNG").resize(
             (sw_width, sw_height)))
 
         images['sw_closed'] = ImageTk.PhotoImage(Image.open(
-            "../../../data/textures/eng_switch_closed.PNG").resize(
+            "data/textures/eng_switch_closed.PNG").resize(
             (sw_width, sw_height)))
 
         def switch(event):
