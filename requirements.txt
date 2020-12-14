@@ -3,7 +3,7 @@ grpcio
 grpcio-tools
 protobuf
 six
-vpython>=7.5.1
+vpython
 numpy
 scipy
 flake8

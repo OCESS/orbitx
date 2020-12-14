@@ -211,13 +211,23 @@ class Habitat(ThreeDeeObj):
         self._small_habitat.axis = self._obj.axis
         self._small_habitat.boosters.axis = self._obj.axis
 
-        # Invisibile-ize the SRBs if we ran out.
+        # Invisible-ize the SRBs if we ran out.
         if state.srb_time == common.SRB_EMPTY and self._obj.boosters.visible:
             self._obj.boosters.visible = False
             self._small_habitat.boosters.visible = False
 
-    def set_map_mode(self, _, map_mode: bool) -> None:
+    def set_map_mode(self, scale_factor, map_mode: bool) -> None:
         """Just don't render in map mode."""
+
+        # We can't let the radius get super small due to vpython rendering issues
+        if map_mode:
+            self._obj.radius *= scale_factor
+
+        super().set_map_mode(scale_factor, map_mode)
+
+        if not map_mode:
+            self._obj.radius /= scale_factor
+
         self._obj.visible = not map_mode
         self._obj.boosters.visible = not map_mode
         self._obj.parachute.visible = not map_mode
