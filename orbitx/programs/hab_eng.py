@@ -52,7 +52,6 @@ def main(args: argparse.Namespace):
     gui = MainApplication()
 
     def network_task():
-        gui.contrived_keybind_function()
         user_commands = gui.pop_commands()
         state = orbitx_connection.get_state(user_commands)
         gui.update_labels(state[HABITAT].pos[0])
