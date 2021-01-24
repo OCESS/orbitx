@@ -46,13 +46,38 @@ class ENGLabelFrame(tk.LabelFrame):
         super().__init__(parent, text=text, font=font, fg=style.text, bg=style.bg)
 
 
+class ENGScale(tk.Scale):
+    """A slider."""
+
+    def __init__(self, parent, label: ENGLabel, style=Style('default')):
+        super().__init__(parent)
+
+        self.label = label
+
+        self.configure(from_=0,
+                       to_=100,
+                       resolution=5,
+                       orient=tk.HORIZONTAL,
+                       bg=style.bg,
+                       fg=style.text,
+                       troughcolor=style.bg,
+                       showvalue=0,
+                       command=self.update_slider_label
+                       )
+
+    def update_slider_label(self, val):
+        self.label.value = val
+        self.label.update_value()
+        print(self.label.value)
+
+
 class Indicator(tk.Button):
     """
     Represents an indicator light/toggle push-button switch.
-    E.g. radar = Indicator(parent, text='RAD')
+    E.g. radar = Indicator(parent, v, text='RAD')
     """
 
-    def __init__(self, parent, style=Style('default'), *args, **kwargs):
+    def __init__(self, parent, style=Style('default'), onchange=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -63,12 +88,20 @@ class Indicator(tk.Button):
                        width=50,
                        height=50,
                        command=self.press,
-                       font=style.normal
+                       font=style.normal,
                        )
 
         self.style = style
-        self.value = 1    # Will be set to 0, on next line
+        self.value = 0
+
+        self.onchange = onchange
         self.invoke()
+
+    def update_value(self):
+        if self.value == 0:
+            self.configure(relief=tk.RAISED, bg=self.style.ind_on)
+        if self.value == 1:
+            self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
 
     def press(self):
         if self.value == 0:
@@ -77,6 +110,8 @@ class Indicator(tk.Button):
         else:
             self.value = 0
             self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
+        if self.onchange is not None:
+            self.onchange(self)
 
 
 class OneTimeButton(tk.Button):
@@ -183,27 +218,3 @@ class Alert(tk.Button):
         self.alerted = False
         self.alerted_state()
         self.configure(state=tk.DISABLED, relief=tk.GROOVE)
-
-
-class ENGScale(tk.Scale):
-    """A slider."""
-
-    def __init__(self, parent, label: ENGLabel, style=Style('default')):
-        super().__init__(parent)
-
-        self.label = label
-
-        self.configure(from_=0,
-                       to_=100,
-                       resolution=5,
-                       orient=tk.HORIZONTAL,
-                       bg=style.bg,
-                       fg=style.text,
-                       troughcolor=style.bg,
-                       showvalue=0,
-                       command=self.update_slider_label
-                       )
-
-    def update_slider_label(self, val):
-        self.label.value = val
-        self.label.update()

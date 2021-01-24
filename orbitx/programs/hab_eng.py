@@ -15,10 +15,10 @@ from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
 
 # Comment this and uncomment one of the other prototypes
-from orbitx.graphics.eng.eng_gui import MainApplication
+#from orbitx.graphics.eng.eng_gui import MainApplication
 
 # Uncomment this for prototype 1
-#from orbitx.graphics.eng.eng_gui_prototype import MainApplication
+from orbitx.graphics.eng.eng_gui_prototype import MainApplication
 
 # Uncomment this for prototype 2
 #from orbitx.graphics.eng.eng_gui_prototype_small import MainApplication
@@ -63,8 +63,7 @@ def main(args: argparse.Namespace):
     def network_task():
         user_commands = gui.pop_commands()
         state = orbitx_connection.get_state(user_commands)
-        gui.update_labels(state[HABITAT].pos[0])
-        print('R-CON1 is connected?', state.engineering.components['R-CON1'].connected)
+        gui.update_labels(state)
         gui.after(int(1000), network_task)
 
     network_task()

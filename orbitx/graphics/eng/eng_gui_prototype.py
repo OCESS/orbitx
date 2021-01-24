@@ -1,14 +1,21 @@
 import tkinter as tk
 import orbitx.graphics.eng.tkinter_widgets as cw
+from orbitx.data_structures import PhysicsState
 from orbitx.graphics.eng.eng_keybinds import keybinds
 from PIL import Image, ImageTk
-
+from orbitx.strings import HABITAT
+import winsound
 
 # Main widget dictionary holds all objects in the gui
 widgets = {}
 
 # Python garbage collection deletes ImageTk images, unless you save them
 images = {}
+
+# Gavin's testing variables
+testing = [0]*12
+slider_values = [0]*2
+pump_value = 0*[2]
 
 # Radiator States
 ISOLATED = 'ISOL'
@@ -51,8 +58,18 @@ class MainApplication(tk.Tk):
     def pop_commands(self):
         return []
 
-    def update_labels(self, _):
-        pass
+    def update_labels(self, state: PhysicsState):
+        engineering = state.engineering
+        widgets['fuel'].value = state[HABITAT].fuel
+        widgets['fuel'].update_value()
+        widgets['hl1_temp'].value = engineering.coolant_loops[0].coolant_temp
+        widgets['hl1_temp'].update_value()
+        #        print(widgets.keys())
+        widgets['hl1_R1'].value = engineering.radiators[0].attached_to_coolant_loop
+        widgets['hl1_R1'].update_value()
+
+
+
 
     def _create_menu(self):
         menubar = tk.Menu(self)
@@ -63,7 +80,6 @@ class MainApplication(tk.Tk):
         menubar.add_cascade(label="File", menu=file)
 
         return menubar
-
 
 class HabPage(tk.Frame):
     """1. Create a page in which lives all of the HabPage GUI
@@ -95,13 +111,21 @@ class HabPage(tk.Frame):
         self.left_frame.pack_configure()
 
         # Add objects to the columns
-        self._render_left()
-        self._render_right_top()
-        self._render_right_mid()
-        self._render_right_bot()
+        self._render_master()
+        self._render_engines()
+        self._render_subsystems()
+        self._electrical_grid()
 
-    def _render_left(self):
-        # Master
+#        self._render_right_top()
+
+        self._render_coolants()
+        self._render_radiators()
+        self._render_hab_reactors()
+        self._render_reactor_confinement()
+
+
+    def _render_master(self):
+
         master = cw.ENGLabelFrame(self.left_frame, text="Master", style=style)
         master.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -112,6 +136,7 @@ class HabPage(tk.Frame):
 
         widgets['a_master'] = cw.Alert(master, text='MASTER\nALARM',
                                        font=style.large, style=style)
+
         widgets['a_master'].configure(width=100, height=100)
 
         widgets['a_asteroid'] = cw.Alert(master, text='ASTEROID',
@@ -127,7 +152,8 @@ class HabPage(tk.Frame):
         widgets['a_radiation'].grid(row=2, column=1, padx=5, pady=5)
         widgets['a_hab_gnomes'].grid(row=3, column=0, pady=5)
 
-        # Engines
+    def _render_engines(self):
+
         engines = cw.ENGLabelFrame(self.left_frame, text="Engines",
                                    style=style)
         engines.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -160,7 +186,8 @@ class HabPage(tk.Frame):
         widgets['h_dump'].grid(row=0, column=1)
         widgets['h_load'].grid(row=0, column=2)
 
-        # Subsystems
+    def _render_subsystems(self):
+
         subsystems = cw.ENGLabelFrame(self.left_frame, text="Subsystems",
                                       style=style)
         subsystems.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -191,15 +218,16 @@ class HabPage(tk.Frame):
         subsystems.grid_columnconfigure(0, weight=1, minsize=50)
         subsystems.grid_columnconfigure(1, weight=1, minsize=60)
 
-    def _render_right_top(self):
-#        # Electrical Grid
-#        hegrid = cw.ENGLabelFrame(self.right_frame_top,
-#                                  text="Habitat Electrical Grid")
-#        hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-#
-#        widgets['he_grid'] = tk.Canvas(hegrid, width=750, height=350)
-#        widgets['he_grid'].pack()
+    def _electrical_grid(self):
+        # Electrical Grid
+        hegrid = cw.ENGLabelFrame(self.right_frame_top,
+                                  text="Habitat Electrical Grid", style=style)
+        hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+        widgets['he_grid'] = tk.Canvas(hegrid, width=375, height=350)
+        widgets['he_grid'].pack()
+
+    def _render_right_top(self):
         # Method 1
         # Draw all objects on a canvas including the switches
         method1 = cw.ENGLabelFrame(self.right_frame_top, text="Method 1",
@@ -256,8 +284,8 @@ class HabPage(tk.Frame):
         position_display = tk.Label(method2)
         position_display.pack()
 
-    def _render_right_mid(self):
-        # Coolant Loops
+    def _render_coolants(self, state: PhysicsState):
+
         loops = cw.ENGLabelFrame(self.right_frame_mid, text="", style=style)
         loops.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -268,10 +296,11 @@ class HabPage(tk.Frame):
             loop.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
             widgets[prefix + 'pump'] = cw.ENGLabel(loop, text='PUMP',
-                                                   value=96, unit='%',
+                                                   value=0, unit='%',
                                                    style=style)
             widgets[prefix + 'pump_sldr'] = cw.ENGScale(
                 loop, widgets[prefix + 'pump'], style=style)
+
             widgets[prefix + 'temp'] = cw.ENGLabel(
                 loop, text='TEMP', value=47, unit='*C', style=style)
 
@@ -282,12 +311,23 @@ class HabPage(tk.Frame):
 
             for i in range(2):
                 for j in range(3):
-                    rad = 'R{}'.format(i * 3 + j + 1)
+                    indicator_num = i * 3 + j + 1
+                    rad = 'R{}'.format(indicator_num)
+
+                    def make_callback_coolants(n):
+                        def _on_coolants_changed(indicator):
+                            state.engineering.radiators[0].attached_to_coolant_loop = indicator.value
+                            print(f'Coolant {n} changed, value={state.engineering.radiators[0].attached_to_coolant_loop}')
+
+                        return _on_coolants_changed
+
                     widgets[prefix + rad] = cw.Indicator(loop, text=rad,
-                                                         style=style)
+                                                         style=style,
+                                                         onchange=make_callback_coolants(indicator_num+cl*6))
                     widgets[prefix + rad].grid(row=i+2, column=j, sticky=tk.E)
 
-        # Radiators
+    def _render_radiators(self):
+
         radiators = cw.ENGLabelFrame(self.right_frame_mid, text="Radiators",
                                      style=style)
         radiators.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
@@ -347,8 +387,7 @@ class HabPage(tk.Frame):
             else:
                 pass
 
-    def _render_right_bot(self):
-        # Hab Reactor
+    def _render_hab_reactors(self):
         hreactor = cw.ENGLabelFrame(self.right_frame_bot,
                                     text="Habitat Reactor", style=style)
         hreactor.pack(side=tk.LEFT, fill=tk.BOTH, expand=False)
@@ -383,6 +422,8 @@ class HabPage(tk.Frame):
         hreactor.grid_columnconfigure(0, weight=1, minsize=60)
         hreactor.grid_columnconfigure(1, weight=1, minsize=70)
         hreactor.grid_columnconfigure(2, weight=3, minsize=graph_width)
+
+    def _render_reactor_confinement(self):
 
         hrconfinement = cw.ENGLabelFrame(self.right_frame_bot,
                                          text="Reactor Confinement",
