@@ -13,12 +13,14 @@ import grpc
 from orbitx import network
 from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
+from orbitx.network import Request
+from typing import List
 
 # Comment this and uncomment one of the other prototypes
-from orbitx.graphics.eng.eng_gui import MainApplication
+#from orbitx.graphics.eng.eng_gui import MainApplication
 
 # Uncomment this for prototype 1
-#from orbitx.graphics.eng.eng_gui_prototype import MainApplication
+from orbitx.graphics.eng.eng_gui_prototype import MainApplication
 
 # Uncomment this for prototype 2
 #from orbitx.graphics.eng.eng_gui_prototype_small import MainApplication
@@ -45,6 +47,7 @@ argument_parser.add_argument(
         'the physics server is running on the same machine, put "localhost".')
 )
 
+_commands_to_send: List[Request] = []
 
 def main(args: argparse.Namespace):
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
@@ -61,14 +64,25 @@ def main(args: argparse.Namespace):
     gui = MainApplication()
 
     def network_task():
-        user_commands = gui.pop_commands()
+        user_commands = pop_commands()
         state = orbitx_connection.get_state(user_commands)
-        gui.update_labels(state[HABITAT].pos[0])
-        print('R-CON1 is connected?', state.engineering.components['R-CON1'].connected)
+        gui.update_labels(state)
         gui.after(int(1000), network_task)
 
     network_task()
     gui.mainloop()
+
+
+def push_command(command: Request) -> None:
+    global _commands_to_send
+    _commands_to_send.append(command)
+
+
+def pop_commands() -> List[Request]:
+    global _commands_to_send
+    commands = _commands_to_send
+    _commands_to_send = []
+    return commands
 
 
 program = programs.Program(

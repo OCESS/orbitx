@@ -38,19 +38,24 @@ class MainApplication(tk.Tk):
 
         self._commands: List[Request] = []
 
+        tk.Tk.bind(self, "<Key>", self.key_pressed)
+
     def pop_commands(self) -> List[Request]:
         """Take user input since last frame and send it off."""
         old_commands = self._commands
         self._commands = []
         return old_commands
 
-    def contrived_keybind_function(self):
-        keypress = 'a'
-        if keypress == 'a':
+    def key_pressed(self, event):
+
+        w = cw.ENGLabel(self, text="Key Pressed:", value=event.char)
+        w.place(x=70, y=90)
+
+        if event.char == 'a':
             self._commands.append(Request(
                 ident=Request.TOGGLE_SWITCH,
                 switch_to_toggle=strings.COMPONENT_NAMES.index(strings.RCON1)))
-        elif keypress == 'b':
+        elif event.char == 'b':
             self._commands.append(Request(
                 ident=Request.TOGGLE_RADIATOR,
                 radiator_to_toggle=1))
