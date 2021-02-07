@@ -4,6 +4,8 @@ from orbitx.data_structures import PhysicsState
 from orbitx.graphics.eng.eng_keybinds import keybinds
 from PIL import Image, ImageTk
 from orbitx.strings import HABITAT
+from orbitx.network import Request
+from typing import List
 import winsound
 
 # Main widget dictionary holds all objects in the gui
@@ -55,8 +57,6 @@ class MainApplication(tk.Tk):
         widgets['a_hab_gnomes'].alert()
         # /Testing
 
-    def pop_commands(self):
-        return []
 
     def update_labels(self, state: PhysicsState):
         engineering = state.engineering
@@ -65,10 +65,7 @@ class MainApplication(tk.Tk):
         widgets['hl1_temp'].value = engineering.coolant_loops[0].coolant_temp
         widgets['hl1_temp'].update_value()
         #        print(widgets.keys())
-        widgets['hl1_R1'].value = engineering.radiators[0].attached_to_coolant_loop
-        widgets['hl1_R1'].update_value()
-
-
+        widgets['hl1_R1'].update(engineering.radiators[0].functioning)
 
 
     def _create_menu(self):
@@ -284,7 +281,7 @@ class HabPage(tk.Frame):
         position_display = tk.Label(method2)
         position_display.pack()
 
-    def _render_coolants(self, state: PhysicsState):
+    def _render_coolants(self):
 
         loops = cw.ENGLabelFrame(self.right_frame_mid, text="", style=style)
         loops.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -316,8 +313,9 @@ class HabPage(tk.Frame):
 
                     def make_callback_coolants(n):
                         def _on_coolants_changed(indicator):
-                            state.engineering.radiators[0].attached_to_coolant_loop = indicator.value
-                            print(f'Coolant {n} changed, value={state.engineering.radiators[0].attached_to_coolant_loop}')
+                            pass
+                           # state.engineering.radiators[0].attached_to_coolant_loop = indicator.value
+                           # print(f'Coolant {n} changed, value={state.engineering.radiators[0].attached_to_coolant_loop}')
 
                         return _on_coolants_changed
 
@@ -335,13 +333,13 @@ class HabPage(tk.Frame):
         for i in range(6):
             rad = 'R{}'.format(i+1)
 
-            widgets['r_' + rad + '_isol'] = tk.Button(
+            widgets['r_' + rad + '_isol'] = cw.Indicator(
                 radiators, text=ISOLATED, width=10, bg=style.ind_off,
                 command=lambda v=(i+1): rad_isol(v))
             if i < 3:
                 widgets['r_' + rad] = cw.ENGLabel(
                     radiators, text=rad, value=STOWED, style=style)
-                widgets['r_' + rad + '_stow'] = tk.Button(
+                widgets['r_' + rad + '_stow'] = cw.Indicator(
                     radiators, text=STOWED, width=10, bg=style.ind_off,
                     command=lambda v=(i+1): rad_stow(v))
             else:

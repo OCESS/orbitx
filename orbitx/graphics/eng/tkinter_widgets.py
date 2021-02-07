@@ -1,6 +1,9 @@
 import tkinter as tk
 from orbitx.graphics.eng.tkinter_style import Style
 from typing import Union, Optional
+from orbitx.network import Request
+from orbitx import strings
+from orbitx.programs import hab_eng
 
 
 class ENGLabel(tk.Label):
@@ -77,7 +80,7 @@ class Indicator(tk.Button):
     E.g. radar = Indicator(parent, v, text='RAD')
     """
 
-    def __init__(self, parent, style=Style('default'), onchange=None, *args, **kwargs):
+    def __init__(self, parent: tk.Widget, style=Style('default'), onchange=None, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -87,28 +90,25 @@ class Indicator(tk.Button):
                        compound='c',
                        width=50,
                        height=50,
-                       command=self.press,
+                       command=self.on_press,
                        font=style.normal,
                        )
 
         self.style = style
-        self.value = 0
+        self.pressed = False
 
         self.onchange = onchange
         self.invoke()
 
-    def update_value(self):
-        if self.value == 0:
-            self.configure(relief=tk.RAISED, bg=self.style.ind_on)
-        if self.value == 1:
-            self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
+    def on_press(self):
+        hab_eng.push_command(Request(ident=Request.TOGGLE_RADIATOR,
+                                     radiator_to_toggle=0))
 
-    def press(self):
-        if self.value == 0:
-            self.value = 1
+    def update(self, pressed):
+        self.pressed = pressed
+        if not self.pressed:
             self.configure(relief=tk.RAISED, bg=self.style.ind_on)
         else:
-            self.value = 0
             self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
         if self.onchange is not None:
             self.onchange(self)
