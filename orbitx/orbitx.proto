@@ -64,6 +64,7 @@ message Command {
         IGNITE_SRBS = 12;
         TOGGLE_SWITCH = 13;
         TOGGLE_RADIATOR = 14;
+        CONNECT_RADIATOR_TO_LOOP = 15;
     }
 
     enum ModuleState {
@@ -94,6 +95,11 @@ message Command {
         double wind_angle = 13;
     }
 
+    message RadiatorToLoop {
+        int32 rad = 1;
+        int32 loop = 2;
+    }
+
     ClientType client = 1;
     Idents ident = 2;
 
@@ -110,6 +116,7 @@ message Command {
         bool deploy_parachute = 12;
         int32 switch_to_toggle = 13;
         int32 radiator_to_toggle = 14;
+        RadiatorToLoop radiator_to_loop = 15;
     }
 }
 

@@ -952,5 +952,8 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.TOGGLE_RADIATOR:
         radiator = y0.engineering.radiators[request.radiator_to_toggle]
         radiator.functioning = not radiator.functioning
+    elif request.ident == Request.CONNECT_RADIATOR_TO_LOOP:
+        radiator = y0.engineering.radiators[request.radiator_to_loop.rad]
+        radiator.attached_to_coolant_loop = request.radiator_to_loop.loop
 
     return y0
