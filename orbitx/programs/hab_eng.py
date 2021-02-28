@@ -15,17 +15,7 @@ from orbitx import programs
 from orbitx.graphics.compat_gui import StartupFailedGui
 from orbitx.network import Request
 from typing import List
-
-# Comment this and uncomment one of the other prototypes
-#from orbitx.graphics.eng.eng_gui import MainApplication
-
-# Uncomment this for prototype 1
-from orbitx.graphics.eng.eng_gui_prototype import MainApplication
-
-# Uncomment this for prototype 2
-#from orbitx.graphics.eng.eng_gui_prototype_small import MainApplication
-
-from orbitx.strings import HABITAT
+from orbitx.graphics.eng.main_window import MainApplication
 
 
 log = logging.getLogger()

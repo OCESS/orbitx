@@ -1,7 +1,6 @@
 import tkinter as tk
 import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx.data_structures import PhysicsState
-from orbitx.graphics.eng.eng_keybinds import keybinds
 from PIL import Image, ImageTk
 from orbitx.strings import HABITAT
 from orbitx.network import Request
@@ -200,8 +199,6 @@ class HabPage(tk.Frame):
                                         style=style)
 
         widgets['SRB'] = cw.OneTimeButton(subsystems, text='SRB', style=style)
-        #widgets['SRB'].bind_all('s', lambda x: widgets['SRB'].press())
-        widgets['SRB'].bind_all('<Key>', lambda e: keybinds(e))
 
         widgets['INS'].grid(row=0, column=0)
         widgets['RADAR'].grid(row=1, column=0)
