@@ -2,10 +2,7 @@ import tkinter as tk
 import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx.data_structures import PhysicsState
 from PIL import Image, ImageTk
-from orbitx.strings import HABITAT
-from orbitx.network import Request
-from typing import List
-import winsound
+from orbitx import strings
 
 # Main widget dictionary holds all objects in the gui
 widgets = {}
@@ -58,7 +55,7 @@ class MainApplication(tk.Tk):
 
     def redraw(self, state: PhysicsState):
         engineering = state.engineering
-        widgets['fuel'].value = state[HABITAT].fuel
+        widgets['fuel'].value = state[strings.HABITAT].fuel
         widgets['fuel'].update_value()
         widgets['hl1_temp'].value = engineering.coolant_loops[0].coolant_temp
         widgets['hl1_temp'].update_value()
@@ -165,6 +162,12 @@ class HabPage(tk.Frame):
                                       value=0, unit='kg/hr', style=style)
 
         widgets['h_INJ1'].grid(row=0, column=0)
+
+        widgets['h_INJ1'].set_redrawer(
+            lambda injector_widget, state:
+            injector_widget.update(state.components[strings.INJ1].connected)
+        )
+
         widgets['h_INJ2'].grid(row=1, column=0)
         widgets['fuel'].grid(row=0, column=1, sticky=tk.W)
         widgets['h_br'].grid(row=1, column=1, sticky=tk.W)
@@ -314,8 +317,8 @@ class HabPage(tk.Frame):
                         loop, text=rad, style=style)
                     widgets[prefix + rad].grid(row=i+2, column=j, sticky=tk.E)
                     widgets[prefix + rad].set_redrawer(
-                        lambda widget, state: widget.update(
-                            state.radiators[indicator_num - 1].functioning
+                        lambda widget, state, i=indicator_num: widget.update(
+                            state.radiators[i - 1].functioning
                             ))
 
     def _render_radiators(self):
