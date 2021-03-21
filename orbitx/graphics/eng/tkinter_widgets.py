@@ -127,12 +127,10 @@ class Indicator(tk.Button, EngWidget):
         self.invoke()
 
     def on_press(self):
-        hab_eng.push_command(Request(ident=Request.TOGGLE_RADIATOR,
-                                     radiator_to_toggle=0))
+        pass
 
     def update(self, pressed):
         self.pressed = pressed
-        print(f'update {pressed}')
         if self.pressed:
             self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
         else:
