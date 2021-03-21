@@ -56,7 +56,7 @@ def main(args: argparse.Namespace):
     def network_task():
         user_commands = pop_commands()
         state = orbitx_connection.get_state(user_commands)
-        gui.update_labels(state)
+        gui.redraw(state)
         gui.after(int(1000), network_task)
 
     network_task()

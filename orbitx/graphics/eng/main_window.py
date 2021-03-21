@@ -56,16 +56,19 @@ class MainApplication(tk.Tk):
         widgets['a_hab_gnomes'].alert()
         # /Testing
 
-
-    def update_labels(self, state: PhysicsState):
+    def redraw(self, state: PhysicsState):
         engineering = state.engineering
         widgets['fuel'].value = state[HABITAT].fuel
         widgets['fuel'].update_value()
         widgets['hl1_temp'].value = engineering.coolant_loops[0].coolant_temp
         widgets['hl1_temp'].update_value()
         #        print(widgets.keys())
-        widgets['hl1_R1'].update(engineering.radiators[0].functioning)
+        #widgets['hl1_R1'].update(engineering.radiators[0].functioning)
 
+        print(engineering.radiators[0].functioning)
+
+        for widget in widgets.values():
+            widget.redraw(engineering)
 
     def _create_menu(self):
         menubar = tk.Menu(self)
@@ -76,6 +79,7 @@ class MainApplication(tk.Tk):
         menubar.add_cascade(label="File", menu=file)
 
         return menubar
+
 
 class HabPage(tk.Frame):
     """1. Create a page in which lives all of the HabPage GUI
@@ -118,7 +122,6 @@ class HabPage(tk.Frame):
         self._render_radiators()
         self._render_hab_reactors()
         self._render_reactor_confinement()
-
 
     def _render_master(self):
 
@@ -218,8 +221,7 @@ class HabPage(tk.Frame):
                                   text="Habitat Electrical Grid", style=style)
         hegrid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        widgets['he_grid'] = tk.Canvas(hegrid, width=375, height=350)
-        widgets['he_grid'].pack()
+        tk.Canvas(hegrid, width=375, height=350).pack()
 
     def _render_right_top(self):
         # Method 1
@@ -257,16 +259,16 @@ class HabPage(tk.Frame):
         def switch(event):
             event.widget.configure(image=images['sw_closed'])
 
-        widgets['sw_ln1'] = tk.Button(widgets['m2_he_grid'],
-                                      width=sw_width, height=sw_height,
-                                      image=images['sw_open'],
-                                      relief=tk.FLAT,
-                                      bd=0,
-                                      bg=style.bg)
-        widgets['sw_ln1'].place(x=125, y=35)
-
-        widgets['sw_ln1'].bind('<Button-1>', switch)
-        widgets['sw_ln1'].bind_all('a', switch)
+#        widgets['sw_ln1'] = tk.Button(widgets['m2_he_grid'],
+#                                      width=sw_width, height=sw_height,
+#                                      image=images['sw_open'],
+#                                      relief=tk.FLAT,
+#                                      bd=0,
+#                                      bg=style.bg)
+#        widgets['sw_ln1'].place(x=125, y=35)
+#
+#        widgets['sw_ln1'].bind('<Button-1>', switch)
+#        widgets['sw_ln1'].bind_all('a', switch)
 
         def get_pos(event):
             position_display.configure(
@@ -308,18 +310,13 @@ class HabPage(tk.Frame):
                     indicator_num = i * 3 + j + 1
                     rad = 'R{}'.format(indicator_num)
 
-                    def make_callback_coolants(n):
-                        def _on_coolants_changed(indicator):
-                            pass
-                           # state.engineering.radiators[0].attached_to_coolant_loop = indicator.value
-                           # print(f'Coolant {n} changed, value={state.engineering.radiators[0].attached_to_coolant_loop}')
-
-                        return _on_coolants_changed
-
-                    widgets[prefix + rad] = cw.Indicator(loop, text=rad,
-                                                         style=style,
-                                                         onchange=make_callback_coolants(indicator_num+cl*6))
+                    widgets[prefix + rad] = cw.Indicator(
+                        loop, text=rad, style=style)
                     widgets[prefix + rad].grid(row=i+2, column=j, sticky=tk.E)
+                    widgets[prefix + rad].set_redrawer(
+                        lambda widget, state: widget.update(
+                            state.radiators[indicator_num - 1].functioning
+                            ))
 
     def _render_radiators(self):
 
@@ -352,15 +349,15 @@ class HabPage(tk.Frame):
         all_buttons = cw.ENGLabelFrame(radiators, text='', style=style)
         all_buttons.grid(row=3, column=2, rowspan=3, ipadx=5, ipady=5)
 
-        widgets['r_stow_all'] = tk.Button(
-            all_buttons, text='STOW-A', width=8, height=2, bg=style.ind_off,
-            command=lambda: [rad_stow(v+1) for v in range(3)])
-        widgets['r_isol_all'] = tk.Button(
-            all_buttons, text='ISOL-A', width=8, height=2, bg=style.ind_off,
-            command=lambda: [rad_isol(v+1) for v in range(6)])
-
-        widgets['r_stow_all'].pack(pady=5)
-        widgets['r_isol_all'].pack()
+#        widgets['r_stow_all'] = tk.Button(
+#            all_buttons, text='STOW-A', width=8, height=2, bg=style.ind_off,
+#            command=lambda: [rad_stow(v+1) for v in range(3)])
+#        widgets['r_isol_all'] = tk.Button(
+#            all_buttons, text='ISOL-A', width=8, height=2, bg=style.ind_off,
+#            command=lambda: [rad_isol(v+1) for v in range(6)])
+#
+#        widgets['r_stow_all'].pack(pady=5)
+#        widgets['r_isol_all'].pack()
 
         def rad_isol(v):
             if widgets['r_R{}'.format(v)] != BROKEN:
@@ -409,10 +406,10 @@ class HabPage(tk.Frame):
 
         graph_frame = tk.Frame(hreactor)
         graph_width = 400
-        widgets['hr_graph'] = tk.Canvas(graph_frame,
-                                        width=graph_width, height=200)
+        hr_graph = tk.Canvas(graph_frame,
+                             width=graph_width, height=200)
         graph_frame.grid(row=0, column=2, rowspan=3, padx=10, pady=10)
-        widgets['hr_graph'].pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        hr_graph.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         hreactor.grid_columnconfigure(0, weight=1, minsize=60)
         hreactor.grid_columnconfigure(1, weight=1, minsize=70)

@@ -1,12 +1,38 @@
 import tkinter as tk
+
+from typing import Callable
+
 from orbitx.graphics.eng.tkinter_style import Style
 from typing import Union, Optional
 from orbitx.network import Request
 from orbitx import strings
+from orbitx.data_structures import EngineeringState
 from orbitx.programs import hab_eng
 
 
-class ENGLabel(tk.Label):
+class EngWidget():
+    """Inherit from this interface to be able to loop over all widgets calling
+    widget.redraw(state)"""
+
+    # Function takes an EngineeringState and sets various tkinter properties.
+    _redraw_function: Callable[[tk.Widget, EngineeringState], None]
+
+    def set_redrawer(self,
+                     redrawer: Callable[[tk.Widget, EngineeringState], None]):
+        # set_redrawer should only be called once.
+        assert not hasattr(self, '_redraw_function')
+        self._redraw_function = redrawer
+
+    def redraw(self, state: EngineeringState):
+        if hasattr(self, '_redraw_function'):
+            self._redraw_function(self, state)
+        else:
+            # By default, don't change the widget. We can change this to an
+            # error once we've defined redraw functions for all widgets.
+            pass
+
+
+class ENGLabel(tk.Label, EngWidget):
     """
     Use to display a label that also has a value, which may take a unit.
     E.g. ENGLabel(parent, text='FUEL', value=1000, unit='kg'
@@ -39,7 +65,7 @@ class ENGLabel(tk.Label):
                        font=style.normal)
 
 
-class ENGLabelFrame(tk.LabelFrame):
+class ENGLabelFrame(tk.LabelFrame, EngWidget):
     """A subdivision of the GUI using ENG styling.
     E.g. master = ENGLabelFrame(parent, text='Master Control')
     """
@@ -49,7 +75,7 @@ class ENGLabelFrame(tk.LabelFrame):
         super().__init__(parent, text=text, font=font, fg=style.text, bg=style.bg)
 
 
-class ENGScale(tk.Scale):
+class ENGScale(tk.Scale, EngWidget):
     """A slider."""
 
     def __init__(self, parent, label: ENGLabel, style=Style('default')):
@@ -74,7 +100,7 @@ class ENGScale(tk.Scale):
         print(self.label.value)
 
 
-class Indicator(tk.Button):
+class Indicator(tk.Button, EngWidget):
     """
     Represents an indicator light/toggle push-button switch.
     E.g. radar = Indicator(parent, v, text='RAD')
@@ -106,15 +132,17 @@ class Indicator(tk.Button):
 
     def update(self, pressed):
         self.pressed = pressed
-        if not self.pressed:
-            self.configure(relief=tk.RAISED, bg=self.style.ind_on)
-        else:
+        print(f'update {pressed}')
+        if self.pressed:
             self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
+        else:
+            self.configure(relief=tk.RAISED, bg=self.style.ind_on)
+
         if self.onchange is not None:
             self.onchange(self)
 
 
-class OneTimeButton(tk.Button):
+class OneTimeButton(tk.Button, EngWidget):
     """
     A button, which can only be pressed once.
     """
@@ -148,7 +176,7 @@ class OneTimeButton(tk.Button):
                        )
 
 
-class Alert(tk.Button):
+class Alert(tk.Button, EngWidget):
     """
     Stays flat and gray until alerted. Then it flashes, until clicked.
     When clicked, the button should be flat, deactivated, and red, and
