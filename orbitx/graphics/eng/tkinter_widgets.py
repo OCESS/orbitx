@@ -106,7 +106,15 @@ class Indicator(tk.Button, EngWidget):
     E.g. radar = Indicator(parent, v, text='RAD')
     """
 
-    def __init__(self, parent: tk.Widget, style=Style('default'), onchange=None, *args, **kwargs):
+    def __init__(self, parent: tk.Widget, style=Style('default'),
+                 command_on_press: Request = None, command_on_unpress: Request = None,
+                 *args, **kwargs):
+        """
+        parent: The tkinter widget under which this Indicator is grouped
+        style: an optional style override, e.g. cw.Style('flat')
+        command_on_press: a network.Request that will be sent to the physics server when this Indicator is activated
+        command_on_unpress: as above, but when this Indicator is unpressed (defaults to the value of command_on_press)
+        """
         super().__init__(parent, *args, **kwargs)
 
         # Allows for button width, height to be specified in px
@@ -123,11 +131,17 @@ class Indicator(tk.Button, EngWidget):
         self.style = style
         self.pressed = False
 
-        self.onchange = onchange
+        self._command_on_press = command_on_press
+        if command_on_unpress is None:
+            self._command_on_unpress = command_on_press
+
         self.invoke()
 
     def on_press(self):
-        pass
+        if self.pressed and self._command_on_press is not None:
+            hab_eng.push_command(self._command_on_press)
+        elif self._command_on_unpress is not None:
+            hab_eng.push_command(self._command_on_unpress)
 
     def update(self, pressed):
         self.pressed = pressed
@@ -135,9 +149,6 @@ class Indicator(tk.Button, EngWidget):
             self.configure(relief=tk.SUNKEN, bg=self.style.ind_off)
         else:
             self.configure(relief=tk.RAISED, bg=self.style.ind_on)
-
-        if self.onchange is not None:
-            self.onchange(self)
 
 
 class OneTimeButton(tk.Button, EngWidget):

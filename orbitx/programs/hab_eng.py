@@ -39,6 +39,7 @@ argument_parser.add_argument(
 
 _commands_to_send: List[Request] = []
 
+
 def main(args: argparse.Namespace):
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
@@ -55,6 +56,8 @@ def main(args: argparse.Namespace):
 
     def network_task():
         user_commands = pop_commands()
+        if user_commands:
+            log.info(f'Hab eng sending commands: {user_commands}')
         state = orbitx_connection.get_state(user_commands)
         gui.redraw(state)
         gui.after(int(1000), network_task)

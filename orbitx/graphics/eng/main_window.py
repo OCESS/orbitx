@@ -1,6 +1,7 @@
 import tkinter as tk
 import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx.data_structures import PhysicsState
+from orbitx.network import Request
 from PIL import Image, ImageTk
 from orbitx import strings
 
@@ -61,8 +62,6 @@ class MainApplication(tk.Tk):
         widgets['hl1_temp'].update_value()
         #        print(widgets.keys())
         #widgets['hl1_R1'].update(engineering.radiators[0].functioning)
-
-        print(engineering.radiators[0].functioning)
 
         for widget in widgets.values():
             widget.redraw(engineering)
@@ -311,14 +310,16 @@ class HabPage(tk.Frame):
             for i in range(2):
                 for j in range(3):
                     indicator_num = i * 3 + j + 1
-                    rad = 'R{}'.format(indicator_num)
+                    rad_label = f'R{indicator_num}'
 
-                    widgets[prefix + rad] = cw.Indicator(
-                        loop, text=rad, style=style)
-                    widgets[prefix + rad].grid(row=i+2, column=j, sticky=tk.E)
-                    widgets[prefix + rad].set_redrawer(
-                        lambda widget, state, i=indicator_num: widget.update(
-                            state.radiators[i - 1].functioning
+                    widgets[prefix + rad_label] = cw.Indicator(
+                        loop, text=rad_label, style=style,
+                        command_on_press=Request(ident=Request.TOGGLE_RADIATOR,
+                                                 radiator_to_toggle=indicator_num - 1))
+                    widgets[prefix + rad_label].grid(row=i+2, column=j, sticky=tk.E)
+                    widgets[prefix + rad_label].set_redrawer(
+                        lambda widget, state, n=indicator_num: widget.update(
+                            state.radiators[n - 1].functioning
                             ))
 
     def _render_radiators(self):
@@ -363,6 +364,7 @@ class HabPage(tk.Frame):
 #        widgets['r_isol_all'].pack()
 
         def rad_isol(v):
+            # TODO: move this code to the physics server, where it belongs.
             if widgets['r_R{}'.format(v)] != BROKEN:
                 widgets['r_R{}'.format(v)].value = ISOLATED
                 widgets['r_R{}'.format(v)].update()
