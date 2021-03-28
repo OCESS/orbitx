@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.ttk
 import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx.data_structures import PhysicsState
 from orbitx.network import Request
@@ -44,9 +45,13 @@ class MainApplication(tk.Tk):
         menubar = self._create_menu()
         tk.Tk.config(self, menu=menubar)
 
+        # Create tabbed view
+        self._tab_control = tk.ttk.Notebook(self)
+
         # Initialise main page
-        self.page = HabPage(self)
-        self.page.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        self._main_tab = HabPage(self._tab_control)
+        self._tab_control.add(self._main_tab, text='Main tab')
+        self._tab_control.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
         # Testing
         widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
