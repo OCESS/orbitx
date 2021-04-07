@@ -2,10 +2,13 @@ import tkinter as tk
 import tkinter.ttk
 import orbitx.graphics.eng.tkinter_widgets as cw
 from orbitx.graphics.eng.coolant_window import coolantPage
+from orbitx.graphics.eng.grid_window import GridPage
 from orbitx.data_structures import PhysicsState
 from orbitx.network import Request
 from PIL import Image, ImageTk
 from orbitx import strings
+
+DIMENSIONS = "1280x1024"
 
 
 # Main widget dictionary holds all objects in the gui
@@ -34,29 +37,30 @@ style = cw.Style('flat')
 class MainApplication(tk.Tk):
     """The main application window in which lives the HabPage, and potentially
     other future pages.
-    Creates the file menu
     """
 
     def __init__(self):
         super().__init__()
 
         tk.Tk.wm_title(self, "OrbitX Engineering")
-        self.geometry("1000x900")
-
-        # Create menubar
-        menubar = self._create_menu()
-        tk.Tk.config(self, menu=menubar)
+        self.geometry(DIMENSIONS)
 
         # Create tabbed view
         self._tab_control = tk.ttk.Notebook(self)
 
         # Initialise main page
         self._main_tab = HabPage(self._tab_control)
-        self._coolant_tab = coolantPage(self._tab_control)
         self._tab_control.add(self._main_tab, text='Main tab')
-        self._tab_control.add(self._coolant_tab, text='Coolant tab')
-        self._tab_control.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
+        # Add coolant tab
+        self._coolant_tab = coolantPage(self._tab_control)
+        self._tab_control.add(self._coolant_tab, text='Coolant tab')
+
+        # Initialise electrical grid page
+        self._grid_tab = GridPage(self._tab_control)
+        self._tab_control.add(self._grid_tab, text='Electrical Grid')
+
+        self._tab_control.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         # Testing
         widgets['a_ATMO'].after(1200, widgets['a_ATMO'].alert())
         widgets['a_master'].alert()
