@@ -10,6 +10,7 @@ from orbitx.data_structures import EngineeringState
 from orbitx.programs import hab_eng
 
 
+# TODO: this is too much. Just use abc.abstractmethod smh.
 class EngWidget():
     """Inherit from this interface to be able to loop over all widgets calling
     widget.redraw(state)"""

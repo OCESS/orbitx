@@ -66,11 +66,14 @@ class MainApplication(tk.Tk):
         widgets['a_master'].alert()
         widgets['a_hab_gnomes'].alert()
         # /Testing
+        self._main_tab.update()
+        print(self._main_tab.winfo_width(), self._main_tab.winfo_height())
 
     def redraw(self, state: PhysicsState):
         engineering = state.engineering
         for widget in widgets.values():
             widget.redraw(engineering)
+        self._grid_tab.blah.redraw(engineering)  # TODO: replace with a general solution for grid widgets
 
     def _create_menu(self):
         menubar = tk.Menu(self)
