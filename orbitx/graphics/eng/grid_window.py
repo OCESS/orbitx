@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 from datetime import datetime
 from pathlib import Path
 from PIL import Image, ImageTk
@@ -24,12 +25,15 @@ class GridPage(tk.Frame):
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
         grid_background = ImageTk.PhotoImage(
-            Image.open(Path('data', 'powergrid-background.png')))
+            Image.open(Path('data', 'engineering', 'powergrid-background.png')))
         bg_label = tk.Label(self, image=grid_background)
         bg_label.image = grid_background
         bg_label.place(x=0, y=0)
 
+        ComponentConnection.load_glyphs()
+
         self.blah = ComponentBlock(self, ACC1, x=5, y=5)
+        self.blooh = ComponentConnection(self, ACC1, x=5, y=50)
 
 
 class DetailsFrame(tk.Frame):
@@ -97,3 +101,59 @@ class ComponentBlock(tk.LabelFrame):
                 state))
 
         self._temperature_text.set(state.components[self._component_name].temperature)
+
+
+class ComponentConnection(tk.Button):
+    """
+    Visually represents a switch to connect or disconnect a component from a power bus.
+    """
+
+    # Images representing a connected or disconnected switch, horizontal or vertical.
+    # We can't load images 
+    H_CONNECTED: ImageTk.PhotoImage
+    V_CONNECTED: ImageTk.PhotoImage
+    H_DISCONNECTED: ImageTk.PhotoImage
+    V_DISCONNECTED: ImageTk.PhotoImage
+
+    @staticmethod
+    def load_glyphs():
+        """
+        Call this method onceafter Tk has been fully initialized.
+        """
+        ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path(
+            'data', 'engineering', 'h-connected.png')))
+        ComponentConnection.V_CONNECTED = ImageTk.PhotoImage(Image.open(Path(
+            'data', 'engineering', 'v-connected.png')))
+        ComponentConnection.H_DISCONNECTED = ImageTk.PhotoImage(Image.open(Path(
+            'data', 'engineering', 'h-disconnected.png')))
+        ComponentConnection.V_DISCONNECTED = ImageTk.PhotoImage(Image.open(Path(
+            'data', 'engineering', 'v-disconnected.png')))
+
+    def __init__(
+        self,
+        parent: GridPage,
+        connected_component: str,
+        vertical: bool = True,
+        *,
+        x: int, y: int
+    ):
+        # A button wide enough for 1 character, with no internal padding.
+        tk.Button.__init__(self, parent, padx=0, pady=0)
+        self.place(x=x, y=y)
+
+        self._connected_component = connected_component
+
+        if vertical:
+            self._connected_glyph = ComponentConnection.V_CONNECTED
+            self._disconnected_glyph = ComponentConnection.V_DISCONNECTED
+        else:
+            self._connected_glyph = ComponentConnection.H_CONNECTED
+            self._disconnected_glyph = ComponentConnection.H_DISCONNECTED
+
+    def redraw(self, state: EngineeringState):
+        connected = state.components[self._connected_component].connected
+        print(connected)
+        if connected:
+            self.configure(image=self._connected_glyph)
+        else:
+            self.configure(image=self._disconnected_glyph)

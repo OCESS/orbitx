@@ -74,6 +74,7 @@ class MainApplication(tk.Tk):
         for widget in widgets.values():
             widget.redraw(engineering)
         self._grid_tab.blah.redraw(engineering)  # TODO: replace with a general solution for grid widgets
+        self._grid_tab.blooh.redraw(engineering)
 
     def _create_menu(self):
         menubar = tk.Menu(self)
@@ -84,6 +85,7 @@ class MainApplication(tk.Tk):
         menubar.add_cascade(label="File", menu=file)
 
         return menubar
+
 
 class coolantPage(tk.Frame):
     """
