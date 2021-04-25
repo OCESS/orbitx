@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.ttk
 import orbitx.graphics.eng.deprecated_tkinter_widgets as cw
+import orbitx.graphics.eng.tkinter_widgets as orbitx_widgets
 from orbitx.graphics.eng.coolant_window import coolantPage
 from orbitx.graphics.eng.grid_window import GridPage
 from orbitx.data_structures import PhysicsState
@@ -75,6 +76,9 @@ class MainApplication(tk.Tk):
             widget.redraw(engineering)
         self._grid_tab.blah.redraw(engineering)  # TODO: replace with a general solution for grid widgets
         self._grid_tab.blooh.redraw(engineering)
+        for redrawable in orbitx_widgets.Redrawable.all_instantiated_widgets:
+            redrawable.redraw()
+
 
     def _create_menu(self):
         menubar = tk.Menu(self)
