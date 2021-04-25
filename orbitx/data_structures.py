@@ -501,13 +501,17 @@ class EngineeringState:
         def Functioning(self) -> np.ndarray:
             return self._owner._array[self._owner._RADIATOR_START_INDEX+1::_N_RADIATOR_FIELDS]
 
-    def __init__(self, array_rep: np.ndarray, proto_state: protos.EngineeringState, populate_array: bool):
+    def __init__(self,
+                 array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
+                 parent_state: 'PhysicsState', populate_array: bool):
         """Called by a PhysicsState on creation.
 
         array_rep: a sufficiently-sized array to store all component, coolant,
                    and radiator data. EngineeringState has full control over
                    contents, starting at element 0.
         proto_state: the underlying proto we're wrapping.
+        parent_state: provides a way for EngineeringState to mirror a couple
+                      pieces of data from the parent, e.g. hab fuel.
         populate_array: flag that is set when we need to fill array_rep with data.
         """
         assert len(proto_state.components) == _N_COMPONENTS
@@ -520,6 +524,7 @@ class EngineeringState:
 
         self._array = array_rep
         self._proto_state = proto_state
+        self._parent_state = parent_state
 
         if populate_array:
             # We've been asked to populate the data array.
@@ -537,6 +542,14 @@ class EngineeringState:
                     for field in descriptor.fields:
                         array_rep[write_marker] = getattr(proto, field.name)
                         write_marker += 1
+
+    @property
+    def habitat_fuel(self):
+        return self._parent_state[strings.HABITAT].fuel
+
+    @property
+    def ayse_fuel(self):
+        return self._parent_state[strings.AYSE].fuel
 
     @property
     def master_alarm(self) -> bool:
@@ -729,13 +742,18 @@ class PhysicsState:
             self.engineering = EngineeringState(
                 self._array_rep[self.ENGINEERING_START_INDEX:],
                 self._proto_state.engineering,
+                parent_state=self,
                 populate_array=True
             )
         else:
             self._array_rep = y.astype(self.DTYPE)
             self._proto_state.srb_time = y[self.SRB_TIME_INDEX]
             self._proto_state.time_acc = y[self.TIME_ACC_INDEX]
-            self.engineering = EngineeringState(self._array_rep[self.ENGINEERING_START_INDEX:], self._proto_state.engineering, populate_array=False )
+            self.engineering = EngineeringState(
+                self._array_rep[self.ENGINEERING_START_INDEX:],
+                self._proto_state.engineering,
+                parent_state=self,
+                populate_array=False )
 
         assert len(self._array_rep.shape) == 1, \
             f'y is not 1D: {self._array_rep.shape}'
