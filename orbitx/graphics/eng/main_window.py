@@ -1,6 +1,6 @@
 import tkinter as tk
 import tkinter.ttk
-import orbitx.graphics.eng.tkinter_widgets as cw
+import orbitx.graphics.eng.deprecated_tkinter_widgets as cw
 from orbitx.graphics.eng.coolant_window import coolantPage
 from orbitx.graphics.eng.grid_window import GridPage
 from orbitx.data_structures import PhysicsState
