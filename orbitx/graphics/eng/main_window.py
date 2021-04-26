@@ -74,11 +74,8 @@ class MainApplication(tk.Tk):
         engineering = state.engineering
         for widget in widgets.values():
             widget.redraw(engineering)
-        self._grid_tab.blah.redraw(engineering)  # TODO: replace with a general solution for grid widgets
-        self._grid_tab.blooh.redraw(engineering)
         for redrawable in orbitx_widgets.Redrawable.all_instantiated_widgets:
-            redrawable.redraw()
-
+            redrawable.redraw(engineering)
 
     def _create_menu(self):
         menubar = tk.Menu(self)
