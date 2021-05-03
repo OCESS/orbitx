@@ -117,6 +117,25 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
         self._temperature_text.set(state.components[self._component_name].temperature)
 
 
+class FuelFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            optional_text: Optional[Callable[[EngineeringState], str]] = None,
+            has_coolant_controls: bool = True, *,
+            x: int, y: int
+    ):
+        self._component_name = "Habitat Fuel"
+        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+        self.place(x=x, y=y,)
+        self._fuel_count_text = tk.StringVar()
+        tk.Label(self, textvariable=self._fuel_count_text).pack(side=tk.TOP)
+
+    def redraw(self, state: EngineeringState):
+        self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
+
+
 class ComponentConnection(tk.Button, Redrawable):
     """
     Visually represents a switch to connect or disconnect a component from a power bus.
