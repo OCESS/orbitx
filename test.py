@@ -601,6 +601,16 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.ayse_reactor_alarm, True)
         self.assertEqual(engineering.hab_gnomes, True)
 
+    def test_misc_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            physics_state = physics_engine.get_state()
+
+        self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 100)
+
+        physics_state[HABITAT].fuel = 50.0
+
+        self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 50)
+
 
 def test_performance():
     # This just runs for 10 seconds and collects profiling data.
