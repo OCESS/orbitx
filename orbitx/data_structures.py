@@ -599,6 +599,15 @@ class EngineeringState:
     def hab_gnomes(self, val: bool):
         self._proto_state.hab_gnomes = val
 
+    # TODO(patrick): Make sure this is also represented in the proto, and array rep.
+    @property
+    def rad_shield_percentage(self) -> int:
+        return self._proto_state.rad_shield_percentage
+
+    @rad_shield_percentage.setter
+    def rad_shield_percentage(self, val: int):
+        self._proto_state.rad_shield_percentage = val
+
     def as_proto(self) -> protos.EngineeringState:
         """Returns a deep copy of this EngineeringState as a protobuf."""
         constructed_protobuf = protos.EngineeringState()
