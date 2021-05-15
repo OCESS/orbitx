@@ -151,6 +151,8 @@ message EngineeringState {
     bool hab_reactor_alarm = 7;
     bool ayse_reactor_alarm = 8;
     bool hab_gnomes = 9;
+
+    int32 radiation_shielding_percentage = 10;
 }
 
 // This is wrapped by state.py.
