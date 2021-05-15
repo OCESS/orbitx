@@ -33,5 +33,5 @@ class GridPage(tk.Frame):
         widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
         widgets.ComponentBlock(self, strings.RCON1, x=220, y=95)
         widgets.ComponentBlock(self,  strings.RCON2, x=345, y=95)
-        widgets.ComponentBlock(self,  strings.RADS1, x=495, y=95)
+        widgets.RadShield(self, x=495, y=95)
         widgets.FuelFrame(self, x=100, y=100)
