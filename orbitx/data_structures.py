@@ -297,6 +297,9 @@ class CoolantView:
         self._array[self._n * _N_COOLANT_FIELDS + 2] = val
 
 
+CoolantConnectionState = protos.EngineeringState.Component.CoolantConnectionState
+
+
 class ComponentView:
     """Represents a single Component.
 
@@ -355,16 +358,26 @@ class ComponentView:
     def current(self, val: float):
         self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
 
-    def get_coolant_loop(self) -> CoolantView:
-        return self._parent.coolant_loops[self.attached_to_coolant_loop - 1]
+    def get_coolant_loops(self) -> List[CoolantView]:
+        if self.coolant_connection == CoolantConnectionState.DISCONNECTED:
+            return []
+        elif self.coolant_connection == CoolantConnectionState.HAB_ONE:
+            return [self._parent.coolant_loops[0]]
+        elif self.coolant_connection == CoolantConnectionState.HAB_TWO:
+            return [self._parent.coolant_loops[1]]
+        elif self.coolant_connection == CoolantConnectionState.HAB_BOTH:
+            return [self._parent.coolant_loops[0],
+                    self._parent.coolant_loops[1]]
+        elif self.coolant_connection == CoolantConnectionState.AYSE_ONE:
+            return [self._parent.coolant_loops[2]]
 
     @property
-    def attached_to_coolant_loop(self) -> int:
+    def coolant_connection(self) -> int:
         return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
 
-    @attached_to_coolant_loop.setter
-    def attached_to_coolant_loop(self, val: int):
-        self._array[self._n * _N_COMPONENT_FIELDS + 5] = val
+    @coolant_connection.setter
+    def coolant_connection(self, val: CoolantConnectionState):
+        self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
 
 class RadiatorView:
@@ -372,10 +385,10 @@ class RadiatorView:
 
     Should not be instantiated outside of EngineeringState.
 
-    Useful function: get_coolant_loop()! Gives the coolant loop this radiator is attached to.
+    Useful function: get_coolant_loops()! Gives the coolant loops this radiator is attached to.
     e.g.
 
-    physics_state.engineering.radiator[RAD2].get_coolant_loop().coolant_temp
+    physics_state.engineering.radiator[RAD2].get_coolant_loops()[0].coolant_temp
     """
 
     def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, radiator_n: int):

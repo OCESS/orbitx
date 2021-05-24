@@ -127,7 +127,16 @@ message EngineeringState {
         double resistance = 3;
         double voltage = 4;
         double current = 5;
-        int32 attached_to_coolant_loop = 6;
+
+        enum CoolantConnectionState {
+            DISCONNECTED = 0;
+            HAB_ONE = 1;
+            HAB_TWO = 2;
+            HAB_BOTH = 3;
+            AYSE_ONE = 4;
+        }
+
+        CoolantConnectionState coolant_connection = 6;
     }
 
     message CoolantLoop {
