@@ -13,7 +13,7 @@ from orbitx import logs
 from orbitx import network
 from orbitx import physics
 from orbitx.data_structures import EngineeringState, _EntityView, Entity, PhysicsState, \
-    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS, CoolantConnectionState
+    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS, ComponentCoolantCnxn
 from orbitx.strings import HABITAT
 
 log = logging.getLogger()
@@ -486,7 +486,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[0].voltage, 120.0)
         self.assertAlmostEqual(engineering.components[0].current, 0.2)
         self.assertEqual(engineering.components[0].coolant_connection,
-                         CoolantConnectionState.HAB_ONE)
+                         ComponentCoolantCnxn.HAB_ONE)
         self.assertAlmostEqual(engineering.components[0].get_coolant_loops()[0].coolant_temp, 15.0)
 
         # Test setters work
@@ -495,14 +495,14 @@ class EngineeringViewTestCase(unittest.TestCase):
         engineering.components[1].resistance = 4.56
         engineering.components[1].voltage = 7.89
         engineering.components[1].current = 0.1
-        engineering.components[1].coolant_connection = CoolantConnectionState.HAB_TWO
+        engineering.components[1].coolant_connection = ComponentCoolantCnxn.HAB_TWO
         self.assertEqual(engineering.components[1].connected, True)
         self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
         self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
         self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
         self.assertAlmostEqual(engineering.components[1].current, 0.1)
         self.assertEqual(engineering.components[1].coolant_connection,
-                         CoolantConnectionState.HAB_TWO)
+                         ComponentCoolantCnxn.HAB_TWO)
         self.assertAlmostEqual(engineering.components[1].get_coolant_loops()[0].coolant_temp, 20.0)
 
     def test_as_proto(self):

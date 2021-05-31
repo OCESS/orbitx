@@ -34,6 +34,16 @@ enum Navmode {
 }
 
 
+// All possible ways a component can be connected to coolant loops.
+enum ComponentCoolantCnxn {
+    DISCONNECTED = 0;
+    HAB_ONE = 1;
+    HAB_TWO = 2;
+    HAB_BOTH = 3;
+    AYSE_ONE = 4;
+}
+
+
 // This message is how we communicate between different parts of OrbitX. For
 // example, the GUI might send this to the physics engine in the same process,
 // or a different program on another computer might send this over the network.
@@ -65,6 +75,7 @@ message Command {
         TOGGLE_SWITCH = 13;
         TOGGLE_RADIATOR = 14;
         CONNECT_RADIATOR_TO_LOOP = 15;
+        CONNECT_COMPONENT_TO_LOOP = 16;
     }
 
     enum ModuleState {
@@ -100,6 +111,11 @@ message Command {
         int32 loop = 2;
     }
 
+    message ComponentToLoop {
+        int32 component = 1;
+        ComponentCoolantCnxn new_state = 2;
+    }
+
     ClientType client = 1;
     Idents ident = 2;
 
@@ -117,6 +133,7 @@ message Command {
         int32 switch_to_toggle = 13;
         int32 radiator_to_toggle = 14;
         RadiatorToLoop radiator_to_loop = 15;
+        ComponentToLoop component_to_loop = 16;
     }
 }
 
@@ -128,15 +145,7 @@ message EngineeringState {
         double voltage = 4;
         double current = 5;
 
-        enum CoolantConnectionState {
-            DISCONNECTED = 0;
-            HAB_ONE = 1;
-            HAB_TWO = 2;
-            HAB_BOTH = 3;
-            AYSE_ONE = 4;
-        }
-
-        CoolantConnectionState coolant_connection = 6;
+        ComponentCoolantCnxn coolant_connection = 6;
     }
 
     message CoolantLoop {

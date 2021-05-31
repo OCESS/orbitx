@@ -297,7 +297,9 @@ class CoolantView:
         self._array[self._n * _N_COOLANT_FIELDS + 2] = val
 
 
-CoolantConnectionState = protos.EngineeringState.Component.CoolantConnectionState
+# Alias this protobuf type so other users of the data_structures library
+# don't have to import the protobuf file themselves.
+ComponentCoolantCnxn = protos.ComponentCoolantCnxn
 
 
 class ComponentView:
@@ -359,16 +361,16 @@ class ComponentView:
         self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
 
     def get_coolant_loops(self) -> List[CoolantView]:
-        if self.coolant_connection == CoolantConnectionState.DISCONNECTED:
+        if self.coolant_connection == ComponentCoolantCnxn.DISCONNECTED:
             return []
-        elif self.coolant_connection == CoolantConnectionState.HAB_ONE:
+        elif self.coolant_connection == ComponentCoolantCnxn.HAB_ONE:
             return [self._parent.coolant_loops[0]]
-        elif self.coolant_connection == CoolantConnectionState.HAB_TWO:
+        elif self.coolant_connection == ComponentCoolantCnxn.HAB_TWO:
             return [self._parent.coolant_loops[1]]
-        elif self.coolant_connection == CoolantConnectionState.HAB_BOTH:
+        elif self.coolant_connection == ComponentCoolantCnxn.HAB_BOTH:
             return [self._parent.coolant_loops[0],
                     self._parent.coolant_loops[1]]
-        elif self.coolant_connection == CoolantConnectionState.AYSE_ONE:
+        elif self.coolant_connection == ComponentCoolantCnxn.AYSE_ONE:
             return [self._parent.coolant_loops[2]]
 
     @property
@@ -376,7 +378,7 @@ class ComponentView:
         return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
 
     @coolant_connection.setter
-    def coolant_connection(self, val: CoolantConnectionState):
+    def coolant_connection(self, val: ComponentCoolantCnxn):
         self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
 
