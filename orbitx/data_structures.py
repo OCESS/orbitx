@@ -163,28 +163,22 @@ for field in protos.Entity.DESCRIPTOR.fields:
     def entity_fget(self, name=field.name):
         return getattr(self.proto, name)
 
-
     def entity_fset(self, val, name=field.name):
         return setattr(self.proto, name, val)
 
-
     def entity_fdel(self, name=field.name):
         return delattr(self.proto, name)
-
 
     setattr(Entity, field.name, property(
         fget=entity_fget, fset=entity_fset, fdel=entity_fdel,
         doc=f"Entity proxy of the underlying field, self.proto.{field.name}"))
 
-
     def entity_view_unchanging_fget(self, name=field.name):
         return getattr(self._creator._proto_state.entities[self._index], name)
-
 
     def entity_view_unchanging_fset(self, val, name=field.name):
         return setattr(
             self._creator._proto_state.entities[self._index], name, val)
-
 
     field_n: Optional[int]
     if field.name in _PER_ENTITY_MUTABLE_FIELDS:
@@ -197,7 +191,6 @@ for field in protos.Entity.DESCRIPTOR.fields:
             return self._creator._array_rep[
                 self._creator._n * field_n + self._index]
 
-
         def entity_view_mutable_fset(self, val, field_n=field_n):
             self._creator._array_rep[
                 self._creator._n * field_n + self._index] = val
@@ -207,7 +200,6 @@ for field in protos.Entity.DESCRIPTOR.fields:
             return bool(
                 self._creator._array_rep[
                     self._creator._n * field_n + self._index])
-
 
         def entity_view_mutable_fset(self, val, field_n=field_n):
             self._creator._array_rep[
@@ -223,7 +215,6 @@ for field in protos.Entity.DESCRIPTOR.fields:
             if entity_index == PhysicsState.NO_INDEX:
                 return ''
             return self._creator._entity_names[entity_index]
-
 
         def entity_view_mutable_fset(self, val, field_n=field_n):
             assert isinstance(val, str)
@@ -446,7 +437,7 @@ class EngineeringState:
     )
 
     _COMPONENT_START_INDEX = 0
-    _COOLANT_START_INDEX = _N_COMPONENTS * _N_COMPONENT_FIELDS
+    _COOLANT_START_INDEX = _COMPONENT_START_INDEX + _N_COMPONENTS * _N_COMPONENT_FIELDS
     _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
 
     class ComponentList:
@@ -683,11 +674,11 @@ class PhysicsState:
     y[HABITAT] = habitat
     scipy.solve_ivp(y.y0())
 
-    See help(PhysicsState.__init__) for how to initialize. Basically, the `y`
-    param should be None at the very start of the program, but for the program
-    to have good performance, PhysicsState.__init__ should have both parameters
-    filled if it's being called more than once a second while OrbitX is running
-    normally.
+    See help(PhysicsState.__init__) for how to initialize. Basically, the first
+    `y` instantiated in the lifetime of the program will be created by a call to
+    PhysicsState.__init__. But for the program to have good performance,
+    PhysicsState.__init__ should have both parameters filled if it's being
+    called more than once a second while OrbitX is running normally.
     """
 
     class NoEntityError(ValueError):
