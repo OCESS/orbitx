@@ -75,7 +75,7 @@ message Command {
         TOGGLE_SWITCH = 13;
         TOGGLE_RADIATOR = 14;
         CONNECT_RADIATOR_TO_LOOP = 15;
-        CONNECT_COMPONENT_TO_LOOP = 16;
+        TOGGLE_COMPONENT_COOLANT = 16;
     }
 
     enum ModuleState {
@@ -113,7 +113,7 @@ message Command {
 
     message ComponentToLoop {
         int32 component = 1;
-        ComponentCoolantCnxn new_state = 2;
+        int32 loop = 2;
     }
 
     ClientType client = 1;
@@ -144,7 +144,6 @@ message EngineeringState {
         double resistance = 3;
         double voltage = 4;
         double current = 5;
-
         ComponentCoolantCnxn coolant_connection = 6;
     }
 

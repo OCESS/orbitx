@@ -370,6 +370,7 @@ class ComponentView:
 
     @coolant_connection.setter
     def coolant_connection(self, val: ComponentCoolantCnxn):
+        log.info(f'setting coolant {self._n} to {float(val)}')
         self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
 
@@ -622,11 +623,11 @@ class EngineeringState:
             (
                 component.connected, component.temperature,
                 component.resistance, component.voltage,
-                component.current
+                component.current, component.coolant_connection
             ) = (
                 component_data.connected, component_data.temperature,
                 component_data.resistance, component_data.voltage,
-                component_data.current
+                component_data.current, component_data.coolant_connection
             )
         for coolant_data, coolant in zip(self.coolant_loops, constructed_protobuf.coolant_loops):
             (

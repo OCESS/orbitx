@@ -10,7 +10,8 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from typing import List, Optional, Callable
 
-from orbitx.data_structures import EngineeringState
+from orbitx.data_structures import ComponentCoolantCnxn, EngineeringState, Request
+from orbitx.programs import hab_eng
 from orbitx import strings
 
 
@@ -73,6 +74,69 @@ class WarningsFrame(tk.Frame, Redrawable):
         Redrawable.__init__(self)
 
 
+class CoolantButton(tk.Button, Redrawable):
+    """
+    A component will own this button. Clicking this button will send a request
+    to hook up a component to a certain coolant loop.
+    """
+
+    def __init__(
+        self,
+        parent: tk.Widget,
+        component_n: int,
+        coolant_n: int
+    ):
+        """
+        @parent: The ComponentBlock that owns this CoolantButton.
+        @component_n: The index of the component that owns this.
+        @coolant_n: The number [0-2] corresponding to the coolant loop.
+                    Coolant 0 is the first Hab coolant loop, and coolant 2 is
+                    AYSE loop.
+        """
+        coolant_loop_texts = [strings.LP1, strings.LP2, strings.LP3]
+
+        tk.Button.__init__(
+            self, parent, text=coolant_loop_texts[coolant_n],
+            command=self._onpress
+        )
+        self.pack(fill=tk.X, expand=True)
+        Redrawable.__init__(self)
+
+        self._component_n = component_n
+        self._coolant_n = coolant_n
+
+    def _onpress(self):
+        hab_eng.push_command(Request(
+            ident=Request.TOGGLE_COMPONENT_COOLANT,
+            component_to_loop=Request.ComponentToLoop(
+                component=self._component_n, loop=self._coolant_n
+            )
+        ))
+
+    def redraw(self, state: EngineeringState):
+        connected_state = state.components[self._component_n].coolant_connection
+        this_coolant_is_connected = False
+        if self._coolant_n == 0 and (
+               connected_state == ComponentCoolantCnxn.HAB_ONE or
+               connected_state == ComponentCoolantCnxn.HAB_BOTH
+        ):
+            this_coolant_is_connected = True
+        elif self._coolant_n == 1 and (
+               connected_state == ComponentCoolantCnxn.HAB_TWO or
+               connected_state == ComponentCoolantCnxn.HAB_BOTH
+        ):
+            this_coolant_is_connected = True
+        elif self._coolant_n == 2 and (
+               connected_state == ComponentCoolantCnxn.HAB_AYSE
+        ):
+            this_coolant_is_connected = True
+
+        if this_coolant_is_connected:
+            self.config(relief=tk.SUNKEN)
+        else:
+            self.config(relief=tk.RAISED)
+
+
 class ComponentBlock(tk.LabelFrame, Redrawable):
     """
     Visually represents a component, such as RCON1.
@@ -106,8 +170,10 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
         self._temperature_text = tk.StringVar()
         tk.Label(self, textvariable=self._temperature_text).pack(side=tk.TOP)
 
-        tk.Button(self, text=strings.LP1).pack(fill=tk.X, expand=True, side=tk.LEFT)
-        tk.Button(self, text=strings.LP2).pack(fill=tk.X, expand=True, side=tk.RIGHT)
+        if has_coolant_controls:
+            component_n = strings.COMPONENT_NAMES.index(self._component_name)
+            self._lp1 = CoolantButton(self, component_n, 0)
+            self._lp2 = CoolantButton(self, component_n, 1)
 
     def redraw(self, state: EngineeringState):
         if self._optional_text_generator is not None:
@@ -151,7 +217,7 @@ class ComponentConnection(tk.Button, Redrawable):
     @staticmethod
     def load_glyphs():
         """
-        Call this method onceafter Tk has been fully initialized.
+        Call this method only once after Tk has been fully initialized.
         """
         ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path(
             'data', 'engineering', 'h-connected.png')))
