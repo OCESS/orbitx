@@ -223,6 +223,25 @@ class FuelFrame(tk.LabelFrame, Redrawable):
     def redraw(self, state: EngineeringState):
         self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
 
+class RadShield(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            has_coolant_controls: bool = True, *,
+            x: int, y: int
+    ):
+        self._component_name = "Rad Shield"
+        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+        self.place(x=x, y=y)
+        self._rad_strength = tk.StringVar()
+        tk.Label(self, textvariable=self._rad_strength).pack(side=tk.TOP)
+        tk.Button(self, text=strings.LP2).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
+        tk.Button(self, text=strings.LP1).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
+        tk.Entry(self).pack(side=tk.TOP)
+
+    def redraw(self, state: EngineeringState):
+        self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
 
 class ReactorFrame(tk.LabelFrame, Redrawable):
     def __init__(
