@@ -29,9 +29,13 @@ class GridPage(tk.Frame):
 
         widgets.ComponentConnection.load_glyphs()
 
-        widgets.ComponentBlock(self, strings.ACC1, x=5, y=5)
-        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
-        widgets.ComponentBlock(self, strings.RCON1, x=220, y=95)
-        widgets.ComponentBlock(self,  strings.RCON2, x=345, y=95)
-        widgets.ComponentBlock(self,  strings.RADS1, x=495, y=95)
+#        widgets.ComponentBlock(self, strings.ACC1, x=5, y=5)
+#        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
+        widgets.ComponentBlock(self, strings.RCON1, lambda x: "Current", x=220, y=95)
+        widgets.ComponentBlock(self,  strings.RCON2, lambda x: "Current", x=345, y=95)
+        widgets.RadShield(self, x=495, y=95)
         widgets.FuelFrame(self, x=100, y=100)
+        widgets.ReactorFrame(self, x=100, y=300)
+        widgets.ReactorFrame(self, x=850, y=700)
+        widgets.EngineFrame(self, x=1050, y=800)
+#        widgets.ComponentBlock(self, "Engine Ionizers", x=1000, y=200)
