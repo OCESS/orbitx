@@ -99,7 +99,7 @@ class CoolantButton(tk.Button, Redrawable):
             self, parent, text=coolant_loop_texts[coolant_n],
             command=self._onpress
         )
-        self.pack(fill=tk.X, expand=True)
+        #self.grid(fill=tk.X, expand=True)
         Redrawable.__init__(self)
 
         self._component_n = component_n
@@ -146,7 +146,7 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
         self,
         parent: tk.Widget,
         component_name: str,
-        optional_text: Optional[Callable[[EngineeringState], str]] = None,
+        optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
         has_coolant_controls: bool = True, *,
         x: int, y: int
     ):
@@ -163,17 +163,17 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
 
         self._component_name = component_name
 
-        self._optional_text_generator = optional_text
+        self._optional_text_generator = optional_text_function
         self._optional_text_value = tk.StringVar()
-        tk.Label(self, textvariable=self._optional_text_value).pack(side=tk.TOP)
+        tk.Label(self, textvariable=self._optional_text_value).grid(row=0, column=0)
 
         self._temperature_text = tk.StringVar()
-        tk.Label(self, textvariable=self._temperature_text).pack(side=tk.TOP)
+        tk.Label(self, textvariable=self._temperature_text).grid(row=0, column=1)
 
         if has_coolant_controls:
             component_n = strings.COMPONENT_NAMES.index(self._component_name)
-            self._lp1 = CoolantButton(self, component_n, 0)
-            self._lp2 = CoolantButton(self, component_n, 1)
+            self._lp1 = CoolantButton(self, component_n, 0).grid(row=1, column=0)
+            self._lp2 = CoolantButton(self, component_n, 1).grid(row=1, column=1)
 
     def redraw(self, state: EngineeringState):
         if self._optional_text_generator is not None:
@@ -181,6 +181,27 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
                 state))
 
         self._temperature_text.set(state.components[self._component_name].temperature)
+
+
+class EngineFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            has_coolant_controls: bool = True, *,
+            x: int, y: int
+    ):
+        self._component_name = "Engines"
+        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+
+        self.place(x=x, y=y)
+
+        #Draws buttons in numerical order
+        for i in range(0,4):
+            tk.Button(self, text=f"GPD{i+1}").grid(row=i//2, column=i % 2)
+
+    def redraw(self, state: EngineeringState):
+        pass
 
 
 class FuelFrame(tk.LabelFrame, Redrawable):
@@ -193,12 +214,40 @@ class FuelFrame(tk.LabelFrame, Redrawable):
         self._component_name = "Habitat Fuel"
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
+
         self.place(x=x, y=y)
+
         self._fuel_count_text = tk.StringVar()
         tk.Label(self, textvariable=self._fuel_count_text).pack(side=tk.TOP)
 
     def redraw(self, state: EngineeringState):
         self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
+
+
+class ReactorFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            has_coolant_controls: bool = True, *,
+            x: int, y: int
+    ):
+        self._component_name = "Reactor"
+        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+
+        self.place(x=x, y=y)
+
+        self._reactor_status = tk.StringVar()
+        self._temperature_text = tk.StringVar()
+
+        tk.Label(self, text="Status:").pack(side=tk.TOP)
+        tk.Label(self, textvariable=self._reactor_status).pack(side=tk.TOP)
+        tk.Label(self, textvariable=self._temperature_text).pack(side=tk.BOTTOM)
+
+    def redraw(self, state: EngineeringState):
+        #Temporary states
+        self._reactor_status.set(f"{state.habitat_fuel:,} %")
+        self._temperature_text.set(f"{state.habitat_fuel:,} %")
 
 class RadShield(tk.LabelFrame, Redrawable):
     def __init__(
@@ -207,18 +256,36 @@ class RadShield(tk.LabelFrame, Redrawable):
             has_coolant_controls: bool = True, *,
             x: int, y: int
     ):
-        self._component_name = "Rad Shield"
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        self._component_name = strings.RADS1
+        tk.LabelFrame.__init__(self, parent, text=self._component_name, bg='#AADDEE', labelanchor=tk.N)
         Redrawable.__init__(self)
+
         self.place(x=x, y=y)
+
         self._rad_strength = tk.StringVar()
-        tk.Label(self, textvariable=self._rad_strength).pack(side=tk.TOP)
-        tk.Button(self, text=strings.LP2).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
-        tk.Button(self, text=strings.LP1).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
-        tk.Entry(self).pack(side=tk.TOP)
+
+        component_n = strings.COMPONENT_NAMES.index(self._component_name)
+
+        # Grid used instead of packing to organize widgets for formatting purposes
+        tk.Label(self, text="Current", bg='#AADDEE').grid(row=0, column=0)
+        tk.Label(self, textvariable=self._rad_strength).grid(row=0, column=1)
+        tk.Button(self, text="SET", bg='#AADDEE').grid(row=1, column=0)
+        tk.Entry(self, width=5).grid(row=1, column=1)
+
+        if has_coolant_controls:
+            component_n = strings.COMPONENT_NAMES.index(self._component_name)
+            self._lp1 = CoolantButton(self, component_n, 0).grid(row=2, column=0)
+            self._lp2 = CoolantButton(self, component_n, 1).grid(row=2, column=1)
+
+        self._lp1 = CoolantButton(self, component_n, 0)
+        self._lp2 = CoolantButton(self, component_n, 1)
 
     def redraw(self, state: EngineeringState):
         self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
+
+#class PowerBus():
+
+
 
 class ComponentConnection(tk.Button, Redrawable):
     """
