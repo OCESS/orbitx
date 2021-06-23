@@ -47,8 +47,9 @@ class StateServer(grpc_stubs.StateServerServicer):
     ]
 
     def __init__(self):
-        self._class_used_properly = False
-        self._internal_state_lock = threading.Lock()
+        # This flag is set to True when there is some brand new state to send,
+        # but it hasn't been sent yet.
+        self._new_state_generated_event = threading.Event()
         self._commands = queue.Queue()
         self.addr_to_connected_clients: Dict[str, SimpleNamespace] = {}
 
@@ -58,9 +59,8 @@ class StateServer(grpc_stubs.StateServerServicer):
         # hard. This StateServer will be in a different thread than the main
         # thread of whatever is using this GRPC server.
         # So REMEMBER: the argument should not be modified by the main thread!
-        with self._internal_state_lock:
-            self._internal_state_copy = physical_state_copy
-            self._class_used_properly = True
+        self._internal_state_copy = physical_state_copy
+        self._new_state_generated_event.set()
 
     def get_physical_state(
             self, request_iterator: Iterable[protos.Command], context) \
@@ -69,6 +69,11 @@ class StateServer(grpc_stubs.StateServerServicer):
 
         This is called by GRPC, and the name of the function is special (it's
         referenced in orbitx.proto, under service StateServer)"""
+
+        # We (possibly) got some new commands. Let other code know that we're
+        # waiting for fresh state.
+        self._new_state_generated_event.clear()
+
         client_type: Optional[protos.Command.ClientType] = None
         for request in request_iterator:
             if client_type is None:
@@ -90,9 +95,11 @@ class StateServer(grpc_stubs.StateServerServicer):
         self.addr_to_connected_clients[context.peer()].last_contact = \
             time.monotonic()
 
-        with self._internal_state_lock:
-            assert self._class_used_properly
-            return self._internal_state_copy
+        # Wait 0.1 seconds before returning whatever state we have.
+        # This should give the physics engine a bit of time to process
+        # any player commands.
+        self._new_state_generated_event.wait(timeout=0.1)
+        return self._internal_state_copy
 
     def pop_commands(self) -> List[protos.Command]:
         """Returns all commands that have been sent to this server.
