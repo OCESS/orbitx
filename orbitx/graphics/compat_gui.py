@@ -158,9 +158,7 @@ class StartupFailedGui:
             Path('orbitx', 'graphics', 'simple_css.css'))
 
         # TODO: failed connec
-        canvas.append_to_caption("<title>OrbitX Compat Client</title>")
-        canvas.append_to_caption(
-            "<h1>OrbitX ↔ OrbitV Piloting Compatibility")
+        canvas.append_to_caption("<title>OrbitX Error</title>")
         canvas.append_to_caption(
             f"<h3>Tried connecting to Physics Server at {server_name}</h3>")
         canvas.append_to_caption(f"""<div class='error'>
