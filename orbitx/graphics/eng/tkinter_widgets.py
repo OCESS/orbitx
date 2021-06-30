@@ -74,6 +74,23 @@ class WarningsFrame(tk.Frame, Redrawable):
         Redrawable.__init__(self)
 
 
+class CoolantSection():
+    """
+    Contains two coolant buttons horizontally side by side. Places these coolant
+    buttons on a given row inside a widget.
+    """
+
+    def __init__(
+            self,
+            parent: tk.Widget,
+            row_n: int
+    ):
+
+        component_n = strings.COMPONENT_NAMES.index(parent._component_name)
+        self._lp1 = CoolantButton(parent, component_n, 0).grid(row=row_n, column=0)
+        self._lp2 = CoolantButton(parent, component_n, 1).grid(row=row_n, column=1)
+
+
 class CoolantButton(tk.Button, Redrawable):
     """
     A component will own this button. Clicking this button will send a request
@@ -137,7 +154,7 @@ class CoolantButton(tk.Button, Redrawable):
             self.config(relief=tk.RAISED)
 
 
-class ComponentBlock(tk.LabelFrame, Redrawable):
+class RCONFrame(tk.LabelFrame, Redrawable):
     """
     Visually represents a component, such as RCON1.
     """
@@ -152,7 +169,7 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
     ):
         """
         @parent: The GridPage that this will be placed in
-        @optional_text: Optional. An EngineeringState->str function, this ComponentBlock will reserve
+        @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
                         a line of text for the output of the function and keep it updated each tick.
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
@@ -171,9 +188,9 @@ class ComponentBlock(tk.LabelFrame, Redrawable):
         tk.Label(self, textvariable=self._temperature_text).grid(row=0, column=1)
 
         if has_coolant_controls:
-            component_n = strings.COMPONENT_NAMES.index(self._component_name)
-            self._lp1 = CoolantButton(self, component_n, 0).grid(row=1, column=0)
-            self._lp2 = CoolantButton(self, component_n, 1).grid(row=1, column=1)
+            CoolantSection(self, 1)
+           # self._lp1 = CoolantButton(self, component_n, 0).grid(row=1, column=0)
+            #self._lp2 = CoolantButton(self, component_n, 1).grid(row=1, column=1)
 
     def redraw(self, state: EngineeringState):
         if self._optional_text_generator is not None:
@@ -223,25 +240,6 @@ class FuelFrame(tk.LabelFrame, Redrawable):
     def redraw(self, state: EngineeringState):
         self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
 
-class RadShield(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget,
-            has_coolant_controls: bool = True, *,
-            x: int, y: int
-    ):
-        self._component_name = "Rad Shield"
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-        self.place(x=x, y=y)
-        self._rad_strength = tk.StringVar()
-        tk.Label(self, textvariable=self._rad_strength).pack(side=tk.TOP)
-        tk.Button(self, text=strings.LP2).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
-        tk.Button(self, text=strings.LP1).pack(fill=tk.X, expand=True, side=tk.BOTTOM)
-        tk.Entry(self).pack(side=tk.TOP)
-
-    def redraw(self, state: EngineeringState):
-        self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
 
 class ReactorFrame(tk.LabelFrame, Redrawable):
     def __init__(
@@ -268,6 +266,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         self._reactor_status.set(f"{state.habitat_fuel:,} %")
         self._temperature_text.set(f"{state.habitat_fuel:,} %")
 
+
 class RadShield(tk.LabelFrame, Redrawable):
     def __init__(
             self,
@@ -291,19 +290,10 @@ class RadShield(tk.LabelFrame, Redrawable):
         tk.Button(self, text="SET", bg='#AADDEE').grid(row=1, column=0)
         tk.Entry(self, width=5).grid(row=1, column=1)
 
-        if has_coolant_controls:
-            component_n = strings.COMPONENT_NAMES.index(self._component_name)
-            self._lp1 = CoolantButton(self, component_n, 0).grid(row=2, column=0)
-            self._lp2 = CoolantButton(self, component_n, 1).grid(row=2, column=1)
-
-        self._lp1 = CoolantButton(self, component_n, 0)
-        self._lp2 = CoolantButton(self, component_n, 1)
+        CoolantSection(self, 2)
 
     def redraw(self, state: EngineeringState):
         self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
-
-#class PowerBus():
-
 
 
 class ComponentConnection(tk.Button, Redrawable):
