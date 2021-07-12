@@ -18,13 +18,14 @@ This project is maintained by
 Furthermore, OCESS and UWaterloo CS494 members have contribued:
 - Ye Qin
 - Sean
-- Stefano DeYoung
+- Gavin McDowell
 - Cesare Corazza
 - Jamie Tait
 - Jonah Hamer-Wilson
 - Calum Wheaton
-- Gavin McDowell
+- Stefano DeYoung
 - Nicholas Fry
+- Blakely Haughton
 
 ## First Time Contributors
 
