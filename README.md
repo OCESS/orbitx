@@ -13,17 +13,16 @@ For a guide on how the actual OrbitX codebase is structured, read `ARCHITECTURE.
 
 This project is maintained by
 - Patrick
-- Stefan De Young
+- Gavin McDowell
 
 Furthermore, OCESS and UWaterloo CS494 members have contribued:
 - Ye Qin
 - Sean
-- Gavin McDowell
 - Cesare Corazza
 - Jamie Tait
 - Jonah Hamer-Wilson
 - Calum Wheaton
-- Stefano DeYoung
+- Stefan DeYoung
 - Nicholas Fry
 - Blakely Haughton
 
