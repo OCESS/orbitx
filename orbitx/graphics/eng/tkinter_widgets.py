@@ -189,8 +189,6 @@ class RCONFrame(tk.LabelFrame, Redrawable):
 
         if has_coolant_controls:
             CoolantSection(self, 1)
-           # self._lp1 = CoolantButton(self, component_n, 0).grid(row=1, column=0)
-            #self._lp2 = CoolantButton(self, component_n, 1).grid(row=1, column=1)
 
     def redraw(self, state: EngineeringState):
         if self._optional_text_generator is not None:
@@ -203,10 +201,14 @@ class RCONFrame(tk.LabelFrame, Redrawable):
 class EngineFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
-            parent: tk.Widget,
-            has_coolant_controls: bool = True, *,
+            parent: tk.Widget, *,
             x: int, y: int
     ):
+        """
+        @parent: The GridPage that this will be placed in.
+        @x: The x position of the top-left corner.
+        @y: The y position of the top-left corner.
+        """
         self._component_name = "Engines"
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
@@ -224,10 +226,14 @@ class EngineFrame(tk.LabelFrame, Redrawable):
 class FuelFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
-            parent: tk.Widget,
-            has_coolant_controls: bool = True, *,
+            parent: tk.Widget, *,
             x: int, y: int
     ):
+        """
+        @parent: The GridPage that this will be placed in.
+        @x: The x position of the top-left corner.
+        @y: The y position of the top-left corner.
+        """
         self._component_name = "Habitat Fuel"
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
@@ -244,10 +250,14 @@ class FuelFrame(tk.LabelFrame, Redrawable):
 class ReactorFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
-            parent: tk.Widget,
-            has_coolant_controls: bool = True, *,
+            parent: tk.Widget, *,
             x: int, y: int
     ):
+        """
+        @parent: The GridPage that this will be placed in.
+        @x: The x position of the top-left corner.
+        @y: The y position of the top-left corner.
+        """
         self._component_name = "Reactor"
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
@@ -257,14 +267,19 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         self._reactor_status = tk.StringVar()
         self._temperature_text = tk.StringVar()
 
-        tk.Label(self, text="Status:").pack(side=tk.TOP)
-        tk.Label(self, textvariable=self._reactor_status).pack(side=tk.TOP)
-        tk.Label(self, textvariable=self._temperature_text).pack(side=tk.BOTTOM)
+        tk.Label(self, text="Status:").grid(row=0, column=0)
+        tk.Label(self, textvariable=self._reactor_status).grid(row=0, column=1)
+        tk.Label(self, text="Temp:").grid(row=1, column=0)
+        tk.Label(self, textvariable=self._temperature_text).grid(row=1, column=1)
 
     def redraw(self, state: EngineeringState):
         #Temporary states
-        self._reactor_status.set(f"{state.habitat_fuel:,} %")
-        self._temperature_text.set(f"{state.habitat_fuel:,} %")
+        if state.components[strings.HAB_REACT].connected:
+            self._reactor_status.set("Online")
+        else:
+            self._reactor_status.set("Offline")
+
+        self._temperature_text.set(f"{state.components[strings.HAB_REACT].temperature:,} %")
 
 
 class RadShield(tk.LabelFrame, Redrawable):
@@ -274,6 +289,11 @@ class RadShield(tk.LabelFrame, Redrawable):
             has_coolant_controls: bool = True, *,
             x: int, y: int
     ):
+        """
+        @parent: The GridPage that this will be placed in.
+        @x: The x position of the top-left corner.
+        @y: The y position of the top-left corner.
+        """
         self._component_name = strings.RADS1
         tk.LabelFrame.__init__(self, parent, text=self._component_name, bg='#AADDEE', labelanchor=tk.N)
         Redrawable.__init__(self)
