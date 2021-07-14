@@ -968,8 +968,8 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.IGNITE_SRBS:
         if round(y0.srb_time) == common.SRB_FULL:
             y0.srb_time = common.SRB_BURNTIME
-    elif request.ident == Request.TOGGLE_SWITCH:
-        component = y0.engineering.components[request.switch_to_toggle]
+    elif request.ident == Request.TOGGLE_COMPONENT:
+        component = y0.engineering.components[request.component_to_toggle]
         component.connected = not component.connected
     elif request.ident == Request.TOGGLE_RADIATOR:
         radiator = y0.engineering.radiators[request.radiator_to_toggle]

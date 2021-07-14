@@ -72,7 +72,7 @@ message Command {
         NAVMODE_SET = 10;
         PARACHUTE = 11;
         IGNITE_SRBS = 12;
-        TOGGLE_SWITCH = 13;
+        TOGGLE_COMPONENT = 13;
         TOGGLE_RADIATOR = 14;
         CONNECT_RADIATOR_TO_LOOP = 15;
         TOGGLE_COMPONENT_COOLANT = 16;
@@ -130,7 +130,7 @@ message Command {
         string loadfile = 10;
         Navmode navmode = 11;
         bool deploy_parachute = 12;
-        int32 switch_to_toggle = 13;
+        int32 component_to_toggle = 13;
         int32 radiator_to_toggle = 14;
         RadiatorToLoop radiator_to_loop = 15;
         ComponentToLoop component_to_loop = 16;

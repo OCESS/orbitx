@@ -331,11 +331,13 @@ class ComponentConnection(tk.Button, Redrawable):
         x: int, y: int
     ):
         # A button wide enough for 1 character, with no internal padding.
-        tk.Button.__init__(self, parent, padx=0, pady=0)
+        tk.Button.__init__(self, parent, command=self._onpress, padx=0, pady=0)
         Redrawable.__init__(self)
         self.place(x=x, y=y)
 
-        self._connected_component = connected_component
+        self._connected_component_name = connected_component
+        self._connected_component_n = strings.COMPONENT_NAMES.index(
+            connected_component)
 
         if vertical:
             self._connected_glyph = ComponentConnection.V_CONNECTED
@@ -345,8 +347,14 @@ class ComponentConnection(tk.Button, Redrawable):
             self._disconnected_glyph = ComponentConnection.H_DISCONNECTED
 
     def redraw(self, state: EngineeringState):
-        connected = state.components[self._connected_component].connected
+        connected = state.components[self._connected_component_name].connected
         if connected:
             self.configure(image=self._connected_glyph)
         else:
             self.configure(image=self._disconnected_glyph)
+
+    def _onpress(self):
+        hab_eng.push_command(Request(
+            ident=Request.TOGGLE_COMPONENT,
+            component_to_toggle=self._connected_component_n
+        ))
