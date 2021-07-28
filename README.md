@@ -75,9 +75,8 @@ after making changes to `.py` files. However, making changes to the
 let you do the following commands in `orbitx/`:
 
 ```
-make build    # run this when you make a change to orbitx.proto
 make install  # run this once, to set up this project
-make format   # run this to automatically format code
+make build    # run this when you make a change to orbitx.proto
 ```
 
 ## Running
