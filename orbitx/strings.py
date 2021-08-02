@@ -14,6 +14,8 @@ RADS2 = 'RAD-S2'
 AGRAV = 'A GRAV'
 RCON1 = 'R-CON1'
 RCON2 = 'R-CON2'
+ARCON1 = 'Ayse R-CON1'
+ARCON2 = 'Ayse R-CON2'
 ACC1 = 'ACC1'
 ION1 = 'ION1'
 ACC2 = 'ACC2'
@@ -23,7 +25,10 @@ ION3 = 'ION3'
 ACC4 = 'ACC4'
 ION4 = 'ION4'
 TRN1 = 'TRN1'
-BUS3 = 'BUS3'
+BUS1 = 'Primary Habitat Bus'
+BUS2 = 'Secondary Habitat Bus'
+BUS3 = 'Tertiary Habitat Bus'
+ABUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
 BAT = 'BAT'
 RCSP = 'RCSP'
@@ -59,6 +64,8 @@ RAD5 = 'RAD 5'
 RAD6 = 'RAD 6'
 RAD7 = 'RAD 7'
 RAD8 = 'RAD 8'
+EECOM = 'EECOM'
+NETWORK = "Network"
 
 # This is referenced by data_structures.ComponentView.name!
 COMPONENT_NAMES = [
@@ -67,6 +74,8 @@ COMPONENT_NAMES = [
     AGRAV,
     RCON1,
     RCON2,
+    ARCON1,
+    ARCON2,
     ACC1,
     ION1,
     ACC2,
@@ -76,7 +85,6 @@ COMPONENT_NAMES = [
     ACC4,
     ION4,
     TRN1,
-    BUS3,
     TRN2,
     BAT,
     RCSP,
@@ -92,6 +100,8 @@ COMPONENT_NAMES = [
     DOCK_MOD,
     RADAR,
     INS,
+    EECOM,
+    NETWORK
 ]
 
 # This is referenced by data_structures.CoolantView.name!

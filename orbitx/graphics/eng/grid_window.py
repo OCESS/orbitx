@@ -34,7 +34,7 @@ class GridPage(tk.Frame):
         """ Primary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, "Primary Habitat Bus", x=325, y=325)
 
-        widgets.ReactorFrame(self, x=75, y=275)
+        widgets.ReactorFrame(self, strings.HAB_REACT, x=75, y=275)
         widgets.FuelFrame(self, x=75, y=100)
         widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=220, y=95)
         widgets.RCONFrame(self,  strings.RCON2, lambda x: "Current", x=345, y=95)
@@ -59,14 +59,14 @@ class GridPage(tk.Frame):
         widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
         widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
         # Battery
-        widgets.SimpleFrame(self, "EECOM", x=750, y=480)
-        widgets.SimpleFrame(self, "Network", x=750, y=530)
+        widgets.SimpleFrame(self, strings.EECOM, x=750, y=480)
+        widgets.SimpleFrame(self, strings.NETWORK, x=750, y=530)
 
         """ Ayse Power Bus Widgets """
         widgets.PowerBusFrame(self, "Ayse Power Bus", x=1040, y=640)
 
         widgets.EngineFrame(self, x=1080, y=850)
-        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=830, y=730)
-        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", x=830, y=620)
-        widgets.ReactorFrame(self, x=980, y=460)
+        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", x=830, y=730)
+        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", x=830, y=620)
+        widgets.ReactorFrame(self, strings.AYSE_REACT, x=980, y=460)
 

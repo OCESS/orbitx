@@ -269,7 +269,8 @@ class FuelFrame(tk.LabelFrame, Redrawable):
 class ReactorFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
-            parent: tk.Widget, *,
+            parent: tk.Widget,
+            component_name: str, *,
             x: int, y: int
     ):
         """
@@ -277,8 +278,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        self._component_name = "Reactor"
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
+        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
         self.place(x=x, y=y)
