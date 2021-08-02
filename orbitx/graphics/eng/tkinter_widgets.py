@@ -154,6 +154,25 @@ class CoolantButton(tk.Button, Redrawable):
             self.config(relief=tk.RAISED)
 
 
+class SimpleFrame(tk.LabelFrame, Redrawable):
+    """
+    Represents a simple component, with no buttons, labels, etc.
+    """
+    def __init__(
+        self,
+        parent: tk.Widget,
+        component_name: str, *,
+        x: int, y: int
+    ):
+        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+        self.place(x=x, y=y)
+        tk.Label(self, textvariable=component_name).grid(row=0, column=0)
+
+    def redraw(self, state: EngineeringState):
+        pass
+
+
 class RCONFrame(tk.LabelFrame, Redrawable):
     """
     Visually represents a component, such as RCON1.
@@ -282,7 +301,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         self._temperature_text.set(f"{state.components[strings.HAB_REACT].temperature:,} %")
 
 
-class RadShield(tk.LabelFrame, Redrawable):
+class RadShieldFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
             parent: tk.Widget,
@@ -314,6 +333,35 @@ class RadShield(tk.LabelFrame, Redrawable):
 
     def redraw(self, state: EngineeringState):
         self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
+
+
+class PowerBusFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            component_name: str, *,
+            x: int, y: int
+    ):
+
+        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
+        self._component_name = component_name
+        Redrawable.__init__(self)
+
+        self.place(x=x, y=y)
+
+        self.p_holder1 = tk.StringVar()
+        self.p_holder2 = tk.StringVar()
+        self.p_holder3 = tk.StringVar()
+
+        tk.Label(self, text="Power: ").grid(row=0, column=0)
+        tk.Label(self, textvariable=self.p_holder1).grid(row=0, column=1)
+        tk.Label(self, text="Current: ").grid(row=0, column=2)
+        tk.Label(self, textvariable=self.p_holder2).grid(row=0, column=3)
+        tk.Label(self, text="Electrical Potential: ").grid(row=0, column=4)
+        tk.Label(self, textvariable=self.p_holder3).grid(row=0, column=5)
+
+    def redraw(self, state: EngineeringState):
+        pass
 
 
 class ComponentConnection(tk.Button, Redrawable):

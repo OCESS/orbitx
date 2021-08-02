@@ -29,13 +29,44 @@ class GridPage(tk.Frame):
 
         widgets.ComponentConnection.load_glyphs()
 
-#        widgets.ComponentBlock(self, strings.ACC1, x=5, y=5)
-        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
+#        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
+
+        """ Primary Habitat Bus Widgets """
+        widgets.PowerBusFrame(self, "Primary Habitat Bus", x=325, y=325)
+
+        widgets.ReactorFrame(self, x=75, y=275)
+        widgets.FuelFrame(self, x=75, y=100)
         widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=220, y=95)
         widgets.RCONFrame(self,  strings.RCON2, lambda x: "Current", x=345, y=95)
-        widgets.RadShield(self, x=495, y=95)
-        widgets.FuelFrame(self, x=100, y=100)
-        widgets.ReactorFrame(self, x=75, y=275)
-        widgets.ReactorFrame(self, x=850, y=700)
-        widgets.EngineFrame(self, x=1050, y=800)
-#        widgets.ComponentBlock(self, "Engine Ionizers", x=1000, y=200)
+        widgets.RadShieldFrame(self, x=495, y=95)
+        widgets.SimpleFrame(self, strings.RADAR, x=650, y=160)
+        widgets.SimpleFrame(self, strings.RCSP, x=730, y=160)
+        # AGRAV Widget
+        # Engine Ionizers widget
+        # Engine Accelerators Widget
+
+        """ Secondary Habitat Bus Widgets """
+        widgets.PowerBusFrame(self, "Secondary Habitat Bus", x=60, y=500)
+
+        # Battery?
+        widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
+        widgets.SimpleFrame(self, strings.COM, x=80, y=400)
+
+        """ Tertiary Habitat Bus Widgets """
+        widgets.PowerBusFrame(self, "Tertiary Habitat Bus", x=465, y=500)
+
+        widgets.SimpleFrame(self, strings.INS, x=465, y=400)
+        widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
+        widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
+        # Battery
+        widgets.SimpleFrame(self, "EECOM", x=750, y=480)
+        widgets.SimpleFrame(self, "Network", x=750, y=530)
+
+        """ Ayse Power Bus Widgets """
+        widgets.PowerBusFrame(self, "Ayse Power Bus", x=1040, y=640)
+
+        widgets.EngineFrame(self, x=1080, y=850)
+        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=830, y=730)
+        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", x=830, y=620)
+        widgets.ReactorFrame(self, x=980, y=460)
+
