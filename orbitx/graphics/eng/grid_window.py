@@ -48,7 +48,7 @@ class GridPage(tk.Frame):
         """ Secondary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, "Secondary Habitat Bus", x=60, y=500)
 
-        # Battery?
+        # Battery
         widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
         widgets.SimpleFrame(self, strings.COM, x=80, y=400)
 
