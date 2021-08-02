@@ -292,7 +292,6 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         tk.Label(self, textvariable=self._temperature_text).grid(row=1, column=1)
 
     def redraw(self, state: EngineeringState):
-        #Temporary states
         if state.components[strings.HAB_REACT].connected:
             self._reactor_status.set("Online")
         else:
