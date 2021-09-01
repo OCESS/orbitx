@@ -235,8 +235,88 @@ class EngineFrame(tk.LabelFrame, Redrawable):
         self.place(x=x, y=y)
 
         #Draws buttons in numerical order
-        for i in range(0,4):
+        for i in range(0, 4):
             tk.Button(self, text=f"GPD{i+1}").grid(row=i//2, column=i % 2)
+
+    def redraw(self, state: EngineeringState):
+        pass
+
+
+class EngineControlFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget,
+            component_name: str,
+            is_ionizers: bool, *,
+            x: int, y: int
+    ):
+        """
+        @parent: The GridPage that this will be placed in.
+        @component_name: The name of the component the widget is displaying
+        @is_ionizers: Used to distinguish between ionizer and accelerator frames.
+        @x: The x position of the top-left corner.
+        @y: The y position of the top-left corner.
+        """
+        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
+        Redrawable.__init__(self)
+
+        #Tuples used for managing strings in buttons
+        ionizers = (strings.ION1, strings.ION2, strings.ION3, strings.ION4)
+        accelerators = (strings.ACC1, strings.ACC2, strings.ACC3, strings.ACC4)
+        engine_names = ionizers if is_ionizers else accelerators
+
+        self.place(x=x, y=y)
+
+        #Draws ionizers/accelerators
+        for i in range(0, 4):
+            tk.Button(self, text=engine_names[i]).grid(row=i//2, column=i % 2)
+
+        for i in range (0, 2):
+            tk.Button(self, text=f"LP{i+1}").grid(row=2, column=i)
+
+        pholder = 80
+
+        tk.Label(self, text="Main Temp:").grid(row=3, column=0)
+        tk.Label(self, text=f"{pholder:,}%").grid(row=3, column=1)
+
+    def redraw(self, state: EngineeringState):
+        pass
+
+class AGRAVFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget, *,
+            x: int, y: int
+    ):
+
+        tk.LabelFrame.__init__(self, parent, text=strings.AGRAV, labelanchor=tk.N)
+        Redrawable.__init__(self)
+
+        self.place(x=x, y=y)
+
+        self._component_name = strings.AGRAV
+        CoolantSection(self, 0)
+
+    def redraw(self, state: EngineeringState):
+        pass
+
+
+class BatteryFrame(tk.LabelFrame, Redrawable):
+    def __init__(
+            self,
+            parent: tk.Widget, *,
+            #component_name: str,
+            x: int, y: int
+    ):
+
+        tk.LabelFrame.__init__(self, parent, text=strings.BAT, labelanchor=tk.N)
+        Redrawable.__init__(self)
+
+        self.place(x=x, y=y)
+
+        pholder = 9999
+
+        tk.Label(self, text=f"{strings.BAT} {pholder} Ah").grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass
@@ -275,6 +355,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
     ):
         """
         @parent: The GridPage that this will be placed in.
+        @component_name: The string name of the component
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
