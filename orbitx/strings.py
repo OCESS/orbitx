@@ -30,7 +30,9 @@ BUS2 = 'Secondary Habitat Bus'
 BUS3 = 'Tertiary Habitat Bus'
 ABUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
-BAT = 'BAT'
+BAT2 = 'BAT'
+BAT3 = 'BACKUP BAT'
+AYSE_BAT = 'AYSE BAT'
 RCSP = 'RCSP'
 COM = 'COM'
 HAB_REACT = 'HAB reactor'
@@ -86,7 +88,9 @@ COMPONENT_NAMES = [
     ION4,
     TRN1,
     TRN2,
-    BAT,
+    BAT2,
+    BAT3,
+    AYSE_BAT,
     RCSP,
     COM,
     HAB_REACT,
