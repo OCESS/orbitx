@@ -41,14 +41,14 @@ class GridPage(tk.Frame):
         widgets.RadShieldFrame(self, x=495, y=95)
         widgets.SimpleFrame(self, strings.RADAR, x=650, y=160)
         widgets.SimpleFrame(self, strings.RCSP, x=730, y=160)
-        # AGRAV Widget
-        # Engine Ionizers widget
-        # Engine Accelerators Widget
+        widgets.AGRAVFrame(self, x=815, y=95)
+        widgets.EngineControlFrame(self, "Engine Ionizers", True, x=910, y=10)
+        widgets.EngineControlFrame(self, "Engine Accelerators", False, x=1080, y=10)
 
         """ Secondary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, "Secondary Habitat Bus", x=60, y=500)
 
-        # Battery
+        widgets.BatteryFrame(self, x=230, y=610)
         widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
         widgets.SimpleFrame(self, strings.COM, x=80, y=400)
 
@@ -58,7 +58,7 @@ class GridPage(tk.Frame):
         widgets.SimpleFrame(self, strings.INS, x=465, y=400)
         widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
         widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
-        # Battery
+        widgets.BatteryFrame(self, x=650, y=400)
         widgets.SimpleFrame(self, strings.EECOM, x=750, y=480)
         widgets.SimpleFrame(self, strings.NETWORK, x=750, y=530)
 
