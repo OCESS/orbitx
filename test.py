@@ -7,13 +7,15 @@ import numpy as np
 
 import orbitx.orbitx_pb2 as protos
 
-from orbitx.physics import calc
+from orbitx.physics import calc, ode_solver
 from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
-from orbitx.data_structures import EngineeringState, _EntityView, Entity, PhysicsState, \
+from orbitx.data_structures import (
+    EngineeringState, _EntityView, Entity, PhysicsState,
     _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS, ComponentCoolantCnxn
+    )
 from orbitx.strings import HABITAT
 
 log = logging.getLogger()
@@ -93,7 +95,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # Note that dy.X is actually the velocity at 0,
             # and dy.VX is acceleration.
             dy = PhysicsState(
-                physics_engine._derive(0, y0.y0(), y0._proto_state),
+                ode_solver.simulation_differential_function(
+                    0, y0.y0(), y0._proto_state, physics_engine.M, physics_engine._artificials),
                 y0._proto_state)
             self.assertEqual(len(dy.X), 2)
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
@@ -184,7 +187,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # Test that every single entity has the correct accelerations.
             y0 = physics_state
             dy = PhysicsState(
-                physics_engine._derive(0, y0.y0(), y0._proto_state),
+                ode_solver.simulation_differential_function(
+                    0, y0.y0(), y0._proto_state, physics_engine.M, physics_engine._artificials),
                 physics_state._proto_state)
             self.assertEqual(len(dy.X), 3)
 
