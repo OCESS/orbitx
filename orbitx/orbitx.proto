@@ -33,17 +33,6 @@ enum Navmode {
     RETR_VTRG = 6;
 }
 
-
-// All possible ways a component can be connected to coolant loops.
-enum ComponentCoolantCnxn {
-    DISCONNECTED = 0;
-    HAB_ONE = 1;
-    HAB_TWO = 2;
-    HAB_BOTH = 3;
-    AYSE_ONE = 4;
-}
-
-
 // This message is how we communicate between different parts of OrbitX. For
 // example, the GUI might send this to the physics engine in the same process,
 // or a different program on another computer might send this over the network.
@@ -147,7 +136,10 @@ message EngineeringState {
         double resistance = 3;
         double voltage = 4;
         double current = 5;
-        ComponentCoolantCnxn coolant_connection = 6;
+        // coolant_connections stores a list of whether each of the three coolant loops are connected to the component
+        // 'True' means the coolant is connected, 'False' means the component is disconnected
+        // Index 0 = Hab coolant 1, Index 1 = Hab coolant 2, Index 2 = Ayse Coolant
+        repeated bool coolant_connections = 6;
     }
 
     message CoolantLoop {

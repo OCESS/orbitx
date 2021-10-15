@@ -131,24 +131,8 @@ class CoolantButton(tk.Button, Redrawable):
         ))
 
     def redraw(self, state: EngineeringState):
-        connected_state = state.components[self._component_n].coolant_connection
-        this_coolant_is_connected = False
-        if self._coolant_n == 0 and (
-               connected_state == ComponentCoolantCnxn.HAB_ONE or
-               connected_state == ComponentCoolantCnxn.HAB_BOTH
-        ):
-            this_coolant_is_connected = True
-        elif self._coolant_n == 1 and (
-               connected_state == ComponentCoolantCnxn.HAB_TWO or
-               connected_state == ComponentCoolantCnxn.HAB_BOTH
-        ):
-            this_coolant_is_connected = True
-        elif self._coolant_n == 2 and (
-               connected_state == ComponentCoolantCnxn.HAB_AYSE
-        ):
-            this_coolant_is_connected = True
 
-        if this_coolant_is_connected:
+        if state.components[self._component_n].coolant_connections[self._coolant_n]:
             self.config(relief=tk.SUNKEN)
         else:
             self.config(relief=tk.RAISED)
