@@ -351,27 +351,16 @@ class ComponentView:
     def current(self, val: float):
         self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
 
-    def get_coolant_loops(self) -> List[CoolantView]:
-        if self.coolant_connection == ComponentCoolantCnxn.DISCONNECTED:
-            return []
-        elif self.coolant_connection == ComponentCoolantCnxn.HAB_ONE:
-            return [self._parent.coolant_loops[0]]
-        elif self.coolant_connection == ComponentCoolantCnxn.HAB_TWO:
-            return [self._parent.coolant_loops[1]]
-        elif self.coolant_connection == ComponentCoolantCnxn.HAB_BOTH:
-            return [self._parent.coolant_loops[0],
-                    self._parent.coolant_loops[1]]
-        elif self.coolant_connection == ComponentCoolantCnxn.AYSE_ONE:
-            return [self._parent.coolant_loops[2]]
+    # TODO make this work with the new coolant_connections
 
-    @property
-    def coolant_connection(self) -> int:
-        return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
-
-    @coolant_connection.setter
-    def coolant_connection(self, val: ComponentCoolantCnxn):
-        log.info(f'setting coolant {self._n} to {float(val)}')
-        self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
+    # @property
+    # def coolant_connection(self) -> int:
+    #     return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
+    #
+    # @coolant_connection.setter
+    # def coolant_connection(self, val: ComponentCoolantCnxn):
+    #     log.info(f'setting coolant {self._n} to {float(val)}')
+    #     self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
 
 class RadiatorView:
@@ -631,11 +620,13 @@ class EngineeringState:
             (
                 component.connected, component.temperature,
                 component.resistance, component.voltage,
-                component.current, component.coolant_connection
+                component.current, component.coolant_connections[0],
+                component.coolant_connections[1], component.coolant_connections[2]
             ) = (
                 component_data.connected, component_data.temperature,
                 component_data.resistance, component_data.voltage,
-                component_data.current, component_data.coolant_connection
+                component_data.current,  component_data.coolant_connections[0],
+                component_data.coolant_connections[1], component_data.coolant_connections[2]
             )
         for coolant_data, coolant in zip(self.coolant_loops, constructed_protobuf.coolant_loops):
             (
