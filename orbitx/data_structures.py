@@ -440,6 +440,10 @@ class EngineeringState:
     _COMPONENT_START_INDEX = 0
     _COOLANT_START_INDEX = _COMPONENT_START_INDEX + _N_COMPONENTS * _N_COMPONENT_FIELDS
     _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
+    
+    _COMPONENT_END_INDEX = _COOLANT_START_INDEX - 1
+    _COOLANT_END_INDEX = _RADIATOR_START_INDEX - 1
+    _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + _N_RADIATORS * _N_RADIATOR_FIELDS) - 1
 
     class ComponentList:
         """Allows engineering.components[LOS] style indexing."""
@@ -453,7 +457,7 @@ class EngineeringState:
                 raise IndexError()
             return ComponentView(
                 self._owner,
-                self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COOLANT_START_INDEX],
+                self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COMPONENT_END_INDEX+1],
                 index
             )
 
@@ -461,13 +465,13 @@ class EngineeringState:
         # all values of each quantity for each Component.
         # We only define this accessor for fields we use in _derive.
         def Temperature(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+1:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+1:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
         def Resistance(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+2:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+2:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
         def Voltage(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+3:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+3:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
         def Current(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+4:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+4:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
 
     class CoolantLoopList:
         """Allows engineering.coolant_loops[LP1] style indexing."""
@@ -480,13 +484,13 @@ class EngineeringState:
             elif index >= _N_COOLANT_LOOPS:
                 raise IndexError()
             return CoolantView(
-                self._owner._array[self._owner._COOLANT_START_INDEX:self._owner._RADIATOR_START_INDEX],
+                self._owner._array[self._owner._COOLANT_START_INDEX:self._owner._COOLANT_END_INDEX+1],
                 index
             )
 
         # As above, list slicing with strides.
         def CoolantTemp(self) -> np.ndarray:
-            return self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._RADIATOR_START_INDEX:_N_COOLANT_FIELDS]
+            return self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX:_N_COOLANT_FIELDS]
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
@@ -506,7 +510,7 @@ class EngineeringState:
 
         # And as above, list slicing with strides.
         def Functioning(self) -> np.ndarray:
-            return self._owner._array[self._owner._RADIATOR_START_INDEX+1::_N_RADIATOR_FIELDS]
+            return self._owner._array[self._owner._RADIATOR_START_INDEX+1:self._owner._RADIATOR_END_INDEX:_N_RADIATOR_FIELDS]
 
     def __init__(self,
                  array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
@@ -769,7 +773,7 @@ class PhysicsState:
                 self._array_rep[self.ENGINEERING_START_INDEX:],
                 self._proto_state.engineering,
                 parent_state=self,
-                populate_array=False )
+                populate_array=False)
 
         assert len(self._array_rep.shape) == 1, \
             f'y is not 1D: {self._array_rep.shape}'
