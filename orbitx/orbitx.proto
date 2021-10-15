@@ -112,7 +112,10 @@ message Command {
     }
 
     message ComponentToLoop {
+        // A 0-indexed index of what component is being toggled
         int32 component = 1;
+        // A 0-indexed index of what coolant loop the component is toggling its
+        // connection state to
         int32 loop = 2;
     }
 
