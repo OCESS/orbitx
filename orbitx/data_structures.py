@@ -484,13 +484,17 @@ class EngineeringState:
             elif index >= _N_COOLANT_LOOPS:
                 raise IndexError()
             return CoolantView(
-                self._owner._array[self._owner._COOLANT_START_INDEX:self._owner._COOLANT_END_INDEX+1],
-                index
+                self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX+1],
             )
 
         # As above, list slicing with strides.
         def CoolantTemp(self) -> np.ndarray:
             return self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX:_N_COOLANT_FIELDS]
+
+        def ComponentCoolantConnectionList(self) -> np.ndarray:
+            """Returns a list of length '_N_COMPONENTS', each element containing coolant connection information
+            for the given component"""
+            return self._owner._array[self._owner._COMPONENT_START_INDEX+5:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
