@@ -582,7 +582,9 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering._array[3], 777777.7)
         self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3], 777777.7)
 
-    def test_alarms(self):
+    def test_eng_single_fields(self):
+        """Test that non-repeated fields in the EngineeringState can be
+           accessed/set properly."""
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
@@ -592,6 +594,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.hab_reactor_alarm, False)
         self.assertEqual(engineering.ayse_reactor_alarm, False)
         self.assertEqual(engineering.hab_gnomes, False)
+        self.assertEqual(engineering.rad_shield_percentage, 5)
 
         engineering.master_alarm = True
         engineering.radiation_alarm = True
@@ -599,6 +602,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         engineering.hab_reactor_alarm = True
         engineering.ayse_reactor_alarm = True
         engineering.hab_gnomes = True
+        engineering.rad_shield_percentage = 69
 
         self.assertEqual(engineering.master_alarm, True)
         self.assertEqual(engineering.radiation_alarm, True)
@@ -606,6 +610,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.hab_reactor_alarm, True)
         self.assertEqual(engineering.ayse_reactor_alarm, True)
         self.assertEqual(engineering.hab_gnomes, True)
+        self.assertEqual(engineering.rad_shield_percentage, 69)
 
     def test_misc_accessors(self):
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:

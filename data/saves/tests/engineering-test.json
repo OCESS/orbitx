@@ -1,7 +1,8 @@
 {
     "timestamp": 0.0,
     "craft": "Habitat",
-    "entities": [
+    "entities":
+    [
         {
             "name": "Habitat",
             "r": 50.0,
@@ -10,101 +11,106 @@
             "artificial": true
         }
     ],
-    "engineering": {
-    "components": [
-      {
-        "connected": true,
-        "temperature": 31.3,
-        "resistance": 11.0,
-        "voltage": 120.0,
-        "current": 0.2,
-        "coolant_connection": 1
-      },
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {}
-    ],
-    "coolantLoops": [
-      {
-        "coolantTemp": 15.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
-      },
-      {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
-      },
-      {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
-      }
-    ],
-    "radiators": [
-      {
-        "attachedToCoolantLoop": 1,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 2,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 1,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 2,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 1,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 2,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 3,
-        "functioning": true
-      },
-      {
-        "attachedToCoolantLoop": 3,
-        "functioning": true
-      }
-    ]
-  }
+    "engineering":
+    {
+        "rad_shield_percentage": 5,
+        "components":
+        [
+            {
+                "connected": true,
+                "temperature": 31.3,
+                "resistance": 11.0,
+                "voltage": 120.0,
+                "current": 0.2,
+                "coolant_connection": 1
+            },
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+        ],
+        "coolantLoops":
+        [
+            {
+                "coolantTemp": 15.0,
+                "primaryPumpOn": true,
+                "secondaryPumpOn": true
+            },
+            {
+                "coolantTemp": 20.0,
+                "primaryPumpOn": true,
+                "secondaryPumpOn": true
+            },
+            {
+                "coolantTemp": 20.0,
+                "primaryPumpOn": true,
+                "secondaryPumpOn": true
+            }
+        ],
+        "radiators":
+        [
+            {
+                "attachedToCoolantLoop": 1,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 2,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 1,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 2,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 1,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 2,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 3,
+                "functioning": true
+            },
+            {
+                "attachedToCoolantLoop": 3,
+                "functioning": true
+            }
+        ]
+    }
 }

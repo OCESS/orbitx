@@ -520,7 +520,8 @@ class EngineeringState:
         array_rep: a sufficiently-sized array to store all component, coolant,
                    and radiator data. EngineeringState has full control over
                    contents, starting at element 0.
-        proto_state: the underlying proto we're wrapping.
+        proto_state: the underlying proto we're wrapping. We keep one-off
+                     variables in here (e.g. master_alarm)
         parent_state: provides a way for EngineeringState to mirror a couple
                       pieces of data from the parent, e.g. hab fuel.
         populate_array: flag that is set when we need to fill array_rep with data.
@@ -610,14 +611,13 @@ class EngineeringState:
     def hab_gnomes(self, val: bool):
         self._proto_state.hab_gnomes = val
 
-    # TODO(patrick): Make sure this is also represented in the proto, and array rep.
     @property
     def rad_shield_percentage(self) -> int:
         return self._proto_state.rad_shield_percentage
 
     @rad_shield_percentage.setter
     def rad_shield_percentage(self, val: int):
-        self._proto_state.rad_shield_percentage = val
+        self._proto_state.rad_shield_percentage = int(val)
 
     def as_proto(self) -> protos.EngineeringState:
         """Returns a deep copy of this EngineeringState as a protobuf."""
