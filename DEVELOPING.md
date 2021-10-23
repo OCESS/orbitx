@@ -48,7 +48,7 @@ In general, your editing workflow will go like this:
 Importantly, use whatever text editor you feel comfortable with for step 1!
 
 I've been using Sublime and have had good experiences with it, especially by
-installing plugins. But use whatever!
+installing plugins (e.g. autopep8, pretty json). But use whatever!
 
 ## Code Style
 
