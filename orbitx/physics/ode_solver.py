@@ -144,7 +144,7 @@ def simulation_differential_function(
         np.zeros(_N_COMPONENTS),
         T_deriv, R_deriv, V_deriv, I_deriv,
         # coolant loop/radiator connection state doesn't change here
-        np.zeros(_N_COMPONENTS),
+        np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
         np.zeros(_N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
         np.zeros(_N_RADIATORS * _N_RADIATOR_FIELDS)
     ), axis=None)

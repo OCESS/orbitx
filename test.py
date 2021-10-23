@@ -489,8 +489,9 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[0].resistance, 11.0)
         self.assertAlmostEqual(engineering.components[0].voltage, 120.0)
         self.assertAlmostEqual(engineering.components[0].current, 0.2)
-        self.assertEqual(engineering.components[0].coolant_connections[0], True)
-        self.assertAlmostEqual(engineering.components[0].get_coolant_loops()[0].coolant_temp, 15.0)
+        self.assertEqual(engineering.components[0].coolant_hab_one, True)
+        self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 15.0)
+        self.assertAlmostEqual(engineering.components[0].connected_coolant_loops()[0].coolant_temp, 15.0)
 
         # Test setters work
         engineering.components[1].connected = True
@@ -498,15 +499,16 @@ class EngineeringViewTestCase(unittest.TestCase):
         engineering.components[1].resistance = 4.56
         engineering.components[1].voltage = 7.89
         engineering.components[1].current = 0.1
-        engineering.components[1].coolant_connections[1] = True
+        engineering.components[1].coolant_hab_one = True
+        engineering.coolant_loops[0].coolant_temp = 20.0
         self.assertEqual(engineering.components[1].connected, True)
         self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
         self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
         self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
         self.assertAlmostEqual(engineering.components[1].current, 0.1)
-        self.assertEqual(engineering.components[1].coolant_connections[1],
-                         True)
-        self.assertAlmostEqual(engineering.components[1].get_coolant_loops()[0].coolant_temp, 20.0)
+        self.assertEqual(engineering.components[1].coolant_hab_one, True)
+        self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 20.0)
+        self.assertAlmostEqual(engineering.components[1].connected_coolant_loops()[0].coolant_temp, 20.0)
 
     def test_as_proto(self):
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
@@ -620,6 +622,21 @@ class EngineeringViewTestCase(unittest.TestCase):
         physics_state[HABITAT].fuel = 50.0
 
         self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 50)
+
+    def test_convenience_accessors(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        self.assertTrue(engineering.components[0].coolant_hab_one)
+
+        connected_loops = engineering.components[0].connected_coolant_loops()
+
+        self.assertEqual(connected_loops[0]._n, 0)
+        self.assertEqual(len(connected_loops), 1)
+
+        connected_loops[0].coolant_temp = 69.0
+
+        self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 69.0)
 
 
 def test_performance():

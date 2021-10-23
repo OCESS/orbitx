@@ -10,7 +10,6 @@ from typing import List, Dict, Optional, Union
 
 import numpy as np
 import vpython
-import google.protobuf.descriptor
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
@@ -38,8 +37,7 @@ _ENTITY_FIELD_ORDER = {name: index for index, name in
 _N_COMPONENTS = len(strings.COMPONENT_NAMES)
 _N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
 _N_RADIATORS = len(strings.RADIATOR_NAMES)
-# One field is a an array of length 3, so we need to add 2
-_N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)+2
+_N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
 _N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)
 _N_RADIATOR_FIELDS = len(protos.EngineeringState.Radiator.DESCRIPTOR.fields)
 
@@ -256,7 +254,7 @@ class CoolantView:
     def __init__(self, array_rep: np.ndarray, coolant_n: int):
         """Called by an EngineeringState factory.
 
-        array_rep: an array that, starting at 0, contains all data for all components.
+        array_rep: an array that, starting at 0, contains all data for all coolant loops.
         coolant_n: an index specifying which coolant loop, starting at 0.
         """
         self._array = array_rep
@@ -290,9 +288,6 @@ class CoolantView:
         self._array[self._n * _N_COOLANT_FIELDS + 2] = val
 
 
-# Alias this protobuf type so other users of the data_structures library
-# don't have to import the protobuf file themselves.
-
 class ComponentView:
     """Represents a single Component.
 
@@ -317,7 +312,7 @@ class ComponentView:
 
     @connected.setter
     def connected(self, val: bool):
-        self._array[self._n * _N_COMPONENT_FIELDS + 0] = val
+        self._array[self._n * _N_COMPONENT_FIELDS + 0] = float(val)
 
     @property
     def temperature(self) -> float:
@@ -351,27 +346,45 @@ class ComponentView:
     def current(self, val: float):
         self._array[self._n * _N_COMPONENT_FIELDS + 4] = val
 
-    # TODO make this work with the new coolant_connections
+    @property
+    def coolant_hab_one(self) -> bool:
+        return bool(self._array[self._n * _N_COMPONENT_FIELDS + 5])
+
+    @coolant_hab_one.setter
+    def coolant_hab_one(self, val: bool):
+        self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
     @property
-    def coolant_connections(self) -> np.ndarray:
-        return self._array[self._n * _N_COMPONENT_FIELDS + 5:self._n * _N_COMPONENT_FIELDS + 8].astype(bool)
+    def coolant_hab_two(self) -> bool:
+        return bool(self._array[self._n * _N_COMPONENT_FIELDS + 6])
 
-     #@coolant_connections.setter
-     #def coolant_connections(self, val: coolant_connections):
-     #    log.info(f'setting coolant {self._n} to {float(val)}')
-     #    self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
+    @coolant_hab_two.setter
+    def coolant_hab_two(self, val: bool):
+        self._array[self._n * _N_COMPONENT_FIELDS + 6] = float(val)
+
+    @property
+    def coolant_ayse(self) -> bool:
+        return bool(self._array[self._n * _N_COMPONENT_FIELDS + 7])
+
+    @coolant_ayse.setter
+    def coolant_ayse(self, val: bool):
+        self._array[self._n * _N_COMPONENT_FIELDS + 7] = float(val)
+
+    def connected_coolant_loops(self) -> List[CoolantView]:
+        connected_loops: List[CoolantView] = []
+        if self.coolant_hab_one:
+            connected_loops.append(self._parent.coolant_loops[0])
+        elif self.coolant_hab_two:
+            connected_loops.append(self._parent.coolant_loops[1])
+        elif self.coolant_ayse:
+            connected_loops.append(self._parent.coolant_loops[2])
+        return connected_loops
 
 
 class RadiatorView:
     """Represents a single Radiator.
 
     Should not be instantiated outside of EngineeringState.
-
-    Useful function: get_coolant_loops()! Gives the coolant loops this radiator is attached to.
-    e.g.
-
-    physics_state.engineering.radiator[RAD2].get_coolant_loops()[0].coolant_temp
     """
 
     def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, radiator_n: int):
@@ -454,13 +467,20 @@ class EngineeringState:
         # all values of each quantity for each Component.
         # We only define this accessor for fields we use in _derive.
         def Temperature(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+1:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[
+                self._owner._COMPONENT_START_INDEX+1:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+        
         def Resistance(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+2:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[
+                self._owner._COMPONENT_START_INDEX+2:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+        
         def Voltage(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+3:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[
+                self._owner._COMPONENT_START_INDEX+3:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+        
         def Current(self) -> np.ndarray:
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+4:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[
+                self._owner._COMPONENT_START_INDEX+4:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
 
     class CoolantLoopList:
         """Allows engineering.coolant_loops[LP1] style indexing."""
@@ -474,16 +494,19 @@ class EngineeringState:
                 raise IndexError()
             return CoolantView(
                 self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX+1],
+                index
             )
 
         # As above, list slicing with strides.
         def CoolantTemp(self) -> np.ndarray:
-            return self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX:_N_COOLANT_FIELDS]
+            return self._owner._array[
+                self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX:_N_COOLANT_FIELDS]
 
         def ComponentCoolantConnectionList(self) -> np.ndarray:
             """Returns a list of length '_N_COMPONENTS', each element containing coolant connection information
             for the given component"""
-            return self._owner._array[self._owner._COMPONENT_START_INDEX+5:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
+            return self._owner._array[
+                self._owner._COMPONENT_START_INDEX+5:self._owner._COOLANT_START_INDEX:_N_COMPONENT_FIELDS]
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
@@ -503,7 +526,8 @@ class EngineeringState:
 
         # And as above, list slicing with strides.
         def Functioning(self) -> np.ndarray:
-            return self._owner._array[self._owner._RADIATOR_START_INDEX+1:self._owner._RADIATOR_END_INDEX:_N_RADIATOR_FIELDS]
+            return self._owner._array[
+                self._owner._RADIATOR_START_INDEX+1:self._owner._RADIATOR_END_INDEX:_N_RADIATOR_FIELDS]
 
     def __init__(self,
                  array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
@@ -545,14 +569,8 @@ class EngineeringState:
             ]:
                 for proto in proto_list:
                     for field in descriptor.fields:
-                        if field.label == google.protobuf.descriptor.FieldDescriptor.LABEL_REPEATED:
-                            array_rep[write_marker] = proto.coolant_connections[0]
-                            array_rep[write_marker+1] = proto.coolant_connections[1]
-                            array_rep[write_marker+2] = proto.coolant_connections[2]
-                            write_marker += 3
-                        else:
-                            array_rep[write_marker] = getattr(proto, field.name)
-                            write_marker += 1
+                        array_rep[write_marker] = getattr(proto, field.name)
+                        write_marker += 1
 
     @property
     def habitat_fuel(self):
@@ -626,13 +644,13 @@ class EngineeringState:
             (
                 component.connected, component.temperature,
                 component.resistance, component.voltage,
-                component.current, component.coolant_connections[0],
-                component.coolant_connections[1], component.coolant_connections[2]
+                component.current, component.coolant_hab_one,
+                component.coolant_hab_two, component.coolant_ayse
             ) = (
                 component_data.connected, component_data.temperature,
                 component_data.resistance, component_data.voltage,
-                component_data.current,  component_data.coolant_connections[0],
-                component_data.coolant_connections[1], component_data.coolant_connections[2]
+                component_data.current,  component_data.coolant_hab_one,
+                component_data.coolant_hab_two, component_data.coolant_ayse
             )
         for coolant_data, coolant in zip(self.coolant_loops, constructed_protobuf.coolant_loops):
             (

@@ -22,7 +22,7 @@
                 "resistance": 11.0,
                 "voltage": 120.0,
                 "current": 0.2,
-                "coolant_connections": [1, 0, 0]
+                "coolant_hab_one": true
             },
             {},
             {},

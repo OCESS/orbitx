@@ -261,7 +261,14 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.TOGGLE_COMPONENT_COOLANT:
         component = \
             y0.engineering.components[request.component_to_loop.component]
-        component.coolant_connections[request.component_to_loop.loop] = \
-            not component.coolant_connections[request.component_to_loop.loop]
+        loop_n = request.component_to_loop.loop
+        assert 0 <= loop_n <= 2
+
+        if 0 == loop_n:
+            component.coolant_hab_one = not component.coolant_hab_one
+        elif 1 == loop_n:
+            component.coolant_hab_two = not component.coolant_hab_two
+        elif 2 == loop_n:
+            component.coolant_ayse = not component.coolant_ayse
 
     return y0
