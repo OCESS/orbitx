@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Union
 
 import numpy as np
 import vpython
+import google.protobuf.descriptor
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
@@ -37,7 +38,8 @@ _ENTITY_FIELD_ORDER = {name: index for index, name in
 _N_COMPONENTS = len(strings.COMPONENT_NAMES)
 _N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
 _N_RADIATORS = len(strings.RADIATOR_NAMES)
-_N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
+# One field is a an array of length 3, so we need to add 2
+_N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)+2
 _N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)
 _N_RADIATOR_FIELDS = len(protos.EngineeringState.Radiator.DESCRIPTOR.fields)
 
@@ -290,8 +292,6 @@ class CoolantView:
 
 # Alias this protobuf type so other users of the data_structures library
 # don't have to import the protobuf file themselves.
-ComponentCoolantCnxn = protos.ComponentCoolantCnxn
-
 
 class ComponentView:
     """Represents a single Component.
@@ -353,14 +353,14 @@ class ComponentView:
 
     # TODO make this work with the new coolant_connections
 
-    # @property
-    # def coolant_connection(self) -> int:
-    #     return int(self._array[self._n * _N_COMPONENT_FIELDS + 5])
-    #
-    # @coolant_connection.setter
-    # def coolant_connection(self, val: ComponentCoolantCnxn):
-    #     log.info(f'setting coolant {self._n} to {float(val)}')
-    #     self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
+    @property
+    def coolant_connections(self) -> np.ndarray:
+        return self._array[self._n * _N_COMPONENT_FIELDS + 5:self._n * _N_COMPONENT_FIELDS + 8].astype(bool)
+
+     #@coolant_connections.setter
+     #def coolant_connections(self, val: coolant_connections):
+     #    log.info(f'setting coolant {self._n} to {float(val)}')
+     #    self._array[self._n * _N_COMPONENT_FIELDS + 5] = float(val)
 
 
 class RadiatorView:
@@ -545,8 +545,14 @@ class EngineeringState:
             ]:
                 for proto in proto_list:
                     for field in descriptor.fields:
-                        array_rep[write_marker] = getattr(proto, field.name)
-                        write_marker += 1
+                        if field.label == google.protobuf.descriptor.FieldDescriptor.LABEL_REPEATED:
+                            array_rep[write_marker] = proto.coolant_connections[0]
+                            array_rep[write_marker+1] = proto.coolant_connections[1]
+                            array_rep[write_marker+2] = proto.coolant_connections[2]
+                            write_marker += 3
+                        else:
+                            array_rep[write_marker] = getattr(proto, field.name)
+                            write_marker += 1
 
     @property
     def habitat_fuel(self):
