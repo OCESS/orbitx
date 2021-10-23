@@ -14,7 +14,7 @@ from orbitx import common
 from orbitx.physics import calc
 from orbitx.data_structures import (
     protos, Entity, Navmode, PhysicsState,
-    Request, ComponentCoolantCnxn,
+    Request
     )
 from orbitx.strings import AYSE, HABITAT, MODULE
 
@@ -164,29 +164,6 @@ def _land(e1, e2):
     e1.spin = e2.spin
     e1.v = calc.rotational_speed(e1, e2)
 
-
-# Keep this in sync with the orbitx.proto definition for ComponentCoolantCnxn.
-# TODO: add test case for this.
-# This assumes the proto definition of
-# enum ComponentCoolantCnxn
-#    DISCONNECTED = 0;
-#    HAB_ONE = 1;
-#    HAB_TWO = 2;
-#    HAB_BOTH = 3;
-#    AYSE_ONE = 4;
-# This encodes a transition graph. Index into this like:
-# _component_coolant_cnxn_transitions[coolant_n_to_toggle][current_state_enum]
-# To get the new state. E.g. if a component is connected to LP-1 i.e. HAB_ONE,
-# you can determine that toggling LP-2 i.e. HAB_TWO will result in being
-# connected to LP-1 and LP-2 i.e. HAB_BOTH as thus:
-# _component_coolant_cnxn_transitions[1][HAB_ONE] == HAB_BOTH
-_component_coolant_cnxn_transitions: Tuple[Tuple[Optional[int]]] = (
-    (ComponentCoolantCnxn.HAB_ONE, ComponentCoolantCnxn.DISCONNECTED, ComponentCoolantCnxn.HAB_BOTH, ComponentCoolantCnxn.HAB_TWO, None),  # noqa Toggle LP-1
-    (ComponentCoolantCnxn.HAB_TWO, ComponentCoolantCnxn.HAB_BOTH, ComponentCoolantCnxn.DISCONNECTED, ComponentCoolantCnxn.HAB_ONE, None),  # noqa Toggle LP-2
-    (ComponentCoolantCnxn.AYSE_ONE, None, None, None, ComponentCoolantCnxn.DISCONNECTED)  # noqa Toggle LP-3
-)
-
-
 def _one_request(request: Request, y0: PhysicsState) \
         -> PhysicsState:
     """Interface to set habitat controls.
@@ -284,11 +261,7 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.TOGGLE_COMPONENT_COOLANT:
         component = \
             y0.engineering.components[request.component_to_loop.component]
-        # See comments on _component_coolant_cnxn_transitions for more info.
-        component.coolant_connection = (
-            _component_coolant_cnxn_transitions
-            [request.component_to_loop.loop]
-            [component.coolant_connection]
-        )
+        component.coolant_connections[request.component_to_loop.loop] = \
+            not component.coolant_connections[request.component_to_loop.loop]
 
     return y0

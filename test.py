@@ -14,7 +14,7 @@ from orbitx import network
 from orbitx import physics
 from orbitx.data_structures import (
     EngineeringState, _EntityView, Entity, PhysicsState,
-    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS, ComponentCoolantCnxn
+    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS
     )
 from orbitx.strings import HABITAT
 
@@ -489,8 +489,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[0].resistance, 11.0)
         self.assertAlmostEqual(engineering.components[0].voltage, 120.0)
         self.assertAlmostEqual(engineering.components[0].current, 0.2)
-        self.assertEqual(engineering.components[0].coolant_connection,
-                         ComponentCoolantCnxn.HAB_ONE)
+        self.assertEqual(engineering.components[0].coolant_connections[0], True)
         self.assertAlmostEqual(engineering.components[0].get_coolant_loops()[0].coolant_temp, 15.0)
 
         # Test setters work
@@ -499,14 +498,14 @@ class EngineeringViewTestCase(unittest.TestCase):
         engineering.components[1].resistance = 4.56
         engineering.components[1].voltage = 7.89
         engineering.components[1].current = 0.1
-        engineering.components[1].coolant_connection = ComponentCoolantCnxn.HAB_TWO
+        engineering.components[1].coolant_connections[1] = True
         self.assertEqual(engineering.components[1].connected, True)
         self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
         self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
         self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
         self.assertAlmostEqual(engineering.components[1].current, 0.1)
-        self.assertEqual(engineering.components[1].coolant_connection,
-                         ComponentCoolantCnxn.HAB_TWO)
+        self.assertEqual(engineering.components[1].coolant_connections[1],
+                         True)
         self.assertAlmostEqual(engineering.components[1].get_coolant_loops()[0].coolant_temp, 20.0)
 
     def test_as_proto(self):
