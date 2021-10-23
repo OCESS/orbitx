@@ -132,7 +132,8 @@ class CoolantButton(tk.Button, Redrawable):
 
     def redraw(self, state: EngineeringState):
 
-        if state.components[self._component_n].coolant_connections[self._coolant_n]:
+        component = state.components[self._component_n]
+        if state.coolant_loops[self._coolant_n] in component.connected_coolant_loops():
             self.config(relief=tk.SUNKEN)
         else:
             self.config(relief=tk.RAISED)
@@ -218,7 +219,7 @@ class EngineFrame(tk.LabelFrame, Redrawable):
 
         self.place(x=x, y=y)
 
-        #Draws buttons in numerical order
+        # Draws buttons in numerical order
         for i in range(0, 4):
             tk.Button(self, text=f"GPD{i+1}").grid(row=i//2, column=i % 2)
 
@@ -244,18 +245,18 @@ class EngineControlFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        #Tuples used for managing strings in buttons
+        # Tuples used for managing strings in buttons
         ionizers = (strings.ION1, strings.ION2, strings.ION3, strings.ION4)
         accelerators = (strings.ACC1, strings.ACC2, strings.ACC3, strings.ACC4)
         engine_names = ionizers if is_ionizers else accelerators
 
         self.place(x=x, y=y)
 
-        #Draws ionizers/accelerators
+        # Draws ionizers/accelerators
         for i in range(0, 4):
             tk.Button(self, text=engine_names[i]).grid(row=i//2, column=i % 2)
 
-        for i in range (0, 2):
+        for i in range(0, 2):
             tk.Button(self, text=f"LP{i+1}").grid(row=2, column=i)
 
         pholder = 80
@@ -265,6 +266,7 @@ class EngineControlFrame(tk.LabelFrame, Redrawable):
 
     def redraw(self, state: EngineeringState):
         pass
+
 
 class AGRAVFrame(tk.LabelFrame, Redrawable):
     def __init__(
@@ -293,14 +295,14 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
             x: int, y: int
     ):
 
-        tk.LabelFrame.__init__(self, parent, text=strings.BAT, labelanchor=tk.N)
+        tk.LabelFrame.__init__(self, parent, text=strings.BAT2, labelanchor=tk.N)
         Redrawable.__init__(self)
 
         self.place(x=x, y=y)
 
         pholder = 9999
 
-        tk.Label(self, text=f"{strings.BAT} {pholder} Ah").grid(row=0, column=0)
+        tk.Label(self, text=f"{strings.BAT2} {pholder} Ah").grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass
@@ -384,8 +386,6 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
         self.place(x=x, y=y)
 
         self._rad_strength = tk.StringVar()
-
-        component_n = strings.COMPONENT_NAMES.index(self._component_name)
 
         # Grid used instead of packing to organize widgets for formatting purposes
         tk.Label(self, text="Current", bg='#AADDEE').grid(row=0, column=0)

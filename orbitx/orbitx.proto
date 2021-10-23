@@ -136,10 +136,9 @@ message EngineeringState {
         double resistance = 3;
         double voltage = 4;
         double current = 5;
-        // coolant_connections stores a list of whether each of the three coolant loops are connected to the component
-        // 'True' means the coolant is connected, 'False' means the component is disconnected
-        // Index 0 = Hab coolant 1, Index 1 = Hab coolant 2, Index 2 = Ayse Coolant
-        repeated bool coolant_connections = 6;
+        bool coolant_hab_one = 6;
+        bool coolant_hab_two = 7;
+        bool coolant_ayse = 8;
     }
 
     message CoolantLoop {
@@ -149,8 +148,13 @@ message EngineeringState {
     }
 
     message Radiator {
+        // Value of 0 indicates not connected to any coolant loop.
+        // Value of 1, 2, or 3 indicates connection to Hab primary/secondary
+        // coolant loop or AYSE coolant loop.
         int32 attached_to_coolant_loop = 1;
-        bool functioning = 2;  // If the radiator is stowed or broken, it is not functioning.
+        
+        // If the radiator is stowed or broken, it is not functioning.
+        bool functioning = 2;
     }
 
     repeated Component components = 1;
