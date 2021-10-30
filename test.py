@@ -638,6 +638,21 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 69.0)
 
+    def test_component_coolant_connection_list(self):
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+            physics_state = physics_engine.get_state()
+
+        connected_loops = engineering.coolant_loops.ComponentCoolantConnectionList()
+
+        # TODO Figure out why element 9 of coolant_hab_two has a weird value
+
+        print(connected_loops)
+        print(connected_loops.dtype)
+        print(physics_state._proto_state.engineering.components)
+
+        self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
+
 
 def test_performance():
     # This just runs for 10 seconds and collects profiling data.
