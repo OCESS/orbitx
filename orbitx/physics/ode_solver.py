@@ -107,6 +107,11 @@ def simulation_differential_function(
     R = y.engineering.components.Resistance()
     I = y.engineering.components.Current()  # noqa: E741
 
+    """
+    https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
+    
+    """
+
     # Eventually radiators will affect the temperature.
     T_deriv = common.eta * np.square(I) * R
     R_deriv = common.alpha * T_deriv

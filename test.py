@@ -639,6 +639,9 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 69.0)
 
     def test_component_coolant_connection_list(self):
+        """
+        Test that the ComponentCoolantConnectionList is returning the correct size of a matrix
+        """
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
             physics_state = physics_engine.get_state()
@@ -647,11 +650,35 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         # TODO Figure out why element 9 of coolant_hab_two has a weird value
 
-        print(connected_loops)
-        print(connected_loops.dtype)
-        print(physics_state._proto_state.engineering.components)
+#        print(connected_loops)
+#        print(connected_loops.dtype)
+#        print(physics_state._proto_state.engineering.components)
 
         self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
+
+    def test_component_coolant_matrix_math(self):
+        """
+        Test that the matrix math to be used for something actually works
+        """
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+            physics_state = physics_engine.get_state()
+
+        connected_loops = engineering.coolant_loops.ComponentCoolantConnectionList()
+
+        component_temperature_row_vector = engineering.components.Temperature()
+
+        # np.newaxis is required for tranposed vector to be used in matrix math
+        coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
+
+        component_temperature_matrix = (component_temperature_row_vector * connected_loops -
+                                        connected_loops * coolant_temperature_col_vector.transpose())
+
+        #
+        self.assertAlmostEqual(component_temperature_matrix[0][0], engineering.components[0].temperature - 15, delta=0.001)
+        self.assertAlmostEqual(component_temperature_matrix[1][8], engineering.components[8].temperature - 20, delta=0.001)
+        self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
+
 
 
 def test_performance():
