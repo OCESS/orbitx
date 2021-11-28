@@ -14,8 +14,9 @@ from orbitx import network
 from orbitx import physics
 from orbitx.data_structures import (
     EngineeringState, _EntityView, Entity, PhysicsState,
-    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS
-    )
+    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS,
+    _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
+)
 from orbitx.strings import HABITAT
 
 log = logging.getLogger()
@@ -341,21 +342,45 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
+
+        eng_fields = np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
+        component_array = eng_fields[EngineeringState._COMPONENT_START_INDEX:EngineeringState._COMPONENT_END_INDEX]
+        for comp_i in range(0, _N_COMPONENTS):
+            component_array[comp_i*_N_COMPONENT_FIELDS+0] = True  # connected
+            component_array[comp_i*_N_COMPONENT_FIELDS+1] = 111100 + comp_i  # temperature
+            component_array[comp_i*_N_COMPONENT_FIELDS+2] = 222200 + comp_i  # resistance
+            component_array[comp_i*_N_COMPONENT_FIELDS+3] = 333300 + comp_i  # voltage
+            component_array[comp_i*_N_COMPONENT_FIELDS+4] = 444400 + comp_i  # current
+            component_array[comp_i*_N_COMPONENT_FIELDS+5] = comp_i % 2  # coolant_hab_one
+            component_array[comp_i*_N_COMPONENT_FIELDS+6] = True  # coolant_hab_two
+            component_array[comp_i*_N_COMPONENT_FIELDS+7] = False  # coolant_ayse
+
+        coolant_array = eng_fields[EngineeringState._COOLANT_START_INDEX:EngineeringState._COOLANT_END_INDEX]
+        for cool_i in range(0, _N_COOLANT_LOOPS):
+            coolant_array[cool_i*_N_COOLANT_FIELDS+0] = 555500 + cool_i  # coolant_temp
+            coolant_array[cool_i*_N_COOLANT_FIELDS+1] = cool_i % 2  # primary_pump_on
+            coolant_array[cool_i*_N_COOLANT_FIELDS+2] = True  # secondary_pump_on
+
+        rad_array = eng_fields[EngineeringState._RADIATOR_START_INDEX:EngineeringState._RADIATOR_END_INDEX]
+        for rad_i in range(0, _N_RADIATORS):
+            rad_array[rad_i*_N_RADIATOR_FIELDS+0] = rad_i % 4  # attached_to_coolant_loop
+            rad_array[rad_i*_N_RADIATOR_FIELDS+1] = rad_i % 2  # functioning
+
         y0 = np.concatenate((np.array([
-                10, 20,  # x
-                30, 40,  # y
-                50, 60,  # vx
-                0, 0,  # vy
-                0, 0,  # heading
-                70, 80,  # spin
-                90, 100,  # fuel
-                0, 0,  # throttle
+                0x111, 0x222,  # x
+                0x333, 0x444,  # y
+                0x555, 0x777,  # vx
+                0x888, 0x999,  # vy
+                0.01, 0.02,  # heading
+                0.03, 0.04,  # spin
+                0xEEE, 0xFFF,  # fuel
+                5, 6,  # throttle
                 1, -1,  # only First is landed on Second
                 0, 1,  # Second is broken
                 common.SRB_EMPTY,
                 1  # time_acc
             ]),
-            np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
+            eng_fields
         ))
 
         ps = PhysicsState(y0, self.proto_state)
@@ -364,9 +389,44 @@ class PhysicsStateTestCase(unittest.TestCase):
 
         proto_state = ps.as_proto()
         proto_state.timestamp = 50
+        self.assertEqual(proto_state.entities[0].x, 0x111)
+        self.assertEqual(proto_state.entities[0].y, 0x333)
+        self.assertEqual(proto_state.entities[1].x, 0x222)
+        self.assertEqual(proto_state.entities[1].y, 0x444)
+        self.assertEqual(proto_state.entities[0].vx, 0x555)
+        self.assertEqual(proto_state.entities[0].vy, 0x888)
+        self.assertEqual(proto_state.entities[1].vx, 0x777)
+        self.assertEqual(proto_state.entities[1].vy, 0x999)
+        self.assertEqual(proto_state.entities[0].heading, 0.01)
+        self.assertEqual(proto_state.entities[1].heading, 0.02)
+        self.assertEqual(proto_state.entities[0].spin, 0.03)
+        self.assertEqual(proto_state.entities[1].spin, 0.04)
+        self.assertEqual(proto_state.entities[0].fuel, 0xEEE)
+        self.assertEqual(proto_state.entities[1].fuel, 0xFFF)
+        self.assertEqual(proto_state.entities[0].landed_on, 'Second')
+        self.assertEqual(proto_state.entities[1].landed_on, '')
         self.assertEqual(proto_state.timestamp, 50)
-        self.assertEqual(proto_state.entities[0].fuel, 90)
         self.assertTrue(proto_state.entities[1].broken)
+
+        for i, component in enumerate(ps.engineering.components):
+            self.assertEqual(component.connected, True, msg=i)
+            self.assertEqual(component.temperature, 111100 + i, msg=i)
+            self.assertEqual(component.resistance, 222200 + i, msg=i)
+            self.assertEqual(component.voltage, 333300 + i, msg=i)
+            self.assertEqual(component.current, 444400 + i, msg=i)
+            self.assertEqual(component.coolant_hab_one, bool(i % 2), msg=i)
+            self.assertEqual(component.coolant_hab_two, True, msg=i)
+            self.assertEqual(component.coolant_ayse, False, msg=i)
+
+        for i, coolant in enumerate(ps.engineering.coolant_loops):
+            self.assertEqual(coolant.coolant_temp, 555500 + i, msg=i)
+            self.assertEqual(coolant.primary_pump_on, bool(i % 2), msg=i)
+            self.assertEqual(coolant.secondary_pump_on, True, msg=i)
+
+        for i, radiator in enumerate(ps.engineering.radiators):
+            pass
+            self.assertEqual(radiator.attached_to_coolant_loop, i % 4, msg=i)
+            self.assertEqual(radiator.functioning, bool(i % 2), msg=i)
 
     def test_get_set(self):
         """Test __getitem__ and __setitem__."""
@@ -644,15 +704,8 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops = engineering.coolant_loops.ComponentCoolantConnectionList()
-
-        # TODO Figure out why element 9 of coolant_hab_two has a weird value
-
-#        print(connected_loops)
-#        print(connected_loops.dtype)
-#        print(physics_state._proto_state.engineering.components)
 
         self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
 
@@ -674,11 +727,9 @@ class EngineeringViewTestCase(unittest.TestCase):
         component_temperature_matrix = (component_temperature_row_vector * connected_loops -
                                         connected_loops * coolant_temperature_col_vector.transpose())
 
-        #
         self.assertAlmostEqual(component_temperature_matrix[0][0], engineering.components[0].temperature - 15, delta=0.001)
         self.assertAlmostEqual(component_temperature_matrix[1][8], engineering.components[8].temperature - 20, delta=0.001)
         self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
-
 
 
 def test_performance():

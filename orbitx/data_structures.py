@@ -442,10 +442,10 @@ class EngineeringState:
     _COMPONENT_START_INDEX = 0
     _COOLANT_START_INDEX = _COMPONENT_START_INDEX + _N_COMPONENTS * _N_COMPONENT_FIELDS
     _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
-    
-    _COMPONENT_END_INDEX = _COOLANT_START_INDEX - 1
-    _COOLANT_END_INDEX = _RADIATOR_START_INDEX - 1
-    _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + _N_RADIATORS * _N_RADIATOR_FIELDS) - 1
+
+    _COMPONENT_END_INDEX = _COOLANT_START_INDEX
+    _COOLANT_END_INDEX = _RADIATOR_START_INDEX
+    _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + _N_RADIATORS * _N_RADIATOR_FIELDS)
 
     class ComponentList:
         """Allows engineering.components[LOS] style indexing."""
@@ -459,7 +459,7 @@ class EngineeringState:
                 raise IndexError()
             return ComponentView(
                 self._owner,
-                self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COMPONENT_END_INDEX+1],
+                self._owner._array[self._owner._COMPONENT_START_INDEX:self._owner._COMPONENT_END_INDEX],
                 index
             )
 
@@ -469,15 +469,15 @@ class EngineeringState:
         def Temperature(self) -> np.ndarray:
             return self._owner._array[
                 self._owner._COMPONENT_START_INDEX+1:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
-        
+
         def Resistance(self) -> np.ndarray:
             return self._owner._array[
                 self._owner._COMPONENT_START_INDEX+2:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
-        
+
         def Voltage(self) -> np.ndarray:
             return self._owner._array[
                 self._owner._COMPONENT_START_INDEX+3:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
-        
+
         def Current(self) -> np.ndarray:
             return self._owner._array[
                 self._owner._COMPONENT_START_INDEX+4:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
@@ -493,7 +493,7 @@ class EngineeringState:
             elif index >= _N_COOLANT_LOOPS:
                 raise IndexError()
             return CoolantView(
-                self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX+1],
+                self._owner._array[self._owner._COOLANT_START_INDEX+0:self._owner._COOLANT_END_INDEX],
                 index
             )
 
@@ -505,10 +505,12 @@ class EngineeringState:
         def ComponentCoolantConnectionList(self) -> np.ndarray:
             """Returns a list of length '_N_COMPONENTS', each element containing coolant connection information
             for the given component"""
-            # TODO Figure out why list_ayse has an off by one error when using COMPONENT_END_INDEX+0
-            list_hab_one = self._owner._array[self._owner._COMPONENT_START_INDEX+5:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
-            list_hab_two = self._owner._array[self._owner._COMPONENT_START_INDEX+6:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
-            list_ayse = self._owner._array[self._owner._COMPONENT_START_INDEX+7:self._owner._COMPONENT_END_INDEX+1:_N_COMPONENT_FIELDS]
+            list_hab_one = self._owner._array[
+                self._owner._COMPONENT_START_INDEX+5:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            list_hab_two = self._owner._array[
+                self._owner._COMPONENT_START_INDEX+6:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
+            list_ayse = self._owner._array[
+                self._owner._COMPONENT_START_INDEX+7:self._owner._COMPONENT_END_INDEX:_N_COMPONENT_FIELDS]
 
             return np.vstack((list_hab_one, list_hab_two, list_ayse))
 
@@ -524,7 +526,7 @@ class EngineeringState:
                 raise IndexError()
             return RadiatorView(
                 self._owner,
-                self._owner._array[self._owner._RADIATOR_START_INDEX:],
+                self._owner._array[self._owner._RADIATOR_START_INDEX:self._owner._RADIATOR_END_INDEX],
                 index
             )
 
