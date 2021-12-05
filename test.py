@@ -732,6 +732,68 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
 
 
+class CoolantTestCase(unittest.TestCase):
+
+    def test_component_coolant_connection_list(self):
+        """
+        Test that the CoolantConnectionMatrix is returning the correct size of a matrix
+        """
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+            physics_state = physics_engine.get_state()
+
+        connected_loops = engineering.components.CoolantConnectionMatrix()
+        self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
+
+    def test_component_coolant_matrix_math(self):
+        """
+        Test that the matrix math used in ode_solver.py actually works
+        """
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+            physics_state = physics_engine.get_state()
+
+        connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
+
+        component_temperature_row_vector = engineering.components.Temperature()
+
+        # np.newaxis is required for tranposed vector to be used in matrix math
+        coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
+
+        temperature_difference_matrix = (
+            component_temperature_row_vector * connected_loops_matrix -
+            connected_loops_matrix * coolant_temperature_col_vector.transpose()
+        )
+
+        self.assertAlmostEqual(
+            temperature_difference_matrix[0][0], engineering.components[0].temperature - 15, delta=0.01)
+        self.assertAlmostEqual(
+            temperature_difference_matrix[1][8], engineering.components[8].temperature - 20, delta=0.01)
+        self.assertEqual(len(np.nonzero(temperature_difference_matrix)), 2)
+
+    def test_component_coolant(self):
+        with PhysicsEngine('tests/coolant-test.json') as physics_engine:
+            initial = physics_engine.get_state(0).engineering
+            final = physics_engine.get_state(20).engineering
+            physics_state = physics_engine.get_state(20)
+
+        temperature_1 = initial.components[1].temperature
+        temperature_2 = final.components[1].temperature
+        log.info("Temperature: ")
+        log.info(initial.components.Temperature())
+        log.info(final.components.Temperature())
+        log.info("Resistance: ")
+        log.info(initial.components.Resistance())
+        log.info(final.components.Resistance())
+        log.info("Voltage: ")
+        log.info(initial.components.Voltage())
+        log.info(final.components.Voltage())
+        log.info("Current: ")
+        log.info(initial.components.Current())
+        log.info(final.components.Current())
+        self.assertNotEqual(temperature_1, temperature_2)
+
+
 def test_performance():
     # This just runs for 10 seconds and collects profiling data.
     import time

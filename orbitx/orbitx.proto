@@ -140,6 +140,11 @@ message EngineeringState {
         bool coolant_hab_two = 7;
         bool coolant_ayse = 8;
     }
+    /*
+    35x8
+    Way 1: Connected, Temperature, Resistance, Voltage, Current, Coolant_one, Coolant_two, Coolant_ayse, Connected ..... Current, Coolant_one ...
+    Way 2: Connected, Connected, Connected, Connected.... Temperature, Temperature ...
+     */
 
     message CoolantLoop {
         double coolant_temp = 1;

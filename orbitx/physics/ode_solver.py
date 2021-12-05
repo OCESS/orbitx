@@ -105,17 +105,45 @@ def simulation_differential_function(
 
     # Engineering values
     R = y.engineering.components.Resistance()
-    I = y.engineering.components.Current()  # noqa: E741
+    I = y.engineering.components.Current()
 
-    """
-    https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
-    
-    """
+    # The following block of code implements conductive cooling of components by connected coolant loops.
+    # https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law shows the high-level math and theory.
+    # If N = the number of components, and there are 3 coolant loops, we can scale two adjacency matrices of
+    # component/coolant loop connections by the temperature of the components and temperature of coolants,
+    # respectively, and subtract them from each other to find the temperature difference between each component
+    # and the connected coolant loop. Then, we can use Fourier's law to find out how much component is cooled
+    # (and each coolant loop is heated).
 
-    # Eventually radiators will affect the temperature.
-    T_deriv = common.eta * np.square(I) * R
+    # Create a 3xN adjacency matrix to encode what components are connected which coolant loops.
+    connected_loops_matrix = y.engineering.components.CoolantConnectionMatrix()
+
+    # N-long vector of component temperatures.
+    component_temperature_row_vector = y.engineering.components.Temperature()
+
+    # 3-long vector of coolant temperatures.
+    # np.newaxis is required for tranposed vector to be used in matrix math
+    coolant_temperature_col_vector = y.engineering.coolant_loops.CoolantTemp()[np.newaxis]
+
+    temperature_difference_matrix = (
+        component_temperature_row_vector * connected_loops_matrix -
+        connected_loops_matrix * coolant_temperature_col_vector.transpose()
+    )
+
+    # Components heat up when they are powered.
+    resistive_heat = common.eta * np.square(I) * R
+
+    # Components transfer heat to coolant.
+    coolant_heat_loss = temperature_difference_matrix.sum(axis=0) * common.k_conductivity
+
+    # TODO: Calculate heating of coolant from component cooling.
+    # TODO: Calculate cooling of coolant from radiators connected to coolant loops.
+    # TODO: Encapsulate this in a helper function.
+
+    T_deriv = resistive_heat - coolant_heat_loss
     R_deriv = common.alpha * T_deriv
-    # Voltage we set to be constant. Since I = V/R, I' = V'/R' = 0/R' = 0
+
+    # Voltage and current do not change
     V_deriv = I_deriv = np.zeros(_N_COMPONENTS)
 
     # Drag effects
@@ -147,7 +175,7 @@ def simulation_differential_function(
         zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
         # component connection state doesn't change here
         np.zeros(_N_COMPONENTS),
-        T_deriv, R_deriv, V_deriv, I_deriv,
+        T_deriv, R_deriv, np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
         # coolant loop/radiator connection state doesn't change here
         np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
         np.zeros(_N_COOLANT_LOOPS * _N_COOLANT_FIELDS),

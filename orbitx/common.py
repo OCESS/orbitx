@@ -58,6 +58,7 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 G = 6.674e-11
 eta = 0.9  # Efficiency of engineering components
 alpha = 0.1  # Heat gain due to inefficiences ratio
+k_conductivity = 0.05  # Thermal conductivity of coolant
 
 MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1.00  # 100%
