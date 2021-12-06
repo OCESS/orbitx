@@ -131,17 +131,17 @@ def simulation_differential_function(
     )
 
     # Components heat up when they are powered.
-    resistive_heat = common.eta * np.square(I) * R
+    resistive_heat = common.COEFF_TEMPERATURE_GAIN * np.square(I) * R
 
     # Components transfer heat to coolant.
-    coolant_heat_loss = temperature_difference_matrix.sum(axis=0) * common.k_conductivity
+    coolant_heat_loss = temperature_difference_matrix.sum(axis=0) * common.K_CONDUCTIVITY
 
     # TODO: Calculate heating of coolant from component cooling.
     # TODO: Calculate cooling of coolant from radiators connected to coolant loops.
     # TODO: Encapsulate this in a helper function.
 
     T_deriv = resistive_heat - coolant_heat_loss
-    R_deriv = common.alpha * T_deriv
+    R_deriv = common.ALPHA_RESIST_GAIN * T_deriv
 
     # Voltage and current do not change
     V_deriv = I_deriv = np.zeros(_N_COMPONENTS)

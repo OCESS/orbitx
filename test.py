@@ -545,10 +545,10 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         # Test getters work
         self.assertEqual(engineering.components[0].connected, True)
-        self.assertAlmostEqual(engineering.components[0].temperature, 31.3, delta=0.001)
-        self.assertAlmostEqual(engineering.components[0].resistance, 11.0, delta=0.001)
-        self.assertAlmostEqual(engineering.components[0].voltage, 120.0, delta=0.001)
-        self.assertAlmostEqual(engineering.components[0].current, 0.2, delta=0.001)
+        self.assertAlmostEqual(engineering.components[0].temperature, 31.3, delta=0.01)
+        self.assertAlmostEqual(engineering.components[0].resistance, 11.0, delta=0.01)
+        self.assertAlmostEqual(engineering.components[0].voltage, 120.0, delta=0.01)
+        self.assertAlmostEqual(engineering.components[0].current, 0.2, delta=0.01)
         self.assertEqual(engineering.components[0].coolant_hab_one, True)
         self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 15.0)
         self.assertAlmostEqual(engineering.components[0].connected_coolant_loops()[0].coolant_temp, 15.0)

@@ -11,7 +11,7 @@ from typing import NamedTuple, Optional
 
 import numpy
 import google.protobuf.json_format
-import vpython
+import vpython  # type: ignore
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import data_structures
@@ -56,21 +56,41 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 
 # ---------------- Physics-related constants ----------------
 G = 6.674e-11
-eta = 0.9  # Efficiency of engineering components
-alpha = 0.1  # Heat gain due to inefficiences ratio
-k_conductivity = 0.05  # Thermal conductivity of coolant
 
-MIN_THROTTLE = -1.00  # -100%
-MAX_THROTTLE = 1.00  # 100%
+# https://en.wikipedia.org/wiki/Temperature_coefficient
+# Heat gain due to component inefficiency. Units are 1/K.
+# If a component increases in temperature by 1 Kelvin, its resistance will change by [1*alpha] Ohms.
+# Copper has a roughly 0.0039 alpha coefficient.
+ALPHA_RESIST_GAIN = 0.004
 
-# The max speed at which the autopilot will spin the craft.
-AUTOPILOT_SPEED = numpy.radians(20)
+# Thermal inefficiency-related constant.
+# With this constant, applying 1 Watt of power results in 0.0001 Kelvin/second of heating.
+COEFF_TEMPERATURE_GAIN = 0.0001
+# TODO: Calculate a mass * specific thermal capacity constant for each component
+# so that we can more accurately model reality (and importantly, orbit5v).
+# The math we want to eventually have is taken from https://en.wikipedia.org/wiki/Joule_heating#Direct_current.
+# Specifically, we would define a global constant eta = 0.1 to say that 0.1 of the power going through
+# a component is converted to unwanted thermal energy (unit: Joules).
+# Then, to calculate the temperature gain we can do
+# P_thermal = eta * I^2 * R
+# T_deriv = P_thermal / (specific_thermal_capacity_of_component * mass_of_component)
+# The denominator would calculated as a per-component constant, something like 500
 
-# The margin on either side of the target heading that the autopilot will slow
-# down its adjustments.
-AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
+# https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
+# Water has a k coefficient of 0.6 to 0.7. Better conductors have higher k-values.
+K_CONDUCTIVITY = 0.75
+
+SRB_THRUST = 13125000
+
+HAB_DRAG_PROFILE = 0.0002
+PARACHUTE_DRAG_PROFILE = 0.02
 
 UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
+
+# The thrust-weight ratio required for liftoff. Realistically, the TWR only has
+# to be greater than 1 to lift off, but we want to make sure there aren't any
+# possible collisions that will set the engines to 0 again.
+LAUNCH_TWR = 1.05
 
 
 class Spacecraft(NamedTuple):
@@ -86,19 +106,24 @@ craft_capabilities = {
     strings.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
 }
 
-SRB_THRUST = 13125000
+# ---------------- Control-related constants ----------------
+MIN_THROTTLE = -1.00  # -100%
+MAX_THROTTLE = 1.00  # 100%
+
+# The max speed at which the autopilot will spin the craft.
+AUTOPILOT_SPEED = numpy.radians(20)
+
+# The margin on either side of the target heading that the autopilot will slow
+# down its adjustments.
+AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
 # Rotating the craft changes the spin by this amount per button press.
 SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
 FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
 
-HAB_DRAG_PROFILE = 0.0002
-PARACHUTE_DRAG_PROFILE = 0.02
-
-# The thrust-weight ratio required for liftoff. Realistically, the TWR only has
-# to be greater than 1 to lift off, but we want to make sure there aren't any
-# possible collisions that will set the engines to 0 again.
-LAUNCH_TWR = 1.05
+# Rotating the craft changes the spin by this amount per button press.
+SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
+FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
 
 # These special values mean that the SRBs are full but haven't been used, and
 # that the SRBs have been fully used, respectively.

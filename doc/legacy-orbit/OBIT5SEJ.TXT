@@ -1,4 +1,4 @@
-15, 11, 10
+15, 11, 10  # First 19 lines are values of switch(x, y). e.g. the first line says switch(15, 11) = 10
 17, 11, 10
 19, 11, 10
 20, 11, 10
