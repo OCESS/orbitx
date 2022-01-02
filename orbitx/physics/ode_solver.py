@@ -13,8 +13,8 @@ import scipy
 from orbitx import common, strings
 from orbitx.data_structures import (
     EngineeringState, PhysicsState,
-    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, _N_COMPONENTS,
-    _N_COOLANT_LOOPS, _N_COOLANT_FIELDS, _N_RADIATORS, _N_RADIATOR_FIELDS
+    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, N_COMPONENTS,
+    N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
     )
 from orbitx.strings import AYSE, HABITAT
 from orbitx.physics import helpers, calc
@@ -144,7 +144,7 @@ def simulation_differential_function(
     R_deriv = common.ALPHA_RESIST_GAIN * T_deriv
 
     # Voltage and current do not change
-    V_deriv = I_deriv = np.zeros(_N_COMPONENTS)
+    V_deriv = I_deriv = np.zeros(N_COMPONENTS)
 
     # Drag effects
     craft = y.craft
@@ -174,12 +174,12 @@ def simulation_differential_function(
         y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
         zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
         # component connection state doesn't change here
-        np.zeros(_N_COMPONENTS),
-        T_deriv, R_deriv, np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
+        np.zeros(N_COMPONENTS),
+        T_deriv, R_deriv, np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),
         # coolant loop/radiator connection state doesn't change here
-        np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
-        np.zeros(_N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
-        np.zeros(_N_RADIATORS * _N_RADIATOR_FIELDS)
+        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),
+        np.zeros(N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
+        np.zeros(N_RADIATORS * _N_RADIATOR_FIELDS)
     ), axis=None)
 
 

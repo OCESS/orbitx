@@ -14,7 +14,7 @@ from orbitx import network
 from orbitx import physics
 from orbitx.data_structures import (
     EngineeringState, _EntityView, Entity, PhysicsState,
-    _N_COMPONENTS, _N_COOLANT_LOOPS, _N_RADIATORS,
+    N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS,
     _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
 from orbitx.strings import HABITAT
@@ -328,9 +328,9 @@ class PhysicsStateTestCase(unittest.TestCase):
                 throttle=71, landed_on='First', broken=True)
         ],
         engineering=protos.EngineeringState(
-            components=[protos.EngineeringState.Component()] * _N_COMPONENTS,
-            coolant_loops=[protos.EngineeringState.CoolantLoop()] * _N_COOLANT_LOOPS,
-            radiators=[protos.EngineeringState.Radiator()] * _N_RADIATORS
+            components=[protos.EngineeringState.Component()] * N_COMPONENTS,
+            coolant_loops=[protos.EngineeringState.CoolantLoop()] * N_COOLANT_LOOPS,
+            radiators=[protos.EngineeringState.Radiator()] * N_RADIATORS
         )
     )
 
@@ -345,26 +345,26 @@ class PhysicsStateTestCase(unittest.TestCase):
 
         eng_fields = np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
         component_array = eng_fields[EngineeringState._COMPONENT_START_INDEX:EngineeringState._COMPONENT_END_INDEX]
-        for comp_i in range(0, _N_COMPONENTS):
-            component_array[comp_i+_N_COMPONENTS*0] = True  # connected
-            component_array[comp_i+_N_COMPONENTS*1] = 111100 + comp_i  # temperature
-            component_array[comp_i+_N_COMPONENTS*2] = 222200 + comp_i  # resistance
-            component_array[comp_i+_N_COMPONENTS*3] = 333300 + comp_i  # voltage
-            component_array[comp_i+_N_COMPONENTS*4] = 444400 + comp_i  # current
-            component_array[comp_i+_N_COMPONENTS*5] = comp_i % 2  # coolant_hab_one
-            component_array[comp_i+_N_COMPONENTS*6] = True  # coolant_hab_two
-            component_array[comp_i+_N_COMPONENTS*7] = False  # coolant_ayse
+        for comp_i in range(0, N_COMPONENTS):
+            component_array[comp_i+N_COMPONENTS*0] = True  # connected
+            component_array[comp_i+N_COMPONENTS*1] = 111100 + comp_i  # temperature
+            component_array[comp_i+N_COMPONENTS*2] = 222200 + comp_i  # resistance
+            component_array[comp_i+N_COMPONENTS*3] = 333300 + comp_i  # voltage
+            component_array[comp_i+N_COMPONENTS*4] = 444400 + comp_i  # current
+            component_array[comp_i+N_COMPONENTS*5] = comp_i % 2  # coolant_hab_one
+            component_array[comp_i+N_COMPONENTS*6] = True  # coolant_hab_two
+            component_array[comp_i+N_COMPONENTS*7] = False  # coolant_ayse
 
         coolant_array = eng_fields[EngineeringState._COOLANT_START_INDEX:EngineeringState._COOLANT_END_INDEX]
-        for cool_i in range(0, _N_COOLANT_LOOPS):
-            coolant_array[cool_i+_N_COOLANT_LOOPS*0] = 555500 + cool_i  # coolant_temp
-            coolant_array[cool_i+_N_COOLANT_LOOPS*1] = cool_i % 2  # primary_pump_on
-            coolant_array[cool_i+_N_COOLANT_LOOPS*2] = True  # secondary_pump_on
+        for cool_i in range(0, N_COOLANT_LOOPS):
+            coolant_array[cool_i+N_COOLANT_LOOPS*0] = 555500 + cool_i  # coolant_temp
+            coolant_array[cool_i+N_COOLANT_LOOPS*1] = cool_i % 2  # primary_pump_on
+            coolant_array[cool_i+N_COOLANT_LOOPS*2] = True  # secondary_pump_on
 
         rad_array = eng_fields[EngineeringState._RADIATOR_START_INDEX:EngineeringState._RADIATOR_END_INDEX]
-        for rad_i in range(0, _N_RADIATORS):
-            rad_array[rad_i+_N_RADIATORS*0] = rad_i % 4  # attached_to_coolant_loop
-            rad_array[rad_i+_N_RADIATORS*1] = rad_i % 2  # functioning
+        for rad_i in range(0, N_RADIATORS):
+            rad_array[rad_i+N_RADIATORS*0] = rad_i % 4  # attached_to_coolant_loop
+            rad_array[rad_i+N_RADIATORS*1] = rad_i % 2  # functioning
 
         y0 = np.concatenate((np.array([
                 0x111, 0x222,  # x
@@ -640,8 +640,8 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         engineering = state.engineering
         engineering.components[0].voltage = 777777.7
-        self.assertEqual(engineering._array[3 * _N_COMPONENTS], 777777.7)
-        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3 * _N_COMPONENTS], 777777.7)
+        self.assertEqual(engineering._array[3 * N_COMPONENTS], 777777.7)
+        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3 * N_COMPONENTS], 777777.7)
 
     def test_eng_single_fields(self):
         """Test that non-repeated fields in the EngineeringState can be
@@ -707,7 +707,7 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
 
-        self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
+        self.assertEqual(connected_loops.shape, (3, N_COMPONENTS))
 
     def test_component_coolant_matrix_math(self):
         """
@@ -743,7 +743,7 @@ class CoolantTestCase(unittest.TestCase):
             physics_state = physics_engine.get_state()
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
-        self.assertEqual(connected_loops.shape, (3, _N_COMPONENTS))
+        self.assertEqual(connected_loops.shape, (3, N_COMPONENTS))
 
     def test_component_coolant_matrix_math(self):
         """

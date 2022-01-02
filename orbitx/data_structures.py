@@ -21,6 +21,11 @@ log = logging.getLogger()
 # we can this wrapper class in the future.
 Request = protos.Command
 
+N_COMPONENTS = len(strings.COMPONENT_NAMES)
+N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
+N_RADIATORS = len(strings.RADIATOR_NAMES)
+DTYPE = np.float64  # Datatype used by orbitx internally.
+
 # These entity fields do not change during simulation. Thus, we don't have to
 # store them in a big 1D numpy array for use in scipy.solve_ivp.
 _PER_ENTITY_UNCHANGING_FIELDS = [
@@ -33,10 +38,6 @@ _PER_ENTITY_MUTABLE_FIELDS = [field.name for
                               field.name not in _PER_ENTITY_UNCHANGING_FIELDS]
 _ENTITY_FIELD_ORDER = {name: index for index, name in
                        enumerate(_PER_ENTITY_MUTABLE_FIELDS)}
-
-_N_COMPONENTS = len(strings.COMPONENT_NAMES)
-_N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
-_N_RADIATORS = len(strings.RADIATOR_NAMES)
 _N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
 _N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)
 _N_RADIATOR_FIELDS = len(protos.EngineeringState.Radiator.DESCRIPTOR.fields)
@@ -266,27 +267,27 @@ class CoolantView:
 
     @property
     def coolant_temp(self) -> float:
-        return self._array[_N_COOLANT_LOOPS * 0 + self._n]
+        return self._array[N_COOLANT_LOOPS * 0 + self._n]
 
     @coolant_temp.setter
     def coolant_temp(self, val: float):
-        self._array[_N_COOLANT_LOOPS * 0 + self._n] = val
+        self._array[N_COOLANT_LOOPS * 0 + self._n] = val
 
     @property
     def primary_pump_on(self) -> bool:
-        return bool(self._array[_N_COOLANT_LOOPS * 1 + self._n])
+        return bool(self._array[N_COOLANT_LOOPS * 1 + self._n])
 
     @primary_pump_on.setter
     def primary_pump_on(self, val: bool):
-        self._array[_N_COOLANT_LOOPS * 1 + self._n] = val
+        self._array[N_COOLANT_LOOPS * 1 + self._n] = val
 
     @property
     def secondary_pump_on(self) -> bool:
-        return bool(self._array[_N_COOLANT_LOOPS * 2 + self._n])
+        return bool(self._array[N_COOLANT_LOOPS * 2 + self._n])
 
     @secondary_pump_on.setter
     def secondary_pump_on(self, val: bool):
-        self._array[_N_COOLANT_LOOPS * 2 + self._n] = val
+        self._array[N_COOLANT_LOOPS * 2 + self._n] = val
 
 
 class ComponentView:
@@ -310,67 +311,67 @@ class ComponentView:
 
     @property
     def connected(self) -> bool:
-        return bool(self._array[_N_COMPONENTS * 0 + self._n])
+        return bool(self._array[N_COMPONENTS * 0 + self._n])
 
     @connected.setter
     def connected(self, val: bool):
-        self._array[_N_COMPONENTS * 0 + self._n] = float(val)
+        self._array[N_COMPONENTS * 0 + self._n] = float(val)
 
     @property
     def temperature(self) -> float:
-        return self._array[_N_COMPONENTS * 1 + self._n]
+        return self._array[N_COMPONENTS * 1 + self._n]
 
     @temperature.setter
     def temperature(self, val: float):
-        self._array[_N_COMPONENTS * 1 + self._n] = val
+        self._array[N_COMPONENTS * 1 + self._n] = val
 
     @property
     def resistance(self) -> float:
-        return self._array[_N_COMPONENTS * 2 + self._n]
+        return self._array[N_COMPONENTS * 2 + self._n]
 
     @resistance.setter
     def resistance(self, val: float):
-        self._array[_N_COMPONENTS * 2 + self._n] = val
+        self._array[N_COMPONENTS * 2 + self._n] = val
 
     @property
     def voltage(self) -> float:
-        return self._array[_N_COMPONENTS * 3 + self._n]
+        return self._array[N_COMPONENTS * 3 + self._n]
 
     @voltage.setter
     def voltage(self, val: float):
-        self._array[_N_COMPONENTS * 3 + self._n] = val
+        self._array[N_COMPONENTS * 3 + self._n] = val
 
     @property
     def current(self) -> float:
-        return self._array[_N_COMPONENTS * 4 + self._n]
+        return self._array[N_COMPONENTS * 4 + self._n]
 
     @current.setter
     def current(self, val: float):
-        self._array[_N_COMPONENTS * 4 + self._n] = val
+        self._array[N_COMPONENTS * 4 + self._n] = val
 
     @property
     def coolant_hab_one(self) -> bool:
-        return bool(self._array[_N_COMPONENTS * 5 + self._n])
+        return bool(self._array[N_COMPONENTS * 5 + self._n])
 
     @coolant_hab_one.setter
     def coolant_hab_one(self, val: bool):
-        self._array[_N_COMPONENTS * 5 + self._n] = float(val)
+        self._array[N_COMPONENTS * 5 + self._n] = float(val)
 
     @property
     def coolant_hab_two(self) -> bool:
-        return bool(self._array[_N_COMPONENTS * 6 + self._n])
+        return bool(self._array[N_COMPONENTS * 6 + self._n])
 
     @coolant_hab_two.setter
     def coolant_hab_two(self, val: bool):
-        self._array[_N_COMPONENTS * 6 + self._n] = float(val)
+        self._array[N_COMPONENTS * 6 + self._n] = float(val)
 
     @property
     def coolant_ayse(self) -> bool:
-        return bool(self._array[_N_COMPONENTS * 7 + self._n])
+        return bool(self._array[N_COMPONENTS * 7 + self._n])
 
     @coolant_ayse.setter
     def coolant_ayse(self, val: bool):
-        self._array[_N_COMPONENTS * 7 + self._n] = float(val)
+        self._array[N_COMPONENTS * 7 + self._n] = float(val)
 
     def connected_coolant_loops(self) -> List[CoolantView]:
         connected_loops: List[CoolantView] = []
@@ -408,19 +409,19 @@ class RadiatorView:
 
     @property
     def attached_to_coolant_loop(self) -> int:
-        return int(self._array[_N_RADIATORS * 0 + self._n])
+        return int(self._array[N_RADIATORS * 0 + self._n])
 
     @attached_to_coolant_loop.setter
     def attached_to_coolant_loop(self, val: int):
-        self._array[_N_RADIATORS * 0 + self._n] = val
+        self._array[N_RADIATORS * 0 + self._n] = val
 
     @property
     def functioning(self) -> bool:
-        return bool(self._array[_N_RADIATORS * 1 + self._n])
+        return bool(self._array[N_RADIATORS * 1 + self._n])
 
     @functioning.setter
     def functioning(self, val: bool):
-        self._array[_N_RADIATORS * 1 + self._n] = val
+        self._array[N_RADIATORS * 1 + self._n] = val
 
 
 class EngineeringState:
@@ -436,18 +437,18 @@ class EngineeringState:
     """
 
     N_ENGINEERING_FIELDS = (
-        _N_COMPONENTS * _N_COMPONENT_FIELDS +
-        _N_COOLANT_LOOPS * _N_COOLANT_FIELDS +
-        _N_RADIATORS * _N_RADIATOR_FIELDS
+        N_COMPONENTS * _N_COMPONENT_FIELDS +
+        N_COOLANT_LOOPS * _N_COOLANT_FIELDS +
+        N_RADIATORS * _N_RADIATOR_FIELDS
     )
 
     _COMPONENT_START_INDEX = 0
-    _COOLANT_START_INDEX = _COMPONENT_START_INDEX + _N_COMPONENTS * _N_COMPONENT_FIELDS
-    _RADIATOR_START_INDEX = _COOLANT_START_INDEX + _N_COOLANT_LOOPS * _N_COOLANT_FIELDS
+    _COOLANT_START_INDEX = _COMPONENT_START_INDEX + N_COMPONENTS * _N_COMPONENT_FIELDS
+    _RADIATOR_START_INDEX = _COOLANT_START_INDEX + N_COOLANT_LOOPS * _N_COOLANT_FIELDS
 
     _COMPONENT_END_INDEX = _COOLANT_START_INDEX
     _COOLANT_END_INDEX = _RADIATOR_START_INDEX
-    _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + _N_RADIATORS * _N_RADIATOR_FIELDS)
+    _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + N_RADIATORS * _N_RADIATOR_FIELDS)
 
     class ComponentList:
         """Allows engineering.components[LOS] style indexing."""
@@ -458,7 +459,7 @@ class EngineeringState:
         def __getitem__(self, index: Union[str, int]) -> ComponentView:
             if isinstance(index, str):
                 index = strings.COMPONENT_NAMES.index(index)
-            if index >= _N_COMPONENTS:
+            if index >= N_COMPONENTS:
                 raise IndexError()
             return ComponentView(self._owner, self._component_array, index)
 
@@ -466,23 +467,23 @@ class EngineeringState:
         # all values of each quantity for each Component.
         # We only define this accessor for fields we use in _derive.
         def Temperature(self) -> np.ndarray:
-            return self._component_array[1 * _N_COMPONENTS:2 * _N_COMPONENTS]
+            return self._component_array[1 * N_COMPONENTS:2 * N_COMPONENTS]
 
         def Resistance(self) -> np.ndarray:
-            return self._component_array[2 * _N_COMPONENTS:3 * _N_COMPONENTS]
+            return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
         def Voltage(self) -> np.ndarray:
-            return self._component_array[3 * _N_COMPONENTS:4 * _N_COMPONENTS]
+            return self._component_array[3 * N_COMPONENTS:4 * N_COMPONENTS]
 
         def Current(self) -> np.ndarray:
-            return self._component_array[4 * _N_COMPONENTS:5 * _N_COMPONENTS]
+            return self._component_array[4 * N_COMPONENTS:5 * N_COMPONENTS]
 
         def CoolantConnectionMatrix(self) -> np.ndarray:
-            """Returns a list of length '_N_COMPONENTS', each element containing coolant connection information
+            """Returns a list of length 'N_COMPONENTS', each element containing coolant connection information
             for the given component"""
-            list_hab_one = self._component_array[5 * _N_COMPONENTS:6 * _N_COMPONENTS]
-            list_hab_two = self._component_array[6 * _N_COMPONENTS:7 * _N_COMPONENTS]
-            list_ayse = self._component_array[7 * _N_COMPONENTS:8 * _N_COMPONENTS]
+            list_hab_one = self._component_array[5 * N_COMPONENTS:6 * N_COMPONENTS]
+            list_hab_two = self._component_array[6 * N_COMPONENTS:7 * N_COMPONENTS]
+            list_ayse = self._component_array[7 * N_COMPONENTS:8 * N_COMPONENTS]
             return np.vstack((list_hab_one, list_hab_two, list_ayse))
 
     class CoolantLoopList:
@@ -494,13 +495,13 @@ class EngineeringState:
         def __getitem__(self, index: Union[str, int]) -> CoolantView:
             if isinstance(index, str):
                 index = strings.COOLANT_LOOP_NAMES.index(index)
-            if index >= _N_COOLANT_LOOPS:
+            if index >= N_COOLANT_LOOPS:
                 raise IndexError()
             return CoolantView(self._coolant_array, index)
 
         # As above, list slicing with strides.
         def CoolantTemp(self) -> np.ndarray:
-            return self._coolant_array[0 * _N_COOLANT_LOOPS:1 * _N_COOLANT_LOOPS]
+            return self._coolant_array[0 * N_COOLANT_LOOPS:1 * N_COOLANT_LOOPS]
 
     class RadiatorList:
         """Allows engineering.radiators[RAD1] style indexing."""
@@ -511,13 +512,13 @@ class EngineeringState:
         def __getitem__(self, index: Union[str, int]) -> RadiatorView:
             if isinstance(index, str):
                 index = strings.RADIATOR_NAMES.index(index)
-            if index >= _N_RADIATORS:
+            if index >= N_RADIATORS:
                 raise IndexError()
             return RadiatorView(self._owner, self._radiator_array, index)
 
         # And as above, list slicing with strides.
         def Functioning(self) -> np.ndarray:
-            return self._radiator_array[0 * _N_RADIATORS:1 * _N_RADIATORS]
+            return self._radiator_array[0 * N_RADIATORS:1 * N_RADIATORS]
 
     def __init__(self,
                  array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
@@ -533,9 +534,9 @@ class EngineeringState:
                       pieces of data from the parent, e.g. hab fuel.
         populate_array: flag that is set when we need to fill array_rep with data.
         """
-        assert len(proto_state.components) == _N_COMPONENTS
-        assert len(proto_state.coolant_loops) == _N_COOLANT_LOOPS
-        assert len(proto_state.radiators) == _N_RADIATORS
+        assert len(proto_state.components) == N_COMPONENTS
+        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS
+        assert len(proto_state.radiators) == N_RADIATORS
 
         self._array = array_rep
         self._proto_state = proto_state
