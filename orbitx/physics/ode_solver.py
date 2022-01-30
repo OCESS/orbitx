@@ -38,6 +38,9 @@ def simulation_differential_function(
     [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
     (zeroed-out fields are changed elsewhere)
 
+    If the structure of the y_1d array changes, make sure to update this
+    function and anywhere annotated with #Y_VECTOR_CHANGESITE!
+
     !!!!!!!!!!! IMPORTANT !!!!!!!!!!!
     This function should return a DERIVATIVE. The numpy.solve_ivp function
     will do the rest of the work of the simulation, this function just
@@ -53,7 +56,7 @@ def simulation_differential_function(
     Any arguments after `t` and `y_1d` are just extra constants and
     pass-through state, which should remain constant during normal simulation.
     They are passed in to speed up computation, since this function is the most
-    performance-sensitive part of the orbitx codebase(!!!) 
+    performance-sensitive part of the orbitx codebase(!!!)
     """
 
     # Note: we create this y as a PhysicsState for convenience, but if you
