@@ -1,0 +1,65 @@
+I've tried to describe the structure of variables in enghabw here.
+
+------- Patrick's understanding of the switch(i, x) and other fields ----------------------
+switch(i, 8)   is the temperature of a device
+switch(i, 11)  is a bitmask of what coolants a device is connected to
+switch(i, 12)  is a coefficient that models how much power a device loses to resistive
+               heating
+switch(i, 13)  is a scaling factor for how quickly a device passively loses heat to the
+               environment
+switch(i, 14)  is some sort of thermal conductivity between device and coolant 2
+switch(i, 15)  is some sort of thermal conductivity between device and coolant 1 or 3 or
+               the atmosphere
+switch(i, 16)  is the 'resting' temperature above which a device will cool faster
+
+other switch values aren't relevant for temperature
+
+coolant(i, 0)  is the temperature of coolant loop i
+coolant(i, 1)  how quickly a loop is being cooled by radiators/atmosphere
+coolant(i, 2)  is how quickly a loop gets cooled by the atmosphere
+
+RAD(i, 0)      Is how good at cooling a radiator is
+RAD(i, 1)      Which coolant loop a radiator is connected to
+
+coolantPUMP(i) is a bitmask of coolant pumps connected to coolant loop i.
+               0 for none, 1 for the secondary hab pumps, 2 for the primary, 3 for both
+               coolant loop 3 only has one pump
+
+DEVICEs%(i)    Simulators use this array to inject various faults
+
+EL(6)          is the voltage of the main hab power bus
+EL(7)          is the voltage of the secondary hab power bus
+
+------- Patrick's understanding of the code at label 850 and 860 ---------
+The subroutine at 850 and 852 calculates heat gain due to resistive heating, and also heat
+loss to passive and active cooling.
+
+Resistive heating is a very small coefficient, between 1e-8 and 1e-10. Simulators can
+increase the resistive heating using SWITCHs%(dev).
+
+delTEMP1 calculates passive heat loss from the device to the environment, without coolant
+delTEMP2 calculates cooling from coolant loop 1
+delTEMP3 calculates cooling from coolant loop 2
+delTEMP4 calculates cooling from the atmosphere
+delTEMP5 calculates cooling from coolant loop 3
+
+If the device is above its 'target' resting temperature (e.g. 25), it will cool slightly
+faster.
+
+A device cools much faster if it is very hot (all delTEMPs are multiplied by the square of
+the device's temperature)
+
+Every 1 degree that coolant cools a device by, the coolant increases by 1*k degrees (where
+k is the relevant thermal conductivity factor for the device)
+
+
+The subroutine at 860 and 861 calculates the radiators cooling off the coolant.
+
+The primary hab coolant pumps power off if the primary hab power bus is less than 9000 V.
+Same for secondary coolant pumps if secondary bus is less than 90 V, and AYSE with less
+than 90,000 V.
+
+Simmies can selectively disable radiators.
+
+Coolant is cooled by radiators and atmosphere. Coolant cooling rate increases
+quadratically with coolant temperature.

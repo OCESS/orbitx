@@ -7,10 +7,15 @@
         PALETTE 6, 52
         PALETTE 7, 56
         locate 1,1,0   
+
+        open "R", #1, "orbit5vINI.TXT"
+        close #1
+        open "I", #1, "orbit5vINI.TXT"
+        input #1, Zpath$
+        close #1
+        if Zpath$="*" then Zpath$=""        
         
-        ' This is one usage of OSBACKUP.RND, doesn't seem to do much except
-        ' control how orb5rEs is loaded.
-        OPEN "R", #2, "OSBACKUP.RND", 8
+        OPEN "R", #2, Zpath$+"OSBACKUP.RND", 8
         inpSTR$=space$(8)
         GET #2, 1, inpSTR$
         inpFLAG$=right$(inpSTR$,7)
@@ -19,9 +24,9 @@
         CLOSE #2
 
         filename$="orb5rEs"
-        Zpath$=""
-        IF inpFLAG$ = "XXXXXYY" THEN : z$="H": reload$="y": zpath$="": goto 1111
-        IF inpFLAG$ = "XXXXXXX" THEN : z$="H": reload$="y": zpath$="": goto 1111
+        'Zpath$=""
+        IF inpFLAG$ = "XXXXXYY" THEN : z$="H": reload$="y": goto 1111
+        IF inpFLAG$ = "XXXXXXX" THEN : z$="H": reload$="y": goto 1111
 
         
         
@@ -38,8 +43,8 @@
         
         INPUT "Cold start (c) or hot start (h)"; z$
         z$ = UCASE$(z$)
-        LOCATE 11, 10
-        INPUT "Path to files                  ", zpath$
+        'LOCATE 11, 10
+        'INPUT "Path to files                  ", zpath$
         LOCATE 12, 10
         INPUT "Reload previous state          "; reload$
         reload$=lcase$(reload$)
@@ -48,9 +53,9 @@
         LOCATE 14, 10
         INPUT "AYSE fuel load                 "; afuel$
         Zvar#(3) = VAL(hfuel$)
-        IF Zvar#(3) > 100000 THEN Zvar#(3) = 100000
+        IF Zvar#(3) > 150000 THEN Zvar#(3) = 150000
         Zvar#(4) = VAL(afuel$)
-        IF Zvar#(4) > 15000000 THEN Zvar#(4) = 15000000
+        IF Zvar#(4) > 25000000 THEN Zvar#(4) = 25000000
 
 1111    CLS
          
@@ -76,7 +81,7 @@
         
         COLOR 1, 2
         LOCATE 16, 16: PRINT "AYSE   ";
-        COLOR 6, 0: LOCATE 24, 64: PRINT "F12";
+        COLOR 6, 0: LOCATE 24, 64: PRINT "  ;";
         
         
         
@@ -124,7 +129,7 @@
         COLOR 6, 0: LOCATE 23, 66: PRINT CHR$(217);
         
         COLOR 6, 0: LOCATE 24, 1: PRINT "W";
-        LOCATE 18, 25: PRINT "F11"; : COLOR 9, 0: PRINT " display";
+        LOCATE 18, 25: PRINT "  \"; : COLOR 9, 0: PRINT " display";
         LOCATE 19, 25: COLOR 6, 0: PRINT "TAB"; : COLOR 9, 0: PRINT " Eng clnt";
         LOCATE 20, 25: COLOR 6, 0: PRINT "PgU"; : COLOR 9, 0: PRINT " pmp sel";
         LOCATE 21, 25: COLOR 6, 0: PRINT "PgD"; : COLOR 9, 0: PRINT " pmp sel";
@@ -163,7 +168,7 @@
         NEXT i
 
         IF z$ <> "H" THEN 8
-        RCcap = 2000
+        RCcap = 2500
         switch(0, 8) = 81
         switch(56, 8) = 81
         FOR i = 0 TO 13
@@ -180,6 +185,8 @@
         switch(18, 5) = 0
         switch(14, 5) = 1
         switch(20, 5) = 1
+        EL(6)=10000
+        EL(7)=120
 
         
 8       EL(9) = 100000
@@ -220,10 +227,11 @@
         LOCATE 25, 25: COLOR 6, 0: PRINT "/"; : COLOR 9, 0: PRINT "  rad loop";
 
         IF reload$ = "y" and inpFLAG$ <> "XXXXXXX" THEN GOSUB 830
-        IF reload$ = "y" and inpFLAG$ = "XXXXXXX" then OPEN "R", #1, "resetSSE.RND", 1159: gosub 832
+        IF reload$ = "y" and inpFLAG$ = "XXXXXXX" then OPEN "R", #1, Zpath$+"RESETSSE.RND", 1159: gosub 832
         tt = TIMER
-
-1       warnFLAG = warnFLAG + .01: IF warnFLAG >= 1 THEN warnFLAG = 0
+        
+        
+1       warnFLAG = warnFLAG + .25: IF warnFLAG >= 1 THEN warnFLAG = 0
         COLOR 9, 0: LOCATE 2, 2: PRINT "HAB:  "; : COLOR 11, 0: IF Zvar#(13) = 150 THEN PRINT " OFF  ";  ELSE PRINT USING "###.#"; Zvar#(25); : COLOR 9, 0: PRINT "%";
         COLOR 9, 0: LOCATE 14, 2: PRINT "AYSE: "; : COLOR 11, 0: IF Zvar#(13) = 0 THEN PRINT " OFF  ";  ELSE PRINT USING "###.#"; Zvar#(25); : COLOR 9, 0: PRINT "%";
         
@@ -268,7 +276,7 @@
          IF i = 46 OR i = 47 THEN 3
          clr = 0
          IF i < 45 THEN 4
-         IF (SWITCHs%(i) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(i) AND 1) + warnFLAG > 1.5 THEN clr = 12
 4        LOCATE switch(i, 2), switch(i, 3) + 1: COLOR 9 + switch(i, 5), clr: PRINT switchlabel$(i - 33);
 3       NEXT i
         i = 46: LOCATE switch(i, 2), switch(i, 3) + 1: COLOR 9 + switch(i, 5), 1: PRINT switchlabel$(i - 33);
@@ -317,13 +325,13 @@
         IF LOADdisp = 1 THEN LOCATE 18, 56: PRINT USING "###"; SGN(coolantPUMP(1) AND 1) * EL(7) / 10;
         IF LOADdisp = 1 THEN LOCATE 19, 50: PRINT USING "###"; SGN(coolantPUMP(2) AND 2) * EL(6) / 1000;
         IF LOADdisp = 1 THEN LOCATE 19, 56: PRINT USING "###"; SGN(coolantPUMP(2) AND 1) * EL(7) / 10;
-        IF LOADdisp = 1 THEN LOCATE 20, 50: PRINT USING "###"; SGN(coolantPUMP(3) AND 2) * EL(9) / 1000;
-        IF LOADdisp = 1 THEN LOCATE 20, 56: PRINT USING "###"; SGN(coolantPUMP(3) AND 1) * EL(9) / 2000;
+        IF LOADdisp = 1 THEN LOCATE 20, 50: PRINT USING "###"; SGN(coolantPUMP(3) AND 2) * EL(9) / 50000;
+        IF LOADdisp = 1 THEN LOCATE 20, 56: PRINT USING "###"; SGN(coolantPUMP(3) AND 1) * EL(9) / 100000;
 
        
        
         LOCATE 12, 52: COLOR 1, 2: PRINT "BAT   "; : LOCATE 12, 58: PRINT USING "#####"; BattAH(2); : PRINT "Ah";
-        LOCATE 24, 11: COLOR 6, 0: PRINT "Y "; : COLOR 9 + PARA, 12 * SGN(INT(((SWITCHs%(59) AND 3) / 2) + warnFLAG)): PRINT "CHUTE";
+        LOCATE 24, 11: COLOR 6, 0: PRINT "Y "; : COLOR 9 + PARA, 12 * SGN(INT(((SWITCHs%(59) AND 1) / 2) + warnFLAG)): PRINT "CHUTE";
         LOCATE 25, 11: COLOR 6, 0: PRINT "Z";
         IF SRBused = 1 THEN COLOR 8, 0 ELSE COLOR 9, 0
         IF SRB = 1 THEN COLOR 10, 0
@@ -339,7 +347,7 @@
 
         IF switch(19, 5) = 1 AND EL(6) > 8333 THEN clr = 2 ELSE clr = 6
         IF switch(19, 5) = 0 OR EL(6) < 100 THEN clr = 7
-        IF (3 AND SWITCHs%(19)) + warnFLAG > 1.5 THEN clr = 12
+        IF (1 AND SWITCHs%(19)) + warnFLAG > 1.5 THEN clr = 12
         LOCATE 4, 51: COLOR 1, clr: PRINT "RCSP";
        
 
@@ -349,21 +357,27 @@
         IF switch(49, 5) = 1 THEN COLOR 10, 0 ELSE COLOR 9, 0
         LOCATE 21, 68: PRINT "DOCK MOD";
         if EL(6)<1000 then switch(50, 5) = 0
-        COLOR 9 + switch(50, 5), 12 * SGN(INT(((SWITCHs%(50) AND 3) / 2) + warnFLAG)): LOCATE 23, 3
+        COLOR 9 + switch(50, 5), 12 * SGN(INT(((SWITCHs%(50) AND 1) / 2) + warnFLAG)): LOCATE 23, 3
         IF Rradar > 10 THEN current = EL(6) / Rradar ELSE current = 0
         power = EL(6) * current: dev = 50: GOSUB 850
         if LOADdisp = 0 then print "RADAR";
         IF LOADdisp = 1 THEN color 10, 0:PRINT USING "###_  "; current;  
         if LOADdisp > 1 then color 10, 0:PRINT using "###"; switch(50, 8);
-        COLOR 9 + switch(51, 5), 12 * SGN(SWITCHs%(51)): LOCATE 22, 3
-        IF LOADdisp = 1 THEN PRINT USING "###"; switch(51, 5) * EL(8) / 60;  ELSE PRINT "INS";
-        COLOR 9 + switch(58, 5), 12 * SGN(INT(((SWITCHs%(58) AND 3) / 2) + warnFLAG)): LOCATE 24, 3
-        IF LOADdisp = 1 THEN PRINT USING "###"; switch(58, 5) * EL(8) / 60;  ELSE PRINT "LOS";
-        COLOR 9 + switch(54, 5), 12 * SGN(SWITCHs%(54)): LOCATE 25, 3
-        IF LOADdisp = 1 THEN PRINT USING "###"; switch(54, 5) * EL(8) / 120;  ELSE PRINT "GNC";
+        warnColour = (SWITCHs%(51) and 258)
+        COLOR 9 + switch(51, 5), 12 * SGN(warnColour): LOCATE 22, 3
+        if INSstartFLAG > 1 then z$ = "ALIGN" else z$ = "INS  "
+        IF LOADdisp = 1 THEN PRINT USING "###_  "; switch(51, 5) * EL(8) / 60;  ELSE PRINT z$;
+        if SWITCHs%(58) > 1 then warnColour = 12*cint(warnFLAG)  else warnColour = 0
+        COLOR 9 + switch(58, 5), warnColour: LOCATE 24, 3
+        if LOSstartFLAG > 1 then z$ = "SCAN " else z$ = "LOS  "
+        IF LOADdisp = 1 THEN PRINT USING "###_  "; switch(58, 5) * EL(8) / 60;  ELSE PRINT z$;
+        warnColour = SWITCHs%(51) and 253
+        warnColour = SGN(warnColour + SWITCHs%(54))
+        COLOR 9 + switch(54, 5), 12 * warnColour: LOCATE 25, 3
+        IF LOADdisp = 1 THEN PRINT USING "###_  "; switch(54, 5) * EL(8) / 120;  ELSE PRINT "GNC  ";
         'LOCATE 1, 1: PRINT switch(52, 11);
-        COLOR switch(52, 8), 12 * SGN(INT(((SWITCHs%(52) AND 3) / 2) + warnFLAG)): LOCATE 22, 13: PRINT "DEPLY PAK";
-        COLOR 9 + switch(53, 5), 12 * SGN(INT(((SWITCHs%(53) AND 3) / 2) + warnFLAG)): LOCATE 23, 13: PRINT "ACTVT PAK";
+        COLOR switch(52, 8), 12 * SGN(INT(((SWITCHs%(52) AND 1) / 2) + warnFLAG)): LOCATE 22, 13: PRINT "DEPLY PAK";
+        COLOR 9 + switch(53, 5), 12 * SGN(INT(((SWITCHs%(53) AND 1) / 2) + warnFLAG)): LOCATE 23, 13: PRINT "ACTVT PAK";
         locate 7, 72: color 14, 0: if Reecom = 0 then print chr$(206); else print chr$(186);
         locate 8, 70: color 10, 2: if Reecom = 0 or LOADdisp<>1 then print "    "; else print using "####"; EL(6)/Reecom;
 
@@ -397,15 +411,18 @@
         RADadj = 0
 
 
-
+101     sleep(25,1)
         z$ = INKEY$
+        if (z$ = "W") and (switch(58, 5) = 0) then LOSstartFLAG = 60
+        if (z$ = "S") and (switch(51, 5) = 0) then INSstartFLAG = 240
         IF z$ = "W" THEN switch(58, 5) = 1 - switch(58, 5)
         IF z$ = "/" THEN RADadj = 1: GOTO 2
         IF z$ = "*" THEN PUMPadj = 1: GOTO 2
         IF z$ = "-" THEN RADstow = 1: GOTO 2
         IF z$ = "Z" AND SRBused = 0 THEN SRB = 1: SRBused = 1: SRBtimer = 0
         IF z$ = "Y" AND SWITCHs%(59) = 0 THEN PARA = 1 - PARA
-        IF z$ = CHR$(0) + CHR$(133) THEN LOADdisp = LOADdisp + 1: IF LOADdisp = 4 THEN LOADdisp = 0
+        IF z$ = "\" THEN LOADdisp = LOADdisp + 1: IF LOADdisp = 4 THEN LOADdisp = 0
+        IF z$ = "C" then reload$ = "y": inpFLAG$ = "X": goto 1111
         IF z$ = CHR$(13) AND switch(55, 5) = 1 THEN Zvar#(13) = 150 - Zvar#(13)
         IF AYSEdist > 300 THEN Zvar#(13) = 0
         IF z$ = CHR$(27) THEN end
@@ -421,7 +438,7 @@
         IF z$ = "z" AND LOADdisp = 3 THEN switch(0, 11) = switch(0, 11) + 1: IF switch(0, 11) = 4 THEN switch(0, 11) = 0
         IF z$ = "u" THEN switch(65, 5) = 1 - switch(65, 5)
         'IF z$ = CHR$(0) + CHR$(133) THEN switch(54, 5) = 1 - switch(54, 5): GOTO 2
-        IF z$ = CHR$(0) + CHR$(134) THEN switch(55, 5) = 1 - switch(55, 5): GOTO 2
+        IF z$ = ";" THEN switch(55, 5) = 1 - switch(55, 5): GOTO 2
         IF LEN(z$) > 1 THEN z$ = CHR$(ASC(RIGHT$(z$, 1)) - 58)
         IF switchlist(ASC(z$)) = 0 THEN 2
         IF LOADdisp < 3 THEN switch(switchlist(ASC(z$)), 5) = 1 - switch(switchlist(ASC(z$)), 5)': LOCATE 1, 40: PRINT switchlist(ASC(Z$));
@@ -430,16 +447,40 @@
         IF LOADdisp = 3 AND switch(switchlist(ASC(z$)), 11) > 15 THEN switch(switchlist(ASC(z$)), 11) = 48 - switch(switchlist(ASC(z$)), 11)
         'locate 1,1:print switch(55,5);
 
-2       V = INP(889)
-        IF V AND 8 THEN switch(21, 5) = 1 ELSE switch(21, 5) = 0
-        IF V AND 32 THEN switch(23, 5) = 1 ELSE switch(23, 5) = 0
-        IF V AND 64 THEN switch(22, 5) = 1 ELSE switch(22, 5) = 0
-        IF V AND 128 THEN switch(57, 5) = 0 ELSE switch(57, 5) = 1
-        'LOCATE 1, 10: IF z$ <> "" THEN PRINT switchlist(ASC(z$));
-
-        IF Zvar#(13) = 150 THEN FOR i = 6 TO 13: switch(i, 5) = 0: NEXT i
+2       'V = INP(889)
+        'IF V AND 8 THEN switch(21, 5) = 1 ELSE switch(21, 5) = 0
+        'IF V AND 32 THEN switch(23, 5) = 1 ELSE switch(23, 5) = 0
+        'IF V AND 64 THEN switch(22, 5) = 1 ELSE switch(22, 5) = 0
+        'IF V AND 128 THEN switch(57, 5) = 0 ELSE switch(57, 5) = 1
+        'LOCATE 1, 70: IF z$ <> "" THEN PRINT switchlist(ASC(z$));z$;
+        'LOCATE 1, 60: print Sflag;
+        'LOCATE 1, 70: print SWITCHs%(54);
+        'locate 1, 50: print SWITCHs%(58);
+        
+        if (EL(6) < 7000) and (RCcap<1) then switch(38,5) = 0: switch(39,5) = 0
+        if EL(6) < 7000 then switch(34,5) = 0: switch(35,5) = 0: switch(36,5) = 0: switch(37,5) = 0
+        if EL(7) < 75 then switch(40,5) = 0: RADstow = 0
+        if EL(9) < 70000 then switch(41,5) = 0: switch(42,5) = 0: switch(43,5) = 0
+        if BattAH(3) <= 0 then switch(44,5) = 0
+        if (SWITCHs%(51) and 256) = 256 then INSstartFLAG = 240
+        if SWITCHs%(58) > 0 then LOSstartFLAG = 60
+        if switch(58, 5) = 0 then LOSstartFLAG = 0
+        if (LOSstartFLAG > 1) and (switch(54, 5) = 0) then switch(58, 5) = 0: LOSstartFLAG = 0
+        if switch(51, 5) = 0 then INSstartFLAG = 0
+        if INSstartFLAG < 1 then 82
+        if switch(54, 5) * switch(58, 5) > 0.5 then 82
+        if LOSstartFLAG < 1 then 82
+        if switch(20, 5) * EL(7) > 75 then 82
+        if Zvar#(25) = 0 then 82
+        if Sflag = 1 then 82
+            switch(51, 5) = 0 
+            INSstartFLAG = 0
+        
+        
+82      IF Zvar#(13) = 150 THEN FOR i = 6 TO 13: switch(i, 5) = 0: NEXT i
         IF Zvar#(13) = 0 THEN FOR i = 29 TO 33: switch(i, 5) = 0: NEXT i
         COLOR 14, 0
+        IF TIMER - tt < 1 and z$="" THEN 101
         IF TIMER - tt < 1 THEN 1
         DELtime# = 0
         
@@ -451,6 +492,9 @@
         PRINT USING "##_:"; hr;
         PRINT USING "##_:"; min;
         PRINT USING "##"; sec;
+
+        if LOSstartFLAG >= 1 then LOSstartFLAG = LOSstartFLAG - 1 else LOSstartFLAG = 0
+        if INSstartFLAG >= 1 then INSstartFLAG = INSstartFLAG - 1 else INSstartFLAG = 0
 
         IF RADselect < 0 THEN RADselect = 8
         IF RADselect > 8 THEN RADselect = 0
@@ -472,6 +516,7 @@
 
         GOSUB 200
         GOSUB 300
+        
         
         IF RCcap < 1400 THEN clr = 14 ELSE clr = 10
         IF RCcap < 250 THEN clr = 12
@@ -525,13 +570,15 @@
         'hab reactor power calculation
         IF switch(0, 8) > 79.5 AND (switch(38, 5) + switch(39, 5) > 0) THEN heat = 1.7 ELSE heat = 0
         heat = heat + (8 * (Phab# / 11400000000#) * (1 + (SOURCEs(1, 2)) / 10))
+        if heat > 7 then heat = 7
         IF switch(46, 5) = 1 THEN Heater = 2.7 * ((EL(6) ^ 2) / 1000) / 500000 ELSE Heater = 0
-        heat = heat + Heater
+        heat = heat + Heater  ': locate 1,1: print heat;
         dev = 0: GOSUB 852
         IF RND < (switch(0, 8) - 125) / 1000 THEN source(1, 2) = 1
        
        
         heat = (EL(2) * EL(2) * source(2, 1) / 2000) * (1 + (SOURCEs(2, 2)) / 10)
+        if heat > 5.5 then heat = 5.5
         dev = 14: GOSUB 852
         LOCATE 12, 25
         COLOR clrf, 2 + (2 * source(2, 2))
@@ -541,7 +588,8 @@
 75      IF RND < (switch(14, 8) - 110) / 1000 THEN source(2, 2) = 1
 
       
-        heat = (EL(3) * EL(3) * source(3, 1) / 100) * (1 + (SOURCEs(3, 2)) / 10)
+        heat = (EL(3) * EL(3) * source(3, 1) / 145) * (1 + (SOURCEs(3, 2)) / 10)
+        if heat > 5 then heat = 5
         dev = 18: GOSUB 852
         LOCATE 12, 34
         COLOR clrf, 2 + (2 * source(3, 2))
@@ -553,12 +601,15 @@
 
 
         heat = (EL(4) * EL(4) * source(4, 1) / 100) * (1 + (SOURCEs(4, 2)) / 10)
+        if heat > 5 then heat = 5
         dev = 26: GOSUB 852
         LOCATE 16, 25
         COLOR clrf, 2 + (2 * source(4, 2))
+        ExtraCurrent = Acon1battflag
+        if (coolantPUMP(3) and 2) = 2 then ExtraCurrent = ExtraCurrent + 1
         PRINT "BAT";
         IF LOADdisp > 1 THEN 77
-        IF EL(4) < 9999 THEN PRINT USING "####"; EL(4); : PRINT "A";  ELSE PRINT USING "###"; EL(4) / 1000; : PRINT "kA";
+        IF EL(4) < 9999 THEN PRINT USING "####"; EL(4) + ExtraCurrent; : PRINT "A";  ELSE PRINT USING "###"; EL(4) / 1000; : PRINT "kA";
         PRINT USING "###"; BattAH(3); : PRINT "Ah";
 77      IF LOADdisp = 2 THEN PRINT "  TEMP"; : PRINT USING "####"; switch(26, 8);
         IF RND < (switch(26, 8) - 110) / 1000 THEN source(4, 2) = 1
@@ -575,6 +626,8 @@
         IF switch(56, 8) > 79.5 AND (switch(43, 5) + switch(44, 5) > 0) THEN heat = .84 ELSE heat = 0
         heat = heat + ((Payse# / 151158200000#) * (1 + (SOURCEs(5, 2)) / 10))
         IF switch(47, 5) = 1 THEN Heater = 5 * ((EL(9) ^ 2) / 100000) / 500000 ELSE Heater = 0
+        if heat > 4 then heat  = 4
+        'locate 1,1:print heat, source(5, 1), EL(5);
         heat = heat + Heater
         dev = 56: GOSUB 852
         IF RND < (switch(56, 8) - 110) / 1000 THEN source(5, 2) = 1
@@ -593,15 +646,15 @@
         PRINT USING "#######"; 60 - AreactorD;
 
         
-        IF Zvar#(13) = 150 AND switch(37, 5) = 1 AND Zvar#(4) > 100 THEN Zvar#(3) = Zvar#(3) + 1000: Zvar#(4) = Zvar#(4) - 1000
-        IF Zvar#(13) = 0 AND switch(37, 5) = 1 AND OCESSdist < 500 THEN Zvar#(3) = Zvar#(3) + 1000
-        IF Zvar#(13) = 150 AND switch(36, 5) = 1 THEN Zvar#(3) = Zvar#(3) - 1000: Zvar#(4) = Zvar#(4) + 1000
-        IF Zvar#(13) = 0 AND switch(36, 5) = 1 THEN Zvar#(3) = Zvar#(3) - 1000
+        IF Zvar#(13) = 150 AND switch(37, 5) = 1 AND Zvar#(4) > 100 THEN Zvar#(3) = Zvar#(3) + 100: Zvar#(4) = Zvar#(4) - 100
+        IF Zvar#(13) = 0 AND switch(37, 5) = 1 AND OCESSdist < 500 THEN Zvar#(3) = Zvar#(3) + 100
+        IF Zvar#(13) = 150 AND switch(36, 5) = 1 THEN Zvar#(3) = Zvar#(3) - 100: Zvar#(4) = Zvar#(4) + 100
+        IF Zvar#(13) = 0 AND switch(36, 5) = 1 THEN Zvar#(3) = Zvar#(3) - 100
         IF switch(41, 5) = 1 THEN Zvar#(4) = Zvar#(4) - 1000
         IF switch(42, 5) = 1 THEN Zvar#(4) = Zvar#(4) + (1000 * pressure)
         IF Zvar#(4) < 0 THEN switch(41, 5) = 0: Zvar#(4) = 0
         IF Zvar#(3) < 0 THEN switch(36, 5) = 0: Zvar#(3) = 0
-        IF Zvar#(4) > 20000000 THEN switch(42, 5) = 0: Zvar#(4) = 20000000
+        IF Zvar#(4) > 25000000 THEN switch(42, 5) = 0: Zvar#(4) = 25000000
         IF Zvar#(3) > 200000 THEN switch(37, 5) = 0: Zvar#(3) = 200000
 
 
@@ -611,7 +664,7 @@
          IF switch(5 + (2 * i), 5) = 0 OR EL(6) < 100 THEN clr = 7
          IF switch(5 + (2 * i), 6) > 0 THEN current = EL(6) / switch(5 + (2 * i), 6) ELSE current = 0
          power = EL(6) * current: dev = 5 + (2 * i): GOSUB 850
-         IF (SWITCHs%(5 + (2 * i)) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(5 + (2 * i)) AND 1) + warnFLAG > 1.5 THEN clr = 12
          Zuse$ = "####"
          IF current < 100000 THEN Zuse$ = "##.#"
          IF current < 10000 THEN Zuse$ = "#.##"
@@ -624,7 +677,7 @@
          IF switch(4 + (2 * i), 5) = 0 OR EL(6) < 100 THEN clr = 7
          IF switch(4 + (2 * i), 6) > 0 THEN current = EL(6) / switch(4 + (2 * i), 6) ELSE current = 0
          power = EL(6) * current: dev = 4 + (2 * i): GOSUB 850
-         IF (SWITCHs%(4 + (2 * i)) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(4 + (2 * i)) AND 1) + warnFLAG > 1.5 THEN clr = 12
          Zuse$ = "####"
          IF current < 100000 THEN Zuse$ = "##.#"
          IF current < 10000 THEN Zuse$ = "#.##"
@@ -640,7 +693,7 @@
         IF switch(3, 5) = 0 OR EL(6) < 100 THEN clr = 7
         IF switch(3, 6) > 0 THEN current = EL(6) / switch(3, 6) ELSE current = 0
         power = EL(6) * current: dev = 3: GOSUB 850
-        IF (SWITCHs%(3) AND 3) + warnFLAG > 1.5 THEN clr = 12
+        IF (SWITCHs%(3) AND 1) + warnFLAG > 1.5 THEN clr = 12
         Zuse$ = "######"
         IF current < 100000 THEN Zuse$ = "##.###"
         IF current < 10000 THEN Zuse$ = "#.####"
@@ -655,7 +708,7 @@
         IF switch(0, 8) < 30 THEN clr = 7
         IF switch(4, 6) > 0 THEN current = EL(6) / switch(4, 6) ELSE current = 0
         power = EL(6) * current * 100: dev = 4: GOSUB 850
-        IF (SWITCHs%(4) AND 3) + warnFLAG > 1.5 THEN clr = 12
+        IF (SWITCHs%(4) AND 1) + warnFLAG > 1.5 THEN clr = 12
         LOCATE 4, 37: COLOR 1, clr
         IF LOADdisp = 0 THEN PRINT "R-CON1";
         IF LOADdisp = 1 THEN PRINT USING "#.####"; current / 1000;
@@ -666,7 +719,7 @@
         IF switch(5, 6) > 0 THEN current = EL(6) / switch(5, 6) ELSE current = 0
         IF switch(0, 8) < 30 THEN clr = 7
         power = EL(6) * current * 100: dev = 5: GOSUB 850
-        IF (SWITCHs%(5) AND 3) + warnFLAG > 1.5 THEN clr = 12
+        IF (SWITCHs%(5) AND 1) + warnFLAG > 1.5 THEN clr = 12
         LOCATE 4, 44: COLOR 1, clr
         IF LOADdisp = 0 THEN PRINT "R-CON2";
         IF LOADdisp = 1 THEN PRINT USING "#.####"; current / 1000;
@@ -678,7 +731,7 @@
          IF switch(i, 5) = 0 OR EL(6) < 100 THEN clr = 7
          IF switch(i, 6) > 0 THEN current = EL(6) / switch(i, 6) ELSE current = 0
          power = EL(6) * current: dev = i: GOSUB 850
-         IF (SWITCHs%(i) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(i) AND 1) + warnFLAG > 1.5 THEN clr = 12
          Zuse$ = "###.##"
          IF current < 100000 THEN Zuse$ = "##.###"
          IF current < 10000 THEN Zuse$ = "#.####"
@@ -690,7 +743,7 @@
 
         IF switch(20, 5) = 1 AND EL(7) > 100 THEN clr = 2 ELSE clr = 6
         IF switch(20, 5) = 0 OR EL(7) < 10 THEN clr = 7
-        IF (SWITCHs%(20) AND 3) + warnFLAG > 1.5 THEN clr = 12
+        IF (SWITCHs%(20) AND 1) + warnFLAG > 1.5 THEN clr = 12
         IF switch(20, 5) > 0 THEN current = EL(7) / Rcom ELSE current = 0
         power = EL(7) * current: dev = 20: GOSUB 850
         LOCATE 8, 29: COLOR 1, clr
@@ -703,7 +756,7 @@
          IF i < 4 THEN j = i + 20 ELSE j = 57
          IF switch(j, 5) = 1 AND EL(7) > 100 THEN clr = 2 ELSE clr = 6
          IF switch(j, 5) = 0 OR EL(7) < 10 THEN clr = 7
-         IF (SWITCHs%(j) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(j) AND 1) + warnFLAG > 1.5 THEN clr = 12
          LOCATE 8, 29 + (i * 4): COLOR 1, clr: PRINT "ln"; : PRINT USING "#"; i;
         NEXT i
 
@@ -717,7 +770,7 @@
         FOR i = 1 TO 4
          IF switch(28 + i, 5) = 1 AND EL(9) > 8333 THEN clr = 2 ELSE clr = 6
          IF switch(28 + i, 5) = 0 OR EL(9) < 100 THEN clr = 7
-         IF (SWITCHs%(28 + i) AND 3) + warnFLAG > 1.5 THEN clr = 12
+         IF (SWITCHs%(28 + i) AND 1) + warnFLAG > 1.5 THEN clr = 12
          IF switch(28 + i, 6) > 0 THEN current = EL(9) / switch(28 + i, 6) ELSE current = 0
          power = current * EL(9): dev = i + 28: GOSUB 850
          Zuse$ = "####"
@@ -730,7 +783,7 @@
         NEXT i
         IF switch(33, 5) = 1 AND EL(9) > 8333 THEN clr = 2 ELSE clr = 6
         IF switch(33, 5) = 0 OR EL(9) < 100 THEN clr = 7
-        IF (SWITCHs%(33) AND 3) + warnFLAG > 1.5 THEN clr = 12
+        IF (SWITCHs%(33) AND 1) + warnFLAG > 1.5 THEN clr = 12
         IF switch(33, 6) > 0 THEN current = EL(9) / switch(33, 6) ELSE current = 0
         power = current * EL(9): dev = 33: GOSUB 850
         Zuse$ = "####"
@@ -742,13 +795,16 @@
         IF LOADdisp > 1 THEN PRINT USING "####"; switch(33, 8);
        
         AreactorRC = 0
+        Acon1battflag = 0
         FOR i = 1 TO 2
          IF switch(26 + i, 5) = 1 AND EL(9) > 8333 THEN clr = 2 ELSE clr = 6
-         IF switch(56, 8) < 30 THEN clr = 7
-         IF (SWITCHs%(26 + i) AND 3) + warnFLAG > 1.5 THEN clr = 12
-         IF switch(26 + i, 5) = 0 OR EL(9) < 100 THEN clr = 7: AreactorRC = AreactorRC + 1
+         if (i=1) and (BattAH(3) > 0) and (switch(277, 5) = 0) then Acon1battflag = 1: clr = 2
+         IF switch(56, 8) < 30 THEN clr = 7: Acon1battflag = 0
+         IF (SWITCHs%(26 + i) AND 1) + warnFLAG > 1.5 THEN clr = 12
+         if (i=1) and (Acon1battflag=1) then current=1: goto 81
+         IF switch(26 + i, 5) = 0 OR EL(9) < 1000 THEN clr = 7: AreactorRC = AreactorRC + 1
          IF switch(26 + i, 6) > 0 THEN current = EL(9) / switch(26 + i, 6) ELSE current = 0
-         Zuse$ = "######"
+81       Zuse$ = "######"
          IF current < 100000 THEN Zuse$ = "##.###"
          IF current < 10000 THEN Zuse$ = "#.####"
          LOCATE 16, 33 + (7 * i): COLOR 1, clr:
@@ -831,7 +887,7 @@
         IF (coolantPUMP(1) AND 2) = 2 THEN Rt = Rt + (1 / 1000)
         IF (coolantPUMP(2) AND 2) = 2 THEN Rt = Rt + (1 / 1000)
         RCflag = 0
-        IF switch(4, 5) + switch(5, 5) > 0 AND RCcap < 2000 THEN RCflag = 1: Rt = Rt + (1 / 1000)
+        IF switch(4, 5) + switch(5, 5) > 0 AND RCcap < 2500 THEN RCflag = 1: Rt = Rt + (1 / 1000)
        
 109     Hreactor = 0
         IF switch(38, 5) = 1 THEN Hreactor = Hreactor + .00003
@@ -909,8 +965,9 @@
         FOR i = 29 TO 33
          factor = 1 + ((12 AND SWITCHs%(i)) / 120) - ((48 AND SWITCHs%(i)) / 480)
          IF switch(i, 6) > 0 THEN Rt4 = Rt4 + (1 / (switch(i, 6) * factor))
+         switch(i, 6) = switch(i, 6) * factor
         NEXT i
-        IF switch(56, 8) > 0 AND EL(9) < 1000 THEN switch(26, 5) = 1: switch(43, 5) = 0: switch(44, 5) = 0
+        'IF switch(56, 8) > 0 AND EL(9) < 1000 THEN switch(26, 5) = 1: switch(43, 5) = 0: switch(44, 5) = 0
         IF switch(26, 5) = 0 AND BattAH(3) < 10 THEN Rt4 = Rt4 + (1 / 2500000)
         IF switch(47, 5) = 1 THEN Rt4 = Rt4 + (1 / 100000)
 
@@ -971,6 +1028,7 @@
         GOSUB 100
         GOSUB 110
         GOSUB 120
+        
         Vbus1max = 0
         Vbus2max = 0
         Vbus3max = 0
@@ -978,8 +1036,49 @@
         source(1, 1) = .00025 * (1 + SOURCEs(1, 2))
         source(2, 1) = .00325 * (1 + SOURCEs(2, 2))
         source(5, 1) = .00003 * (1 + SOURCEs(5, 2))
-        source(3, 1) = .01 * (1 + (switch(18, 8) / 100) ^ 2) * (1 + SOURCEs(3, 2))
-        source(4, 1) = .0055 * (1 + (switch(26, 8) / 100) ^ 2) * (1 + SOURCEs(4, 2))
+        source(3, 1) = .0085 * (1 + SOURCEs(3, 2))
+        source(4, 1) = .0085 * (1 + SOURCEs(4, 2))
+        'source(3, 1) = .0055 * (1 + (switch(18, 8) / 300)^.5) * (1 + SOURCEs(3, 2))
+        'source(4, 1) = .0055 * (1 + (switch(26, 8) / 120)) * (1 + SOURCEs(4, 2))
+        'goto 220
+        
+        'Adjust internal resistance for sources for shorts
+        if switch(14, 5) = 0 then 210
+            Rloads = Rt1
+            if switch(16, 5) = 1 then Rloads = 1 / ((1/Rloads)+(1/Rt2))
+            if switch(17, 5) * switch(15, 5) > .5 then  Rloads = 1 / ((1/Rloads)+(1/(Rt/6944))) else 209
+            if switch(24, 5) * switch(25, 5)* Zvar#(13) > 100 then  Rloads = 1 / ((1/Rloads)+(1/(Rt4/694400)))
+209         if Rloads < 0.07 then source(2, 1) = source(2, 1) + (0.07-Rloads)
+
+210     if switch(18, 5) = 0 then 220
+            Rloads = Rt1
+            if switch(16, 5) = 1 then Rloads = 1 / ((1/Rloads)+(1/Rt2))
+            if switch(17, 5) * switch(15, 5) > .5 then  Rloads = 1 / ((1/Rloads)+(1/(Rt/6944))) else 219
+            if switch(24, 5) * switch(25, 5)* Zvar#(13) > 100 then  Rloads = 1 / ((1/Rloads)+(1/(Rt4/694400)))
+219         if Rloads < 0.8 then source(3, 1) = source(3, 1) + (0.8-Rloads)
+
+220     if switch(6, 5) = 0 then 230
+            Rloads = Rt
+            if switch(17, 5) * switch(15, 5) > .5 then  Rloads = 1 / ((1/Rloads)+(1/(Rt1*6944))) else 229
+            if switch(16, 5) = 1 then Rloads = 1 / ((1/Rloads)+(1/(Rt2*6944)))
+            if switch(24, 5) * switch(25, 5)* Zvar#(13) > 100 then  Rloads = 1 / ((1/Rloads)+(1/(Rt4/100)))
+229         if Rloads < 0.01 then source(1, 1) = source(1, 1) + (0.01-Rloads)
+
+230     if switch(26, 5) = 0 then 240
+            Rloads = Rt4
+            if switch(24, 5) * switch(25, 5)* Zvar#(13) > 100 then  Rloads = 1 / ((1/Rloads)+(1/(Rt*100))) else 239
+            if switch(17, 5) * switch(15, 5) > .5 then  Rloads = 1 / ((1/Rloads)+(1/(Rt*694400))) else 239
+            if switch(16, 5) = 1 then Rloads = 1 / ((1/Rloads)+(1/(Rt2*694400)))
+239         if Rloads < 700 then source(3, 1) = source(3, 1) + (700-Rloads)
+
+240     if switch(56, 5) = 0 then 250
+            Rloads = Rt4
+            if switch(24, 5) * switch(25, 5)* Zvar#(13) > 100 then  Rloads = 1 / ((1/Rloads)+(1/(Rt*100))) else 249
+            if switch(17, 5) * switch(15, 5) > .5 then  Rloads = 1 / ((1/Rloads)+(1/(Rt*694400))) else 249
+            if switch(16, 5) = 1 then Rloads = 1 / ((1/Rloads)+(1/(Rt2*694400)))
+249         if Rloads < 0.05 then source(3, 1) = source(3, 1) + (0.05-Rloads)
+
+250
         'LOCATE 25, 25
         'PRINT USING "##.####^^^^"; Rt; : PRINT " ";
         'PRINT USING "##.####^^^^"; Rt1; : PRINT " ";
@@ -1345,7 +1444,7 @@
         R2# = (source(1, 1) * 2 / (.00001 + switch(38, 5) + switch(39, 5)))
         V1out = Vr - (EL(1) * R2#)
         V2out = Vfc - (EL(2) * source(2, 1))
-        V3out = Vb1 - (EL(2) * source(2, 1))
+        V3out = Vb1 - (EL(3) * source(3, 1))
         V4out = Vb3 - (EL(4) * source(4, 1))
         R2# = (source(5, 1) * 2 / (.00001 + switch(43, 5) + switch(44, 5)))
         V5out = VrA - (EL(5) * R2#)
@@ -1367,10 +1466,12 @@
         IF switch(18, 5) = 0 AND BattAH(1) < 10000 THEN BattAH(1) = BattAH(1) + (DELtime# * EL(7) / 2500)
         BattAH(1) = BattAH(1) - (DELtime# * EL(3) / 3600)
         IF BattAH(1) < 0 THEN BattAH(1) = 0
+        
         IF source(3, 2) = 1 THEN BattAH(1) = 0
-
         IF switch(26, 5) = 0 AND BattAH(3) < 99 THEN BattAH(3) = BattAH(3) + (DELtime# * EL(9) / 2500000)
         BattAH(3) = BattAH(3) - (DELtime# * EL(4) / 3600)
+        if Acon1battflag = 1 then BattAH(3) = BattAH(3) - (DELtime# / 3600)
+        if (coolantPUMP(3) and 2) = 2 then BattAH(3) = BattAH(3) - (DELtime# / 3600)
         IF BattAH(3) < 0 THEN BattAH(3) = 0
         IF source(4, 2) = 1 THEN BattAH(3) = 0
        
@@ -1392,7 +1493,7 @@
         IF IrcGEN# < IrcNEEDED# THEN RCcap = RCcap + (IrcGEN# - IrcNEEDED#)
         'LOCATE 21, 25: PRINT USING "#######.#####"; IrcGEN#; IrcNEEDED#; Ireactor;
         IF IrcGEN# < IrcNEEDED AND switch(0, 8) > 30 THEN 301
-        IF switch(4, 5) + switch(5, 5) > 0 AND RCcap < 2000 THEN RCcap = RCcap + (EL(6) / 1000)
+        IF switch(4, 5) + switch(5, 5) > 0 AND RCcap < 2500 THEN RCcap = RCcap + (EL(6) / 1000)
 301     RETURN
 
 
@@ -1419,7 +1520,7 @@
         Vout# = V1# - (R1# * I1#)
 901     RETURN
 
-800     OPEN "R", #1, "orb5rEs.RND", 412
+800     OPEN "R", #1, Zpath$+"ORB5RES.RND", 412
 801     inpSTR$=space$(412)
         GET #1, 1, inpSTR$
         close #1
@@ -1463,14 +1564,13 @@
         Zvar#(22)=cvs(mid$(inpSTR$,k,4)):k=k+4
         Zvar#(23)=cvs(mid$(inpSTR$,k,4)):k=k+4
         Zvar#(26)=cvs(mid$(inpSTR$,k,4)):k=k+4
-        IF SWITCHs%(63) = 2 THEN SRBused = 1
+        IF SWITCHs%(63) > 1 THEN SRBused = SWITCHs%(63) - 1
         IF SWITCHs%(63) = 1 THEN SRBused = 0
         SWITCHs%(40)=0
         RETURN
 
-        ' This is the main use of OSBACKUP.rnd
 810     k=1
-812     OPEN "R", #1, "OSBACKUP.RND", 1427
+812     OPEN "R", #1, Zpath$+"OSBACKUP.RND", 1427
         inpSTR$=space$(1427)
         GET #1, 1, inpSTR$
         close #1
@@ -1478,15 +1578,16 @@
         chkCHAR1$=left$(inpSTR$,1)
         chkCHAR2$=right$(inpSTR$,1)
         ORBITversion$=mid$(inpSTR$, 2, 7)
-        IF left$(ORBITversion$,5) = "XXXXX" THEN RUN "engHABv"
+        IF left$(ORBITversion$,5) = "XXXXX" THEN RUN "engHABw"
         if ORBITversion$<>"ORBIT5S" then 811
         if chkCHAR1$=chkCHAR2$ then 813
         k=k+1
         if k<3 then 812 else 811 
 
-813     k=2+15 '17
-        Zvar#(25) = cvs(mid$(inpSTR$,k,4)):k=k+4 '21
-        k=k+68 '89
+813     k=2+15
+        Zvar#(25) = cvs(mid$(inpSTR$,k,4)):k=k+8
+        Sflag = cvi(mid$(inpSTR$,k,2))
+        k=k+64
         year = cvi(mid$(inpSTR$,k,2)):k=k+2
         day = cvi(mid$(inpSTR$,k,2)):k=k+2
         hr = cvi(mid$(inpSTR$,k,2)):k=k+2
@@ -1504,7 +1605,7 @@
         OLDtime# = NEWtime#
         NEWtime# = sec + (min * 60#) + (hr * 3600#) + (day * 24# * 3600#) + (year * 365# * 24# * 3600#)
         DELtime# = NEWtime# - OLDtime#
-        'IF DELtime# > 60 THEN CLS : PRINT DELtime#: z$ = INPUT$(1)
+        IF DELtime# > 60 THEN DELtime# = 60
         IF DELtime# < 0 THEN DELtime# = 0
         IF OLDtime# = 0 THEN DELtime# = 0
         Zvar#(25) = ABS(Zvar#(25))
@@ -1549,8 +1650,8 @@
         IF SRB = 1 THEN Zvar#(8) = 1
         IF PARA = 1 THEN Zvar#(8) = 1
         IF EL(6) > 9000 THEN Zvar#(8) = Zvar#(8) + CINT(2 * switch(50, 5))
-        IF EL(8) > 100 THEN Zvar#(8) = Zvar#(8) + CINT(4 * switch(51, 5))
-        IF EL(8) > 100 THEN Zvar#(8) = Zvar#(8) + CINT(8 * switch(58, 5))
+        IF (EL(8) > 100) and (INSstartFLAG <= 1) THEN Zvar#(8) = Zvar#(8) + CINT(4 * switch(51, 5))
+        IF (EL(8) > 100) and (LOSstartFLAG <= 1) THEN Zvar#(8) = Zvar#(8) + CINT(8 * switch(58, 5))
         Zvar#(7) = 0
         IF switch(48, 5) = 1 THEN Zvar#(7) = 2
         IF switch(49, 5) = 1 THEN Zvar#(7) = 1
@@ -1562,12 +1663,7 @@
         IF source(1, 2) = 1 THEN HABexploded = 1 ELSE HABexploded = 0
         IF source(5, 2) = 1 THEN AYSEexploded = 1 ELSE AYSEexploded = 0
         switch(57, 11) = RCcap
-
-        'At this point, zvar known elements are
-        ' 3: hab fuel
-        ' 4: known fuel
-        ' 5: hab broken i think
-        ' 6: ayse broken i think
+       
         chkBYTE=chkBYTE+1
         if chkBYTE>58 then chkBYTE=1
         outSTR$ = chr$(chkBYTE+64)
@@ -1591,13 +1687,13 @@
          NEXT j
         NEXT i
         outSTR$=outSTR$+chr$(chkBYTE+64)
-        open "R", #1, "ORBITSSE.rnd", 1159
+        open "R", #1, Zpath$+"ORBITSSE.RND", 1159
         put #1, 1, outSTR$
         CLOSE #1
         RETURN
 
 
-830     OPEN "R", #1, "ORBITSSE.RND", 1159
+830     OPEN "R", #1, Zpath$+"ORBITSSE.RND", 1159
 832     inpSTR$=space$(1159)
         GET #1, 1, inpSTR$
         close #1
@@ -1676,7 +1772,8 @@
         'LOCATE 25, 23: PRINT USING "###.#"; coolant(3, 0);
         IF EL(6) < 9000 THEN coolantPUMP(1) = 1 AND coolantPUMP(1): coolantPUMP(2) = 1 AND coolantPUMP(2)
         IF EL(7) < 90 THEN coolantPUMP(1) = 2 AND coolantPUMP(1): coolantPUMP(2) = 2 AND coolantPUMP(2)
-        IF EL(9) < 90000 THEN coolantPUMP(3) = 0
+        IF EL(9) < 90000 THEN coolantPUMP(3) = 1 AND coolantPUMP(3)
+        if BattAH(3) <= 0 THEN coolantPUMP(3) = 2 AND coolantPUMP(3)
         FOR i = 1 TO 8
          IF ((2 ^ (2 + ((i - 1) * 3))) AND SWITCHs%(64)) > 0 THEN 861
          coolant(RAD(i, 1), 1) = coolant(RAD(i, 1), 1) + ((1 + (pressure * 3) ^ 2) * coolant(RAD(i, 1), 2) * .01 * RAD(i, 0) * coolant(RAD(i, 1), 0) ^ 2)
