@@ -132,19 +132,12 @@ message Command {
 message EngineeringState {
     message Component {
         bool connected = 1;
-        double temperature = 2;
-        double resistance = 3;
-        double voltage = 4;
-        double current = 5;
-        bool coolant_hab_one = 6;
-        bool coolant_hab_two = 7;
-        bool coolant_ayse = 8;
+        double capacity = 2;
+        double temperature = 3;
+        bool coolant_hab_one = 4;
+        bool coolant_hab_two = 5;
+        bool coolant_ayse = 6;
     }
-    /*
-    35x8
-    Way 1: Connected, Temperature, Resistance, Voltage, Current, Coolant_one, Coolant_two, Coolant_ayse, Connected ..... Current, Coolant_one ...
-    Way 2: Connected, Connected, Connected, Connected.... Temperature, Temperature ...
-     */
 
     message CoolantLoop {
         double coolant_temp = 1;

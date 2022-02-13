@@ -16,6 +16,19 @@ import numpy as np
 from orbitx import data_structures
 from orbitx import strings
 
+# The resistance, in Ohms, of a component when its temperature field is 0.
+# Used to calculate the resistance of a component at any temperature:
+# R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
+BASE_COMPONENT_RESISTANCES = np.zeros(data_structures.N_COMPONENTS)
+
+# The voltage, in Volts, drawn by a component when it is connected to a
+# sufficiently-powered power bus at 100% capacity.
+NOMINAL_COMPONENT_VOLTAGE = np.zeros(data_structures.N_COMPONENTS)
+
+
+# -- Below here are heating/cooling and thermal exchange-related constants. -- #
+# -- These have been cribbed from Dr. Magwood's obitsej.txt data file.      -- #
+
 # Coefficient representing how much of the power delivered to a component is
 # lost to inefficiencies and resistive heating.
 # A value of 0 means a component is completely efficient and does not generate
@@ -35,11 +48,10 @@ LOOP_3_CONDUCTIVITY = np.zeros(data_structures.N_COMPONENTS)
 RESTING_TEMPERATURE = np.zeros(data_structures.N_COMPONENTS)
 
 
-def _use_orbitv_constants(name: str, hab_component: bool, power_inefficiency: data_structures.DTYPE,
-                          passive_heat_loss: data_structures.DTYPE, secondary_loop_conductivity: data_structures.DTYPE,
-                          primary_loop_conductivity: data_structures.DTYPE, resting_temperature: data_structures.DTYPE):
-    """Helper only for use in this file. Values here were just imported from
-    obitsej.txt.
+def _use_orbitv_constants(name: str, hab_component: bool, power_inefficiency: float,
+                          passive_heat_loss: float, secondary_loop_conductivity: float,
+                          primary_loop_conductivity: float, resting_temperature: float):
+    """Helper only for use in this file. Values here were just imported from obitsej.txt.
     That's why this function is allowed to be so ugly."""
     # Note: we're modifying globals here. We don't need a `global` statement
     # since we're only modifying elements of an array, but just pointing it out.
@@ -57,6 +69,7 @@ def _use_orbitv_constants(name: str, hab_component: bool, power_inefficiency: da
 
 
 # i forget if its ion1 then acc1, or acc1 then ion1
+# TODO: reimport from the enghabw newest updated obitsej.txt
 _use_orbitv_constants(strings.HAB_REACT, True, 0, 5e-5, 7.2e-3, 7.2e-3, 80.5)
 _use_orbitv_constants(strings.RADS1, True, 3.0e-10, 4.7e-4, 7.0, 9.9, .25)
 _use_orbitv_constants(strings.RADS2, True, 3.0e-10, 4.7e-4, 7.0, 9.9, .25)

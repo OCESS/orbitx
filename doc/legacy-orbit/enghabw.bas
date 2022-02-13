@@ -177,14 +177,14 @@
         FOR i = 1 TO 6
          coolantPUMP(i) = 3
         NEXT i
-        switch(38, 5) = 1
-        switch(39, 5) = 1
-        switch(43, 5) = 1
-        switch(44, 5) = 1
-        switch(40, 5) = 1
-        switch(18, 5) = 0
-        switch(14, 5) = 1
-        switch(20, 5) = 1
+        switch(38, 5) = 1  # REACT INJ1
+        switch(39, 5) = 1  # REACT INJ2
+        switch(43, 5) = 1  # REACT INJ1 (AYSE)
+        switch(44, 5) = 1  # REACT INJ2 (AYSE)
+        switch(40, 5) = 1  # F-CELL INJ
+        switch(18, 5) = 0  # battery disconnected
+        switch(14, 5) = 1  # fuel cell connected
+        switch(20, 5) = 1  # COM connected
         EL(6)=10000
         EL(7)=120
 
