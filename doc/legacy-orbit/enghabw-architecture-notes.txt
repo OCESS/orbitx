@@ -30,6 +30,12 @@ coolantPUMP(i) is a bitmask of coolant pumps connected to coolant loop i.
 
 DEVICEs%(i)    Simulators use this array to inject various faults
 
+source(1, 1)   Internal resistance of the hab reactor, set to .00025
+source(2, 1)   Internal resistance of the fuel cell, set to .00325
+source(3, 1)   Internal resistance of 2ndary bus battery, set to .0085
+source(4, 1)   Internal resistance of 3rtiary bus battery, set to .0085
+source(5, 1)   Internal resistance of the ayse reactor, set to .00003
+
 EL(1)          is the current drawn from the hab reactor
 EL(2, 3, 4, 5) ditto, for fuel cell, battery, eecom battery, ayse reactor, respectively
 

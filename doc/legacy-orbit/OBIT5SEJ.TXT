@@ -28,8 +28,8 @@
   99,  5, 29, 30,"" # c, resist depends acceleration
 100,  5, 37, 38,""  # d, resist depends on reactor output
 101,  5, 44, 45,""  # e, ditto
-102,  5, 56, 57,""  # f, i think this 11.5775*throttle Ohms of resist for ACC
-103,  3, 59, 60,""  # g, i think this is like throttle*0.61 Ohms of resist? ditto for i, k, m
+102,  5, 56, 57,""  # f, ACCs have 11,577.5 Ohms of resist at 100% engine
+103,  3, 59, 60,""  # g, IONs have 610 Ohms of resist at 100% engine
 104,  5, 62, 63,""  # h
 105,  3, 65, 66,""  # i
 106,  5, 68, 69,""  # j
