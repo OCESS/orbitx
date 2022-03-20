@@ -23,7 +23,7 @@ programming and abstractions!
    Examples:
    - The gravitational constant, G, is already hardcoded in a python file.
    - The names of planets and engineering components are hardcoded in strings.py
-   - More constants about components are hardcoded in component_constants.py
+   - More constants about components are hardcoded in electroconstants.py
 
    Sample implementation (hardcoding the names of Radiators):
    - If there are 8 radiators, make an 8-long list in strings.py of each name
@@ -87,6 +87,7 @@ import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
+from orbitx.physics import electroconstants
 
 log = logging.getLogger()
 
@@ -401,27 +402,21 @@ class ComponentView:
 
     @property
     def resistance(self) -> float:
-        return self._array[N_COMPONENTS * 2 + self._n]
-
-    @resistance.setter
-    def resistance(self, val: float):
-        self._array[N_COMPONENTS * 2 + self._n] = val
+        raise NotImplementedError(
+            "implement this when we know where it will be used"
+        )
 
     @property
     def voltage(self) -> float:
-        return self._array[N_COMPONENTS * 3 + self._n]
-
-    @voltage.setter
-    def voltage(self, val: float):
-        self._array[N_COMPONENTS * 3 + self._n] = val
+        raise NotImplementedError(
+            "implement this when we know where it will be used"
+        )
 
     @property
     def current(self) -> float:
-        return self._array[N_COMPONENTS * 4 + self._n]
-
-    @current.setter
-    def current(self, val: float):
-        self._array[N_COMPONENTS * 4 + self._n] = val
+        raise NotImplementedError(
+            "implement this when we know where it will be used"
+        )
 
     @property
     def coolant_hab_one(self) -> bool:
@@ -544,7 +539,11 @@ class EngineeringState:
             return self._component_array[1 * N_COMPONENTS:2 * N_COMPONENTS]
 
         def Resistance(self) -> np.ndarray:
-            return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
+            return (
+                electroconstants.BASE_COMPONENT_RESISTANCES +
+                electroconstants.ALPHA_RESIST_GAIN * self.Temperature() *
+                electroconstants.BASE_COMPONENT_RESISTANCES
+            )
 
         def Voltage(self) -> np.ndarray:
             return self._component_array[3 * N_COMPONENTS:4 * N_COMPONENTS]

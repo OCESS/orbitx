@@ -132,7 +132,7 @@ message Command {
 message EngineeringState {
     message Component {
         bool connected = 1;
-        double capacity = 2;
+        double capacity = 2;  // 0 when component is off, 1 at 100% capacity
         double temperature = 3;
         bool coolant_hab_one = 4;
         bool coolant_hab_two = 5;

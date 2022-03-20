@@ -4,7 +4,7 @@ I'm allowed to hard code data because I've already hard-coded the number of and
 name of engineering components, and they're not going to reasonably change
 per-savefile.
 
-Values imported from Dr. Magwood's OBIT5SEJ.txt.
+Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 
 YOLO.
 """
@@ -16,14 +16,34 @@ import numpy as np
 from orbitx import data_structures
 from orbitx import strings
 
-# The resistance, in Ohms, of a component when its temperature field is 0.
+# https://en.wikipedia.org/wiki/Temperature_coefficient
+# Heat gain due to component inefficiency. Units are 1/K.
+# If a component increases in temperature by 1 Kelvin, its resistance will change by [1*alpha] Ohms.
+# Copper has a roughly 0.0039 alpha coefficient.
+ALPHA_RESIST_GAIN = 0.004
+
+# Thermal inefficiency-related constant.
+# With this constant, applying 1 Watt of power results in 0.0001 Kelvin/second of heating.
+COEFF_TEMPERATURE_GAIN = 0.0001
+# TODO: Calculate a mass * specific thermal capacity constant for each component
+# so that we can more accurately model reality (and importantly, orbit5v).
+# The math we want to eventually have is taken from https://en.wikipedia.org/wiki/Joule_heating#Direct_current.
+# Specifically, we would define a global constant eta = 0.1 to say that 0.1 of the power going through
+# a component is converted to unwanted thermal energy (unit: Joules).
+# Then, to calculate the temperature gain we can do
+# P_thermal = eta * I^2 * R
+# T_deriv = P_thermal / (specific_thermal_capacity_of_component * mass_of_component)
+# The denominator would calculated as a per-component constant, something like 500
+
+# https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
+# Water has a k coefficient of 0.6 to 0.7. Better conductors have higher k-values.
+K_CONDUCTIVITY = 0.75
+
+# The resistance, in Ohms, of a component when its temperature field is 0 and
+# it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
 BASE_COMPONENT_RESISTANCES = np.zeros(data_structures.N_COMPONENTS)
-
-# The voltage, in Volts, drawn by a component when it is connected to a
-# sufficiently-powered power bus at 100% capacity.
-NOMINAL_COMPONENT_VOLTAGE = np.zeros(data_structures.N_COMPONENTS)
 
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #
@@ -46,6 +66,11 @@ LOOP_3_CONDUCTIVITY = np.zeros(data_structures.N_COMPONENTS)
 
 # If a component is above this temperature, it will cool faster.
 RESTING_TEMPERATURE = np.zeros(data_structures.N_COMPONENTS)
+
+
+def _set_base_resistance(name: str, base_resistance: float):
+    """Helper only for use in this file."""
+    BASE_COMPONENT_RESISTANCES[strings.COMPONENT_NAMES.index(name)] = base_resistance
 
 
 def _use_orbitv_constants(name: str, hab_component: bool, power_inefficiency: float,
@@ -92,4 +117,14 @@ _use_orbitv_constants(strings.AYSE_BAT, True, 0, 1e-5, 1e-5, 1e-5, 0)
 # _use_orbitv_constants(Aeng3, False, 5e-11, 9e-6, 0, 4e-3, 15)
 # _use_orbitv_constants(Aeng4, False, 5e-11, 9e-6, 0, 4e-3, 15)
 # _use_orbitv_constants(Af10, False, 1e-10, 1e-6, 0, 3e-3, 10)
-# _use_orbitv_constants(AYSELTCHARMMMMMMM, False, 0, 1.4e-5, 0, 3.3e-3, 80.5)
+# _use_orbitv_constants(TODO, False, 0, 1.4e-5, 0, 3.3e-3, 80.5)
+
+_set_base_resistance(strings.ACC1, 11_577.5)
+_set_base_resistance(strings.ACC2, 11_577.5)
+_set_base_resistance(strings.ACC3, 11_577.5)
+_set_base_resistance(strings.ACC4, 11_577.5)
+_set_base_resistance(strings.ION1, 610.0)
+_set_base_resistance(strings.ION2, 610.0)
+_set_base_resistance(strings.ION3, 610.0)
+_set_base_resistance(strings.ION4, 610.0)
+
