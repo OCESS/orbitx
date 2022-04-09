@@ -519,6 +519,54 @@ class EngineeringState:
     _COOLANT_END_INDEX = _RADIATOR_START_INDEX
     _RADIATOR_END_INDEX = (_RADIATOR_START_INDEX + N_RADIATORS * _N_RADIATOR_FIELDS)
 
+    def __init__(self,
+                 array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
+                 parent_state: 'PhysicsState', populate_array: bool):
+        """Called by a PhysicsState on creation.
+
+        array_rep: a sufficiently-sized array to store all component, coolant,
+                   and radiator data. EngineeringState has full control over
+                   contents, starting at element 0.
+        proto_state: the underlying proto we're wrapping. We keep one-off
+                     variables in here (e.g. master_alarm)
+        parent_state: provides a way for EngineeringState to mirror a couple
+                      pieces of data from the parent, e.g. hab fuel.
+        populate_array: flag that is set when we need to fill array_rep with data.
+        """
+        assert len(proto_state.components) == N_COMPONENTS
+        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS
+        assert len(proto_state.radiators) == N_RADIATORS
+
+        self._array = array_rep
+        self._proto_state = proto_state
+        self._parent_state = parent_state
+
+        self.components = self.ComponentList(self)
+        self.coolant_loops = self.CoolantLoopList(self)
+        self.radiators = self.RadiatorList(self)
+
+        if populate_array:
+            # We've been asked to populate the data array.
+            # The order of data in the array is of course important.
+            write_marker = 0
+
+            # Is this loop janky? I would say yes! Could this result in
+            # out-of-bounds writes? I hope not!
+            # This will turn the array (which is full of zeros) into:
+            # [connected_1, connected_2, ..., temperature_1, temperature_2, ... ..., coolant_ayse_n] +
+            # [coolant loop fields] + [radiator fields]
+            for proto_list, descriptor in [
+                (proto_state.components, protos.EngineeringState.Component.DESCRIPTOR),
+                (proto_state.coolant_loops, protos.EngineeringState.CoolantLoop.DESCRIPTOR),
+                (proto_state.radiators, protos.EngineeringState.Radiator.DESCRIPTOR),
+            ]:
+                for field in descriptor.fields:
+                    for proto in proto_list:
+                        array_rep[write_marker] = getattr(proto, field.name)
+                        write_marker += 1
+
+            assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
+
     class ComponentList:
         """Allows engineering.components[LOS] style indexing."""
         def __init__(self, owner: 'EngineeringState'):
@@ -592,54 +640,6 @@ class EngineeringState:
         # And as above, list slicing with strides.
         def Functioning(self) -> np.ndarray:
             return self._radiator_array[0 * N_RADIATORS:1 * N_RADIATORS]
-
-    def __init__(self,
-                 array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
-                 parent_state: 'PhysicsState', populate_array: bool):
-        """Called by a PhysicsState on creation.
-
-        array_rep: a sufficiently-sized array to store all component, coolant,
-                   and radiator data. EngineeringState has full control over
-                   contents, starting at element 0.
-        proto_state: the underlying proto we're wrapping. We keep one-off
-                     variables in here (e.g. master_alarm)
-        parent_state: provides a way for EngineeringState to mirror a couple
-                      pieces of data from the parent, e.g. hab fuel.
-        populate_array: flag that is set when we need to fill array_rep with data.
-        """
-        assert len(proto_state.components) == N_COMPONENTS
-        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS
-        assert len(proto_state.radiators) == N_RADIATORS
-
-        self._array = array_rep
-        self._proto_state = proto_state
-        self._parent_state = parent_state
-
-        self.components = self.ComponentList(self)
-        self.coolant_loops = self.CoolantLoopList(self)
-        self.radiators = self.RadiatorList(self)
-
-        if populate_array:
-            # We've been asked to populate the data array.
-            # The order of data in the array is of course important.
-            write_marker = 0
-
-            # Is this loop janky? I would say yes! Could this result in
-            # out-of-bounds writes? I hope not!
-            # This will turn the array (which is full of zeros) into:
-            # [connected_1, connected_2, ..., temperature_1, temperature_2, ... ..., coolant_ayse_n] +
-            # [coolant loop fields] + [radiator fields]
-            for proto_list, descriptor in [
-                (proto_state.components, protos.EngineeringState.Component.DESCRIPTOR),
-                (proto_state.coolant_loops, protos.EngineeringState.CoolantLoop.DESCRIPTOR),
-                (proto_state.radiators, protos.EngineeringState.Radiator.DESCRIPTOR),
-            ]:
-                for field in descriptor.fields:
-                    for proto in proto_list:
-                        array_rep[write_marker] = getattr(proto, field.name)
-                        write_marker += 1
-
-            assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
 
     @property
     def habitat_fuel(self):
