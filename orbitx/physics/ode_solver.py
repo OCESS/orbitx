@@ -17,7 +17,7 @@ from orbitx.data_structures import (
     N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
     )
 from orbitx.strings import AYSE, HABITAT
-from orbitx.physics import helpers, calc
+from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState
 
 
@@ -38,6 +38,7 @@ def simulation_differential_function(
     [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
     (zeroed-out fields are changed elsewhere)
 
+    The ordering of fields is determined by the ordering in orbitx.proto.
     If the structure of the y_1d array changes, make sure to update this
     function and anywhere annotated with #Y_VECTOR_CHANGESITE!
 
@@ -106,8 +107,6 @@ def simulation_differential_function(
         # The Habitat doesn't exist.
         pass
 
-    electrofunctions.engineering
-
     # Drag effects
     craft = y.craft
     if craft is not None:
@@ -125,6 +124,21 @@ def simulation_differential_function(
         acc_matrix[landed_i] = \
             acc_matrix[landed_on[landed_i]] - centripetal_acc
 
+    # Time for the Engineering section.
+    component_resistances = electrofunctions.component_resistances(y.engineering)
+    electrical_bus = electrofunctions.bus_electricity(component_resistances)
+    bus_power = electrical_bus.voltage * electrical_bus.current
+
+    # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.
+    fuel_usage_rate = .05 * bus_power / 50_000_000
+    # TODO: Replace the existing fuel consumption calculations with this calculation.
+
+    component_heating_rate_array = electrofunctions.component_heating_rate(
+        y.engineering,
+        component_resistances,
+        electrical_bus.voltage
+    )
+
     # Sets velocity and spin of a couple more entities.
     # If you want to set the acceleration of an entity, do it above and
     # keep that logic in _derive. If you want to set the velocity and spin
@@ -132,14 +146,13 @@ def simulation_differential_function(
     # this _reconcile_entity_dynamics helper.
     y = helpers._reconcile_entity_dynamics(y)
 
+    # If the ordering of fields in orbitx.proto changes, change here too. #Y_VECTOR_CHANGESITE
     return np.concatenate((
         y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
         zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
-        # component connection state doesn't change here
-        np.zeros(N_COMPONENTS),
-        T_deriv, R_deriv, np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),
-        # coolant loop/radiator connection state doesn't change here
-        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),
+        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),  # connected and capacity fields
+        component_heating_rate_array,
+        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),  # coolant connection states
         np.zeros(N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
         np.zeros(N_RADIATORS * _N_RADIATOR_FIELDS)
     ), axis=None)

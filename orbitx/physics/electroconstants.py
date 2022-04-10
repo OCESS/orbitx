@@ -16,6 +16,10 @@ import numpy as np
 from orbitx import data_structures
 from orbitx import strings
 
+# TODO: when we implement multiple power sources and power buses, we should create a better data structure than this.
+NOMINAL_BUS_VOLTAGE = 10_000
+REACTOR_INTERNAL_RESISTANCE = 0.00025
+
 # https://en.wikipedia.org/wiki/Temperature_coefficient
 # Heat gain due to component inefficiency. Units are 1/K.
 # If a component increases in temperature by 1 Kelvin, its resistance will change by [1*alpha] Ohms.
@@ -59,10 +63,15 @@ POWER_INEFFICIENCY = np.zeros(data_structures.N_COMPONENTS)
 # How quickly a component radiates away heat.
 PASSIVE_HEAT_LOSS = np.zeros(data_structures.N_COMPONENTS)
 
-# How efficiently a component can exchange heat with each coolant loop.
-LOOP_1_CONDUCTIVITY = np.zeros(data_structures.N_COMPONENTS)
-LOOP_2_CONDUCTIVITY = np.zeros(data_structures.N_COMPONENTS)
-LOOP_3_CONDUCTIVITY = np.zeros(data_structures.N_COMPONENTS)
+# How efficiently each component can exchange heat with each coolant loop.
+# The conductivity between component j and loop k is COOLANT_CONDUCTIVITY_MATRIX[k][j]
+# For example, if this matrix looks like:
+#     3, 0, 6, 3, .., 3
+#     4, 0, 8, 4, .., 4
+#     0, 9, 0, 0, .., 0
+# Then we can say the second component is cooled only by the third loop. As well,
+# we can say the third component is cooled twice as much as the first component.
+COOLANT_CONDUCTIVITY_MATRIX = np.zeros((3, data_structures.N_COMPONENTS))
 
 # If a component is above this temperature, it will cool faster.
 RESTING_TEMPERATURE = np.zeros(data_structures.N_COMPONENTS)
@@ -83,14 +92,14 @@ def _use_orbitv_constants(name: str, hab_component: bool, power_inefficiency: fl
 
     POWER_INEFFICIENCY[strings.COMPONENT_NAMES.index(name)] = power_inefficiency
     PASSIVE_HEAT_LOSS[strings.COMPONENT_NAMES.index(name)] = passive_heat_loss
-    LOOP_2_CONDUCTIVITY[strings.COMPONENT_NAMES.index(name)] = secondary_loop_conductivity
+    COOLANT_CONDUCTIVITY_MATRIX[1][strings.COMPONENT_NAMES.index(name)] = secondary_loop_conductivity
     RESTING_TEMPERATURE[strings.COMPONENT_NAMES.index(name)] = resting_temperature
 
     if hab_component:
-        LOOP_1_CONDUCTIVITY[strings.COMPONENT_NAMES.index(name)] = primary_loop_conductivity
+        COOLANT_CONDUCTIVITY_MATRIX[0][strings.COMPONENT_NAMES.index(name)] = primary_loop_conductivity
     else:
         # This is an AYSE component
-        LOOP_3_CONDUCTIVITY[strings.COMPONENT_NAMES.index(name)] = primary_loop_conductivity
+        COOLANT_CONDUCTIVITY_MATRIX[2][strings.COMPONENT_NAMES.index(name)] = primary_loop_conductivity
 
 
 # i forget if its ion1 then acc1, or acc1 then ion1

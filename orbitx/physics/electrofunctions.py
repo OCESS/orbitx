@@ -5,55 +5,88 @@ It sounds cool though.
 This module contains helpers to calculate the Voltage/Current/Resistance and
 resistive heating of electrical components on our power grid."""
 
+from typing import NamedTuple
+
 import numpy as np
 
 from orbitx import common
+from orbitx.physics import electroconstants
 from orbitx.data_structures import EngineeringState, N_COMPONENTS
 
 
-def big_func(y: EngineeringState):
-    # Engineering values
-    R = y.components.Resistance()
-    I = y.components.Current()
+class OhmicVars(NamedTuple):
+    """Encapsulates a Voltage, Current, and Resistance where V = IR"""
+    voltage: float
+    current: float
+    resistance: float
 
-    # The following block of code implements conductive cooling of components by connected coolant loops.
-    # https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law shows the high-level math and theory.
-    # If N = the number of components, and there are 3 coolant loops, we can scale two adjacency matrices of
-    # component/coolant loop connections by the temperature of the components and temperature of coolants,
-    # respectively, and subtract them from each other to find the temperature difference between each component
-    # and the connected coolant loop. Then, we can use Fourier's law to find out how much component is cooled
-    # (and each coolant loop is heated).
 
-    # Create a 3xN adjacency matrix to encode what components are connected to which coolant loops.
-    connected_loops_matrix = y.components.CoolantConnectionMatrix()
+def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
+    """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole."""
 
-    # N-long vector of component temperatures.
-    component_temperature_row_vector = y.components.Temperature()
+    # Standard formula for finding total resistance of a parallel circuit, safguarded from divide-by-zero errors.
+    bus_resistance = 1 / np.sum(np.reciprocal(component_resistances), where=(component_resistances != 0))
 
-    # 3-long vector of coolant temperatures.
-    # np.newaxis is required for tranposed vector to be used in matrix math
-    coolant_temperature_col_vector = y.coolant_loops.CoolantTemp()[np.newaxis]
-
-    temperature_difference_matrix = (
-        component_temperature_row_vector * connected_loops_matrix -
-        connected_loops_matrix * coolant_temperature_col_vector.transpose()
+    # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
+    # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
+    # R_reactor_internal = (V_bus_nominal / V_bus_loaded - 1) * R_bus_loaded
+    # If we solve for V_bus_loaded (since we know the value of all other variables):
+    # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
+    bus_voltage = (
+        electroconstants.NOMINAL_BUS_VOLTAGE /
+        (electroconstants.REACTOR_INTERNAL_RESISTANCE / bus_resistance + 1)
     )
 
-    # Components heat up when they are powered.
-    resistive_heat = common.COEFF_TEMPERATURE_GAIN * V * I
+    # Ohm's law gives us this.
+    bus_current = bus_voltage / bus_resistance
+    return OhmicVars(voltage=bus_voltage, current=bus_current, resistance=bus_resistance)
 
-    # Components transfer heat to coolant.
-    coolant_heat_loss = temperature_difference_matrix.sum(axis=0) * common.K_CONDUCTIVITY
 
-    # TODO: Calculate heating of coolant from component cooling.
-    # TODO: Calculate cooling of coolant from radiators connected to coolant loops.
-    # TODO: Encapsulate this in a helper function.
+def component_resistances(y: EngineeringState) -> np.ndarray:
+    """Returns an array of each component's effective resistance.
+    If a component is not connected to the bus, or it has been set
+    to 0% capacity, it will not be counted."""
+    return (
+        y.components.Connected() * y.components.Capacities() * (
+            electroconstants.BASE_COMPONENT_RESISTANCES +
+            electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures() *
+            electroconstants.BASE_COMPONENT_RESISTANCES
+        )
+    )
 
-    T_deriv = resistive_heat - coolant_heat_loss
-    R_deriv = common.ALPHA_RESIST_GAIN * T_deriv
 
-    # Voltage and current do not change
-    V_deriv = I_deriv = np.zeros(N_COMPONENTS)
+def component_heating_rate(y: EngineeringState, component_resist_array: np.ndarray, bus_voltage: float) -> np.ndarray:
+    # Calculate the power of each component.
+    # Since P = IV and I = V/R, we can just use the P = V^2 / R shortcut.
+    component_powers = bus_voltage * bus_voltage / component_resist_array
 
-def _calculate_bus_resistance(y: EngineeringState) -> np.ndarray:
-	pass
+    # A bit of the power going through a component gets turned into heat.
+    resistive_heating = np.multiply(component_powers, electroconstants.POWER_INEFFICIENCY)
+
+    # In enghabw, heat^2 is used for a bunch of calculation. So we use it here as well.
+    square_of_heat = np.square(y.components.Temperatures())
+
+    passive_cooling = square_of_heat * electroconstants.PASSIVE_HEAT_LOSS
+    active_cooling = square_of_heat * electroconstants.COOLANT_CONDUCTIVITY_MATRIX
+    # TODO: Calculate atmospheric cooling.
+
+    # Reduce coolant cooling rate when within 1 degree of the minimum temperature. Note, passive cooling is unaffected.
+    # Why? Because that's how enghabw does it :)
+    degrees_over_min_temp = y.components.Temperatures() - electroconstants.RESTING_TEMPERATURE
+    cooling_scaling = np.clip(degrees_over_min_temp, 0, 1)
+    # Note: we can't just immediately stop the cooling effect when we reach the resting temperature, because
+    # anything that causes the derivative function of the temperature to suddenly change behaviour will probably
+    # not work very well with our ODE solver. Google something like 'scipy odeint stiff function' if you want to
+    # know more, or just message Patrick.
+
+    # If a coolant is connected to a component, and that component is greater than 1 degree above its resting
+    # temperature, the coolant will be fully used.
+    coolant_usage_matrix = y.components.CoolantConnectionMatrix() * cooling_scaling
+
+    effective_coolant_cooling = np.sum(
+        coolant_usage_matrix * active_cooling,
+        axis=0  # Collapse the columns down by summing them, so we get a 1D array of size N_COMPONENTS.
+    )
+
+    # Put everything together, finding the derivative of temperature for all components.
+    return resistive_heating + passive_cooling + effective_coolant_cooling

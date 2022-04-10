@@ -719,7 +719,7 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
 
-        component_temperature_row_vector = engineering.components.Temperature()
+        component_temperature_row_vector = engineering.components.Temperatures()
 
         # np.newaxis is required for tranposed vector to be used in matrix math
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
@@ -755,7 +755,7 @@ class CoolantTestCase(unittest.TestCase):
 
         connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
 
-        component_temperature_row_vector = engineering.components.Temperature()
+        component_temperature_row_vector = engineering.components.Temperatures()
 
         # np.newaxis is required for tranposed vector to be used in matrix math
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
@@ -779,18 +779,6 @@ class CoolantTestCase(unittest.TestCase):
 
         temperature_1 = initial.components[1].temperature
         temperature_2 = final.components[1].temperature
-        log.info("Temperature: ")
-        log.info(initial.components.Temperature())
-        log.info(final.components.Temperature())
-        log.info("Resistance: ")
-        log.info(initial.components.Resistance())
-        log.info(final.components.Resistance())
-        log.info("Voltage: ")
-        log.info(initial.components.Voltage())
-        log.info(final.components.Voltage())
-        log.info("Current: ")
-        log.info(initial.components.Current())
-        log.info(final.components.Current())
         self.assertNotEqual(temperature_1, temperature_2)
 
 

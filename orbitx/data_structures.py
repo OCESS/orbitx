@@ -583,28 +583,21 @@ class EngineeringState:
         # Use list slicing (with strides, so there's two colons) to get a list of
         # all values of each quantity for each Component.
         # We only define this accessor for fields we use in _derive.
-        def Temperature(self) -> np.ndarray:
+        def Connected(self) -> np.ndarray:
+            return self._component_array[0 * N_COMPONENTS:1 * N_COMPONENTS]
+
+        def Capacities(self) -> np.ndarray:
             return self._component_array[1 * N_COMPONENTS:2 * N_COMPONENTS]
 
-        def Resistance(self) -> np.ndarray:
-            return (
-                electroconstants.BASE_COMPONENT_RESISTANCES +
-                electroconstants.ALPHA_RESIST_GAIN * self.Temperature() *
-                electroconstants.BASE_COMPONENT_RESISTANCES
-            )
-
-        def Voltage(self) -> np.ndarray:
-            return self._component_array[3 * N_COMPONENTS:4 * N_COMPONENTS]
-
-        def Current(self) -> np.ndarray:
-            return self._component_array[4 * N_COMPONENTS:5 * N_COMPONENTS]
+        def Temperatures(self) -> np.ndarray:
+            return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
         def CoolantConnectionMatrix(self) -> np.ndarray:
-            """Returns a list of length 'N_COMPONENTS', each element containing coolant connection information
-            for the given component"""
-            list_hab_one = self._component_array[5 * N_COMPONENTS:6 * N_COMPONENTS]
-            list_hab_two = self._component_array[6 * N_COMPONENTS:7 * N_COMPONENTS]
-            list_ayse = self._component_array[7 * N_COMPONENTS:8 * N_COMPONENTS]
+            """Returns a matrix of dimensions 3xN_COMPONENTS', containing coolant
+            connection status for each component/coolant loop combination."""
+            list_hab_one = self._component_array[3 * N_COMPONENTS:4 * N_COMPONENTS]
+            list_hab_two = self._component_array[4 * N_COMPONENTS:5 * N_COMPONENTS]
+            list_ayse = self._component_array[5 * N_COMPONENTS:6 * N_COMPONENTS]
             return np.vstack((list_hab_one, list_hab_two, list_ayse))
 
     class CoolantLoopList:
