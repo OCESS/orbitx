@@ -19,7 +19,7 @@ from orbitx import logs
 from orbitx import programs
 from orbitx.graphics.flight import launcher
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 def log_git_info():
@@ -140,6 +140,8 @@ def main():
         pass
     except Exception as e:
         log.exception('Unexpected exception, exiting...')
+        print(f'OrbitX got an unexpected exception! Check {logs.logfile_name} for logs if you\'re an orbitx developer.')
+        print('Or, send the logfile to Patrick.')
 
         vpython_error_message()
 

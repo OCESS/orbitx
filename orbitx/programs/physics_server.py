@@ -14,7 +14,7 @@ from orbitx import programs
 from orbitx.graphics.server_gui import ServerGui
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 name = "Physics Server"
 

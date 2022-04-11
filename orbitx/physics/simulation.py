@@ -33,7 +33,7 @@ SOLUTION_CACHE_SIZE = 2
 
 warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
 scipy.special.seterr(all='raise')
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 TIME_ACC_TO_BOUND = {time_acc.value: time_acc.accurate_bound
                      for time_acc in common.TIME_ACCS}
@@ -242,8 +242,13 @@ class PhysicsEngine:
                 self._simthread_exception is not None
             )
 
-            # Check if the simthread crashed
+            # Check if the simthread crashed, and do some logging.
             if self._simthread_exception is not None:
+                if self._solutions:
+                    log.debug('Last solution:')
+                    log.debug(f'{self._solutions[-1].y_events[-1]}')
+                log.debug('Last physical_state:')
+                log.debug(f'{self._last_physical_state}')
                 raise self._simthread_exception
 
             if self._last_physical_state.time_acc == 0:

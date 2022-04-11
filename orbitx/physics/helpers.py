@@ -18,7 +18,7 @@ from orbitx.data_structures import (
     )
 from orbitx.strings import AYSE, HABITAT, MODULE
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:

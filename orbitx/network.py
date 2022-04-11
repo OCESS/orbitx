@@ -15,7 +15,7 @@ from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
 from orbitx.data_structures import PhysicsState, Request
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 DEFAULT_PORT = 28430
 

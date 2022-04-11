@@ -14,7 +14,7 @@ import grpc
 from orbitx import network
 from orbitx import programs
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 name = "MIST"
 

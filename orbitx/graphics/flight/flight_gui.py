@@ -30,7 +30,7 @@ from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 from orbitx.graphics.vpython_widgets import Checkbox, Menu, TableText
 from orbitx.physics import calc
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 DEFAULT_TRAILS = False
 

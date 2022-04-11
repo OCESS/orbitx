@@ -21,7 +21,7 @@ from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState
 
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 def simulation_differential_function(

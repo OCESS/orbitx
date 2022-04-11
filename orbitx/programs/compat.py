@@ -16,7 +16,7 @@ from orbitx import orbitv_file_interface
 from orbitx import programs
 from orbitx.graphics.compat_gui import CompatGui, StartupFailedGui
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 name = "Compatibility Client"
 

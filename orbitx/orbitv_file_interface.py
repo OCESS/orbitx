@@ -19,7 +19,7 @@ from orbitx import orbitx_pb2 as protos
 from orbitx.data_structures import Entity, Navmode, PhysicsState
 from orbitx.strings import AYSE, EARTH, HABITAT, MODULE, OCESS, SUN
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 # This is a mapping from the OrbitX NAVMODE enum to a value of "Sflag",
 # which is internal to OrbitV.

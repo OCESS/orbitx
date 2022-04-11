@@ -19,7 +19,7 @@ from orbitx.data_structures import (
 )
 from orbitx.strings import HABITAT
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 class PhysicsEngine:

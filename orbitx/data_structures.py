@@ -89,7 +89,7 @@ from orbitx import orbitx_pb2 as protos
 from orbitx import strings
 from orbitx.physics import electroconstants
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 # This Request class is just an alias of the Command protobuf message. We
 # provide this so that nobody has to directly import orbitx_pb2, and so that
