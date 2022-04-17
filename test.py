@@ -342,18 +342,17 @@ class PhysicsStateTestCase(unittest.TestCase):
 
     def test_y_vector_init(self):
         """Test that initializing with a y-vector uses y-vector values."""
+        # If you change the y-vector ordering, change here too #Y_VECTOR_CHANGESITE
 
         eng_fields = np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
         component_array = eng_fields[EngineeringState._COMPONENT_START_INDEX:EngineeringState._COMPONENT_END_INDEX]
         for comp_i in range(0, N_COMPONENTS):
             component_array[comp_i+N_COMPONENTS*0] = True  # connected
-            component_array[comp_i+N_COMPONENTS*1] = 111100 + comp_i  # temperature
-            component_array[comp_i+N_COMPONENTS*2] = 222200 + comp_i  # resistance
-            component_array[comp_i+N_COMPONENTS*3] = 333300 + comp_i  # voltage
-            component_array[comp_i+N_COMPONENTS*4] = 444400 + comp_i  # current
-            component_array[comp_i+N_COMPONENTS*5] = comp_i % 2  # coolant_hab_one
-            component_array[comp_i+N_COMPONENTS*6] = True  # coolant_hab_two
-            component_array[comp_i+N_COMPONENTS*7] = False  # coolant_ayse
+            component_array[comp_i+N_COMPONENTS*1] = 1 + (0.01 * comp_i)  # capacity
+            component_array[comp_i+N_COMPONENTS*2] = 222200 + comp_i  # temperature
+            component_array[comp_i+N_COMPONENTS*3] = comp_i % 2  # coolant_hab_one
+            component_array[comp_i+N_COMPONENTS*4] = True  # coolant_hab_two
+            component_array[comp_i+N_COMPONENTS*5] = False  # coolant_ayse
 
         coolant_array = eng_fields[EngineeringState._COOLANT_START_INDEX:EngineeringState._COOLANT_END_INDEX]
         for cool_i in range(0, N_COOLANT_LOOPS):
@@ -410,10 +409,8 @@ class PhysicsStateTestCase(unittest.TestCase):
 
         for i, component in enumerate(ps.engineering.components):
             self.assertEqual(component.connected, True, msg=i)
-            self.assertEqual(component.temperature, 111100 + i, msg=i)
-            self.assertEqual(component.resistance, 222200 + i, msg=i)
-            self.assertEqual(component.voltage, 333300 + i, msg=i)
-            self.assertEqual(component.current, 444400 + i, msg=i)
+            self.assertEqual(component.capacity, 1 + (0.01 * i), msg=i)
+            self.assertEqual(component.temperature, 222200 + i, msg=i)
             self.assertEqual(component.coolant_hab_one, bool(i % 2), msg=i)
             self.assertEqual(component.coolant_hab_two, True, msg=i)
             self.assertEqual(component.coolant_ayse, False, msg=i)
@@ -545,27 +542,21 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         # Test getters work
         self.assertEqual(engineering.components[0].connected, True)
-        self.assertAlmostEqual(engineering.components[0].temperature, 31.3, delta=0.01)
-        self.assertAlmostEqual(engineering.components[0].resistance, 11.0, delta=0.01)
-        self.assertAlmostEqual(engineering.components[0].voltage, 120.0, delta=0.01)
-        self.assertAlmostEqual(engineering.components[0].current, 0.2, delta=0.01)
+        self.assertAlmostEqual(engineering.components[0].capacity, 0.9, delta=0.1)
+        self.assertAlmostEqual(engineering.components[0].temperature, 31.3, delta=0.1)
         self.assertEqual(engineering.components[0].coolant_hab_one, True)
         self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 15.0)
         self.assertAlmostEqual(engineering.components[0].connected_coolant_loops()[0].coolant_temp, 15.0)
 
         # Test setters work
         engineering.components[1].connected = True
+        engineering.components[1].capacity = 0.8
         engineering.components[1].temperature = 12.3
-        engineering.components[1].resistance = 4.56
-        engineering.components[1].voltage = 7.89
-        engineering.components[1].current = 0.1
         engineering.components[1].coolant_hab_one = True
         engineering.coolant_loops[0].coolant_temp = 20.0
         self.assertEqual(engineering.components[1].connected, True)
+        self.assertAlmostEqual(engineering.components[1].capacity, 0.8)
         self.assertAlmostEqual(engineering.components[1].temperature, 12.3)
-        self.assertAlmostEqual(engineering.components[1].resistance, 4.56)
-        self.assertAlmostEqual(engineering.components[1].voltage, 7.89)
-        self.assertAlmostEqual(engineering.components[1].current, 0.1)
         self.assertEqual(engineering.components[1].coolant_hab_one, True)
         self.assertAlmostEqual(engineering.coolant_loops[0].coolant_temp, 20.0)
         self.assertAlmostEqual(engineering.components[1].connected_coolant_loops()[0].coolant_temp, 20.0)
@@ -577,26 +568,20 @@ class EngineeringViewTestCase(unittest.TestCase):
 
         # Change some data
         engineering.components[1].connected = True
+        engineering.components[1].capacity = 0.7
         engineering.components[1].temperature = 12.3
-        engineering.components[1].resistance = 4.56
-        engineering.components[1].voltage = 7.89
-        engineering.components[1].current = 0.1
 
         # Check engineering proto
         eng_proto = engineering.as_proto()
         self.assertEqual(eng_proto.components[1].connected, True)
+        self.assertAlmostEqual(eng_proto.components[1].capacity, 0.7)
         self.assertAlmostEqual(eng_proto.components[1].temperature, 12.3)
-        self.assertAlmostEqual(eng_proto.components[1].resistance, 4.56)
-        self.assertAlmostEqual(eng_proto.components[1].voltage, 7.89)
-        self.assertAlmostEqual(eng_proto.components[1].current, 0.1)
 
         # Check physicsstate proto
         physics_state_proto = state.as_proto()
         self.assertEqual(physics_state_proto.engineering.components[1].connected, True)
+        self.assertAlmostEqual(physics_state_proto.engineering.components[1].capacity, 0.7)
         self.assertAlmostEqual(physics_state_proto.engineering.components[1].temperature, 12.3)
-        self.assertAlmostEqual(physics_state_proto.engineering.components[1].resistance, 4.56)
-        self.assertAlmostEqual(physics_state_proto.engineering.components[1].voltage, 7.89)
-        self.assertAlmostEqual(physics_state_proto.engineering.components[1].current, 0.1)
 
     def test_coolant_accessors(self):
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
@@ -639,9 +624,9 @@ class EngineeringViewTestCase(unittest.TestCase):
             state = physics_engine.get_state()
 
         engineering = state.engineering
-        engineering.components[0].voltage = 777777.7
-        self.assertEqual(engineering._array[3 * N_COMPONENTS], 777777.7)
-        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 3 * N_COMPONENTS], 777777.7)
+        engineering.components[0].temperature = 777777.7
+        self.assertEqual(engineering._array[2 * N_COMPONENTS], 777777.7)
+        self.assertEqual(state.y0()[state.ENGINEERING_START_INDEX + 2 * N_COMPONENTS], 777777.7)
 
     def test_eng_single_fields(self):
         """Test that non-repeated fields in the EngineeringState can be
@@ -801,6 +786,18 @@ def test_performance():
 
 
 if __name__ == '__main__':
+    print('------------------------------------------------')
+    print('Logs are being written to the `logs/` directory.')
+    print('If you\'re seeing some strange behaviour, check')
+    print('those logs for more info.')
+    print('You can also print all logs to the command-line')
+    print('by using verbose mode: `python test.py -v`')
+    print('')
+    print('You can also run one specific test case, e.g.:')
+    print('`python test.py PhysicsEngineTestCase.test_basic_movement`')
+    print('')
+    print('Running OrbitX test suite! Cross your fingers...')
+    print('------------------------------------------------')
     logs.make_program_logfile('test')
     if '-v' in sys.argv:
         logs.enable_verbose_logging()

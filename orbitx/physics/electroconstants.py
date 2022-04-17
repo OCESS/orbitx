@@ -47,7 +47,7 @@ K_CONDUCTIVITY = 0.75
 # it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
-BASE_COMPONENT_RESISTANCES = np.zeros(data_structures.N_COMPONENTS)
+BASE_COMPONENT_RESISTANCES = np.ones(data_structures.N_COMPONENTS)
 
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #

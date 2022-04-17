@@ -130,6 +130,8 @@ message Command {
 }
 
 message EngineeringState {
+    // If the ordering of fields in EngineeringState, make sure to change everywhere else with #Y_VECTOR_CHANGESITE
+
     message Component {
         bool connected = 1;
         double capacity = 2;  // 0 when component is off, 1 at 100% capacity
@@ -169,8 +171,9 @@ message EngineeringState {
     int32 rad_shield_percentage = 10;
 }
 
-// This is wrapped by state.py.
+// This is wrapped by data_structures.py.
 message Entity {
+    // If the field ordering here changes, make sure to update any places annotated with #Y_VECTOR_CHANGESITE
     string name = 1;
     double x = 2;
     double y = 3;

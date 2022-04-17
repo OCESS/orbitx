@@ -18,10 +18,7 @@
             {},
             {
                 "connected": false,
-                "temperature": 0,
-                "resistance": 100,
-                "voltage": 0,
-                "current": 100,
+                "temperature": 2,
                 "coolant_hab_one": false,
                 "coolant_hab_two": true
             },
@@ -62,17 +59,17 @@
         "coolantLoops":
         [
             {
-                "coolantTemp": 0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             },
             {
-                "coolantTemp": 0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             },
             {
-                "coolantTemp": 0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             }

@@ -19,18 +19,14 @@
         [
             {
                 "connected": true,
+                "capacity": 0.9,
                 "temperature": 31.3,
-                "resistance": 11.0,
-                "voltage": 120.0,
-                "current": 0.2,
                 "coolant_hab_one": true
             },
             {
                 "connected": true,
+                "capacity": 0.8,
                 "temperature": 50,
-                "resistance": 1,
-                "voltage": 100.0,
-                "current": 0.2,
                 "coolant_hab_one": false,
                 "coolant_hab_two": true,
                 "coolant_ayse": false
@@ -44,9 +40,6 @@
             {
                 "connected": true,
                 "temperature": 25.6,
-                "resistance": 123,
-                "voltage": 50,
-                "current": 23,
                 "coolant_hab_two": true
             },
             {},

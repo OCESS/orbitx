@@ -31,12 +31,31 @@ from orbitx.data_structures import PhysicsState, Request
 
 SOLUTION_CACHE_SIZE = 2
 
-warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
-scipy.special.seterr(all='raise')
 log = logging.getLogger('orbitx')
 
 TIME_ACC_TO_BOUND = {time_acc.value: time_acc.accurate_bound
                      for time_acc in common.TIME_ACCS}
+
+
+class NumpyLogger:
+    """Pass this to numpy to log sketchy floating-point errors."""
+    @staticmethod
+    def write(message: str):
+        log.warning(message)
+
+
+def set_floating_point_fatality():
+    """Decide what to do when this thread encounters a floating point error in scipy/numpy."""
+    warnings.simplefilter('error')  # Raise exception on scipy/numpy RuntimeWarning
+    scipy.special.seterr(all='raise')
+    np.seterrcall(NumpyLogger())
+    np.seterr(all='raise')
+
+    # Over- and underflow is bad, but we shouldn't stop someone mid-mission for it.
+    np.seterr(over='log', under='log')
+
+
+set_floating_point_fatality()
 
 
 class TimeAccChange(NamedTuple):
@@ -284,6 +303,7 @@ class PhysicsEngine:
             self.y = y
 
     def _simthread_target(self, t, y):
+        set_floating_point_fatality()
         while True:
             try:
                 self._run_simulation(t, y)

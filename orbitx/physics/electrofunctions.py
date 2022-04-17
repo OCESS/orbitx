@@ -24,8 +24,15 @@ class OhmicVars(NamedTuple):
 def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
     """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole."""
 
-    # Standard formula for finding total resistance of a parallel circuit, safguarded from divide-by-zero errors.
-    bus_resistance = 1 / np.sum(np.reciprocal(component_resistances), where=(component_resistances != 0))
+    # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
+    # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
+    sum_of_reciprocals = np.sum(np.reciprocal(component_resistances))
+
+    if sum_of_reciprocals == 0:
+        # There are no components connected, so this simplifies our calculations.
+        return OhmicVars(resistance=np.inf, current=0, voltage=electroconstants.NOMINAL_BUS_VOLTAGE)
+
+    bus_resistance = 1/sum_of_reciprocals
 
     # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
     # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
@@ -45,13 +52,20 @@ def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
 def component_resistances(y: EngineeringState) -> np.ndarray:
     """Returns an array of each component's effective resistance.
     If a component is not connected to the bus, or it has been set
-    to 0% capacity, it will not be counted."""
-    return (
-        y.components.Connected() * y.components.Capacities() * (
-            electroconstants.BASE_COMPONENT_RESISTANCES +
-            electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures() *
-            electroconstants.BASE_COMPONENT_RESISTANCES
-        )
+    to 0% capacity, it will have infinite resistance."""
+    components_online = y.components.Connected() * y.components.Capacities()
+    # https://stackoverflow.com/a/37977222/1333978 for this divide-by-zero guarding code.
+    return np.divide(
+        (electroconstants.BASE_COMPONENT_RESISTANCES +
+         electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures() *
+         electroconstants.BASE_COMPONENT_RESISTANCES),
+
+        components_online,
+
+        # If we would divide by zero, instead just skip that step and return Inf.
+        # We don't want to divide by zero here, because we've configured np.seterr
+        # to raise an exception on divide-by-zero.
+        where=(components_online != 0), out=np.full_like(components_online, np.inf)
     )
 
 
@@ -61,32 +75,27 @@ def component_heating_rate(y: EngineeringState, component_resist_array: np.ndarr
     component_powers = bus_voltage * bus_voltage / component_resist_array
 
     # A bit of the power going through a component gets turned into heat.
-    resistive_heating = np.multiply(component_powers, electroconstants.POWER_INEFFICIENCY)
+    resistive_heating = component_powers * electroconstants.POWER_INEFFICIENCY
 
-    # In enghabw, heat^2 is used for a bunch of calculation. So we use it here as well.
-    square_of_heat = np.square(y.components.Temperatures())
+    # In enghabw, heat^2 is used for a bunch of calculation. We'll do the same calculations in OrbitX as well.
+    temperature_squared = np.square(y.components.Temperatures())
 
-    passive_cooling = square_of_heat * electroconstants.PASSIVE_HEAT_LOSS
-    active_cooling = square_of_heat * electroconstants.COOLANT_CONDUCTIVITY_MATRIX
-    # TODO: Calculate atmospheric cooling.
-
-    # Reduce coolant cooling rate when within 1 degree of the minimum temperature. Note, passive cooling is unaffected.
-    # Why? Because that's how enghabw does it :)
-    degrees_over_min_temp = y.components.Temperatures() - electroconstants.RESTING_TEMPERATURE
-    cooling_scaling = np.clip(degrees_over_min_temp, 0, 1)
-    # Note: we can't just immediately stop the cooling effect when we reach the resting temperature, because
-    # anything that causes the derivative function of the temperature to suddenly change behaviour will probably
-    # not work very well with our ODE solver. Google something like 'scipy odeint stiff function' if you want to
-    # know more, or just message Patrick.
-
-    # If a coolant is connected to a component, and that component is greater than 1 degree above its resting
-    # temperature, the coolant will be fully used.
-    coolant_usage_matrix = y.components.CoolantConnectionMatrix() * cooling_scaling
-
-    effective_coolant_cooling = np.sum(
-        coolant_usage_matrix * active_cooling,
-        axis=0  # Collapse the columns down by summing them, so we get a 1D array of size N_COMPONENTS.
+    passive_cooling = temperature_squared * electroconstants.PASSIVE_HEAT_LOSS
+    active_cooling = (
+        temperature_squared *
+        electroconstants.COOLANT_CONDUCTIVITY_MATRIX /
+        y.coolant_loops.CoolantTemp()[np.newaxis].T
     )
+    # TODO: Calculate atmospheric cooling.
+    # TODO: Calculate coolant loop temperature increase.
+
+    degrees_above_resting_temp = np.clip(y.components.Temperatures() - electroconstants.RESTING_TEMPERATURE, 0, np.inf)
+
+    # Collapse the columns down by summing them, so we get a 1D array of how much each component is being cooled.
+    effective_coolant_cooling = np.sum(active_cooling, axis=0)
 
     # Put everything together, finding the derivative of temperature for all components.
-    return resistive_heating + passive_cooling + effective_coolant_cooling
+    net_heating = resistive_heating - passive_cooling - effective_coolant_cooling
+
+    # Reduce the cooling rate as we get closer to the component's resting temperature.
+    return np.clip(net_heating, -1 * degrees_above_resting_temp, np.inf)

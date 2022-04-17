@@ -111,3 +111,4 @@ def make_program_logfile(program_name: str):
 def enable_verbose_logging():
     """Enables logging of all messages to stdout, from INFO upwards"""
     print_handler.setLevel(logging.DEBUG)  # We'll print any debug messages and higher.
+    logging.getLogger().setLevel(logging.DEBUG)

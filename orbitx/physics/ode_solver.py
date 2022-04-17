@@ -147,7 +147,7 @@ def simulation_differential_function(
     y = helpers._reconcile_entity_dynamics(y)
 
     # If the ordering of fields in orbitx.proto changes, change here too. #Y_VECTOR_CHANGESITE
-    return np.concatenate((
+    y_differential = np.concatenate((
         y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
         zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
         np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),  # connected and capacity fields
@@ -156,6 +156,8 @@ def simulation_differential_function(
         np.zeros(N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
         np.zeros(N_RADIATORS * _N_RADIATOR_FIELDS)
     ), axis=None)
+
+    return y_differential
 
 
 class Event:

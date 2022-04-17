@@ -87,7 +87,6 @@ import vpython
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
-from orbitx.physics import electroconstants
 
 log = logging.getLogger('orbitx')
 
@@ -393,12 +392,20 @@ class ComponentView:
         self._array[N_COMPONENTS * 0 + self._n] = float(val)
 
     @property
+    def capacity(self):
+        return float(self._array[N_COMPONENTS * 1 + self._n])
+
+    @capacity.setter
+    def capacity(self, val: float):
+        self._array[N_COMPONENTS * 1 + self._n] = float(val)
+
+    @property
     def temperature(self) -> float:
-        return self._array[N_COMPONENTS * 1 + self._n]
+        return self._array[N_COMPONENTS * 2 + self._n]
 
     @temperature.setter
     def temperature(self, val: float):
-        self._array[N_COMPONENTS * 1 + self._n] = val
+        self._array[N_COMPONENTS * 2 + self._n] = val
 
     @property
     def resistance(self) -> float:
@@ -420,27 +427,27 @@ class ComponentView:
 
     @property
     def coolant_hab_one(self) -> bool:
-        return bool(self._array[N_COMPONENTS * 5 + self._n])
+        return bool(self._array[N_COMPONENTS * 3 + self._n])
 
     @coolant_hab_one.setter
     def coolant_hab_one(self, val: bool):
-        self._array[N_COMPONENTS * 5 + self._n] = float(val)
+        self._array[N_COMPONENTS * 3 + self._n] = float(val)
 
     @property
     def coolant_hab_two(self) -> bool:
-        return bool(self._array[N_COMPONENTS * 6 + self._n])
+        return bool(self._array[N_COMPONENTS * 4 + self._n])
 
     @coolant_hab_two.setter
     def coolant_hab_two(self, val: bool):
-        self._array[N_COMPONENTS * 6 + self._n] = float(val)
+        self._array[N_COMPONENTS * 4 + self._n] = float(val)
 
     @property
     def coolant_ayse(self) -> bool:
-        return bool(self._array[N_COMPONENTS * 7 + self._n])
+        return bool(self._array[N_COMPONENTS * 5 + self._n])
 
     @coolant_ayse.setter
     def coolant_ayse(self, val: bool):
-        self._array[N_COMPONENTS * 7 + self._n] = float(val)
+        self._array[N_COMPONENTS * 5 + self._n] = float(val)
 
     def connected_coolant_loops(self) -> List[CoolantView]:
         connected_loops: List[CoolantView] = []
@@ -700,18 +707,17 @@ class EngineeringState:
 
     def as_proto(self) -> protos.EngineeringState:
         """Returns a deep copy of this EngineeringState as a protobuf."""
+        # If the ordering of component fields, change here too #Y_VECTOR_CHANGESITE
         constructed_protobuf = protos.EngineeringState()
         constructed_protobuf.CopyFrom(self._proto_state)
         for component_data, component in zip(self.components, constructed_protobuf.components):
             (
-                component.connected, component.temperature,
-                component.resistance, component.voltage,
-                component.current, component.coolant_hab_one,
+                component.connected, component.capacity,
+                component.temperature, component.coolant_hab_one,
                 component.coolant_hab_two, component.coolant_ayse
             ) = (
-                component_data.connected, component_data.temperature,
-                component_data.resistance, component_data.voltage,
-                component_data.current,  component_data.coolant_hab_one,
+                component_data.connected, component_data.capacity,
+                component_data.temperature, component_data.coolant_hab_one,
                 component_data.coolant_hab_two, component_data.coolant_ayse
             )
         for coolant_data, coolant in zip(self.coolant_loops, constructed_protobuf.coolant_loops):
