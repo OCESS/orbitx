@@ -9,7 +9,6 @@ Feel free to ignore any and all of these recommendations!
 
 For a guide on if and how you should contribute, read `CONTRIBUTING.md`  
 For a guide on how to install and run OrbitX, read `README.md`  
-For a guide on how the actual OrbitX codebase is structured, read `ARCHITECTURE.md`
 
 ## Quickstart
 
@@ -65,9 +64,7 @@ that.
 
 *Recommendation*: use an automatic python PEP 8 formatter.
 
-You can use the `format` target in the `Makefile` to format the code. If you
-don't have Makefiles set up, you can just copy-paste the `python -m autopep8`
-command in `Makefile` and get the same effect.
+If you use pycharm, you can use its autoformatter to format your code.
 
 ## Type Annotations
 

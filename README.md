@@ -45,20 +45,11 @@ for this). See below for windows-specific changes. Then,
 ```
 git clone https://github.com/your-github-username/orbitx
 cd orbitx
-python3 -m venv venv # or however you can create a python3 virtualenv
+python3 -m venv venv  # or however you can create a python3 virtualenv
 source venv/bin/activate
-pip install --upgrade pip # not required, but a good idea
-cd orbitx
-make install # installs packages in requirements.txt, make sure you've activated your venv!
+python -m pip install --upgrade pip  # not required, but a good idea
+./generate-protobufs.sh  # use ./generate-protobufs.ps1 on windows
 ```
-
-If you're on windows, replace `source venv/bin/activate` with
-`Scripts\Activate.bat` on `cmd`, or `Scripts\Activate.ps1` if you know you're
-running powershell. Also you'll have to just run the make commands manually, by running `cat Makefile` and copying the command you want.
-
-If you get an error referencing "Microsoft Visual C++ Build Tools", especially when
-installing `yappi`, install [the build tools](https://www.scivision.dev/python-windows-visual-c-14-required/)
-(choose Windows 10 SDK and C++ x64/x86 build tools in the installer).
 
 And when you want to restart development, just do:
 
@@ -67,16 +58,24 @@ cd orbitx
 source venv/bin/activate
 ```
 
+### Note: Development On Windows
+
+If you get an error referencing "Microsoft Visual C++ Build Tools", especially when
+installing `yappi`, install [the build tools](https://www.scivision.dev/python-windows-visual-c-14-required/)
+(choose Windows 10 SDK and C++ x64/x86 build tools in the installer).
+
 ## Building
 
 This project is mostly python, which does not require you to build a new binary
 after making changes to `.py` files. However, making changes to the
-`orbitx.proto` file requires building your changes. The file `orbitx/Makefile` will
-let you do the following commands in `orbitx/`:
+`orbitx.proto` file requires building your changes.
+
+If you change `orbitx.proto`, you will have to run the following command from your
+topmost `orbitx` directory:
 
 ```
-make install  # run this once, to set up this project
-make build    # run this when you make a change to orbitx.proto
+./generate-protobufs.sh  # on linux
+./generate-protobufs.ps1  # on windows
 ```
 
 ## Running
@@ -90,7 +89,15 @@ as running `source bin/activate`.
 
 ## Project Structure
 
-Read `ARCHITECTURE.md` for a description of OrbitX's architecture.
+```
+- orbitx   # Root project directory
+ \- data   # This contains savefiles and binary data
+ \- doc    # This contains various text files and documentation
+ \- logs   # This contains logs generated during orbitx runtime
+ \- orbitx # The most important directory! Contains basically all orbitx code
+ \- orbitx.py  # The 'main' function of orbitx, this script can be executed
+ \- test.py    # The orbitx test suite, run this to run all orbitx tests
+```
 
 ## Screens
 
