@@ -31,12 +31,28 @@ from orbitx.data_structures import PhysicsState, Request
 
 SOLUTION_CACHE_SIZE = 2
 
-warnings.simplefilter('error')  # Raise exception on numpy RuntimeWarning
-scipy.special.seterr(all='raise')
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 TIME_ACC_TO_BOUND = {time_acc.value: time_acc.accurate_bound
                      for time_acc in common.TIME_ACCS}
+
+
+class NumpyLogger:
+    """Pass this to numpy to log sketchy floating-point errors."""
+    @staticmethod
+    def write(message: str):
+        log.warning(message)
+
+
+def set_floating_point_fatality():
+    """Decide what to do when this thread encounters a floating point error in scipy/numpy."""
+    warnings.simplefilter('error')  # Raise exception on scipy/numpy RuntimeWarning
+    scipy.special.seterr(all='raise')
+    np.seterrcall(NumpyLogger())
+    np.seterr(all='raise')
+
+    # Over- and underflow is bad, but we shouldn't stop someone mid-mission for it.
+    np.seterr(over='log', under='log')
 
 
 class TimeAccChange(NamedTuple):
@@ -85,6 +101,12 @@ class PhysicsEngine:
         self._last_monotime: float = time.monotonic()
         self._last_simtime: float
         self._time_acc_changes: collections.deque
+
+        # This will change how we handle floating point errors on the *main*
+        # thread only (i.e. the thread that Python code runs on by default).
+        # When self._start_simthread starts a simthread, we have to call this
+        # function in that new thread as well.
+        set_floating_point_fatality()
 
         self.set_state(physical_state)
 
@@ -242,8 +264,13 @@ class PhysicsEngine:
                 self._simthread_exception is not None
             )
 
-            # Check if the simthread crashed
+            # Check if the simthread crashed, and do some logging.
             if self._simthread_exception is not None:
+                if self._solutions:
+                    log.debug('Last solution:')
+                    log.debug(f'{self._solutions[-1].y_events[-1]}')
+                log.debug('Last physical_state:')
+                log.debug(f'{self._last_physical_state}')
                 raise self._simthread_exception
 
             if self._last_physical_state.time_acc == 0:
@@ -279,6 +306,7 @@ class PhysicsEngine:
             self.y = y
 
     def _simthread_target(self, t, y):
+        set_floating_point_fatality()
         while True:
             try:
                 self._run_simulation(t, y)

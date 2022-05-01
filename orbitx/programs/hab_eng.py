@@ -18,7 +18,7 @@ from typing import List
 from orbitx.graphics.eng.main_window import MainApplication
 
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 name = "Habitat Engineering"

@@ -12,7 +12,7 @@ from orbitx import common
 from orbitx.data_structures import Entity, Navmode, PhysicsState
 from orbitx.strings import HABITAT
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 OrbitCoords = collections.namedtuple(

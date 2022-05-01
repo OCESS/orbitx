@@ -71,7 +71,7 @@ class StartupHandler(LogdirFileHandler):
 # Set up the logger.
 # Log WARNING and higher to stderr.
 # Log INFO and higher to the logfile (initially the startup logfile).
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger('orbitx').setLevel(logging.DEBUG)
 logging.captureWarnings(True)
 
 print_handler = logging.StreamHandler()
@@ -79,13 +79,13 @@ print_handler.setLevel(logging.WARNING)
 print_handler.setFormatter(print_formatter)
 
 startup_handler = StartupHandler()
-startup_handler.setLevel(logging.INFO)
+startup_handler.setLevel(logging.DEBUG)
 startup_handler.setFormatter(debug_formatter)
 logfile_name = startup_handler.baseFilename
 
-logging.getLogger().handlers = []
-logging.getLogger().addHandler(print_handler)
-logging.getLogger().addHandler(startup_handler)
+logging.getLogger('orbitx').handlers = []
+logging.getLogger('orbitx').addHandler(print_handler)
+logging.getLogger('orbitx').addHandler(startup_handler)
 
 
 def make_program_logfile(program_name: str):
@@ -96,18 +96,19 @@ def make_program_logfile(program_name: str):
     logfile_handler.setLevel(logging.INFO)
     logfile_handler.setFormatter(debug_formatter)
 
-    logging.getLogger().info(
+    logging.getLogger('orbitx').info(
         f'Switching logfiles to {logfile_handler.baseFilename}.')
-    logging.getLogger().addHandler(logfile_handler)
+    logging.getLogger('orbitx').addHandler(logfile_handler)
     for record in startup_handler.record_buffer:
         logfile_handler.emit(record)
     logfile_name = logfile_handler.baseFilename
-    logging.getLogger().info('Startup complete.')
+    logging.getLogger('orbitx').info('Startup complete.')
 
     # startup_handler will now no longer be used by the logging subsystem.
     startup_handler.close()
 
 
 def enable_verbose_logging():
-    """Enables logging of all messages to stdout, from DEBUG upwards"""
-    print_handler.setLevel(logging.INFO)
+    """Enables logging of all messages to stdout, from INFO upwards"""
+    print_handler.setLevel(logging.DEBUG)  # We'll print any debug messages and higher.
+    logging.getLogger().setLevel(logging.DEBUG)

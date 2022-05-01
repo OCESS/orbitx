@@ -30,6 +30,7 @@ BUS2 = 'Secondary Habitat Bus'
 BUS3 = 'Tertiary Habitat Bus'
 ABUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
+FCELL = 'Fuel Cell'
 BAT2 = 'BAT'
 BAT3 = 'BACKUP BAT'
 AYSE_BAT = 'AYSE BAT'
@@ -42,7 +43,6 @@ REACT_INJ1 = 'REACT INJ1'
 REACT_INJ2 = 'REACT INJ2'
 FCELL_INJ = 'F-CELL INJ'
 AYSE_REACT = 'AYSE reactor'
-DETACH_MOD = 'DETACH MOD'
 DOCK_MOD = 'DOCK MOD'
 RADAR = 'RADAR'
 INS = 'INS'
@@ -67,7 +67,7 @@ RAD6 = 'RAD 6'
 RAD7 = 'RAD 7'
 RAD8 = 'RAD 8'
 EECOM = 'EECOM'
-NETWORK = "Network"
+NETWORK = 'Network'
 
 # This is referenced by data_structures.ComponentView.name!
 COMPONENT_NAMES = [
@@ -88,6 +88,7 @@ COMPONENT_NAMES = [
     ION4,
     TRN1,
     TRN2,
+    FCELL,
     BAT2,
     BAT3,
     AYSE_BAT,
@@ -100,7 +101,6 @@ COMPONENT_NAMES = [
     REACT_INJ2,
     FCELL_INJ,
     AYSE_REACT,
-    DETACH_MOD,
     DOCK_MOD,
     RADAR,
     INS,

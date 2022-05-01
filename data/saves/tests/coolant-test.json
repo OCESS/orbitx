@@ -5,10 +5,8 @@
     [
         {
             "name": "Habitat",
-            "r": 50.0,
             "mass": 300.0,
             "fuel": 100.0,
-            "vx": 5,
             "artificial": true
         }
     ],
@@ -17,31 +15,20 @@
         "rad_shield_percentage": 5,
         "components":
         [
+            {},
             {
-                "connected": true,
-                "capacity": 0.9,
-                "temperature": 31.3,
-                "coolant_hab_one": true
-            },
-            {
-                "connected": true,
-                "capacity": 0.8,
-                "temperature": 50,
+                "connected": false,
+                "temperature": 2,
                 "coolant_hab_one": false,
-                "coolant_hab_two": true,
-                "coolant_ayse": false
-            },
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {
-                "connected": true,
-                "temperature": 25.6,
                 "coolant_hab_two": true
             },
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
             {},
             {},
             {},
@@ -72,17 +59,17 @@
         "coolantLoops":
         [
             {
-                "coolantTemp": 15.0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             },
             {
-                "coolantTemp": 20.0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             },
             {
-                "coolantTemp": 20.0,
+                "coolantTemp": 1,
                 "primaryPumpOn": true,
                 "secondaryPumpOn": true
             }

@@ -11,7 +11,7 @@ from typing import NamedTuple, Optional
 
 import numpy
 import google.protobuf.json_format
-import vpython
+import vpython  # type: ignore
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import data_structures
@@ -56,20 +56,21 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 
 # ---------------- Physics-related constants ----------------
 G = 6.674e-11
-eta = 0.9  # Efficiency of engineering components
-alpha = 0.1  # Heat gain due to inefficiences ratio
 
-MIN_THROTTLE = -1.00  # -100%
-MAX_THROTTLE = 1.00  # 100%
+SRB_THRUST = 13_125_000
 
-# The max speed at which the autopilot will spin the craft.
-AUTOPILOT_SPEED = numpy.radians(20)
-
-# The margin on either side of the target heading that the autopilot will slow
-# down its adjustments.
-AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
+HAB_DRAG_PROFILE = 0.0002
+PARACHUTE_DRAG_PROFILE = 0.02
 
 UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
+
+# The thrust-weight ratio required for liftoff. Realistically, the TWR only has
+# to be greater than 1 to lift off, but we want to make sure there aren't any
+# possible collisions that will set the engines to 0 again.
+LAUNCH_TWR = 1.05
+# Note: a LAUNCH_TWR of 1.05 implies that you probably won't be able to lift off
+# a planet if hovering requires 97% engines. Hopefully you don't regularly go to
+# planets like this.
 
 
 class Spacecraft(NamedTuple):
@@ -85,19 +86,24 @@ craft_capabilities = {
     strings.AYSE: Spacecraft(fuel_cons=17.55, thrust=6.4e9, hull_strength=100)
 }
 
-SRB_THRUST = 13125000
+# ---------------- Control-related constants ----------------
+MIN_THROTTLE = -1.00  # -100%
+MAX_THROTTLE = 1.00  # 100%
+
+# The max speed at which the autopilot will spin the craft.
+AUTOPILOT_SPEED = numpy.radians(20)
+
+# The margin on either side of the target heading that the autopilot will slow
+# down its adjustments.
+AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
 
 # Rotating the craft changes the spin by this amount per button press.
 SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
 FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
 
-HAB_DRAG_PROFILE = 0.0002
-PARACHUTE_DRAG_PROFILE = 0.02
-
-# The thrust-weight ratio required for liftoff. Realistically, the TWR only has
-# to be greater than 1 to lift off, but we want to make sure there aren't any
-# possible collisions that will set the engines to 0 again.
-LAUNCH_TWR = 1.05
+# Rotating the craft changes the spin by this amount per button press.
+SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
+FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
 
 # These special values mean that the SRBs are full but haven't been used, and
 # that the SRBs have been fully used, respectively.

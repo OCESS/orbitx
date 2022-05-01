@@ -10,7 +10,7 @@ from orbitx.physics import calc
 from orbitx.data_structures import Entity, PhysicsState
 from orbitx.strings import EARTH
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 class ThreeDeeObj(metaclass=ABCMeta):

@@ -9,7 +9,7 @@ from orbitx import physics
 from orbitx import programs
 from orbitx.graphics.flight import flight_gui
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 name = "Flight Training"
 

@@ -14,7 +14,7 @@ from orbitx import network
 from orbitx.data_structures import PhysicsState
 from orbitx.graphics import vpython_widgets
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 class ServerGui:

@@ -13,15 +13,15 @@ import scipy
 from orbitx import common, strings
 from orbitx.data_structures import (
     EngineeringState, PhysicsState,
-    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, _N_COMPONENTS,
-    _N_COOLANT_LOOPS, _N_COOLANT_FIELDS, _N_RADIATORS, _N_RADIATOR_FIELDS
+    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, N_COMPONENTS,
+    N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
     )
 from orbitx.strings import AYSE, HABITAT
-from orbitx.physics import helpers, calc
+from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState
 
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 
 def simulation_differential_function(
@@ -30,6 +30,21 @@ def simulation_differential_function(
     masses: np.ndarray, artificials: np.ndarray
 ) -> np.ndarray:
     """
+    Given the state of a simulation, calculate its instantaneous rate-of-change.
+
+    This function is probably one of the most important ones in OrbitX :)
+    Everything from "an object with a velocity will change position" to
+    "the habitat reactor heats up when it's being used" is encoded here.
+
+    This function is used by scipy.solve_ivp, which unfortunately requires
+    that the y_1d input of this function is a single 1-dimensional array.
+    We also have the same requirement of this function's output. This means
+    that we have to encode almost the entire state of the OrbitX simulation
+    in the y_1d input array, and every single value in that array has to have
+    a corresponding output value in the output array. This is a big array!
+
+    This is roughly the ordering of fields in the input array:
+
     y_1d =
      [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
      SRB_time_left + time_acc (these are both single values) +
@@ -37,6 +52,10 @@ def simulation_differential_function(
     returns the derivative of y_1d, i.e.
     [VX, VY, AX, AY, Spin, 0, Fuel consumption, 0, 0, 0] + -constant + 0
     (zeroed-out fields are changed elsewhere)
+
+    The ordering of fields is determined by the ordering in orbitx.proto.
+    If the structure of the y_1d array changes, make sure to update this
+    function and anywhere annotated with #Y_VECTOR_CHANGESITE!
 
     !!!!!!!!!!! IMPORTANT !!!!!!!!!!!
     This function should return a DERIVATIVE. The numpy.solve_ivp function
@@ -53,7 +72,7 @@ def simulation_differential_function(
     Any arguments after `t` and `y_1d` are just extra constants and
     pass-through state, which should remain constant during normal simulation.
     They are passed in to speed up computation, since this function is the most
-    performance-sensitive part of the orbitx codebase(!!!) 
+    performance-sensitive part of the orbitx codebase(!!!)
     """
 
     # Note: we create this y as a PhysicsState for convenience, but if you
@@ -103,16 +122,6 @@ def simulation_differential_function(
         # The Habitat doesn't exist.
         pass
 
-    # Engineering values
-    R = y.engineering.components.Resistance()
-    I = y.engineering.components.Current()  # noqa: E741
-
-    # Eventually radiators will affect the temperature.
-    T_deriv = common.eta * np.square(I) * R
-    R_deriv = common.alpha * T_deriv
-    # Voltage we set to be constant. Since I = V/R, I' = V'/R' = 0/R' = 0
-    V_deriv = I_deriv = np.zeros(_N_COMPONENTS)
-
     # Drag effects
     craft = y.craft
     if craft is not None:
@@ -130,6 +139,21 @@ def simulation_differential_function(
         acc_matrix[landed_i] = \
             acc_matrix[landed_on[landed_i]] - centripetal_acc
 
+    # Time for the Engineering section.
+    component_resistances = electrofunctions.component_resistances(y.engineering)
+    electrical_bus = electrofunctions.bus_electricity(component_resistances)
+    bus_power = electrical_bus.voltage * electrical_bus.current
+
+    # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.
+    fuel_usage_rate = .05 * bus_power / 50_000_000
+    # TODO: Replace the existing fuel consumption calculations with this calculation.
+
+    component_heating_rate_array = electrofunctions.component_heating_rate(
+        y.engineering,
+        component_resistances,
+        electrical_bus.voltage
+    )
+
     # Sets velocity and spin of a couple more entities.
     # If you want to set the acceleration of an entity, do it above and
     # keep that logic in _derive. If you want to set the velocity and spin
@@ -137,17 +161,18 @@ def simulation_differential_function(
     # this _reconcile_entity_dynamics helper.
     y = helpers._reconcile_entity_dynamics(y)
 
-    return np.concatenate((
+    # If the ordering of fields in orbitx.proto changes, change here too. #Y_VECTOR_CHANGESITE
+    y_differential = np.concatenate((
         y.VX, y.VY, np.hsplit(acc_matrix, 2), y.Spin,
         zeros, fuel_cons, zeros, zeros, zeros, np.array([srb_usage, 0]),
-        # component connection state doesn't change here
-        np.zeros(_N_COMPONENTS),
-        T_deriv, R_deriv, V_deriv, I_deriv,
-        # coolant loop/radiator connection state doesn't change here
-        np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS), np.zeros(_N_COMPONENTS),
-        np.zeros(_N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
-        np.zeros(_N_RADIATORS * _N_RADIATOR_FIELDS)
+        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),  # connected and capacity fields
+        component_heating_rate_array,
+        np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS), np.zeros(N_COMPONENTS),  # coolant connection states
+        np.zeros(N_COOLANT_LOOPS * _N_COOLANT_FIELDS),
+        np.zeros(N_RADIATORS * _N_RADIATOR_FIELDS)
     ), axis=None)
+
+    return y_differential
 
 
 class Event:

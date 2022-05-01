@@ -4,7 +4,6 @@ Read this guide if you're interested in becoming a contributor to OrbitX!
 
 For a guide on how to install and run OrbitX, read `README.md`  
 For a guide on how to set up your text editor to edit code, read `DEVELOPING.md`  
-For a guide on how the actual OrbitX codebase is structured, read `ARCHITECTURE.md`
 
 ## Can I Contribute To OrbitX?
 
@@ -100,11 +99,9 @@ In PyCharm, click "Terminal" at the bottom of the PyCharm window and make sure t
 text "`(venv)`" appears at the beginning of the command line that pops up (if
 not, something went wrong in the previous virtual environment step).
 
-Then, run the following command (copy-pasted from `orbitx/Makefile`):
-
 ```
-cd orbitx
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. orbitx.proto
+./generate-protobufs.sh  # on linux
+./generate-protobufs.ps1 # on windows
 ```
 
 If you get any errors, make sure all the commands in README.md Project Setup

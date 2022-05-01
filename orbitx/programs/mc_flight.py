@@ -8,7 +8,7 @@ from orbitx import programs
 from orbitx.graphics.flight import flight_gui
 from orbitx.data_structures import Request
 
-log = logging.getLogger()
+log = logging.getLogger('orbitx')
 
 name = "MC Flight"
 

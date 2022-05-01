@@ -130,15 +130,15 @@ message Command {
 }
 
 message EngineeringState {
+    // If the ordering of fields in EngineeringState, make sure to change everywhere else with #Y_VECTOR_CHANGESITE
+
     message Component {
         bool connected = 1;
-        double temperature = 2;
-        double resistance = 3;
-        double voltage = 4;
-        double current = 5;
-        bool coolant_hab_one = 6;
-        bool coolant_hab_two = 7;
-        bool coolant_ayse = 8;
+        double capacity = 2;  // 0 when component is off, 1 at 100% capacity
+        double temperature = 3;
+        bool coolant_hab_one = 4;
+        bool coolant_hab_two = 5;
+        bool coolant_ayse = 6;
     }
 
     message CoolantLoop {
@@ -171,8 +171,9 @@ message EngineeringState {
     int32 rad_shield_percentage = 10;
 }
 
-// This is wrapped by state.py.
+// This is wrapped by data_structures.py.
 message Entity {
+    // If the field ordering here changes, make sure to update any places annotated with #Y_VECTOR_CHANGESITE
     string name = 1;
     double x = 2;
     double y = 3;
