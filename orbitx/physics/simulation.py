@@ -55,9 +55,6 @@ def set_floating_point_fatality():
     np.seterr(over='log', under='log')
 
 
-set_floating_point_fatality()
-
-
 class TimeAccChange(NamedTuple):
     """Describes when the time acc of the simulation changes, and what to."""
     time_acc: float
@@ -104,6 +101,12 @@ class PhysicsEngine:
         self._last_monotime: float = time.monotonic()
         self._last_simtime: float
         self._time_acc_changes: collections.deque
+
+        # This will change how we handle floating point errors on the *main*
+        # thread only (i.e. the thread that Python code runs on by default).
+        # When self._start_simthread starts a simthread, we have to call this
+        # function in that new thread as well.
+        set_floating_point_fatality()
 
         self.set_state(physical_state)
 

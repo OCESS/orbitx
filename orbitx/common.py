@@ -57,7 +57,7 @@ TIMEZONE = pytz.timezone('Canada/Eastern')
 # ---------------- Physics-related constants ----------------
 G = 6.674e-11
 
-SRB_THRUST = 13125000
+SRB_THRUST = 13_125_000
 
 HAB_DRAG_PROFILE = 0.0002
 PARACHUTE_DRAG_PROFILE = 0.02
@@ -68,6 +68,9 @@ UNDOCK_PUSH = 0.5  # Undocking gives a 0.5 m/s push
 # to be greater than 1 to lift off, but we want to make sure there aren't any
 # possible collisions that will set the engines to 0 again.
 LAUNCH_TWR = 1.05
+# Note: a LAUNCH_TWR of 1.05 implies that you probably won't be able to lift off
+# a planet if hovering requires 97% engines. Hopefully you don't regularly go to
+# planets like this.
 
 
 class Spacecraft(NamedTuple):

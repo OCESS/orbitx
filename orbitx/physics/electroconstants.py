@@ -29,15 +29,9 @@ ALPHA_RESIST_GAIN = 0.004
 # Thermal inefficiency-related constant.
 # With this constant, applying 1 Watt of power results in 0.0001 Kelvin/second of heating.
 COEFF_TEMPERATURE_GAIN = 0.0001
-# TODO: Calculate a mass * specific thermal capacity constant for each component
-# so that we can more accurately model reality (and importantly, orbit5v).
-# The math we want to eventually have is taken from https://en.wikipedia.org/wiki/Joule_heating#Direct_current.
-# Specifically, we would define a global constant eta = 0.1 to say that 0.1 of the power going through
-# a component is converted to unwanted thermal energy (unit: Joules).
-# Then, to calculate the temperature gain we can do
-# P_thermal = eta * I^2 * R
-# T_deriv = P_thermal / (specific_thermal_capacity_of_component * mass_of_component)
-# The denominator would calculated as a per-component constant, something like 500
+
+# Upper bound of how quickly a component can heat up (so the battery doesn't explode).
+MAX_HEATING_RATE = 20.
 
 # https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
 # Water has a k coefficient of 0.6 to 0.7. Better conductors have higher k-values.

@@ -30,6 +30,21 @@ def simulation_differential_function(
     masses: np.ndarray, artificials: np.ndarray
 ) -> np.ndarray:
     """
+    Given the state of a simulation, calculate its instantaneous rate-of-change.
+
+    This function is probably one of the most important ones in OrbitX :)
+    Everything from "an object with a velocity will change position" to
+    "the habitat reactor heats up when it's being used" is encoded here.
+
+    This function is used by scipy.solve_ivp, which unfortunately requires
+    that the y_1d input of this function is a single 1-dimensional array.
+    We also have the same requirement of this function's output. This means
+    that we have to encode almost the entire state of the OrbitX simulation
+    in the y_1d input array, and every single value in that array has to have
+    a corresponding output value in the output array. This is a big array!
+
+    This is roughly the ordering of fields in the input array:
+
     y_1d =
      [X, Y, VX, VY, Heading, Spin, Fuel, Throttle, LandedOn, Broken] +
      SRB_time_left + time_acc (these are both single values) +
