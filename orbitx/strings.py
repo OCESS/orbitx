@@ -69,7 +69,10 @@ RAD8 = 'RAD 8'
 EECOM = 'EECOM'
 NETWORK = 'Network'
 
-# This is referenced by data_structures.ComponentView.name!
+# This list is actually the single source-of-truth for what is and isn't a
+# component!
+# Changing the length of this list will likely invalidate any saves that have
+# data about components. Changing the ordering will also have similar effects!
 COMPONENT_NAMES = [
     RADS1,
     RADS2,

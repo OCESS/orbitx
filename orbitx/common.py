@@ -169,6 +169,13 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
             data = f.read()
         read_state = protos.PhysicalState()
         google.protobuf.json_format.Parse(data, read_state)
+
+        if len(read_state.engineering.components) == 0:
+            # We allow savefiles to not specify any components.
+            # If we see this, create a list of empty components in the protobuf before parsing it.
+            empty_components = [protos.EngineeringState.Component()] * data_structures.N_COMPONENTS
+            read_state.engineering.components.extend(empty_components)
+
         physics_state = data_structures.PhysicsState(None, read_state)
 
     if physics_state.time_acc == 0:
@@ -179,6 +186,7 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
         physics_state.target = DEFAULT_TARGET
     if physics_state.srb_time == 0:
         physics_state.srb_time = SRB_FULL
+
     return physics_state
 
 

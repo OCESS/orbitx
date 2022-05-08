@@ -575,7 +575,19 @@ class EngineeringState:
             assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
 
     class ComponentList:
-        """Allows engineering.components[LOS] style indexing."""
+        """
+        Wraps the underlying component data array into something like a list.
+
+        Accessors that operate on all components at once go here.
+
+        The __getitem__ method lets us write code like:
+            engineering.components["RCON1"].temperature = 5.2
+        It returns a ComponentView instance, and we can set fields of that
+        ComponentView instance to update the original data array.
+
+        The end result should be an easy-to-use API that doesn't do anything
+        unexpected!
+        """
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._component_array = owner._array[owner._COMPONENT_START_INDEX:owner._COMPONENT_END_INDEX]
@@ -608,7 +620,9 @@ class EngineeringState:
             return np.vstack((list_hab_one, list_hab_two, list_ayse))
 
     class CoolantLoopList:
-        """Allows engineering.coolant_loops[LP1] style indexing."""
+        """Allows engineering.coolant_loops[LP1] style indexing.
+
+        See comments on ComponentList, a similar class, for more details."""
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._coolant_array = owner._array[owner._COOLANT_START_INDEX:owner._COOLANT_END_INDEX]
@@ -625,7 +639,9 @@ class EngineeringState:
             return self._coolant_array[0 * N_COOLANT_LOOPS:1 * N_COOLANT_LOOPS]
 
     class RadiatorList:
-        """Allows engineering.radiators[RAD1] style indexing."""
+        """Allows engineering.radiators[RAD1] style indexing.
+
+        See comments on ComponentList, a similar class, for more details."""
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._radiator_array = owner._array[owner._RADIATOR_START_INDEX:owner._RADIATOR_END_INDEX]
