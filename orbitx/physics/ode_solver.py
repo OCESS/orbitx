@@ -15,7 +15,7 @@ from orbitx.data_structures import (
     EngineeringState, PhysicsState,
     _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, N_COMPONENTS,
     N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
-    )
+)
 from orbitx.strings import AYSE, HABITAT
 from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState
@@ -221,8 +221,8 @@ class CollisionEvent(Event):
         posns = np.column_stack((y.X, y.Y))
         # An n*n matrix of _altitudes_ between each entity
         alt_matrix = (
-                scipy.spatial.distance.cdist(posns, posns) -
-                np.array([self.radii]) - np.array([self.radii]).T)
+            scipy.spatial.distance.cdist(posns, posns)
+            - np.array([self.radii]) - np.array([self.radii]).T)
         # To simplify calculations, an entity's altitude from itself is inf
         np.fill_diagonal(alt_matrix, np.inf)
         # For each pair of objects that have collisions disabled between

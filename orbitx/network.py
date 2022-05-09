@@ -86,11 +86,10 @@ class StateServer(grpc_stubs.StateServerServicer):
         assert client_type is not None
 
         if context.peer() not in self.addr_to_connected_clients:
-            self.addr_to_connected_clients[context.peer()] = \
-                SimpleNamespace(
-                    client_type=self.CLIENT_TYPE_TO_STR[client_type],
-                    client_addr=context.peer()
-                )
+            self.addr_to_connected_clients[context.peer()] = SimpleNamespace(
+                client_type=self.CLIENT_TYPE_TO_STR[client_type],
+                client_addr=context.peer()
+            )
 
         self.addr_to_connected_clients[context.peer()].last_contact = \
             time.monotonic()
@@ -134,7 +133,7 @@ class NetworkedStateClient:
         self.client_type = client
 
         initial_state = PhysicsState(None, self.stub.get_physical_state(iter([
-                Request(ident=Request.NOOP, client=self.client_type)])))
+            Request(ident=Request.NOOP, client=self.client_type)])))
 
         self._caching_physics_engine = physics.PhysicsEngine(initial_state)
         self._time_of_next_network_update = 0.0
@@ -173,9 +172,7 @@ class NetworkedStateClient:
                 # input lag.
                 self._time_of_next_network_update = current_time + 0.15
             else:
-                self._time_of_next_network_update = (
-                        current_time + common.TIME_BETWEEN_NETWORK_UPDATES
-                )
+                self._time_of_next_network_update = current_time + common.TIME_BETWEEN_NETWORK_UPDATES
 
         else:
             returned_state = self._caching_physics_engine.get_state()

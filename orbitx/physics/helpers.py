@@ -4,7 +4,6 @@ Miscellaneous helper functions for physics simulation stuff.
 There are no complex classes in this file.
 """
 
-from typing import Tuple, Optional
 import logging
 
 import numpy as np
@@ -15,7 +14,7 @@ from orbitx.physics import calc
 from orbitx.data_structures import (
     protos, Entity, Navmode, PhysicsState,
     Request
-    )
+)
 from orbitx.strings import AYSE, HABITAT, MODULE
 
 log = logging.getLogger('orbitx')
@@ -39,9 +38,9 @@ def _reconcile_entity_dynamics(y: PhysicsState) -> PhysicsState:
         if ground.name == AYSE and lander.name == HABITAT:
             # Always put the Habitat at the docking port.
             lander.pos = (
-                    ground.pos
-                    - calc.heading_vector(ground.heading)
-                    * (lander.r + ground.r))
+                ground.pos
+                - calc.heading_vector(ground.heading)
+                * (lander.r + ground.r))
         else:
             norm = lander.pos - ground.pos
             unit_norm = norm / calc.fastnorm(norm)
@@ -100,8 +99,8 @@ def _docking(e1, e2, e2_index):
 
     # Currently this flag has almost no effect.
     e1.broken = bool(
-        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v) >
-        common.craft_capabilities[e1.name].hull_strength
+        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v)
+        > common.craft_capabilities[e1.name].hull_strength
     )
 
     # set right heading for future takeoff
@@ -132,10 +131,10 @@ def _bounce(e1, e2):
 
     # Use https://en.wikipedia.org/wiki/Elastic_collision
     # to find the new normal velocities (a 1D collision)
-    new_v1n = ((v1n * (e1.mass - e2.mass) + 2 * e2.mass * v2n) /
-               (e1.mass + e2.mass))
-    new_v2n = ((v2n * (e2.mass - e1.mass) + 2 * e1.mass * v1n) /
-               (e1.mass + e2.mass))
+    new_v1n = ((v1n * (e1.mass - e2.mass) + 2 * e2.mass * v2n)
+               / (e1.mass + e2.mass))
+    new_v2n = ((v2n * (e2.mass - e1.mass) + 2 * e1.mass * v1n)
+               / (e1.mass + e2.mass))
 
     # Calculate new velocities
     e1.v = new_v1n * unit_norm + v1t * unit_tang
@@ -153,8 +152,8 @@ def _land(e1, e2):
 
     # Currently does nothing
     e1.broken = bool(
-        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v) >
-        common.craft_capabilities[e1.name].hull_strength
+        calc.fastnorm(calc.rotational_speed(e1, e2) - e1.v)
+        > common.craft_capabilities[e1.name].hull_strength
     )
 
     # set right heading for future takeoff
@@ -163,6 +162,7 @@ def _land(e1, e2):
     e1.throttle = 0
     e1.spin = e2.spin
     e1.v = calc.rotational_speed(e1, e2)
+
 
 def _one_request(request: Request, y0: PhysicsState) \
         -> PhysicsState:
@@ -212,8 +212,8 @@ def _one_request(request: Request, y0: PhysicsState) \
             # detach the Module, spawn in the Module.
             module = Entity(protos.Entity(
                 name=MODULE, mass=100, r=10, artificial=True))
-            module.pos = (hab.pos - (module.r + hab.r) *
-                          calc.heading_vector(hab.heading))
+            module.pos = (hab.pos - (module.r + hab.r)
+                          * calc.heading_vector(hab.heading))
             module.v = calc.rotational_speed(module, hab)
 
             y0_proto = y0.as_proto()

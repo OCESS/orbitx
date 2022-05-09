@@ -15,7 +15,6 @@ from orbitx import physics
 from orbitx.data_structures import (
     EngineeringState, _EntityView, Entity, PhysicsState,
     N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS,
-    _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
 from orbitx.strings import HABITAT
 
@@ -103,15 +102,15 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(common.G * initial[1].mass /
-                                   (y0.X[0] - y0.X[1]) ** 2))
+                             round(common.G * initial[1].mass
+                                   / (y0.X[0] - y0.X[1]) ** 2))
             self.assertAlmostEqual(dy.VY[0], 0)
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(common.G * initial[0].mass /
-                                   (y0.X[1] - y0.X[0]) ** 2))
+                             round(common.G * initial[0].mass
+                                   / (y0.X[1] - y0.X[0]) ** 2))
             self.assertAlmostEqual(dy.VY[1], 0)
 
     def test_engines(self):
@@ -135,16 +134,16 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
             self.assertAlmostEqual(
                 moved[0].fuel,
-                (initial[0].fuel -
-                 t_delta * throttle *
-                 common.craft_capabilities[HABITAT].fuel_cons))
+                (initial[0].fuel
+                 - t_delta * throttle
+                 * common.craft_capabilities[HABITAT].fuel_cons))
             self.assertTrue(
-                moved[0].vx <
-                (t_delta * calc.engine_acceleration(moved)))
+                moved[0].vx
+                < (t_delta * calc.engine_acceleration(moved)))
 
             t_no_fuel = (initial[0].fuel
-                         / (throttle *
-                            common.craft_capabilities[HABITAT].fuel_cons
+                         / (throttle
+                            * common.craft_capabilities[HABITAT].fuel_cons
                             )
                          )
             empty_fuel = physics_engine.get_state(t_no_fuel)
@@ -196,41 +195,41 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(common.G * physics_state[1].mass /
-                                   (y0.X[0] - y0.X[1]) ** 2))
+                             round(common.G * physics_state[1].mass
+                                   / (y0.X[0] - y0.X[1]) ** 2))
             self.assertEqual(round(abs(dy.VY[0])),
-                             round(common.G * physics_state[2].mass /
-                                   (y0.Y[0] - y0.Y[2]) ** 2))
+                             round(common.G * physics_state[2].mass
+                                   / (y0.Y[0] - y0.Y[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(common.G * physics_state[0].mass /
-                                   (y0.X[1] - y0.X[0]) ** 2 +
+                             round(common.G * physics_state[0].mass
+                                   / (y0.X[1] - y0.X[0]) ** 2
 
-                                   np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2
+                                   + np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2
                                    ))
             self.assertEqual(round(abs(dy.VY[1])),
-                             round(np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2))
+                             round(np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[2], y0.VX[2])
             self.assertAlmostEqual(dy.Y[2], y0.VY[2])
             self.assertEqual(round(abs(dy.VX[2])),
-                             round(np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2))
+                             round(np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2))
             self.assertEqual(round(abs(dy.VY[2])),
                              round(
-                                 common.G * physics_state[0].mass /
-                                 (y0.Y[2] - y0.Y[0]) ** 2 +
+                                 common.G * physics_state[0].mass
+                                 / (y0.Y[2] - y0.Y[0]) ** 2
 
-                                 np.sqrt(2) * common.G * physics_state[1].mass
+                                 + np.sqrt(2) * common.G * physics_state[1].mass
                                  / (y0.Y[2] - y0.Y[1]) ** 2
-                             ))
+            ))
 
     def test_landing(self):
         with PhysicsEngine('tests/artificial-collision.json') \
@@ -248,9 +247,9 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertTrue(before[2].vx > 0)
             self.assertAlmostEqual(after[0].vx, after[2].vx)
             self.assertAlmostEqual(after[0].x,
-                                   (after[2].x +
-                                    after[0].r +
-                                    after[2].r))
+                                   (after[2].x
+                                    + after[0].r
+                                    + after[2].r))
 
     def test_longterm_stable_landing(self):
         """Test that landed ships have stable altitude in the long term."""
@@ -347,38 +346,38 @@ class PhysicsStateTestCase(unittest.TestCase):
         eng_fields = np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
         component_array = eng_fields[EngineeringState._COMPONENT_START_INDEX:EngineeringState._COMPONENT_END_INDEX]
         for comp_i in range(0, N_COMPONENTS):
-            component_array[comp_i+N_COMPONENTS*0] = True  # connected
-            component_array[comp_i+N_COMPONENTS*1] = 1 + (0.01 * comp_i)  # capacity
-            component_array[comp_i+N_COMPONENTS*2] = 222200 + comp_i  # temperature
-            component_array[comp_i+N_COMPONENTS*3] = comp_i % 2  # coolant_hab_one
-            component_array[comp_i+N_COMPONENTS*4] = True  # coolant_hab_two
-            component_array[comp_i+N_COMPONENTS*5] = False  # coolant_ayse
+            component_array[comp_i + N_COMPONENTS * 0] = True  # connected
+            component_array[comp_i + N_COMPONENTS * 1] = 1 + (0.01 * comp_i)  # capacity
+            component_array[comp_i + N_COMPONENTS * 2] = 222200 + comp_i  # temperature
+            component_array[comp_i + N_COMPONENTS * 3] = comp_i % 2  # coolant_hab_one
+            component_array[comp_i + N_COMPONENTS * 4] = True  # coolant_hab_two
+            component_array[comp_i + N_COMPONENTS * 5] = False  # coolant_ayse
 
         coolant_array = eng_fields[EngineeringState._COOLANT_START_INDEX:EngineeringState._COOLANT_END_INDEX]
         for cool_i in range(0, N_COOLANT_LOOPS):
-            coolant_array[cool_i+N_COOLANT_LOOPS*0] = 555500 + cool_i  # coolant_temp
-            coolant_array[cool_i+N_COOLANT_LOOPS*1] = cool_i % 2  # primary_pump_on
-            coolant_array[cool_i+N_COOLANT_LOOPS*2] = True  # secondary_pump_on
+            coolant_array[cool_i + N_COOLANT_LOOPS * 0] = 555500 + cool_i  # coolant_temp
+            coolant_array[cool_i + N_COOLANT_LOOPS * 1] = cool_i % 2  # primary_pump_on
+            coolant_array[cool_i + N_COOLANT_LOOPS * 2] = True  # secondary_pump_on
 
         rad_array = eng_fields[EngineeringState._RADIATOR_START_INDEX:EngineeringState._RADIATOR_END_INDEX]
         for rad_i in range(0, N_RADIATORS):
-            rad_array[rad_i+N_RADIATORS*0] = rad_i % 4  # attached_to_coolant_loop
-            rad_array[rad_i+N_RADIATORS*1] = rad_i % 2  # functioning
+            rad_array[rad_i + N_RADIATORS * 0] = rad_i % 4  # attached_to_coolant_loop
+            rad_array[rad_i + N_RADIATORS * 1] = rad_i % 2  # functioning
 
         y0 = np.concatenate((np.array([
-                0x111, 0x222,  # x
-                0x333, 0x444,  # y
-                0x555, 0x777,  # vx
-                0x888, 0x999,  # vy
-                0.01, 0.02,  # heading
-                0.03, 0.04,  # spin
-                0xEEE, 0xFFF,  # fuel
-                5, 6,  # throttle
-                1, -1,  # only First is landed on Second
-                0, 1,  # Second is broken
-                common.SRB_EMPTY,
-                1  # time_acc
-            ]),
+            0x111, 0x222,  # x
+            0x333, 0x444,  # y
+            0x555, 0x777,  # vx
+            0x888, 0x999,  # vy
+            0.01, 0.02,  # heading
+            0.03, 0.04,  # spin
+            0xEEE, 0xFFF,  # fuel
+            5, 6,  # throttle
+            1, -1,  # only First is landed on Second
+            0, 1,  # Second is broken
+            common.SRB_EMPTY,
+            1  # time_acc
+        ]),
             eng_fields
         ))
 
@@ -700,7 +699,6 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
 
@@ -709,11 +707,15 @@ class EngineeringViewTestCase(unittest.TestCase):
         # np.newaxis is required for tranposed vector to be used in matrix math
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
 
-        component_temperature_matrix = (component_temperature_row_vector * connected_loops -
-                                        connected_loops * coolant_temperature_col_vector.transpose())
+        component_temperature_matrix = (
+            component_temperature_row_vector * connected_loops
+            - connected_loops * coolant_temperature_col_vector.transpose()
+        )
 
-        self.assertAlmostEqual(component_temperature_matrix[0][0], engineering.components[0].temperature - 15, delta=0.001)
-        self.assertAlmostEqual(component_temperature_matrix[1][8], engineering.components[8].temperature - 20, delta=0.001)
+        self.assertAlmostEqual(component_temperature_matrix[0][0],
+                               engineering.components[0].temperature - 15, delta=0.001)
+        self.assertAlmostEqual(component_temperature_matrix[1][8],
+                               engineering.components[8].temperature - 20, delta=0.001)
         self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
 
 
@@ -725,7 +727,6 @@ class CoolantTestCase(unittest.TestCase):
         """
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
         self.assertEqual(connected_loops.shape, (3, N_COMPONENTS))
@@ -736,7 +737,6 @@ class CoolantTestCase(unittest.TestCase):
         """
         with PhysicsEngine('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
 
@@ -746,8 +746,8 @@ class CoolantTestCase(unittest.TestCase):
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
 
         temperature_difference_matrix = (
-            component_temperature_row_vector * connected_loops_matrix -
-            connected_loops_matrix * coolant_temperature_col_vector.transpose()
+            component_temperature_row_vector * connected_loops_matrix
+            - connected_loops_matrix * coolant_temperature_col_vector.transpose()
         )
 
         self.assertAlmostEqual(
@@ -760,7 +760,6 @@ class CoolantTestCase(unittest.TestCase):
         with PhysicsEngine('tests/coolant-test.json') as physics_engine:
             initial = physics_engine.get_state(0).engineering
             final = physics_engine.get_state(20).engineering
-            physics_state = physics_engine.get_state(20)
 
         temperature_1 = initial.components[1].temperature
         temperature_2 = final.components[1].temperature

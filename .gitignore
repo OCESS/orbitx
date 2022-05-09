@@ -18,6 +18,8 @@ flamegraph.pl
 
 *.svg
 
+*.sublime-workspace
+
 ## Below here is the GitHub python .gitignore
 
 # Byte-compiled / optimized / DLL files

@@ -513,9 +513,9 @@ class EngineeringState:
     """
 
     N_ENGINEERING_FIELDS = (
-        N_COMPONENTS * _N_COMPONENT_FIELDS +
-        N_COOLANT_LOOPS * _N_COOLANT_FIELDS +
-        N_RADIATORS * _N_RADIATOR_FIELDS
+        N_COMPONENTS * _N_COMPONENT_FIELDS
+        + N_COOLANT_LOOPS * _N_COOLANT_FIELDS
+        + N_RADIATORS * _N_RADIATOR_FIELDS
     )
 
     _COMPONENT_START_INDEX = 0
@@ -588,6 +588,7 @@ class EngineeringState:
         The end result should be an easy-to-use API that doesn't do anything
         unexpected!
         """
+
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._component_array = owner._array[owner._COMPONENT_START_INDEX:owner._COMPONENT_END_INDEX]
@@ -623,6 +624,7 @@ class EngineeringState:
         """Allows engineering.coolant_loops[LP1] style indexing.
 
         See comments on ComponentList, a similar class, for more details."""
+
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._coolant_array = owner._array[owner._COOLANT_START_INDEX:owner._COOLANT_END_INDEX]
@@ -642,6 +644,7 @@ class EngineeringState:
         """Allows engineering.radiators[RAD1] style indexing.
 
         See comments on ComponentList, a similar class, for more details."""
+
         def __init__(self, owner: 'EngineeringState'):
             self._owner = owner
             self._radiator_array = owner._array[owner._RADIATOR_START_INDEX:owner._RADIATOR_END_INDEX]
@@ -896,9 +899,9 @@ class PhysicsState:
     def _y_component(self, field_name: str) -> np.ndarray:
         """Returns an n-array with the value of a component for each entity."""
         return self._array_rep[
-               _ENTITY_FIELD_ORDER[field_name] * self._n:
-               (_ENTITY_FIELD_ORDER[field_name] + 1) * self._n
-               ]
+            _ENTITY_FIELD_ORDER[field_name] * self._n:
+            (_ENTITY_FIELD_ORDER[field_name] + 1) * self._n
+        ]
 
     def _index_to_name(self, index: int) -> str:
         """Translates an index into the entity list to the right name."""
