@@ -62,17 +62,18 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('tests/only-sun.json') as physics_engine:
             # In this case, the only entity is the Sun. It starts at (0, 0)
             # with a speed of (1, -1). It should move.
-            t_delta = 100
-            initial = physics_engine.get_state(0)
+            initial = physics_engine.get_state(1)
             moved = physics_engine.get_state(100)
-            self.assertEqual(initial.timestamp, 0)
+            t0 = initial.timestamp
+            t1 = moved.timestamp
+            self.assertEqual(initial.timestamp, 1)
             self.assertAlmostEqual(initial[0].x, 0)
             self.assertAlmostEqual(initial[0].y, 0)
             self.assertAlmostEqual(initial[0].vx, 1)
             self.assertAlmostEqual(initial[0].vy, -1)
-            self.assertEqual(moved.timestamp, t_delta)
-            self.assertAlmostEqual(moved[0].x, t_delta)
-            self.assertAlmostEqual(moved[0].y, -t_delta)
+            self.assertEqual(moved.timestamp, t1)
+            self.assertAlmostEqual(moved[0].x, t1 - t0)
+            self.assertAlmostEqual(moved[0].y, -(t1 - t0))
             self.assertAlmostEqual(moved[0].vx, 1)
             self.assertAlmostEqual(moved[0].vy, -1)
 
@@ -81,8 +82,10 @@ class PhysicsEngineTestCase(unittest.TestCase):
         with PhysicsEngine('tests/massive-objects.json') as physics_engine:
             # In this case, the first entity is very massive and the second
             # entity should gravitate towards the first entity.
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(1)
+            t0 = 1
+            t1 = 2
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
             # https://www.wolframalpha.com/input/?i=1e30+kg+*+G+%2F+(1e8+m)%5E2
             # According to the above, this should be somewhere between 6500 and
             # 7000 m/s after one second.
@@ -119,35 +122,32 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # In this test case, there is a single entity that has 300 kg fuel.
             # heading, velocity, and position are all 0.
             throttle = 1
-            t_delta = 5
+            t0 = 1
+            t1 = 5
 
             physics_engine.handle_requests([
                 network.Request(
                     ident=network.Request.HAB_THROTTLE_SET,
                     throttle_set=throttle)],
-                requested_t=0)
+                requested_t=t0)
 
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(t_delta)
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
 
             self.assertAlmostEqual(initial[0].heading, 0)
 
             self.assertAlmostEqual(
                 moved[0].fuel,
                 (initial[0].fuel
-                 - t_delta * throttle
+                 - (t1 - t0) * throttle
                  * common.craft_capabilities[HABITAT].fuel_cons))
             self.assertTrue(
                 moved[0].vx
-                < (t_delta * calc.engine_acceleration(moved)))
+                < ((t1 - t0) * calc.engine_acceleration(moved)))
 
-            t_no_fuel = (initial[0].fuel
-                         / (throttle
-                            * common.craft_capabilities[HABITAT].fuel_cons
-                            )
-                         )
+            t_no_fuel = t0 + initial[0].fuel / (throttle * common.craft_capabilities[HABITAT].fuel_cons)
             empty_fuel = physics_engine.get_state(t_no_fuel)
-            after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
+            after_empty_fuel = physics_engine.get_state(t_no_fuel + (t1 - t0))
 
             self.assertEqual(round(empty_fuel[0].fuel), 0)
             self.assertEqual(round(after_empty_fuel[0].vx),
@@ -156,22 +156,22 @@ class PhysicsEngineTestCase(unittest.TestCase):
     def test_srbs(self):
         """Test that SRBs move the craft, and run out of fuel."""
         with PhysicsEngine('tests/habitat.json') as physics_engine:
-            t_delta = 5
-
+            t0 = 1
+            t1 = 5
             physics_engine.handle_requests(
                 [network.Request(ident=network.Request.IGNITE_SRBS)],
-                requested_t=0)
+                requested_t=t0)
 
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(t_delta)
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
 
             self.assertAlmostEqual(initial[0].heading, 0)
             self.assertAlmostEqual(initial[0].vx, 0)
             self.assertAlmostEqual(moved[0].vx,
-                                   t_delta * calc.engine_acceleration(moved))
+                                   (t1 - t0) * calc.engine_acceleration(moved))
 
-            srb_empty = physics_engine.get_state(common.SRB_BURNTIME)
-            after_srb_empty = physics_engine.get_state(common.SRB_BURNTIME + 5)
+            srb_empty = physics_engine.get_state(common.SRB_BURNTIME + t0)
+            after_srb_empty = physics_engine.get_state(common.SRB_BURNTIME + (t1 - t0))
 
             self.assertAlmostEqual(srb_empty[0].vx, after_srb_empty[0].vx)
 
@@ -182,7 +182,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             # entity at the right angle being about as massive as the sun.
             # The first entity is the massive entity, the second is far to the
             # left, and the third is far to the top.
-            physics_state = physics_engine.get_state(0)
+            physics_state = physics_engine.get_state(1)
 
             # Test that every single entity has the correct accelerations.
             y0 = physics_state
@@ -758,7 +758,7 @@ class CoolantTestCase(unittest.TestCase):
 
     def test_component_coolant(self):
         with PhysicsEngine('tests/coolant-test.json') as physics_engine:
-            initial = physics_engine.get_state(0).engineering
+            initial = physics_engine.get_state(1).engineering
             final = physics_engine.get_state(20).engineering
 
         temperature_1 = initial.components[1].temperature

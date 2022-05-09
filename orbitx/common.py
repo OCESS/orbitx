@@ -44,6 +44,10 @@ TIME_ACCS = [
     TimeAcc(value=100_000, desc='100,000×', accurate_bound=0.1)
 ]
 
+DEFAULT_INITIAL_TIMESTAMP = 1.0
+DEFAULT_TIME_ACC = TIME_ACCS[1]
+assert DEFAULT_TIME_ACC.value != 0
+
 # ---------------- Graphics-related constants ---------------
 DEFAULT_CENTRE = strings.HABITAT
 DEFAULT_REFERENCE = strings.EARTH
@@ -178,8 +182,10 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
 
         physics_state = data_structures.PhysicsState(None, read_state)
 
+    if physics_state.timestamp == 0:
+        physics_state.timestamp = DEFAULT_INITIAL_TIMESTAMP
     if physics_state.time_acc == 0:
-        physics_state.time_acc = 1
+        physics_state.time_acc = DEFAULT_TIME_ACC.value
     if physics_state.reference == '':
         physics_state.reference = DEFAULT_REFERENCE
     if physics_state.target == '':

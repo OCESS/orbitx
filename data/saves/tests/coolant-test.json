@@ -1,5 +1,5 @@
 {
-    "timestamp": 0.0,
+    "timestamp": 1.0,
     "craft": "Habitat",
     "entities":
     [
@@ -22,8 +22,6 @@
                 "coolant_hab_one": false,
                 "coolant_hab_two": true
             },
-            {},
-            {},
             {},
             {},
             {},
