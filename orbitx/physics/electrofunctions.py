@@ -9,9 +9,8 @@ from typing import NamedTuple
 
 import numpy as np
 
-from orbitx import common
 from orbitx.physics import electroconstants
-from orbitx.data_structures import EngineeringState, N_COMPONENTS
+from orbitx.data_structures import EngineeringState
 
 
 class OhmicVars(NamedTuple):
@@ -35,9 +34,10 @@ def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
 
     if sum_of_reciprocals == 0:
         # There are no components connected, so this simplifies our calculations.
-        return OhmicVars(resistance=np.inf, current=0, voltage=electroconstants.NOMINAL_BUS_VOLTAGE)
+        return OhmicVars(
+            resistance=np.inf, current=0, voltage=electroconstants.HAB_PRIMARY_BUS.nominal_voltage)
 
-    bus_resistance = 1/sum_of_reciprocals
+    bus_resistance = 1 / sum_of_reciprocals
 
     # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
     # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
@@ -45,8 +45,8 @@ def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
     # If we solve for V_bus_loaded (since we know the value of all other variables):
     # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
     bus_voltage = (
-        electroconstants.NOMINAL_BUS_VOLTAGE /
-        (electroconstants.REACTOR_INTERNAL_RESISTANCE / bus_resistance + 1)
+        electroconstants.HAB_PRIMARY_BUS.nominal_voltage
+        / (electroconstants.HAB_PRIMARY_BUS.primary_power_source.internal_resistance / bus_resistance + 1)
     )
 
     # Ohm's law gives us this.
@@ -67,9 +67,9 @@ def component_resistances(y: EngineeringState) -> np.ndarray:
     component_capacities = y.components.Connected() * y.components.Capacities()
 
     component_resistances_assuming_full_capacity = (
-        electroconstants.BASE_COMPONENT_RESISTANCES +
-        electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures() *
         electroconstants.BASE_COMPONENT_RESISTANCES
+        + electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures()
+        * electroconstants.BASE_COMPONENT_RESISTANCES
     )
 
     return np.divide(
@@ -100,9 +100,9 @@ def component_heating_rate(y: EngineeringState, component_resist_array: np.ndarr
 
     # Calculate how much each component is cooled by their respective coolant loops.
     active_cooling = (
-        temperature_squared *
-        electroconstants.COOLANT_CONDUCTIVITY_MATRIX /
-        y.coolant_loops.CoolantTemp()[np.newaxis].T
+        temperature_squared
+        * electroconstants.COOLANT_CONDUCTIVITY_MATRIX
+        / y.coolant_loops.CoolantTemp()[np.newaxis].T
         # The [np.newaxis].T trick on the line above just forces .CoolantTemp() to be a column vector,
         # so that the temperature of each coolant loop gets broadcasted across COOLANT_CONDUCTIVITY_MATRIX
         # properly.

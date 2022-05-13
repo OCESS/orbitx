@@ -295,14 +295,14 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
             x: int, y: int
     ):
 
-        tk.LabelFrame.__init__(self, parent, text=strings.BAT2, labelanchor=tk.N)
+        tk.LabelFrame.__init__(self, parent, text=strings.BAT1, labelanchor=tk.N)
         Redrawable.__init__(self)
 
         self.place(x=x, y=y)
 
         pholder = 9999
 
-        tk.Label(self, text=f"{strings.BAT2} {pholder} Ah").grid(row=0, column=0)
+        tk.Label(self, text=f"{strings.BAT1} {pholder} Ah").grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass

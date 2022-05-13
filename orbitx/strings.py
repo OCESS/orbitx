@@ -31,8 +31,8 @@ BUS3 = 'Tertiary Habitat Bus'
 ABUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
 FCELL = 'Fuel Cell'
-BAT2 = 'BAT'
-BAT3 = 'BACKUP BAT'
+BAT1 = 'BAT'
+BAT2 = 'BACKUP BAT'
 AYSE_BAT = 'AYSE BAT'
 RCSP = 'RCSP'
 COM = 'COM'
@@ -89,11 +89,9 @@ COMPONENT_NAMES = [
     ION3,
     ACC4,
     ION4,
-    TRN1,
-    TRN2,
     FCELL,
+    BAT1,
     BAT2,
-    BAT3,
     AYSE_BAT,
     RCSP,
     COM,
@@ -108,7 +106,7 @@ COMPONENT_NAMES = [
     RADAR,
     INS,
     EECOM,
-    NETWORK
+    NETWORK,
 ]
 
 # This is referenced by data_structures.CoolantView.name!

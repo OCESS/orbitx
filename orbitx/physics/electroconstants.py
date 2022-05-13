@@ -9,16 +9,10 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 YOLO.
 """
 
-from typing import Tuple
-
 import numpy as np
 
 from orbitx import data_structures
 from orbitx import strings
-
-# TODO: when we implement multiple power sources and power buses, we should create a better data structure than this.
-NOMINAL_BUS_VOLTAGE = 10_000
-REACTOR_INTERNAL_RESISTANCE = 0.00025
 
 # https://en.wikipedia.org/wiki/Temperature_coefficient
 # Heat gain due to component inefficiency. Units are 1/K.
@@ -41,7 +35,98 @@ K_CONDUCTIVITY = 0.75
 # it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
+# This array is populated later in this module, but for now the default value
+# is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
 BASE_COMPONENT_RESISTANCES = np.ones(data_structures.N_COMPONENTS)
+
+# Define some electrical buses and sources as nice structured NamedTuples,
+# and then make a matrix/array copy of the same data for more efficient math.
+HAB_PRIMARY_BUS = data_structures.PowerBus(
+    nominal_voltage=10_000,
+    primary_power_source=data_structures.PowerSource(
+        name=strings.HAB_REACT, internal_resistance=0.00025),
+    secondary_power_source=None
+)
+
+HAB_SECONDARY_BUS = data_structures.PowerBus(
+    nominal_voltage=120,
+    primary_power_source=data_structures.PowerSource(
+        name=strings.FCELL, internal_resistance=0.00325),
+    secondary_power_source=data_structures.PowerSource(
+        name=strings.BAT1, internal_resistance=0.01)
+)
+
+HAB_TERTIARY_BUS = data_structures.PowerBus(
+    nominal_voltage=120,
+    primary_power_source=data_structures.PowerSource(
+        name=strings.BAT2, internal_resistance=0.0085),
+    secondary_power_source=None
+)
+
+AYSE_BUS = data_structures.PowerBus(
+    nominal_voltage=100_000,
+    primary_power_source=data_structures.PowerSource(
+        name=strings.AYSE_REACT, internal_resistance=0.00003),
+    secondary_power_source=data_structures.PowerSource(
+        name=strings.AYSE_BAT, internal_resistance=0.0055)
+)
+
+# Temporary variable, just to build the component/powerbus connection matrix.
+# Don't use this dict outside of this module, use one of the matrices or
+# NamedTuples instead.
+_component_to_bus_mapping = {
+    strings.RADS1: 0,
+    strings.RADS2: 0,
+    strings.AGRAV: 0,
+    strings.RCON1: 0,
+    strings.RCON2: 0,
+    strings.ARCON1: 3,
+    strings.ARCON2: 3,
+    strings.ACC1: 0,
+    strings.ION1: 0,
+    strings.ACC2: 0,
+    strings.ION2: 0,
+    strings.ACC3: 0,
+    strings.ION3: 0,
+    strings.ACC4: 0,
+    strings.ION4: 0,
+    strings.FCELL: 1,
+    strings.BAT1: 1,
+    strings.BAT2: 2,
+    strings.AYSE_BAT: 3,
+    strings.RCSP: 0,
+    strings.COM: 2,
+    strings.HAB_REACT: 0,
+    strings.INJ1: 0,
+    strings.INJ2: 0,
+    strings.REACT_INJ1: 0,
+    strings.REACT_INJ2: 0,
+    strings.FCELL_INJ: 1,
+    strings.AYSE_REACT: 3,
+    strings.DOCK_MOD: 0,
+    strings.RADAR: 0,
+    strings.INS: 2,
+    strings.EECOM: 2,
+    strings.NETWORK: 2,
+}
+
+assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
+
+# A 4*N matrix, with exactly N number of 1s in it (N = N_COMPONENTS).
+# A 1 at COMPONENT_BUS_CONNECTION_MATRIX[bus_k][component_j] means
+# component_j is connected to bus_k.
+# The matrix looks roughly like:
+# [1 1 1 0 0 1 0 ... 0]  Hab primary bus components
+# [0 0 0 1 0 0 1 ... 0]  Hab secondary bus components
+# [0 0 0 0 1 0 0 ... 0]  Hab tertiary bus components
+# [0 0 0 0 0 0 0 ... 1]  AYSE bus components
+COMPONENT_BUS_CONNECTION_MATRIX: np.ndarray = np.zeros(
+    shape=(4, data_structures.N_COMPONENTS), dtype=int
+)
+
+# Use the previous mapping we defined to build this connection matrix.
+for component_name, bus in _component_to_bus_mapping.items():
+    COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #
@@ -113,7 +198,7 @@ _use_orbitv_constants(strings.ION2, True, 1.48e-8, 2.7e-5, 5.0e-4, 2.0e-3, 25)
 _use_orbitv_constants(strings.ION3, True, 1.48e-8, 2.7e-5, 5.0e-4, 2.0e-3, 25)
 _use_orbitv_constants(strings.ION4, True, 1.48e-8, 2.7e-5, 5.0e-4, 2.0e-3, 25)
 _use_orbitv_constants(strings.FCELL, True, 0, 4e-5, 5e-4, 5e-4, .5)
-_use_orbitv_constants(strings.BAT2, True, 0, 1e-5, 3e-5, 3e-5, .5)
+_use_orbitv_constants(strings.BAT1, True, 0, 1e-5, 3e-5, 3e-5, .5)
 _use_orbitv_constants(strings.AYSE_BAT, True, 0, 1e-5, 1e-5, 1e-5, 0)
 # _use_orbitv_constants(Aeng1, False, 5e-11, 9e-6, 0, 4e-3, 15)
 # _use_orbitv_constants(Aeng2, False, 5e-11, 9e-6, 0, 4e-3, 15)
@@ -130,4 +215,3 @@ _set_base_resistance(strings.ION1, 610.0)
 _set_base_resistance(strings.ION2, 610.0)
 _set_base_resistance(strings.ION3, 610.0)
 _set_base_resistance(strings.ION4, 610.0)
-

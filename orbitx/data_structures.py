@@ -80,7 +80,7 @@ programming and abstractions!
 
 import logging
 from enum import Enum
-from typing import List, Dict, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Union
 
 import numpy as np
 import vpython
@@ -319,6 +319,22 @@ for field in protos.Entity.DESCRIPTOR.fields:
             fset=entity_view_mutable_fset,
             doc=f"_EntityView proxy of mutable field {field.name}"
         ))
+
+
+class PowerSource(NamedTuple):
+    """Represents a reactor, fuel cell, or battery."""
+    name: str
+    internal_resistance: float
+
+
+class PowerBus(NamedTuple):
+    """
+    Represents one of the power buses, to which components and power sources
+    are connected.
+    """
+    nominal_voltage: float
+    primary_power_source: PowerSource
+    secondary_power_source: Optional[PowerSource]
 
 
 class CoolantView:
