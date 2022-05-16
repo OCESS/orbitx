@@ -141,17 +141,15 @@ def simulation_differential_function(
 
     # Time for the Engineering section.
     component_resistances = electrofunctions.component_resistances(y.engineering)
-    electrical_bus = electrofunctions.bus_electricity(component_resistances)
-    bus_power = electrical_bus.voltage * electrical_bus.current
+    electrical_buses = electrofunctions.bus_electricities(component_resistances)
+    bus_power = electrical_buses[0].voltage * electrical_buses[0].current
 
     # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.
     fuel_usage_rate = .05 * bus_power / 50_000_000
     # TODO: Replace the existing fuel consumption calculations with this calculation.
 
     component_heating_rate_array = electrofunctions.component_heating_rate(
-        y.engineering,
-        component_resistances,
-        electrical_bus.voltage
+        y.engineering, component_resistances, electrical_buses
     )
 
     # Sets velocity and spin of a couple more entities.

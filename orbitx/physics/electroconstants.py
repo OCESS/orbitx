@@ -9,6 +9,8 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 YOLO.
 """
 
+from typing import Final
+
 import numpy as np
 
 from orbitx import data_structures
@@ -18,18 +20,18 @@ from orbitx import strings
 # Heat gain due to component inefficiency. Units are 1/K.
 # If a component increases in temperature by 1 Kelvin, its resistance will change by [1*alpha] Ohms.
 # Copper has a roughly 0.0039 alpha coefficient.
-ALPHA_RESIST_GAIN = 0.004
+ALPHA_RESIST_GAIN: Final = 0.004
 
 # Thermal inefficiency-related constant.
 # With this constant, applying 1 Watt of power results in 0.0001 Kelvin/second of heating.
-COEFF_TEMPERATURE_GAIN = 0.0001
+COEFF_TEMPERATURE_GAIN: Final = 0.0001
 
 # Upper bound of how quickly a component can heat up (so the battery doesn't explode).
-MAX_HEATING_RATE = 20.
+MAX_HEATING_RATE: Final = 20.
 
 # https://en.wikipedia.org/wiki/Thermal_conduction#Fourier's_law
 # Water has a k coefficient of 0.6 to 0.7. Better conductors have higher k-values.
-K_CONDUCTIVITY = 0.75
+K_CONDUCTIVITY: Final = 0.75
 
 # The resistance, in Ohms, of a component when its temperature field is 0 and
 # it's at 100% capacity.
@@ -37,18 +39,18 @@ K_CONDUCTIVITY = 0.75
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
 # This array is populated later in this module, but for now the default value
 # is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
-BASE_COMPONENT_RESISTANCES = np.ones(data_structures.N_COMPONENTS)
+BASE_COMPONENT_RESISTANCES: Final = np.ones(data_structures.N_COMPONENTS)
 
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
-HAB_PRIMARY_BUS = data_structures.PowerBus(
+HAB_PRIMARY_BUS: Final = data_structures.PowerBus(
     nominal_voltage=10_000,
     primary_power_source=data_structures.PowerSource(
         name=strings.HAB_REACT, internal_resistance=0.00025),
     secondary_power_source=None
 )
 
-HAB_SECONDARY_BUS = data_structures.PowerBus(
+HAB_SECONDARY_BUS: Final = data_structures.PowerBus(
     nominal_voltage=120,
     primary_power_source=data_structures.PowerSource(
         name=strings.FCELL, internal_resistance=0.00325),
@@ -56,19 +58,26 @@ HAB_SECONDARY_BUS = data_structures.PowerBus(
         name=strings.BAT1, internal_resistance=0.01)
 )
 
-HAB_TERTIARY_BUS = data_structures.PowerBus(
+HAB_TERTIARY_BUS: Final = data_structures.PowerBus(
     nominal_voltage=120,
     primary_power_source=data_structures.PowerSource(
         name=strings.BAT2, internal_resistance=0.0085),
     secondary_power_source=None
 )
 
-AYSE_BUS = data_structures.PowerBus(
+AYSE_BUS: Final = data_structures.PowerBus(
     nominal_voltage=100_000,
     primary_power_source=data_structures.PowerSource(
         name=strings.AYSE_REACT, internal_resistance=0.00003),
     secondary_power_source=data_structures.PowerSource(
         name=strings.AYSE_BAT, internal_resistance=0.0055)
+)
+
+POWER_BUSES: Final = (
+    HAB_PRIMARY_BUS,
+    HAB_SECONDARY_BUS,
+    HAB_TERTIARY_BUS,
+    AYSE_BUS
 )
 
 # Temporary variable, just to build the component/powerbus connection matrix.
@@ -120,11 +129,11 @@ assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 # [0 0 0 1 0 0 1 ... 0]  Hab secondary bus components
 # [0 0 0 0 1 0 0 ... 0]  Hab tertiary bus components
 # [0 0 0 0 0 0 0 ... 1]  AYSE bus components
-COMPONENT_BUS_CONNECTION_MATRIX: np.ndarray = np.zeros(
+COMPONENT_BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.zeros(
     shape=(4, data_structures.N_COMPONENTS), dtype=int
 )
 
-# Use the previous mapping we defined to build this connection matrix.
+# Use the compont -> bus mapping we defined to build the connection matrix.
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
@@ -137,10 +146,10 @@ for component_name, bus in _component_to_bus_mapping.items():
 # A value of 0 means a component is completely efficient and does not generate
 # waste heat. A value of 0.8 means 80% of power delivered to a component is
 # turned into waste heat.
-POWER_INEFFICIENCY = np.zeros(data_structures.N_COMPONENTS)
+POWER_INEFFICIENCY: Final = np.zeros(data_structures.N_COMPONENTS)
 
 # How quickly a component radiates away heat.
-PASSIVE_HEAT_LOSS = np.zeros(data_structures.N_COMPONENTS)
+PASSIVE_HEAT_LOSS: Final = np.zeros(data_structures.N_COMPONENTS)
 
 # How efficiently each component can exchange heat with each coolant loop.
 # The conductivity between component j and loop k is COOLANT_CONDUCTIVITY_MATRIX[k][j]
@@ -150,10 +159,10 @@ PASSIVE_HEAT_LOSS = np.zeros(data_structures.N_COMPONENTS)
 #     0, 9, 0, 0, .., 0
 # Then we can say the second component is cooled only by the third loop. As well,
 # we can say the third component is cooled twice as much as the first component.
-COOLANT_CONDUCTIVITY_MATRIX = np.zeros((3, data_structures.N_COMPONENTS))
+COOLANT_CONDUCTIVITY_MATRIX: Final = np.zeros((3, data_structures.N_COMPONENTS))
 
 # If a component is above this temperature, it will cool faster.
-RESTING_TEMPERATURE = np.zeros(data_structures.N_COMPONENTS)
+RESTING_TEMPERATURE: Final = np.zeros(data_structures.N_COMPONENTS)
 
 
 def _set_base_resistance(name: str, base_resistance: float):

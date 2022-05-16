@@ -773,15 +773,15 @@ def test_performance():
     with PhysicsEngine('OCESS.json') as physics_engine:
         physics_engine.handle_requests([
             network.Request(ident=network.Request.TIME_ACC_SET,
-                            time_acc_set=common.TIME_ACCS[-2].value)])
+                            time_acc_set=1000)])
 
-        end_time = time.time() + 10
-        print(f"Profiling performance for {end_time - time.time()} seconds.")
+        initial_state = physics_engine.get_state()  # Warm up the simulation
+        simtime_to_simulate = initial_state.timestamp + initial_state.time_acc * 1000
+
+        print('Starting profiler...')
         common.start_profiling()
 
-        while time.time() < end_time:
-            time.sleep(0.05)
-            physics_engine.get_state()
+        physics_engine.get_state(simtime_to_simulate)
 
 
 if __name__ == '__main__':

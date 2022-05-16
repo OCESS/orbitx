@@ -5,7 +5,7 @@ It sounds cool though.
 This module contains helpers to calculate the Voltage/Current/Resistance and
 resistive heating of electrical components on our power grid."""
 
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 import numpy as np
 
@@ -24,34 +24,43 @@ class OhmicVars(NamedTuple):
     resistance: float
 
 
-def bus_electricity(component_resistances: np.ndarray) -> OhmicVars:
+def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:
     """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole."""
 
-    # Calculate 1/resistance for each component, then sum them all up into a single scalar.
-    # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
-    # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
-    sum_of_reciprocals = np.sum(np.reciprocal(component_resistances))
+    buses: List[OhmicVars] = []
 
-    if sum_of_reciprocals == 0:
-        # There are no components connected, so this simplifies our calculations.
-        return OhmicVars(
-            resistance=np.inf, current=0, voltage=electroconstants.HAB_PRIMARY_BUS.nominal_voltage)
+    # It might be slightly more efficient to do matrix math instead of using a for loop, but this
+    # is more readable :)
+    for bus_n in range(0, 4):
+        # Calculate 1/resistance for each component, then sum them all up to find the resistance on a power bus.
+        # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
+        # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
+        components_on_this_bus = (electroconstants.COMPONENT_BUS_CONNECTION_MATRIX[bus_n] != 0)
+        sum_of_reciprocals = np.sum(np.reciprocal(component_resistances[components_on_this_bus]))
 
-    bus_resistance = 1 / sum_of_reciprocals
+        if sum_of_reciprocals == 0.0:
+            # There are no components connected, so this simplifies our calculations.
+            buses.append(
+                OhmicVars(resistance=np.inf, current=0, voltage=electroconstants.HAB_PRIMARY_BUS.nominal_voltage))
+            continue
 
-    # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
-    # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
-    # R_reactor_internal = (V_bus_nominal / V_bus_loaded - 1) * R_bus_loaded
-    # If we solve for V_bus_loaded (since we know the value of all other variables):
-    # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
-    bus_voltage = (
-        electroconstants.HAB_PRIMARY_BUS.nominal_voltage
-        / (electroconstants.HAB_PRIMARY_BUS.primary_power_source.internal_resistance / bus_resistance + 1)
-    )
+        bus_resistance = 1 / sum_of_reciprocals
 
-    # Ohm's law gives us this.
-    bus_current = bus_voltage / bus_resistance
-    return OhmicVars(voltage=bus_voltage, current=bus_current, resistance=bus_resistance)
+        # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
+        # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
+        # R_reactor_internal = (V_bus_nominal / V_bus_loaded - 1) * R_bus_loaded
+        # If we solve for V_bus_loaded (since we know the value of all other variables):
+        # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
+        bus_voltage = (
+            electroconstants.HAB_PRIMARY_BUS.nominal_voltage
+            / (electroconstants.HAB_PRIMARY_BUS.primary_power_source.internal_resistance / bus_resistance + 1)
+        )
+
+        # Ohm's law gives us this.
+        bus_current = bus_voltage / bus_resistance
+        buses.append(OhmicVars(voltage=bus_voltage, current=bus_current, resistance=bus_resistance))
+
+    return buses
 
 
 def component_resistances(y: EngineeringState) -> np.ndarray:
@@ -84,10 +93,28 @@ def component_resistances(y: EngineeringState) -> np.ndarray:
     )
 
 
-def component_heating_rate(y: EngineeringState, component_resist_array: np.ndarray, bus_voltage: float) -> np.ndarray:
+def component_heating_rate(
+        y: EngineeringState, component_resist_array: np.ndarray, power_buses: List[OhmicVars]
+) -> np.ndarray:
+    """Calculate an array of length N_COMPONENTS, for how much each component is heating or cooling."""
+
+    # Calculate the voltage of each component.
+    # Really, this is just a fancy way of selecting which of the four bus voltages
+    # to use.
+    bus_voltages_column_vector = np.array([[
+        power_buses[0].voltage,
+        power_buses[1].voltage,
+        power_buses[2].voltage,
+        power_buses[3].voltage
+    ]]).T
+
+    component_voltages = np.sum(bus_voltages_column_vector * electroconstants.COMPONENT_BUS_CONNECTION_MATRIX, axis=0)
+
     # Calculate the power of each component.
     # Since P = IV and I = V/R, we can just use the P = V^2 / R shortcut.
-    component_powers = bus_voltage * bus_voltage / component_resist_array
+    # We use the voltage of the respective power bus, since the voltage of
+    # every component in a single parallel circuit is the same.
+    component_powers = np.square(component_voltages) / component_resist_array
 
     # A bit of the power going through a component gets turned into heat.
     resistive_heating = component_powers * electroconstants.POWER_INEFFICIENCY

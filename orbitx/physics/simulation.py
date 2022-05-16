@@ -123,6 +123,13 @@ class PhysicsEngine:
             )
             self._last_monotime = time.monotonic()
 
+            # TODO: This will likely cause the simulation to hang for a bit when
+            # stepping down values of time acceleration; the _last_simtime will
+            # probably have been set by a call to _simtime() with a high time acc,
+            # and a subsequent call to _simtime with (e.g.) a 10x slower time acc
+            # will not have any effect until the simulation time advances to the
+            # most recently-requested time, which will now take 10x as much alpha
+            # time.
             simtime = self._last_simtime
 
             assert self._time_acc_changes
