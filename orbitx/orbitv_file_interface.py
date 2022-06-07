@@ -16,7 +16,8 @@ from orbitx.physics import calc
 from orbitx import common
 from orbitx import network
 from orbitx import orbitx_pb2 as protos
-from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import Navmode, PhysicsState
 from orbitx.strings import AYSE, EARTH, HABITAT, MODULE, OCESS, SUN
 
 log = logging.getLogger('orbitx')

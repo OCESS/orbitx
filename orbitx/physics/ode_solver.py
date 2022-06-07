@@ -11,11 +11,14 @@ import logging
 import numpy as np
 import scipy
 from orbitx import common, strings
-from orbitx.data_structures import (
-    EngineeringState, PhysicsState,
-    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, N_COMPONENTS,
+from orbitx.data_structures.engineering import EngineeringState
+from orbitx.data_structures.eng_systems import (
+    _N_COMPONENT_FIELDS, N_COMPONENTS,
     N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
 )
+from orbitx.data_structures.space import PhysicsState
+from orbitx.data_structures.entity import _ENTITY_FIELD_ORDER
+
 from orbitx.strings import AYSE, HABITAT
 from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState

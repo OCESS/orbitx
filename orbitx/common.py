@@ -14,8 +14,9 @@ import google.protobuf.json_format
 import vpython  # type: ignore
 
 from orbitx import orbitx_pb2 as protos
-from orbitx import data_structures
 from orbitx import strings
+from orbitx.data_structures.space import PhysicsState
+from orbitx.data_structures.eng_systems import N_COMPONENTS
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
 
@@ -146,7 +147,7 @@ def savefile(name: str) -> Path:
     return PROGRAM_PATH / 'data' / 'saves' / name
 
 
-def load_savefile(file: Path) -> 'data_structures.PhysicsState':
+def load_savefile(file: Path) -> 'PhysicsState':
     """Loads the physics state represented by the input file.
     If the input file is an OrbitX-style .json file, simply loads it.
     If the input file is an OrbitV-style .rnd file, tries to interpret it
@@ -156,7 +157,7 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
     # common.py is imported by lots of modules and shouldn't circularly depend
     # on anything.
     from orbitx import orbitv_file_interface
-    physics_state: data_structures.PhysicsState
+    physics_state: PhysicsState
     logging.getLogger().info(f'Loading savefile {file.resolve()}')
 
     assert isinstance(file, Path)
@@ -177,10 +178,10 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
         if len(read_state.engineering.components) == 0:
             # We allow savefiles to not specify any components.
             # If we see this, create a list of empty components in the protobuf before parsing it.
-            empty_components = [protos.EngineeringState.Component()] * data_structures.N_COMPONENTS
+            empty_components = [protos.EngineeringState.Component()] * N_COMPONENTS
             read_state.engineering.components.extend(empty_components)
 
-        physics_state = data_structures.PhysicsState(None, read_state)
+        physics_state = PhysicsState(None, read_state)
 
     if physics_state.timestamp == 0:
         physics_state.timestamp = DEFAULT_INITIAL_TIMESTAMP
@@ -196,7 +197,7 @@ def load_savefile(file: Path) -> 'data_structures.PhysicsState':
     return physics_state
 
 
-def write_savefile(state: 'data_structures.PhysicsState', file: Path):
+def write_savefile(state: 'PhysicsState', file: Path):
     """Writes state to the specified savefile path (use common.savefile to get
     a savefile path in data/saves/). Returns a possibly-different path that it
     was saved under."""

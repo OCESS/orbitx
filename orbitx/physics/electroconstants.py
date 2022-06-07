@@ -13,8 +13,8 @@ from typing import Final
 
 import numpy as np
 
-from orbitx import data_structures
 from orbitx import strings
+from orbitx.data_structures.eng_systems import N_COMPONENTS, PowerBus, PowerSource
 
 # https://en.wikipedia.org/wiki/Temperature_coefficient
 # Heat gain due to component inefficiency. Units are 1/K.
@@ -39,37 +39,37 @@ K_CONDUCTIVITY: Final = 0.75
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
 # This array is populated later in this module, but for now the default value
 # is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
-BASE_COMPONENT_RESISTANCES: Final = np.ones(data_structures.N_COMPONENTS)
+BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
 
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
-HAB_PRIMARY_BUS: Final = data_structures.PowerBus(
+HAB_PRIMARY_BUS: Final = PowerBus(
     nominal_voltage=10_000,
-    primary_power_source=data_structures.PowerSource(
+    primary_power_source=PowerSource(
         name=strings.HAB_REACT, internal_resistance=0.00025),
     secondary_power_source=None
 )
 
-HAB_SECONDARY_BUS: Final = data_structures.PowerBus(
+HAB_SECONDARY_BUS: Final = PowerBus(
     nominal_voltage=120,
-    primary_power_source=data_structures.PowerSource(
+    primary_power_source=PowerSource(
         name=strings.FCELL, internal_resistance=0.00325),
-    secondary_power_source=data_structures.PowerSource(
+    secondary_power_source=PowerSource(
         name=strings.BAT1, internal_resistance=0.01)
 )
 
-HAB_TERTIARY_BUS: Final = data_structures.PowerBus(
+HAB_TERTIARY_BUS: Final = PowerBus(
     nominal_voltage=120,
-    primary_power_source=data_structures.PowerSource(
+    primary_power_source=PowerSource(
         name=strings.BAT2, internal_resistance=0.0085),
     secondary_power_source=None
 )
 
-AYSE_BUS: Final = data_structures.PowerBus(
+AYSE_BUS: Final = PowerBus(
     nominal_voltage=100_000,
-    primary_power_source=data_structures.PowerSource(
+    primary_power_source=PowerSource(
         name=strings.AYSE_REACT, internal_resistance=0.00003),
-    secondary_power_source=data_structures.PowerSource(
+    secondary_power_source=PowerSource(
         name=strings.AYSE_BAT, internal_resistance=0.0055)
 )
 
@@ -130,7 +130,7 @@ assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 # [0 0 0 0 1 0 0 ... 0]  Hab tertiary bus components
 # [0 0 0 0 0 0 0 ... 1]  AYSE bus components
 COMPONENT_BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.zeros(
-    shape=(4, data_structures.N_COMPONENTS), dtype=int
+    shape=(4, N_COMPONENTS), dtype=int
 )
 
 # Use the compont -> bus mapping we defined to build the connection matrix.
@@ -146,10 +146,10 @@ for component_name, bus in _component_to_bus_mapping.items():
 # A value of 0 means a component is completely efficient and does not generate
 # waste heat. A value of 0.8 means 80% of power delivered to a component is
 # turned into waste heat.
-POWER_INEFFICIENCY: Final = np.zeros(data_structures.N_COMPONENTS)
+POWER_INEFFICIENCY: Final = np.zeros(N_COMPONENTS)
 
 # How quickly a component radiates away heat.
-PASSIVE_HEAT_LOSS: Final = np.zeros(data_structures.N_COMPONENTS)
+PASSIVE_HEAT_LOSS: Final = np.zeros(N_COMPONENTS)
 
 # How efficiently each component can exchange heat with each coolant loop.
 # The conductivity between component j and loop k is COOLANT_CONDUCTIVITY_MATRIX[k][j]
@@ -159,10 +159,10 @@ PASSIVE_HEAT_LOSS: Final = np.zeros(data_structures.N_COMPONENTS)
 #     0, 9, 0, 0, .., 0
 # Then we can say the second component is cooled only by the third loop. As well,
 # we can say the third component is cooled twice as much as the first component.
-COOLANT_CONDUCTIVITY_MATRIX: Final = np.zeros((3, data_structures.N_COMPONENTS))
+COOLANT_CONDUCTIVITY_MATRIX: Final = np.zeros((3, N_COMPONENTS))
 
 # If a component is above this temperature, it will cool faster.
-RESTING_TEMPERATURE: Final = np.zeros(data_structures.N_COMPONENTS)
+RESTING_TEMPERATURE: Final = np.zeros(N_COMPONENTS)
 
 
 def _set_base_resistance(name: str, base_resistance: float):

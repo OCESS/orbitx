@@ -2,7 +2,8 @@ from typing import Optional
 
 import vpython
 
-from orbitx.data_structures import Entity, PhysicsState
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import PhysicsState
 from orbitx.graphics.flight.planet import Planet
 from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 

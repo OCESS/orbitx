@@ -12,10 +12,10 @@ from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
-from orbitx.data_structures import (
-    EngineeringState, _EntityView, Entity, PhysicsState,
-    N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS,
-)
+from orbitx.data_structures.engineering import EngineeringState
+from orbitx.data_structures.eng_systems import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
+from orbitx.data_structures.entity import _EntityView, Entity
+from orbitx.data_structures.space import PhysicsState
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')

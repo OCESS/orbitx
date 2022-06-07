@@ -11,7 +11,7 @@ import vpython
 
 from orbitx import common
 from orbitx import network
-from orbitx.data_structures import PhysicsState
+from orbitx.data_structures.space import PhysicsState
 from orbitx.graphics import vpython_widgets
 
 log = logging.getLogger('orbitx')

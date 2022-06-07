@@ -16,7 +16,9 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx.data_structures import Entity, Navmode, PhysicsState, Request
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import Navmode, PhysicsState
+from orbitx.network import Request
 from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
 from orbitx.graphics.flight.ayse import Ayse
 from orbitx.graphics.flight.earth import Earth

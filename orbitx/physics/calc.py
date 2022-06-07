@@ -9,7 +9,8 @@ import vpython
 import numpy as np
 
 from orbitx import common
-from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import PhysicsState, Navmode
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')

@@ -10,7 +10,7 @@ from typing import List, NamedTuple
 import numpy as np
 
 from orbitx.physics import electroconstants
-from orbitx.data_structures import EngineeringState
+from orbitx.data_structures.engineering import EngineeringState
 
 
 class OhmicVars(NamedTuple):
@@ -80,6 +80,10 @@ def component_resistances(y: EngineeringState) -> np.ndarray:
         + electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures()
         * electroconstants.BASE_COMPONENT_RESISTANCES
     )
+
+
+    # TODO: put DM's code for connecting electrical buses into orbitx, like
+    # have a way for engineering to encode the connection between buses.
 
     return np.divide(
         component_resistances_assuming_full_capacity,

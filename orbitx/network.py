@@ -13,11 +13,16 @@ from orbitx import common
 from orbitx import physics
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
-from orbitx.data_structures import PhysicsState, Request
+from orbitx.data_structures.space import PhysicsState
 
 log = logging.getLogger('orbitx')
 
 DEFAULT_PORT = 28430
+
+# This Request class is just an alias of the Command protobuf message. We
+# provide this so that nobody has to directly import orbitx_pb2, and so that
+# we can this wrapper class in the future.
+Request = protos.Command
 
 
 class StateServer(grpc_stubs.StateServerServicer):

@@ -10,11 +10,11 @@ import numpy as np
 from google.protobuf.text_format import MessageToString
 
 from orbitx import common
+from orbitx import orbitx_pb2 as protos
 from orbitx.physics import calc
-from orbitx.data_structures import (
-    protos, Entity, Navmode, PhysicsState,
-    Request
-)
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import Navmode, PhysicsState
+from orbitx.network import Request
 from orbitx.strings import AYSE, HABITAT, MODULE
 
 log = logging.getLogger('orbitx')
