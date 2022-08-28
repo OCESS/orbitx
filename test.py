@@ -719,6 +719,16 @@ class EngineeringViewTestCase(unittest.TestCase):
                                engineering.components[8].temperature - 20, delta=0.001)
         self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
 
+    def test_electricals_accessors(self):
+        """
+        Sanity check for the OhmicVars of all components.
+        """
+        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+            #TODO resolve circular imports
+        self.assertFalse(engineering.components.Electricals())
+
 
 class CoolantTestCase(unittest.TestCase):
 

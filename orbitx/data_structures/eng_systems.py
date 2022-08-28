@@ -15,8 +15,8 @@ import numpy as np
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
-
 from orbitx.common import OhmicVars, N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
+from orbitx.physics import electrofunctions, electroconstants
 
 log = logging.getLogger('orbitx')
 
@@ -128,24 +128,6 @@ class ComponentView:
         self._array[N_COMPONENTS * 2 + self._n] = val
 
     @property
-    def resistance(self) -> float:
-        raise NotImplementedError(
-            "implement this when we know where it will be used"
-        )
-
-    @property
-    def voltage(self) -> float:
-        raise NotImplementedError(
-            "implement this when we know where it will be used"
-        )
-
-    @property
-    def current(self) -> float:
-        raise NotImplementedError(
-            "implement this when we know where it will be used"
-        )
-
-    @property
     def coolant_hab_one(self) -> bool:
         return bool(self._array[N_COMPONENTS * 3 + self._n])
 
@@ -246,9 +228,8 @@ class ComponentList:
             raise IndexError()
         return ComponentView(self._owner, self._component_array, index)
 
-    # Use list slicing (with strides, so there's two colons) to get a list of
-    # all values of each quantity for each Component.
-    # We only define this accessor for fields we use in _derive.
+    # Provide a convenient list of all values of each quantity for each
+    # Component. Accessors are defined once there is a need for them.
     def Connected(self) -> np.ndarray:
         return self._component_array[0 * N_COMPONENTS:1 * N_COMPONENTS]
 
@@ -258,8 +239,26 @@ class ComponentList:
     def Temperatures(self) -> np.ndarray:
         return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
+    def Electricals(self) -> List[OhmicVars]:
+        """Return Voltage, Current, Resistance for every component."""
+        component_resistances = electrofunctions.component_resistances(self)
+        electrical_buses = electrofunctions.bus_electricities(component_resistances)
+        bus_voltages = [bus.voltage for bus in electrical_buses]
+
+        component_electricals: List[OhmicVars] = []
+
+        for component_index in range(0, N_COMPONENTS):
+            # Index of the bus this component is connected to.
+            bus_index = electroconstants.COMPONENT_BUS_CONNECTION_MAPPING[component_index]
+            r = component_resistances[component_index]
+            v = bus_voltages[bus_index]
+
+            component_electricals.append(OhmicVars(resistance=r, voltage=v, current=v/r))
+
+        return component_electricals
+
     def CoolantConnectionMatrix(self) -> np.ndarray:
-        """Returns a matrix of dimensions 3xN_COMPONENTS', containing coolant
+        """Returns a matrix of dimensions 3xN_COMPONENTS, containing coolant
         connection status for each component/coolant loop combination."""
         list_hab_one = self._component_array[3 * N_COMPONENTS:4 * N_COMPONENTS]
         list_hab_two = self._component_array[4 * N_COMPONENTS:5 * N_COMPONENTS]

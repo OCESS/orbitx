@@ -138,6 +138,12 @@ COMPONENT_BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.zeros(
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
+# Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 3]
+COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(1, N_COMPONENTS), dtype=int)
+
+for component_name, bus in _component_to_bus_mapping.items():
+    COMPONENT_BUS_CONNECTION_MAPPING[strings.COMPONENT_NAMES.index(component_name)] = bus
+
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #
 # -- These have been cribbed from Dr. Magwood's obitsej.txt data file.      -- #

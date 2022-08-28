@@ -53,7 +53,7 @@ def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:
     return buses
 
 
-def component_resistances(y: EngineeringState) -> np.ndarray:
+def component_resistances(components: 'ComponentList') -> np.ndarray:
     """Returns an array of each component's effective resistance.
     If a component is not connected to the bus, or it has been set
     to 0% capacity, it will have infinite resistance."""
@@ -63,11 +63,11 @@ def component_resistances(y: EngineeringState) -> np.ndarray:
     # A value of 0 means a component is 'off', or at 0% capacity.
     # A value of 1.2 means a component is 'on' and at 120% capacity.
     # Values can be in the range [0, 1], as well as greater than 1.
-    component_capacities = y.components.Connected() * y.components.Capacities()
+    component_capacities = components.Connected() * components.Capacities()
 
     component_resistances_assuming_full_capacity = (
         electroconstants.BASE_COMPONENT_RESISTANCES
-        + electroconstants.ALPHA_RESIST_GAIN * y.components.Temperatures()
+        + electroconstants.ALPHA_RESIST_GAIN * components.Temperatures()
         * electroconstants.BASE_COMPONENT_RESISTANCES
     )
 

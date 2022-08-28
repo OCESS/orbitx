@@ -144,7 +144,7 @@ def simulation_differential_function(
             acc_matrix[landed_on[landed_i]] - centripetal_acc
 
     # Time for the Engineering section.
-    component_resistances = electrofunctions.component_resistances(y.engineering)
+    component_resistances = electrofunctions.component_resistances(y.engineering.components)
     electrical_buses = electrofunctions.bus_electricities(component_resistances)
     bus_power = electrical_buses[0].voltage * electrical_buses[0].current
 
