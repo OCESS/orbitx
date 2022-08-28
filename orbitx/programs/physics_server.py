@@ -12,6 +12,7 @@ from orbitx import network
 from orbitx import physics
 from orbitx import programs
 from orbitx.graphics.server_gui import ServerGui
+from orbitx.data_structures import savefile
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger('orbitx')
@@ -33,7 +34,7 @@ argument_parser = argparse.ArgumentParser(
 argument_parser.add_argument(
     'loadfile', type=str, nargs='?', default='OCESS.json',
     help=(
-        f'Name of the savefile to load, relative to {common.savefile(".")}. '
+        f'Name of the savefile to load, relative to {savefile.full_path(".")}. '
         'Should be a .json savefile written by OrbitX. '
         'Can also read OrbitV .RND savefiles.')
 )
@@ -49,9 +50,9 @@ def main(args: argparse.Namespace):
         loadfile = Path(args.loadfile)
     else:
         # Take paths relative to 'data/saves/'
-        loadfile = common.savefile(args.loadfile)
+        loadfile = savefile.full_path(args.loadfile)
 
-    physics_engine = physics.PhysicsEngine(common.load_savefile(loadfile))
+    physics_engine = physics.PhysicsEngine(savefile.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
     TICKS_BETWEEN_CLIENT_LIST_REFRESHES = 150

@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Iterable
 import grpc
 
 from orbitx import common
-from orbitx import physics
+# from orbitx import physics  - this import is deferred down below
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
 from orbitx.data_structures.space import PhysicsState
@@ -132,6 +132,8 @@ class NetworkedStateClient:
     """
 
     def __init__(self, client: protos.Command.ClientType, hostname: str):
+        from orbitx import physics  # Deferred import
+
         self.channel = grpc.insecure_channel(
             f'{hostname}:{DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)

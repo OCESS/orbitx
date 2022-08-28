@@ -16,11 +16,9 @@ import numpy as np
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
 
-log = logging.getLogger('orbitx')
+from orbitx.common import OhmicVars, N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
 
-N_COMPONENTS = len(strings.COMPONENT_NAMES)
-N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
-N_RADIATORS = len(strings.RADIATOR_NAMES)
+log = logging.getLogger('orbitx')
 
 _N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
 _N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)

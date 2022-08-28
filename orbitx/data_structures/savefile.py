@@ -1,0 +1,104 @@
+"""
+Functions for interpreting a .json dump of orbitx.proto:PhysicsState into a
+PhysicsState that can be accessed by other python code, and vice versa.
+"""
+
+import logging
+import sys
+from pathlib import Path
+
+import google.protobuf.json_format
+
+from orbitx import orbitv_file_interface
+from orbitx import common
+from orbitx.data_structures.space import PhysicsState
+
+import orbitx.orbitx_pb2 as protos
+
+log = logging.getLogger('orbitx')
+
+
+PROGRAM_PATH: Path
+
+if getattr(sys, 'frozen', False):
+    # We're running from a PyInstaller exe, use the path of the exe
+    PROGRAM_PATH = Path(sys.executable).parent
+elif sys.path[0] == '':
+    # We're running from a Python REPL. For information on what sys.path[0]
+    # means, read https://docs.python.org/3/library/sys.html#sys.path
+    # note path[0] == '' means Python is running as an interpreter.
+    PROGRAM_PATH = Path.cwd()
+else:
+    PROGRAM_PATH = Path(sys.path[0])
+
+
+def full_path(name: str) -> Path:
+    """
+    Given just the name of a savefile, returns a full Path representation.
+
+    Example:
+    savefile('OCESS.json') -> /path/to/orbitx/data/saves/OCESS.json
+    """
+    return PROGRAM_PATH / 'data' / 'saves' / name
+
+
+def load_savefile(file: Path) -> PhysicsState:
+    """
+    Loads the physics state represented by the input file.
+    If the input file is an OrbitX-style .json file, simply loads it.
+    If the input file is an OrbitV-style .rnd file, tries to interpret it
+    and also loads the adjacent STARSr file to produce a PhysicsState.
+    """
+
+    physics_state: PhysicsState
+    log.info(f'Loading savefile {file.resolve()}')
+
+    assert isinstance(file, Path)
+    if file.suffix.lower() == '.rnd':
+        physics_state = \
+            orbitv_file_interface.clone_orbitv_state(file)
+
+    else:
+        if file.suffix.lower() != '.json':
+            log.warning(
+                f'{file} is not a .json file, trying to load it anyways.')
+
+        with open(file, 'r') as f:
+            data = f.read()
+        read_state = protos.PhysicalState()
+        google.protobuf.json_format.Parse(data, read_state)
+
+        if len(read_state.engineering.components) == 0:
+            # We allow savefiles to not specify any components.
+            # If we see this, create a list of empty components in the protobuf before parsing it.
+            empty_components = [protos.EngineeringState.Component()] * common.N_COMPONENTS
+            read_state.engineering.components.extend(empty_components)
+
+        physics_state = PhysicsState(None, read_state)
+
+    if physics_state.timestamp == 0:
+        physics_state.timestamp = common.DEFAULT_INITIAL_TIMESTAMP
+    if physics_state.time_acc == 0:
+        physics_state.time_acc = common.DEFAULT_TIME_ACC.value
+    if physics_state.reference == '':
+        physics_state.reference = common.DEFAULT_REFERENCE
+    if physics_state.target == '':
+        physics_state.target = common.DEFAULT_TARGET
+    if physics_state.srb_time == 0:
+        physics_state.srb_time = common.SRB_FULL
+
+    return physics_state
+
+
+def write_savefile(state: 'PhysicsState', file: Path):
+    """Writes state to the specified savefile path (use common.savefile to get
+    a savefile path in data/saves/). Returns a possibly-different path that it
+    was saved under."""
+    if file.suffix.lower() != '.json':
+        # Ensure a .json suffix.
+        file = file.parent / (file.name + '.json')
+    log.info(f'Saving to savefile {file.resolve()}')
+    with open(file, 'w') as outfile:
+        outfile.write(
+            google.protobuf.json_format.MessageToJson(state.as_proto()))
+    return file

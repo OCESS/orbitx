@@ -13,11 +13,11 @@ import numpy as np
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
+from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
 from orbitx.data_structures.eng_systems import (
     PowerSource, PowerBus,
     CoolantView, ComponentView, RadiatorView,
     ComponentList, CoolantLoopList, RadiatorList,
-    N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS,
     _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
 

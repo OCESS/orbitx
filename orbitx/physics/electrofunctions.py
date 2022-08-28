@@ -9,19 +9,9 @@ from typing import List, NamedTuple
 
 import numpy as np
 
+from orbitx.common import OhmicVars
 from orbitx.physics import electroconstants
 from orbitx.data_structures.engineering import EngineeringState
-
-
-class OhmicVars(NamedTuple):
-    """
-    Encapsulates a Voltage, Current, and Resistance where V = IR.
-    This class is called 'Ohmic' because it's all the things for Ohm's law.
-    I don't think Ohmic is a word. I made it up. I like to think it sounds cool.
-    """
-    voltage: float
-    current: float
-    resistance: float
 
 
 def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:

@@ -13,6 +13,7 @@ from orbitx import common
 from orbitx import orbitx_pb2 as protos
 from orbitx.physics import calc
 from orbitx.data_structures.entity import Entity
+from orbitx.data_structures import savefile
 from orbitx.data_structures.space import Navmode, PhysicsState
 from orbitx.network import Request
 from orbitx.strings import AYSE, HABITAT, MODULE
@@ -239,7 +240,7 @@ def _one_request(request: Request, y0: PhysicsState) \
     elif request.ident == Request.TARGET_UPDATE:
         y0.target = request.target
     elif request.ident == Request.LOAD_SAVEFILE:
-        y0 = common.load_savefile(common.savefile(request.loadfile))
+        y0 = savefile.load_savefile(savefile.full_path(request.loadfile))
     elif request.ident == Request.NAVMODE_SET:
         y0.navmode = Navmode(request.navmode)
         if y0.navmode == Navmode['Manual']:

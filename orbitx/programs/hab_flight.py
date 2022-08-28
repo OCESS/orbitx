@@ -3,10 +3,9 @@ import atexit
 import logging
 
 from orbitx import common
-from orbitx import network
 from orbitx import programs
 from orbitx.graphics.flight import flight_gui
-from orbitx.data_structures import Request
+from orbitx.network import Request, NetworkedStateClient
 
 log = logging.getLogger('orbitx')
 
@@ -28,7 +27,7 @@ argument_parser.add_argument(
 
 def main(args: argparse.Namespace):
     log.info(f'Connecting to physics server {args.physics_server}.')
-    lead_server_connection = network.NetworkedStateClient(
+    lead_server_connection = NetworkedStateClient(
         Request.HAB_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
 

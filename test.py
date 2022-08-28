@@ -12,10 +12,11 @@ from orbitx import common
 from orbitx import logs
 from orbitx import network
 from orbitx import physics
+from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
 from orbitx.data_structures.engineering import EngineeringState
-from orbitx.data_structures.eng_systems import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
 from orbitx.data_structures.entity import _EntityView, Entity
 from orbitx.data_structures.space import PhysicsState
+from orbitx.data_structures import savefile
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')
@@ -24,9 +25,9 @@ log = logging.getLogger('orbitx')
 class PhysicsEngine:
     """Ensures that the simthread is always shut down on test exit/failure."""
 
-    def __init__(self, savefile):
+    def __init__(self, savefile_name):
         self.physics_engine = physics.PhysicsEngine(
-            common.load_savefile(common.savefile(savefile)))
+            savefile.load_savefile(savefile.full_path(savefile_name)))
 
     def __enter__(self):
         return self.physics_engine
@@ -253,7 +254,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_longterm_stable_landing(self):
         """Test that landed ships have stable altitude in the long term."""
-        savestate = common.load_savefile(common.savefile('OCESS.json'))
+        savestate = savefile.load_savefile(savefile.full_path('OCESS.json'))
         initial_t = savestate.timestamp
         with PhysicsEngine('OCESS.json') as physics_engine:
             initial = physics_engine.get_state(initial_t + 10)
@@ -273,7 +274,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_drag(self):
         """Test that drag is small but noticeable during unpowered flight."""
-        atmosphere_save = common.load_savefile(common.savefile(
+        atmosphere_save = savefile.load_savefile(savefile.full_path(
             'tests/atmosphere.json'))
         # The habitat starts 1 km in the air, the same speed as the Earth.
 
@@ -473,7 +474,7 @@ class CalculationsTestCase(unittest.TestCase):
         # Again, see
         # https://www.wolframalpha.com/input/?i=International+Space+Station
         # For these expected values
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/gui-test.json'))
         iss = physics_state[0]
         earth = physics_state[1]
@@ -502,7 +503,7 @@ class CalculationsTestCase(unittest.TestCase):
         # talking about Sedna! The expected values are arrived at through
         # calculation, and also
         # http://orbitsimulator.com/formulas/OrbitalElements.html
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/sedna.json'))
         sun = physics_state[0]
         oumuamua = physics_state[1]
@@ -523,7 +524,7 @@ class CalculationsTestCase(unittest.TestCase):
             delta=0.01 * 78989185420.15271)
 
     def test_speeds(self):
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/gui-test.json'))
         iss = physics_state[0]
         earth = physics_state[1]

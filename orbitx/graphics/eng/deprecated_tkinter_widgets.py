@@ -6,7 +6,7 @@ from orbitx.graphics.eng.tkinter_style import Style
 from typing import Union, Optional
 from orbitx.network import Request
 from orbitx import strings
-from orbitx.data_structures import EngineeringState
+from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 
 

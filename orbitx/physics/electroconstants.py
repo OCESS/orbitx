@@ -14,7 +14,8 @@ from typing import Final
 import numpy as np
 
 from orbitx import strings
-from orbitx.data_structures.eng_systems import N_COMPONENTS, PowerBus, PowerSource
+from orbitx.common import N_COMPONENTS
+from orbitx.data_structures.eng_systems import PowerBus, PowerSource
 
 # https://en.wikipedia.org/wiki/Temperature_coefficient
 # Heat gain due to component inefficiency. Units are 1/K.
