@@ -17,6 +17,7 @@ from orbitx.data_structures.engineering import EngineeringState
 from orbitx.data_structures.entity import _EntityView, Entity
 from orbitx.data_structures.space import PhysicsState
 from orbitx.data_structures import savefile
+from orbitx.physics import electroconstants
 from orbitx.physics.simulation import PhysicsEngine
 from orbitx.strings import HABITAT
 
@@ -722,15 +723,27 @@ class EngineeringViewTestCase(unittest.TestCase):
 
     def test_electricals_accessors(self):
         """
-        Sanity check for the OhmicVars of all components.
+        Basic checks for the OhmicVars of all components.
         """
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         electricals = engineering.components.Electricals()
 
-        self.assertFalse(electricals)
-        self.assertEqual(electricals[strings.HAB_REACT], 5)
+        # Check RADS1 is drawing power
+        self.assertEqual(engineering.components[strings.RADS1].connected, True)
+        self.assertNotEqual(engineering.components[strings.RADS1].capacity, 0.0)
+        self.assertNotEqual(electricals[strings.RADS1].resistance, np.inf)
+        self.assertNotEqual(electricals[strings.RADS1].current, 0.0)
+        self.assertAlmostEqual(
+            electricals[strings.RADS1].voltage, electroconstants.HAB_PRIMARY_BUS.nominal_voltage,
+            delta=50  # Voltage is within 50 V of nominal.
+        )
+
+        # Check ACC1 is not drawing power, i.e. the opposite of RADS1
+        self.assertNotEqual(engineering.components[strings.ACC1].connected, True)
+        self.assertEqual(electricals[strings.ACC1].resistance, np.inf)
+        self.assertEqual(electricals[strings.ACC1].current, 0.0)
 
 
 class CoolantTestCase(unittest.TestCase):
