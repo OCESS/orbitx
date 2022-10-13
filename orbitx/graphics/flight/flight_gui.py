@@ -16,9 +16,10 @@ import numpy as np
 import vpython
 
 from orbitx import common
+from orbitx.data_structures import savefile
 from orbitx.data_structures.entity import Entity
 from orbitx.data_structures.space import Navmode, PhysicsState
-from orbitx.network import Request
+from orbitx.common import Request
 from orbitx.strings import HABITAT, AYSE, SUN, MODULE, EARTH
 from orbitx.graphics.flight.ayse import Ayse
 from orbitx.graphics.flight.earth import Earth
@@ -411,14 +412,14 @@ class FlightGui:
 
     def _save_hook(self, textbox: vpython.winput):
         try:
-            common.write_savefile(self._state, common.savefile(textbox.text))
+            savefile.write_savefile(self._state, savefile.full_path(textbox.text))
             textbox.text = 'File saved!'
         except OSError:
             log.exception('Caught exception during file saving')
             textbox.text = 'Error writing file!'
 
     def _load_hook(self, textbox: vpython.winput):
-        full_path = common.savefile(textbox.text)
+        full_path = savefile.full_path(textbox.text)
         if full_path.is_file():
             self._commands.append(Request(
                 ident=Request.LOAD_SAVEFILE, loadfile=textbox.text))

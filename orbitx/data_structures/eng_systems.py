@@ -9,7 +9,7 @@ See data_structures.__init__ for other documentation.
 """
 
 import logging
-from typing import List, NamedTuple, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 
@@ -23,22 +23,6 @@ log = logging.getLogger('orbitx')
 _N_COMPONENT_FIELDS = len(protos.EngineeringState.Component.DESCRIPTOR.fields)
 _N_COOLANT_FIELDS = len(protos.EngineeringState.CoolantLoop.DESCRIPTOR.fields)
 _N_RADIATOR_FIELDS = len(protos.EngineeringState.Radiator.DESCRIPTOR.fields)
-
-
-class PowerSource(NamedTuple):
-    """Represents a reactor, fuel cell, or battery."""
-    name: str
-    internal_resistance: float
-
-
-class PowerBus(NamedTuple):
-    """
-    Represents one of the power buses, to which components and power sources
-    are connected.
-    """
-    nominal_voltage: float
-    primary_power_source: PowerSource
-    secondary_power_source: Optional[PowerSource]
 
 
 class CoolantView:
@@ -239,13 +223,13 @@ class ComponentList:
     def Temperatures(self) -> np.ndarray:
         return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
-    def Electricals(self) -> List[OhmicVars]:
+    def Electricals(self) -> Dict[str, OhmicVars]:
         """Return Voltage, Current, Resistance for every component."""
         component_resistances = electrofunctions.component_resistances(self)
         electrical_buses = electrofunctions.bus_electricities(component_resistances)
         bus_voltages = [bus.voltage for bus in electrical_buses]
 
-        component_electricals: List[OhmicVars] = []
+        component_electricals: Dict[str, OhmicVars] = {}
 
         for component_index in range(0, N_COMPONENTS):
             # Index of the bus this component is connected to.
@@ -253,7 +237,9 @@ class ComponentList:
             r = component_resistances[component_index]
             v = bus_voltages[bus_index]
 
-            component_electricals.append(OhmicVars(resistance=r, voltage=v, current=v/r))
+            component_electricals[strings.COMPONENT_NAMES[component_index]] = (
+                OhmicVars(resistance=r, voltage=v, current=v/r)
+            )
 
         return component_electricals
 

@@ -9,13 +9,12 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 YOLO.
 """
 
-from typing import Final
+from typing import NamedTuple, Optional, Final
 
 import numpy as np
 
 from orbitx import strings
 from orbitx.common import N_COMPONENTS
-from orbitx.data_structures.eng_systems import PowerBus, PowerSource
 
 # https://en.wikipedia.org/wiki/Temperature_coefficient
 # Heat gain due to component inefficiency. Units are 1/K.
@@ -41,6 +40,23 @@ K_CONDUCTIVITY: Final = 0.75
 # This array is populated later in this module, but for now the default value
 # is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
 BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
+
+
+class PowerSource(NamedTuple):
+    """Represents a reactor, fuel cell, or battery."""
+    name: str
+    internal_resistance: float
+
+
+class PowerBus(NamedTuple):
+    """
+    Represents one of the power buses, to which components and power sources
+    are connected.
+    """
+    nominal_voltage: float
+    primary_power_source: PowerSource
+    secondary_power_source: Optional[PowerSource]
+
 
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
@@ -139,7 +155,7 @@ for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
 # Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 3]
-COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(1, N_COMPONENTS), dtype=int)
+COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(N_COMPONENTS), dtype=int)
 
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MAPPING[strings.COMPONENT_NAMES.index(component_name)] = bus

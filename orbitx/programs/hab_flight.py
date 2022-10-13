@@ -2,10 +2,10 @@ import argparse
 import atexit
 import logging
 
-from orbitx import common
 from orbitx import programs
+from orbitx.common import Request, FRAMERATE
 from orbitx.graphics.flight import flight_gui
-from orbitx.network import Request, NetworkedStateClient
+from orbitx.network import NetworkedStateClient
 
 log = logging.getLogger('orbitx')
 
@@ -41,7 +41,7 @@ def main(args: argparse.Namespace):
 
         state = lead_server_connection.get_state(user_commands)
 
-        gui.rate(common.FRAMERATE)
+        gui.rate(FRAMERATE)
 
 
 program = programs.Program(

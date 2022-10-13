@@ -4,6 +4,7 @@
 import atexit
 import logging
 import pytz
+from enum import Enum
 from io import StringIO
 from pathlib import Path
 from typing import NamedTuple, Optional
@@ -36,6 +37,13 @@ class OhmicVars(NamedTuple):
     voltage: float
     current: float
     resistance: float
+
+
+# Make sure this is in sync with the corresponding enum in orbitx.proto!
+Navmode = Enum('Navmode', zip([  # type: ignore
+    'Manual', 'CCW Prograde', 'CW Retrograde', 'Depart Reference',
+    'Approach Target', 'Pro Targ Velocity', 'Anti Targ Velocity'
+], protos.Navmode.values()))
 
 
 # If you change the 'Pause' element of this list, change the corresponding
@@ -136,6 +144,10 @@ DANGEROUS_REACTOR_TEMP = 110  # We can change this later
 # ---------- Other runtime functions and constants ----------
 PERF_FILE = 'flamegraph-data.log'
 
+# This Request class is just an alias of the Command protobuf message. We
+# provide this so that nobody has to directly import orbitx_pb2, and so that
+# we can this wrapper class in the future.
+Request = protos.Command
 
 def format_num(num: Optional[float], unit: str,
                *, decimals: Optional[int] = None) -> str:

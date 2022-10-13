@@ -9,7 +9,6 @@ from pathlib import Path
 
 import google.protobuf.json_format
 
-from orbitx import orbitv_file_interface
 from orbitx import common
 from orbitx.data_structures.space import PhysicsState
 
@@ -55,6 +54,7 @@ def load_savefile(file: Path) -> PhysicsState:
 
     assert isinstance(file, Path)
     if file.suffix.lower() == '.rnd':
+        from orbitx import orbitv_file_interface
         physics_state = \
             orbitv_file_interface.clone_orbitv_state(file)
 
@@ -91,7 +91,7 @@ def load_savefile(file: Path) -> PhysicsState:
 
 
 def write_savefile(state: 'PhysicsState', file: Path):
-    """Writes state to the specified savefile path (use common.savefile to get
+    """Writes state to the specified savefile path (use savefile() to get
     a savefile path in data/saves/). Returns a possibly-different path that it
     was saved under."""
     if file.suffix.lower() != '.json':

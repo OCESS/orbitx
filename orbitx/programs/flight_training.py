@@ -7,6 +7,7 @@ from pathlib import Path
 from orbitx import common
 from orbitx import physics
 from orbitx import programs
+from orbitx.physics.simulation import PhysicsEngine
 from orbitx.graphics.flight import flight_gui
 from orbitx.data_structures import savefile
 
@@ -39,7 +40,7 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = savefile.full_path(args.loadfile)
 
-    physics_engine = physics.PhysicsEngine(savefile.load_savefile(loadfile))
+    physics_engine = PhysicsEngine(savefile.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
     gui = flight_gui.FlightGui(

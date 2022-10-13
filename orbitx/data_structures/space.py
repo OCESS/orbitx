@@ -5,14 +5,13 @@ it makes your eggs and coffee too.
 """
 
 import logging
-from enum import Enum
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
-
+from orbitx.common import Navmode
 from orbitx.data_structures import DTYPE
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.data_structures.entity import (
@@ -22,12 +21,6 @@ from orbitx.data_structures.entity import (
 
 
 log = logging.getLogger('orbitx')
-
-# Make sure this is in sync with the corresponding enum in orbitx.proto!
-Navmode = Enum('Navmode', zip([  # type: ignore
-    'Manual', 'CCW Prograde', 'CW Retrograde', 'Depart Reference',
-    'Approach Target', 'Pro Targ Velocity', 'Anti Targ Velocity'
-], protos.Navmode.values()))
 
 
 class PhysicsState:

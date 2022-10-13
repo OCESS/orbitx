@@ -14,8 +14,8 @@ import scipy
 
 from orbitx.physics import calc
 from orbitx import common
-from orbitx import network
 from orbitx import orbitx_pb2 as protos
+from orbitx.common import Request
 from orbitx.data_structures.entity import Entity
 from orbitx.data_structures.space import Navmode, PhysicsState
 from orbitx.strings import AYSE, EARTH, HABITAT, MODULE, OCESS, SUN
@@ -41,9 +41,9 @@ SFLAG_TO_NAVMODE[7] = None  # This is Hold Atrg
 # Converts from an OrbitX Enum representation of the module state to
 # the OrbitV variable MODULEflag.
 MODSTATE_TO_MODFLAG = {
-    network.Request.NO_MODULE: 0,
-    network.Request.DOCKED_MODULE: 1,
-    network.Request.DETACHED_MODULE: 2
+    Request.NO_MODULE: 0,
+    Request.DOCKED_MODULE: 1,
+    Request.DETACHED_MODULE: 2
 }
 MODFLAG_TO_MODSTATE = {v: k for k, v in MODSTATE_TO_MODFLAG.items()}
 
@@ -73,7 +73,7 @@ class OrbitVIntermediary:
         _write_state_to_osbackup(
             orbitx_state, self.osbackup, self.orbitv_names)
 
-    def read_engineering_update(self) -> network.Request.OrbitVEngineeringUpdate:
+    def read_engineering_update(self) -> Request.OrbitVEngineeringUpdate:
         return _read_update_from_orbitsse(self.orbitsse, self.orbitv_names)
 
 
@@ -401,9 +401,9 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
         _write_single(numpy.degrees(hab.spin), osbackup)
         _write_int(150 if hab.landed_on == AYSE else 0, osbackup)
         _write_single(0, osbackup)  # Rad shields, written by enghabv.bas.
-        _write_int(MODSTATE_TO_MODFLAG[network.Request.DETACHED_MODULE]
+        _write_int(MODSTATE_TO_MODFLAG[Request.DETACHED_MODULE]
                    if MODULE in orbitx_state._entity_names
-                   else MODSTATE_TO_MODFLAG[network.Request.NO_MODULE],
+                   else MODSTATE_TO_MODFLAG[Request.NO_MODULE],
                    osbackup)
 
         # These next two variables are technically AYSEdist and OCESSdist
@@ -457,10 +457,10 @@ def _write_state_to_osbackup(orbitx_state: PhysicsState,
 
 def _read_update_from_orbitsse(
         orbitsse_path: Path, orbitv_names: List[str]) \
-        -> network.Request.OrbitVEngineeringUpdate:
+        -> Request.OrbitVEngineeringUpdate:
     """Reads information from ORBITSSE.RND and returns an ENGINEERING_UPDATE
     that contains the information."""
-    command = network.Request(ident=network.Request.ENGINEERING_UPDATE)
+    command = Request(ident=Request.ENGINEERING_UPDATE)
     with open(orbitsse_path, 'rb') as orbitsse:
         # See enghabv.bas at label 820 to find out what data is written at what
         # offsets in orbitsse.rnd

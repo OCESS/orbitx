@@ -10,7 +10,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from typing import List, Optional, Callable
 
-from orbitx.network import Request
+from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 from orbitx import strings

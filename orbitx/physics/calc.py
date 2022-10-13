@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from typing import List, Optional, Tuple
 import collections
 import logging
@@ -9,8 +11,8 @@ import vpython
 import numpy as np
 
 from orbitx import common
+from orbitx.common import Navmode
 from orbitx.data_structures.entity import Entity
-from orbitx.data_structures.space import PhysicsState, Navmode
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')

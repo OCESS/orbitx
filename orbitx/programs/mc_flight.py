@@ -2,10 +2,10 @@ import argparse
 import atexit
 import logging
 
-from orbitx import common
 from orbitx import programs
+from orbitx.common import Request, FRAMERATE
 from orbitx.graphics.flight import flight_gui
-from orbitx.network import Request, NetworkedStateClient
+from orbitx.network import NetworkedStateClient
 
 log = logging.getLogger('orbitx')
 
@@ -56,7 +56,7 @@ def main(args: argparse.Namespace):
         if not networking:
             # When we're not networking, allow user input.
             physics_engine.handle_requests(gui.pop_commands())
-        gui.rate(common.FRAMERATE)
+        gui.rate(FRAMERATE)
 
 
 program = programs.Program(

@@ -9,8 +9,8 @@ import grpc
 
 from orbitx import common
 from orbitx import network
-from orbitx import physics
 from orbitx import programs
+from orbitx.physics.simulation import PhysicsEngine
 from orbitx.graphics.server_gui import ServerGui
 from orbitx.data_structures import savefile
 import orbitx.orbitx_pb2_grpc as grpc_stubs
@@ -52,7 +52,7 @@ def main(args: argparse.Namespace):
         # Take paths relative to 'data/saves/'
         loadfile = savefile.full_path(args.loadfile)
 
-    physics_engine = physics.PhysicsEngine(savefile.load_savefile(loadfile))
+    physics_engine = PhysicsEngine(savefile.load_savefile(loadfile))
     initial_state = physics_engine.get_state()
 
     TICKS_BETWEEN_CLIENT_LIST_REFRESHES = 150

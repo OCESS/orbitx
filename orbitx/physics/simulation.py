@@ -25,10 +25,10 @@ import scipy.spatial
 import scipy.special
 
 from orbitx import common
+from orbitx.common import Request
 from orbitx.physics import helpers, ode_solver
 from orbitx.orbitx_pb2 import PhysicalState
 from orbitx.data_structures.space import PhysicsState
-from orbitx.network import Request
 
 SOLUTION_CACHE_SIZE = 2
 

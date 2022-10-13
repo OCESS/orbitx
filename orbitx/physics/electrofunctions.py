@@ -4,6 +4,7 @@ It sounds cool though.
 
 This module contains helpers to calculate the Voltage/Current/Resistance and
 resistive heating of electrical components on our power grid."""
+from __future__ import annotations
 
 from typing import List, NamedTuple
 
@@ -11,7 +12,6 @@ import numpy as np
 
 from orbitx.common import OhmicVars
 from orbitx.physics import electroconstants
-from orbitx.data_structures.engineering import EngineeringState
 
 
 def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:
@@ -53,7 +53,7 @@ def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:
     return buses
 
 
-def component_resistances(components: 'ComponentList') -> np.ndarray:
+def component_resistances(components: ComponentList) -> np.ndarray:
     """Returns an array of each component's effective resistance.
     If a component is not connected to the bus, or it has been set
     to 0% capacity, it will have infinite resistance."""

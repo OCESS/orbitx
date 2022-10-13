@@ -11,22 +11,23 @@ from orbitx.physics import calc, ode_solver
 from orbitx import common
 from orbitx import logs
 from orbitx import network
-from orbitx import physics
+from orbitx import strings
 from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.data_structures.entity import _EntityView, Entity
 from orbitx.data_structures.space import PhysicsState
 from orbitx.data_structures import savefile
+from orbitx.physics.simulation import PhysicsEngine
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')
 
 
-class PhysicsEngine:
+class PhysicsEngineHarness:
     """Ensures that the simthread is always shut down on test exit/failure."""
 
     def __init__(self, savefile_name):
-        self.physics_engine = physics.PhysicsEngine(
+        self.physics_engine = PhysicsEngine(
             savefile.load_savefile(savefile.full_path(savefile_name)))
 
     def __enter__(self):
@@ -41,7 +42,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_simple_collision(self):
         """Test elastic collisions of two small-mass objects colliding."""
-        with PhysicsEngine('tests/simple-collision.json') as physics_engine:
+        with PhysicsEngineHarness('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second
             # on a collision course going left to right. The two should bounce.
             # Entity 0 has r=50 and everything else 0.
@@ -60,7 +61,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_basic_movement(self):
         """Test that a moving object changes its position."""
-        with PhysicsEngine('tests/only-sun.json') as physics_engine:
+        with PhysicsEngineHarness('tests/only-sun.json') as physics_engine:
             # In this case, the only entity is the Sun. It starts at (0, 0)
             # with a speed of (1, -1). It should move.
             initial = physics_engine.get_state(1)
@@ -80,7 +81,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_gravitation(self):
         """Test that gravitational acceleration at t=0 is as expected."""
-        with PhysicsEngine('tests/massive-objects.json') as physics_engine:
+        with PhysicsEngineHarness('tests/massive-objects.json') as physics_engine:
             # In this case, the first entity is very massive and the second
             # entity should gravitate towards the first entity.
             t0 = 1
@@ -119,7 +120,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_engines(self):
         """Test that engines use fuel and accelerate at the expected."""
-        with PhysicsEngine('tests/habitat.json') as physics_engine:
+        with PhysicsEngineHarness('tests/habitat.json') as physics_engine:
             # In this test case, there is a single entity that has 300 kg fuel.
             # heading, velocity, and position are all 0.
             throttle = 1
@@ -127,8 +128,8 @@ class PhysicsEngineTestCase(unittest.TestCase):
             t1 = 5
 
             physics_engine.handle_requests([
-                network.Request(
-                    ident=network.Request.HAB_THROTTLE_SET,
+                common.Request(
+                    ident=common.Request.HAB_THROTTLE_SET,
                     throttle_set=throttle)],
                 requested_t=t0)
 
@@ -156,11 +157,11 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_srbs(self):
         """Test that SRBs move the craft, and run out of fuel."""
-        with PhysicsEngine('tests/habitat.json') as physics_engine:
+        with PhysicsEngineHarness('tests/habitat.json') as physics_engine:
             t0 = 1
             t1 = 5
             physics_engine.handle_requests(
-                [network.Request(ident=network.Request.IGNITE_SRBS)],
+                [common.Request(ident=common.Request.IGNITE_SRBS)],
                 requested_t=t0)
 
             initial = physics_engine.get_state(t0)
@@ -178,7 +179,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_three_body(self):
         """Test gravitational acceleration between three bodies is expected."""
-        with PhysicsEngine('tests/three-body.json') as physics_engine:
+        with PhysicsEngineHarness('tests/three-body.json') as physics_engine:
             # In this case, three entities form a 90-45-45 triangle, with the
             # entity at the right angle being about as massive as the sun.
             # The first entity is the massive entity, the second is far to the
@@ -233,7 +234,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
             ))
 
     def test_landing(self):
-        with PhysicsEngine('tests/artificial-collision.json') \
+        with PhysicsEngineHarness('tests/artificial-collision.json') \
                 as physics_engine:
             # This case is the same as simple-collision, but the first entity
             # has the artificial flag set. Thus it should land and stick.
@@ -256,10 +257,10 @@ class PhysicsEngineTestCase(unittest.TestCase):
         """Test that landed ships have stable altitude in the long term."""
         savestate = savefile.load_savefile(savefile.full_path('OCESS.json'))
         initial_t = savestate.timestamp
-        with PhysicsEngine('OCESS.json') as physics_engine:
+        with PhysicsEngineHarness('OCESS.json') as physics_engine:
             initial = physics_engine.get_state(initial_t + 10)
             physics_engine.handle_requests(
-                [network.Request(ident=network.Request.TIME_ACC_SET,
+                [common.Request(ident=common.Request.TIME_ACC_SET,
                                  time_acc_set=common.TIME_ACCS[-1].value)],
                 requested_t=initial_t + 10)
             final = physics_engine.get_state(initial_t + 100_000)
@@ -537,7 +538,7 @@ class EngineeringViewTestCase(unittest.TestCase):
     """Test that the various accessors of EngineeringState are correct."""
 
     def test_component_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -562,7 +563,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[1].connected_coolant_loops()[0].coolant_temp, 20.0)
 
     def test_as_proto(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             state = physics_engine.get_state()
             engineering = state.engineering
 
@@ -584,7 +585,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(physics_state_proto.engineering.components[1].temperature, 12.3)
 
     def test_coolant_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -601,7 +602,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.coolant_loops[1].secondary_pump_on, True)
 
     def test_radiator_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -620,7 +621,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         """Test that the internal array representation of EngineeringState is
         just a view into PhysicsState._array_rep, otherwise EngineeringState will
         write new data into the ether and it won't update PhysicsState.y0()."""
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             state = physics_engine.get_state()
 
         engineering = state.engineering
@@ -631,7 +632,7 @@ class EngineeringViewTestCase(unittest.TestCase):
     def test_eng_single_fields(self):
         """Test that non-repeated fields in the EngineeringState can be
            accessed/set properly."""
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         self.assertEqual(engineering.master_alarm, False)
@@ -659,7 +660,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.rad_shield_percentage, 69)
 
     def test_misc_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             physics_state = physics_engine.get_state()
 
         self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 100)
@@ -669,7 +670,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 50)
 
     def test_convenience_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         self.assertTrue(engineering.components[0].coolant_hab_one)
@@ -687,7 +688,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         Test that the CoolantConnectionMatrix is returning the correct size of a matrix
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
@@ -698,7 +699,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         Test that the matrix math to be used for something actually works
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
@@ -723,11 +724,13 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         Sanity check for the OhmicVars of all components.
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
-            #TODO resolve circular imports
-        self.assertFalse(engineering.components.Electricals())
+        electricals = engineering.components.Electricals()
+
+        self.assertFalse(electricals)
+        self.assertEqual(electricals[strings.HAB_REACT], 5)
 
 
 class CoolantTestCase(unittest.TestCase):
@@ -736,7 +739,7 @@ class CoolantTestCase(unittest.TestCase):
         """
         Test that the CoolantConnectionMatrix is returning the correct size of a matrix
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
@@ -746,7 +749,7 @@ class CoolantTestCase(unittest.TestCase):
         """
         Test that the matrix math used in ode_solver.py actually works
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
@@ -768,7 +771,7 @@ class CoolantTestCase(unittest.TestCase):
         self.assertEqual(len(np.nonzero(temperature_difference_matrix)), 2)
 
     def test_component_coolant(self):
-        with PhysicsEngine('tests/coolant-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/coolant-test.json') as physics_engine:
             initial = physics_engine.get_state(1).engineering
             final = physics_engine.get_state(20).engineering
 
@@ -781,9 +784,9 @@ def test_performance():
     # This just runs for 10 seconds and collects profiling data.
     import time
 
-    with PhysicsEngine('OCESS.json') as physics_engine:
+    with PhysicsEngineHarness('OCESS.json') as physics_engine:
         physics_engine.handle_requests([
-            network.Request(ident=network.Request.TIME_ACC_SET,
+            common.Request(ident=common.Request.TIME_ACC_SET,
                             time_acc_set=1000)])
 
         initial_state = physics_engine.get_state()  # Warm up the simulation

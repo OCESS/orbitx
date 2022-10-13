@@ -1,4 +1,5 @@
 """Network-related classes."""
+from __future__ import annotations
 
 import logging
 import threading
@@ -10,19 +11,15 @@ from typing import Dict, List, Optional, Iterable
 import grpc
 
 from orbitx import common
-# from orbitx import physics  - this import is deferred down below
+# from orbitx.physics.simulation import PhysicsEngine  # Deferred import  - this import is deferred down below
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
+from orbitx.common import Request
 from orbitx.data_structures.space import PhysicsState
 
 log = logging.getLogger('orbitx')
 
 DEFAULT_PORT = 28430
-
-# This Request class is just an alias of the Command protobuf message. We
-# provide this so that nobody has to directly import orbitx_pb2, and so that
-# we can this wrapper class in the future.
-Request = protos.Command
 
 
 class StateServer(grpc_stubs.StateServerServicer):
@@ -132,7 +129,7 @@ class NetworkedStateClient:
     """
 
     def __init__(self, client: protos.Command.ClientType, hostname: str):
-        from orbitx import physics  # Deferred import
+        from orbitx.physics.simulation import PhysicsEngine  # Deferred import
 
         self.channel = grpc.insecure_channel(
             f'{hostname}:{DEFAULT_PORT}')
@@ -142,7 +139,7 @@ class NetworkedStateClient:
         initial_state = PhysicsState(None, self.stub.get_physical_state(iter([
             Request(ident=Request.NOOP, client=self.client_type)])))
 
-        self._caching_physics_engine = physics.PhysicsEngine(initial_state)
+        self._caching_physics_engine = PhysicsEngine(initial_state)
         self._time_of_next_network_update = 0.0
 
     def get_state(self, commands: List[Request] = None) \
