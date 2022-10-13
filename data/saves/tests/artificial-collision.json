@@ -1,75 +1,180 @@
 {
-    "entities": [
-        {
-            "name": "Habitat",
-            "r": 50.0,
-            "mass": 300.0,
-            "artificial": true
-        },
-        {
-            "y": 10000000.0,
-            "name": "collision_confounding",
-            "r": 30000.0,
-            "mass": 101.0
-        },
-        {
-            "name": "natural",
-            "x": -500.0,
-            "r": 30.0,
-            "vx": 10.0,
-            "mass": 100.0
-        }
+  "entities": [
+    {
+      "name": "Habitat",
+      "r": 50.0,
+      "mass": 300.0,
+      "artificial": true
+    },
+    {
+      "name": "collision_confounding",
+      "y": 10000000.0,
+      "r": 30000.0,
+      "mass": 101.0
+    },
+    {
+      "name": "natural",
+      "x": -500.0,
+      "vx": 10.0,
+      "r": 30.0,
+      "mass": 100.0
+    }
+  ],
+  "timestamp": 1.0,
+  "time_acc": 1.0,
+  "reference": "Earth",
+  "target": "AYSE",
+  "srb_time": -1.0,
+  "engineering": {
+    "components": [
+      {
+        "name": "RAD-S1"
+      },
+      {
+        "name": "RAD-S2"
+      },
+      {
+        "name": "A GRAV"
+      },
+      {
+        "name": "R-CON1"
+      },
+      {
+        "name": "R-CON2"
+      },
+      {
+        "name": "Ayse R-CON1"
+      },
+      {
+        "name": "Ayse R-CON2"
+      },
+      {
+        "name": "ACC1"
+      },
+      {
+        "name": "ION1"
+      },
+      {
+        "name": "ACC2"
+      },
+      {
+        "name": "ION2"
+      },
+      {
+        "name": "ACC3"
+      },
+      {
+        "name": "ION3"
+      },
+      {
+        "name": "ACC4"
+      },
+      {
+        "name": "ION4"
+      },
+      {
+        "name": "Fuel Cell"
+      },
+      {
+        "name": "BAT"
+      },
+      {
+        "name": "BACKUP BAT"
+      },
+      {
+        "name": "AYSE BAT"
+      },
+      {
+        "name": "RCSP"
+      },
+      {
+        "name": "COM"
+      },
+      {
+        "name": "HAB reactor"
+      },
+      {
+        "name": "INJECTOR 1"
+      },
+      {
+        "name": "INJECTOR 2"
+      },
+      {
+        "name": "REACT INJ1"
+      },
+      {
+        "name": "REACT INJ2"
+      },
+      {
+        "name": "F-CELL INJ"
+      },
+      {
+        "name": "AYSE reactor"
+      },
+      {
+        "name": "DOCK MOD"
+      },
+      {
+        "name": "RADAR"
+      },
+      {
+        "name": "INS"
+      },
+      {
+        "name": "EECOM"
+      },
+      {
+        "name": "Network"
+      }
     ],
-    "engineering": {
-    "components": [],
-    "coolantLoops": [
+    "coolant_loops": [
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       },
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       },
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       }
     ],
     "radiators": [
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 3,
+        "attached_to_coolant_loop": 3,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 3,
+        "attached_to_coolant_loop": 3,
         "functioning": true
       }
     ]

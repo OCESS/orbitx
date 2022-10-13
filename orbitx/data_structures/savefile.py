@@ -5,11 +5,13 @@ PhysicsState that can be accessed by other python code, and vice versa.
 
 import logging
 import sys
+import json
 from pathlib import Path
 
 import google.protobuf.json_format
 
 from orbitx import common
+from orbitx import strings
 from orbitx.data_structures.space import PhysicsState
 
 import orbitx.orbitx_pb2 as protos
@@ -64,9 +66,15 @@ def load_savefile(file: Path) -> PhysicsState:
                 f'{file} is not a .json file, trying to load it anyways.')
 
         with open(file, 'r') as f:
-            data = f.read()
+            json_dict = json.load(f)
+
+        for component in json_dict['engineering']['components']:
+            # This is just an informational field we add in while saving, get rid of it.
+            if 'name' in component:
+                del component['name']
+
         read_state = protos.PhysicalState()
-        google.protobuf.json_format.Parse(data, read_state)
+        google.protobuf.json_format.ParseDict(json_dict, read_state)
 
         if len(read_state.engineering.components) == 0:
             # We allow savefiles to not specify any components.
@@ -93,12 +101,24 @@ def load_savefile(file: Path) -> PhysicsState:
 def write_savefile(state: 'PhysicsState', file: Path):
     """Writes state to the specified savefile path (use savefile() to get
     a savefile path in data/saves/). Returns a possibly-different path that it
-    was saved under."""
+    was saved under.
+    Does some post-processing, like adding descriptive names to components."""
     if file.suffix.lower() != '.json':
         # Ensure a .json suffix.
         file = file.parent / (file.name + '.json')
     log.info(f'Saving to savefile {file.resolve()}')
+
+    savefile_json_dict = google.protobuf.json_format.MessageToDict(
+        state.as_proto(),
+        including_default_value_fields=False,
+        preserving_proto_field_name=True,
+        use_integers_for_enums=False,
+    )
+
+    for i, component in enumerate(savefile_json_dict['engineering']['components']):
+        component['name'] = strings.COMPONENT_NAMES[i]
+
     with open(file, 'w') as outfile:
-        outfile.write(
-            google.protobuf.json_format.MessageToJson(state.as_proto()))
+        json.dump(savefile_json_dict, outfile, indent=2)
+
     return file
