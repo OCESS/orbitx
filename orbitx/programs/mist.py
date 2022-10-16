@@ -13,7 +13,7 @@ import grpc
 
 from orbitx import common
 from orbitx import network
-from orbitx import programs
+from orbitx.common import Program
 
 log = logging.getLogger('orbitx')
 
@@ -51,7 +51,7 @@ def main(args: argparse.Namespace):
         raise err
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from orbitx import common
 from orbitx import physics
-from orbitx import programs
+from orbitx.common import Program
 from orbitx.physics.simulation import PhysicsEngine
 from orbitx.graphics.flight import flight_gui
 from orbitx.data_structures import savefile
@@ -63,7 +63,7 @@ def main(args: argparse.Namespace):
         gui.rate(common.FRAMERATE)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

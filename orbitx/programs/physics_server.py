@@ -9,10 +9,10 @@ import grpc
 
 from orbitx import common
 from orbitx import network
-from orbitx import programs
+from orbitx.common import Program
+from orbitx.data_structures import savefile
 from orbitx.physics.simulation import PhysicsEngine
 from orbitx.graphics.server_gui import ServerGui
-from orbitx.data_structures import savefile
 import orbitx.orbitx_pb2_grpc as grpc_stubs
 
 log = logging.getLogger('orbitx')
@@ -89,12 +89,12 @@ def main(args: argparse.Namespace):
                 state_server.refresh_client_list()
             ticks_until_next_client_list_refresh -= 1
 
-            gui.update(state, state_server.addr_to_connected_clients.values())
+            gui.update(state, list(state_server.addr_to_connected_clients.values()))
     finally:
         server.stop(grace=1)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

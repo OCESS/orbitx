@@ -5,6 +5,7 @@ floating around in space.
 These are usually instantiated and owned by PhysicsState (see
 data_structures.space)
 """
+from __future__ import annotations
 
 import logging
 from typing import Optional
@@ -93,7 +94,7 @@ class _EntityView(Entity):
     """A view into a PhysicsState, very fast to create and use.
     Setting fields will update the parent PhysicsState appropriately."""
 
-    def __init__(self, creator: 'PhysicsState', index: int):
+    def __init__(self, creator: PhysicsState, index: int):
         self._creator = creator
         self._index = index
 

@@ -6,6 +6,7 @@ data_structures.space).
 A good chunk of the engineering complexity is handled by the relevant classes
 for components, coolant loops, etc (see data_structures.eng_systems).
 """
+from __future__ import annotations
 
 import logging
 
@@ -52,7 +53,7 @@ class EngineeringState:
 
     def __init__(self,
                  array_rep: np.ndarray, proto_state: protos.EngineeringState, *,
-                 parent_state: 'PhysicsState', populate_array: bool):
+                 parent_state: PhysicsState, populate_array: bool):
         """Called by a PhysicsState on creation.
 
         array_rep: a sufficiently-sized array to store all component, coolant,

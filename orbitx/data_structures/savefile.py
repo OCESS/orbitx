@@ -2,6 +2,7 @@
 Functions for interpreting a .json dump of orbitx.proto:PhysicsState into a
 PhysicsState that can be accessed by other python code, and vice versa.
 """
+from __future__ import annotations
 
 import logging
 import sys
@@ -98,7 +99,7 @@ def load_savefile(file: Path) -> PhysicsState:
     return physics_state
 
 
-def write_savefile(state: 'PhysicsState', file: Path):
+def write_savefile(state: PhysicsState, file: Path):
     """Writes state to the specified savefile path (use savefile() to get
     a savefile path in data/saves/). Returns a possibly-different path that it
     was saved under.

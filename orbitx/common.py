@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """Common code and class interfaces."""
-
 import atexit
+import argparse
 import logging
 import pytz
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
 import numpy
 import vpython  # type: ignore
@@ -148,6 +148,15 @@ PERF_FILE = 'flamegraph-data.log'
 # provide this so that nobody has to directly import orbitx_pb2, and so that
 # we can this wrapper class in the future.
 Request = protos.Command
+
+
+class Program(NamedTuple):
+    """Defines a runnable orbitx program."""
+    main: Callable[[argparse.Namespace], None]
+    name: str
+    description: str
+    argparser: argparse.ArgumentParser
+
 
 def format_num(num: Optional[float], unit: str,
                *, decimals: Optional[int] = None) -> str:

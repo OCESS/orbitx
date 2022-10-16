@@ -7,6 +7,7 @@ all these smaller parts together.
 
 See data_structures.__init__ for other documentation.
 """
+from __future__ import annotations
 
 import logging
 from typing import Dict, List, Optional, Union
@@ -73,7 +74,7 @@ class ComponentView:
 
     Should not be instantiated outside of EngineeringState."""
 
-    def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, component_n: int):
+    def __init__(self, parent: EngineeringState, array_rep: np.ndarray, component_n: int):
         """Called by an EngineeringState factory.
 
         array_rep: an array that, starting at 0, contains all data for all components in the form
@@ -152,7 +153,7 @@ class RadiatorView:
     Should not be instantiated outside of EngineeringState.
     """
 
-    def __init__(self, parent: 'EngineeringState', array_rep: np.ndarray, radiator_n: int):
+    def __init__(self, parent: EngineeringState, array_rep: np.ndarray, radiator_n: int):
         """Called by an EngineeringState factory.
 
         parent: an EngineeringState that this RadiatorView will use to get the associated coolant loop.
@@ -201,7 +202,7 @@ class ComponentList:
     unexpected!
     """
 
-    def __init__(self, owner: 'EngineeringState'):
+    def __init__(self, owner: EngineeringState):
         self._owner = owner
         self._component_array = owner._array[owner._COMPONENT_START_INDEX:owner._COMPONENT_END_INDEX]
 
@@ -211,6 +212,11 @@ class ComponentList:
         if index >= N_COMPONENTS:
             raise IndexError()
         return ComponentView(self._owner, self._component_array, index)
+
+    def __iter__(self):
+        """Implements `for component in component_list:` loops."""
+        for i in range(0, N_COMPONENTS):
+            yield self.__getitem__(i)
 
     # Provide a convenient list of all values of each quantity for each
     # Component. Accessors are defined once there is a need for them.
@@ -257,7 +263,7 @@ class CoolantLoopList:
 
     See comments on ComponentList, a similar class, for more details."""
 
-    def __init__(self, owner: 'EngineeringState'):
+    def __init__(self, owner: EngineeringState):
         self._owner = owner
         self._coolant_array = owner._array[owner._COOLANT_START_INDEX:owner._COOLANT_END_INDEX]
 
@@ -267,6 +273,11 @@ class CoolantLoopList:
         if index >= N_COOLANT_LOOPS:
             raise IndexError()
         return CoolantView(self._coolant_array, index)
+
+    def __iter__(self):
+        """Implements `for coolant in coolant_list:` loops."""
+        for i in range(0, N_COOLANT_LOOPS):
+            yield self.__getitem__(i)
 
     # As above, list slicing with strides.
     def CoolantTemp(self) -> np.ndarray:
@@ -278,7 +289,7 @@ class RadiatorList:
 
     See comments on ComponentList, a similar class, for more details."""
 
-    def __init__(self, owner: 'EngineeringState'):
+    def __init__(self, owner: EngineeringState):
         self._owner = owner
         self._radiator_array = owner._array[owner._RADIATOR_START_INDEX:owner._RADIATOR_END_INDEX]
 
@@ -288,6 +299,11 @@ class RadiatorList:
         if index >= N_RADIATORS:
             raise IndexError()
         return RadiatorView(self._owner, self._radiator_array, index)
+
+    def __iter__(self):
+        """Implements `for radiator in radiator_list:` loops."""
+        for i in range(0, N_RADIATORS):
+            yield self.__getitem__(i)
 
     # And as above, list slicing with strides.
     def Functioning(self) -> np.ndarray:

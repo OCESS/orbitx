@@ -256,8 +256,10 @@ def clone_orbitv_state(rnd_path: Path) -> PhysicsState:
         check_byte_2 = rnd.read(1)
 
     if check_byte != check_byte_2:
-        log.warning('RND file had inconsistent check bytes: '
-                    f'{check_byte} != {check_byte_2}')
+        log.warning(
+            'RND file had inconsistent check bytes: '
+            f'''{check_byte.decode('ascii')} != {check_byte_2.decode('ascii')}'''
+        )
 
     # Delete any entity with a (0, 0) position that isn't the Sun.
     # TODO: We also delete the OCESS launch tower, but once we implement

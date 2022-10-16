@@ -71,7 +71,6 @@ def component_resistances(components: ComponentList) -> np.ndarray:
         * electroconstants.BASE_COMPONENT_RESISTANCES
     )
 
-
     # TODO: put DM's code for connecting electrical buses into orbitx, like
     # have a way for engineering to encode the connection between buses.
 

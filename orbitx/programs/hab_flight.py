@@ -2,8 +2,7 @@ import argparse
 import atexit
 import logging
 
-from orbitx import programs
-from orbitx.common import Request, FRAMERATE
+from orbitx.common import Program, Request, FRAMERATE
 from orbitx.graphics.flight import flight_gui
 from orbitx.network import NetworkedStateClient
 
@@ -44,7 +43,7 @@ def main(args: argparse.Namespace):
         gui.rate(FRAMERATE)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

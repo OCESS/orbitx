@@ -13,8 +13,7 @@ import grpc
 
 from orbitx import network
 from orbitx import orbitv_file_interface
-from orbitx import programs
-from orbitx.common import Request
+from orbitx.common import Program, Request
 from orbitx.graphics.compat_gui import CompatGui, StartupFailedGui
 
 log = logging.getLogger('orbitx')
@@ -86,7 +85,7 @@ def main(args: argparse.Namespace):
         gui.notify_shutdown(err)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,
