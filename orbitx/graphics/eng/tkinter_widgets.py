@@ -81,11 +81,7 @@ class CoolantSection():
     buttons on a given row inside a widget.
     """
 
-    def __init__(
-            self,
-            parent: tk.Widget,
-            row_n: int
-    ):
+    def __init__(self, parent: tk.Widget, row_n: int):
 
         component_n = strings.COMPONENT_NAMES.index(parent._component_name)
         self._lp1 = CoolantButton(parent, component_n, 0).grid(row=row_n, column=0)
@@ -98,12 +94,7 @@ class CoolantButton(tk.Button, Redrawable):
     to hook up a component to a certain coolant loop.
     """
 
-    def __init__(
-        self,
-        parent: tk.Widget,
-        component_n: int,
-        coolant_n: int
-    ):
+    def __init__(self, parent: tk.Widget, component_n: int, coolant_n: int):
         """
         @parent: The ComponentBlock that owns this CoolantButton.
         @component_n: The index of the component that owns this.
@@ -113,10 +104,7 @@ class CoolantButton(tk.Button, Redrawable):
         """
         coolant_loop_texts = [strings.LP1, strings.LP2, strings.LP3]
 
-        tk.Button.__init__(
-            self, parent, text=coolant_loop_texts[coolant_n],
-            command=self._onpress
-        )
+        tk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
         #self.grid(fill=tk.X, expand=True)
         Redrawable.__init__(self)
 
@@ -124,12 +112,9 @@ class CoolantButton(tk.Button, Redrawable):
         self._coolant_n = coolant_n
 
     def _onpress(self):
-        hab_eng.push_command(Request(
-            ident=Request.TOGGLE_COMPONENT_COOLANT,
-            component_to_loop=Request.ComponentToLoop(
-                component=self._component_n, loop=self._coolant_n
-            )
-        ))
+        hab_eng.push_command(
+            Request(ident=Request.TOGGLE_COMPONENT_COOLANT,
+                    component_to_loop=Request.ComponentToLoop(component=self._component_n, loop=self._coolant_n)))
 
     def redraw(self, state: EngineeringState):
 
@@ -144,12 +129,8 @@ class SimpleFrame(tk.LabelFrame, Redrawable):
     """
     Represents a simple component, with no buttons, labels, etc.
     """
-    def __init__(
-        self,
-        parent: tk.Widget,
-        component_name: str, *,
-        x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
         self.place(x=x, y=y)
@@ -164,14 +145,14 @@ class RCONFrame(tk.LabelFrame, Redrawable):
     Visually represents a component, such as RCON1.
     """
 
-    def __init__(
-        self,
-        parent: tk.Widget,
-        component_name: str,
-        optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
-        has_coolant_controls: bool = True, *,
-        x: int, y: int
-    ):
+    def __init__(self,
+                 parent: tk.Widget,
+                 component_name: str,
+                 optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
+                 has_coolant_controls: bool = True,
+                 *,
+                 x: int,
+                 y: int):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -197,18 +178,14 @@ class RCONFrame(tk.LabelFrame, Redrawable):
 
     def redraw(self, state: EngineeringState):
         if self._optional_text_generator is not None:
-            self._optional_text_value.set(self._optional_text_generator(
-                state))
+            self._optional_text_value.set(self._optional_text_generator(state))
 
         self._temperature_text.set(state.components[self._component_name].temperature)
 
 
 class EngineFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, *, x: int, y: int):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -222,20 +199,15 @@ class EngineFrame(tk.LabelFrame, Redrawable):
 
         # Draws buttons in numerical order
         for i in range(0, 4):
-            tk.Button(self, text=f"GPD{i+1}").grid(row=i//2, column=i % 2)
+            tk.Button(self, text=f"GPD{i+1}").grid(row=i // 2, column=i % 2)
 
     def redraw(self, state: EngineeringState):
         pass
 
 
 class EngineControlFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget,
-            component_name: str,
-            is_ionizers: bool, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, component_name: str, is_ionizers: bool, *, x: int, y: int):
         """
         @parent: The GridPage that this will be placed in.
         @component_name: The name of the component the widget is displaying
@@ -255,7 +227,7 @@ class EngineControlFrame(tk.LabelFrame, Redrawable):
 
         # Draws ionizers/accelerators
         for i in range(0, 4):
-            tk.Button(self, text=engine_names[i]).grid(row=i//2, column=i % 2)
+            tk.Button(self, text=engine_names[i]).grid(row=i // 2, column=i % 2)
 
         for i in range(0, 2):
             tk.Button(self, text=f"LP{i+1}").grid(row=2, column=i)
@@ -270,11 +242,8 @@ class EngineControlFrame(tk.LabelFrame, Redrawable):
 
 
 class AGRAVFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, *, x: int, y: int):
 
         tk.LabelFrame.__init__(self, parent, text=strings.AGRAV, labelanchor=tk.N)
         Redrawable.__init__(self)
@@ -289,12 +258,14 @@ class AGRAVFrame(tk.LabelFrame, Redrawable):
 
 
 class BatteryFrame(tk.LabelFrame, Redrawable):
+
     def __init__(
             self,
-            parent: tk.Widget, *,
+            parent: tk.Widget,
+            *,
             #component_name: str,
-            x: int, y: int
-    ):
+            x: int,
+            y: int):
 
         tk.LabelFrame.__init__(self, parent, text=strings.BAT1, labelanchor=tk.N)
         Redrawable.__init__(self)
@@ -310,11 +281,8 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
 
 
 class FuelFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, *, x: int, y: int):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -334,12 +302,8 @@ class FuelFrame(tk.LabelFrame, Redrawable):
 
 
 class ReactorFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget,
-            component_name: str, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
         """
         @parent: The GridPage that this will be placed in.
         @component_name: The string name of the component
@@ -369,12 +333,8 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
 
 
 class RadShieldFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget,
-            has_coolant_controls: bool = True, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, has_coolant_controls: bool = True, *, x: int, y: int):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -401,12 +361,8 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
 
 
 class PowerBusFrame(tk.LabelFrame, Redrawable):
-    def __init__(
-            self,
-            parent: tk.Widget,
-            component_name: str, *,
-            x: int, y: int
-    ):
+
+    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
 
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         self._component_name = component_name
@@ -446,31 +402,21 @@ class ComponentConnection(tk.Button, Redrawable):
         """
         Call this method only once after Tk has been fully initialized.
         """
-        ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path(
-            'data', 'engineering', 'h-connected.png')))
-        ComponentConnection.V_CONNECTED = ImageTk.PhotoImage(Image.open(Path(
-            'data', 'engineering', 'v-connected.png')))
-        ComponentConnection.H_DISCONNECTED = ImageTk.PhotoImage(Image.open(Path(
-            'data', 'engineering', 'h-disconnected.png')))
-        ComponentConnection.V_DISCONNECTED = ImageTk.PhotoImage(Image.open(Path(
-            'data', 'engineering', 'v-disconnected.png')))
+        ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'h-connected.png')))
+        ComponentConnection.V_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'v-connected.png')))
+        ComponentConnection.H_DISCONNECTED = ImageTk.PhotoImage(
+            Image.open(Path('data', 'engineering', 'h-disconnected.png')))
+        ComponentConnection.V_DISCONNECTED = ImageTk.PhotoImage(
+            Image.open(Path('data', 'engineering', 'v-disconnected.png')))
 
-    def __init__(
-        self,
-        parent: tk.Widget,
-        connected_component: str,
-        vertical: bool = True,
-        *,
-        x: int, y: int
-    ):
+    def __init__(self, parent: tk.Widget, connected_component: str, vertical: bool = True, *, x: int, y: int):
         # A button wide enough for 1 character, with no internal padding.
         tk.Button.__init__(self, parent, command=self._onpress, padx=0, pady=0)
         Redrawable.__init__(self)
         self.place(x=x, y=y)
 
         self._connected_component_name = connected_component
-        self._connected_component_n = strings.COMPONENT_NAMES.index(
-            connected_component)
+        self._connected_component_n = strings.COMPONENT_NAMES.index(connected_component)
 
         if vertical:
             self._connected_glyph = ComponentConnection.V_CONNECTED
@@ -487,7 +433,4 @@ class ComponentConnection(tk.Button, Redrawable):
             self.configure(image=self._disconnected_glyph)
 
     def _onpress(self):
-        hab_eng.push_command(Request(
-            ident=Request.TOGGLE_COMPONENT,
-            component_to_toggle=self._connected_component_n
-        ))
+        hab_eng.push_command(Request(ident=Request.TOGGLE_COMPONENT, component_to_toggle=self._connected_component_n))
