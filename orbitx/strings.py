@@ -28,7 +28,7 @@ TRN1 = 'TRN1'
 BUS1 = 'Primary Habitat Bus'
 BUS2 = 'Secondary Habitat Bus'
 BUS3 = 'Tertiary Habitat Bus'
-ABUS = 'Ayse Power Bus'
+AYSE_BUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
 FCELL = 'Fuel Cell'
 BAT1 = 'BAT'
@@ -114,3 +114,5 @@ COOLANT_LOOP_NAMES = [LP1, LP2, LP3]
 
 # This is referenced by data_structures.RadiatorView.name!
 RADIATOR_NAMES = [RAD1, RAD2, RAD3, RAD4, RAD5, RAD6, RAD7, RAD8]
+
+BUS_NAMES = [BUS1, BUS2, BUS3, AYSE_BUS]

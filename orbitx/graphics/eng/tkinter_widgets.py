@@ -84,8 +84,10 @@ class CoolantSection():
     def __init__(self, parent: tk.Widget, row_n: int):
 
         component_n = strings.COMPONENT_NAMES.index(parent._component_name)
-        self._lp1 = CoolantButton(parent, component_n, 0).grid(row=row_n, column=0)
-        self._lp2 = CoolantButton(parent, component_n, 1).grid(row=row_n, column=1)
+        self._lp1 = CoolantButton(parent, component_n, 0)
+        self._lp1.grid(row=row_n, column=0)
+        self._lp2 = CoolantButton(parent, component_n, 1)
+        self._lp2.grid(row=row_n, column=1)
 
 
 class CoolantButton(tk.Button, Redrawable):
@@ -180,7 +182,7 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         if self._optional_text_generator is not None:
             self._optional_text_value.set(self._optional_text_generator(state))
 
-        self._temperature_text.set(state.components[self._component_name].temperature)
+        self._temperature_text.set(str(state.components[self._component_name].temperature))
 
 
 class EngineFrame(tk.LabelFrame, Redrawable):
@@ -370,19 +372,22 @@ class PowerBusFrame(tk.LabelFrame, Redrawable):
 
         self.place(x=x, y=y)
 
-        self.p_holder1 = tk.StringVar()
-        self.p_holder2 = tk.StringVar()
-        self.p_holder3 = tk.StringVar()
+        self._power = tk.StringVar()
+        self._current = tk.StringVar()
+        self._voltage = tk.StringVar()
 
         tk.Label(self, text="Power: ").grid(row=0, column=0)
-        tk.Label(self, textvariable=self.p_holder1).grid(row=0, column=1)
+        tk.Label(self, textvariable=self._power).grid(row=0, column=1)
         tk.Label(self, text="Current: ").grid(row=0, column=2)
-        tk.Label(self, textvariable=self.p_holder2).grid(row=0, column=3)
-        tk.Label(self, text="Electrical Potential: ").grid(row=0, column=4)
-        tk.Label(self, textvariable=self.p_holder3).grid(row=0, column=5)
+        tk.Label(self, textvariable=self._current).grid(row=0, column=3)
+        tk.Label(self, text="Voltage: ").grid(row=0, column=4)
+        tk.Label(self, textvariable=self._voltage).grid(row=0, column=5)
 
     def redraw(self, state: EngineeringState):
-        pass
+        bus_electricals = state.BusElectricals()[self._component_name]
+        self._power.set(str(bus_electricals.current * bus_electricals.voltage))
+        self._current.set(str(bus_electricals.current))
+        self._voltage.set(str(bus_electricals.voltage))
 
 
 class ComponentConnection(tk.Button, Redrawable):

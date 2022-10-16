@@ -9,12 +9,14 @@ for components, coolant loops, etc (see data_structures.eng_systems).
 from __future__ import annotations
 
 import logging
+from typing import Dict
 
 import numpy as np
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
-from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
+from orbitx.common import OhmicVars, N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
+from orbitx.physics import electrofunctions
 from orbitx.physics.electroconstants import PowerSource, PowerBus
 from orbitx.data_structures.eng_systems import (
     CoolantView, ComponentView, RadiatorView,
@@ -98,6 +100,18 @@ class EngineeringState:
                         write_marker += 1
 
             assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
+
+    def BusElectricals(self) -> Dict[str, OhmicVars]:
+        """Return Voltage, Current, Resistance, mapped to every bus."""
+        component_resistances = electrofunctions.component_resistances(self.components)
+        electricals_list = electrofunctions.bus_electricities(component_resistances)
+
+        bus_electricals: Dict[str, OhmicVars] = {}
+
+        for bus_index, bus_name in enumerate(strings.BUS_NAMES):
+            bus_electricals[bus_name] = electricals_list[bus_index]
+
+        return bus_electricals
 
     @property
     def habitat_fuel(self):
