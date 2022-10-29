@@ -11,8 +11,9 @@ import time
 
 import grpc
 
+from orbitx import common
 from orbitx import network
-from orbitx import programs
+from orbitx.common import Program
 
 log = logging.getLogger('orbitx')
 
@@ -32,7 +33,7 @@ argument_parser.add_argument(
 
 def main(args: argparse.Namespace):
     orbitx_connection = network.NetworkedStateClient(
-        network.Request.MIST, args.physics_server)
+        common.Request.MIST, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
     random.seed()
@@ -42,7 +43,7 @@ def main(args: argparse.Namespace):
             print(random.choice(['ASTRONAUT STATUS: DYING',
                                  'astronaut status: okay']))
             print(orbitx_connection.get_state(
-                [network.Request()])['Earth'].pos)
+                [common.Request()])['Earth'].pos)
             time.sleep(1)
     except grpc.RpcError as err:
         log.error(
@@ -50,7 +51,7 @@ def main(args: argparse.Namespace):
         raise err
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

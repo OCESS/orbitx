@@ -10,12 +10,16 @@ import logging
 
 import numpy as np
 import scipy
-from orbitx import common, strings
-from orbitx.data_structures import (
-    EngineeringState, PhysicsState,
-    _ENTITY_FIELD_ORDER, _N_COMPONENT_FIELDS, N_COMPONENTS,
-    N_COOLANT_LOOPS, _N_COOLANT_FIELDS, N_RADIATORS, _N_RADIATOR_FIELDS
-    )
+from orbitx import strings
+from orbitx import common
+from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS  # These get typed a lot, import them directly.
+from orbitx.data_structures.engineering import EngineeringState
+from orbitx.data_structures.eng_systems import (
+    _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
+)
+from orbitx.data_structures.space import PhysicsState
+from orbitx.data_structures.entity import _ENTITY_FIELD_ORDER
+
 from orbitx.strings import AYSE, HABITAT
 from orbitx.physics import calc, electrofunctions, helpers
 from orbitx.orbitx_pb2 import PhysicalState
@@ -140,18 +144,16 @@ def simulation_differential_function(
             acc_matrix[landed_on[landed_i]] - centripetal_acc
 
     # Time for the Engineering section.
-    component_resistances = electrofunctions.component_resistances(y.engineering)
-    electrical_bus = electrofunctions.bus_electricity(component_resistances)
-    bus_power = electrical_bus.voltage * electrical_bus.current
+    component_resistances = electrofunctions.component_resistances(y.engineering.components)
+    electrical_buses = electrofunctions.bus_electricities(component_resistances)
+    bus_power = electrical_buses[0].voltage * electrical_buses[0].current
 
     # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.
     fuel_usage_rate = .05 * bus_power / 50_000_000
     # TODO: Replace the existing fuel consumption calculations with this calculation.
 
     component_heating_rate_array = electrofunctions.component_heating_rate(
-        y.engineering,
-        component_resistances,
-        electrical_bus.voltage
+        y.engineering, component_resistances, electrical_buses
     )
 
     # Sets velocity and spin of a couple more entities.
@@ -221,8 +223,8 @@ class CollisionEvent(Event):
         posns = np.column_stack((y.X, y.Y))
         # An n*n matrix of _altitudes_ between each entity
         alt_matrix = (
-                scipy.spatial.distance.cdist(posns, posns) -
-                np.array([self.radii]) - np.array([self.radii]).T)
+            scipy.spatial.distance.cdist(posns, posns)
+            - np.array([self.radii]) - np.array([self.radii]).T)
         # To simplify calculations, an entity's altitude from itself is inf
         np.fill_diagonal(alt_matrix, np.inf)
         # For each pair of objects that have collisions disabled between

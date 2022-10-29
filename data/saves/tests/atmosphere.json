@@ -1,115 +1,184 @@
 {
-    "entities": [
-        {
-          "name": "Habitat",
-          "x": -60806428350.98506,
-          "y": -133925930692.8104,
-          "vx": -27509.49221664917,
-          "vy": 12706.8541293456,
-          "r": 80.0,
-          "mass": 2750.0,
-          "fuel": 1000.0,
-          "artificial": true
-        },
-        {
-          "name": "Earth",
-          "x": -60812715434.98506,
-          "y": -133925930692.8104,
-          "vx": -27509.49221664917,
-          "vy": 12706.8541293456,
-          "r": 6288000.0,
-          "mass": 5.9799997772894e+24,
-          "spin": 7.292115e-5,
-          "atmosphere_thickness": 1.28,
-          "atmosphere_scaling": 6.7
-        }
-    ],
-    "engineering": {
+  "entities": [
+    {
+      "name": "Habitat",
+      "x": -60806428350.98506,
+      "y": -133925930692.8104,
+      "vx": -27509.49221664917,
+      "vy": 12706.8541293456,
+      "r": 80.0,
+      "mass": 2750.0,
+      "fuel": 1000.0,
+      "artificial": true
+    },
+    {
+      "name": "Earth",
+      "x": -60812715434.98506,
+      "y": -133925930692.8104,
+      "vx": -27509.49221664917,
+      "vy": 12706.8541293456,
+      "r": 6288000.0,
+      "mass": 5.9799997772894e+24,
+      "spin": 7.292115e-05,
+      "atmosphere_thickness": 1.28,
+      "atmosphere_scaling": 6.7
+    }
+  ],
+  "timestamp": 1.0,
+  "time_acc": 1.0,
+  "reference": "Earth",
+  "target": "AYSE",
+  "srb_time": -1.0,
+  "engineering": {
     "components": [
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {},
-      {}
+      {
+        "name": "RAD-S1"
+      },
+      {
+        "name": "RAD-S2"
+      },
+      {
+        "name": "A GRAV"
+      },
+      {
+        "name": "R-CON1"
+      },
+      {
+        "name": "R-CON2"
+      },
+      {
+        "name": "Ayse R-CON1"
+      },
+      {
+        "name": "Ayse R-CON2"
+      },
+      {
+        "name": "ACC1"
+      },
+      {
+        "name": "ION1"
+      },
+      {
+        "name": "ACC2"
+      },
+      {
+        "name": "ION2"
+      },
+      {
+        "name": "ACC3"
+      },
+      {
+        "name": "ION3"
+      },
+      {
+        "name": "ACC4"
+      },
+      {
+        "name": "ION4"
+      },
+      {
+        "name": "Fuel Cell"
+      },
+      {
+        "name": "BAT"
+      },
+      {
+        "name": "BACKUP BAT"
+      },
+      {
+        "name": "AYSE BAT"
+      },
+      {
+        "name": "RCSP"
+      },
+      {
+        "name": "COM"
+      },
+      {
+        "name": "HAB reactor"
+      },
+      {
+        "name": "INJECTOR 1"
+      },
+      {
+        "name": "INJECTOR 2"
+      },
+      {
+        "name": "REACT INJ1"
+      },
+      {
+        "name": "REACT INJ2"
+      },
+      {
+        "name": "F-CELL INJ"
+      },
+      {
+        "name": "AYSE reactor"
+      },
+      {
+        "name": "DOCK MOD"
+      },
+      {
+        "name": "RADAR"
+      },
+      {
+        "name": "INS"
+      },
+      {
+        "name": "EECOM"
+      },
+      {
+        "name": "Network"
+      }
     ],
-    "coolantLoops": [
+    "coolant_loops": [
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       },
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       },
       {
-        "coolantTemp": 20.0,
-        "primaryPumpOn": true,
-        "secondaryPumpOn": true
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
       }
     ],
     "radiators": [
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 1,
+        "attached_to_coolant_loop": 1,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 2,
+        "attached_to_coolant_loop": 2,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 3,
+        "attached_to_coolant_loop": 3,
         "functioning": true
       },
       {
-        "attachedToCoolantLoop": 3,
+        "attached_to_coolant_loop": 3,
         "functioning": true
       }
     ]

@@ -2,11 +2,9 @@ import argparse
 import atexit
 import logging
 
-from orbitx import common
-from orbitx import network
-from orbitx import programs
+from orbitx.common import Program, Request, FRAMERATE
 from orbitx.graphics.flight import flight_gui
-from orbitx.data_structures import Request
+from orbitx.network import NetworkedStateClient
 
 log = logging.getLogger('orbitx')
 
@@ -31,7 +29,7 @@ def main(args: argparse.Namespace):
     networking = True  # Whether data is requested over the network
 
     log.info(f'Connecting to physics server {args.physics_server}.')
-    lead_server_connection = network.NetworkedStateClient(
+    lead_server_connection = NetworkedStateClient(
         Request.MC_FLIGHT, args.physics_server)
     state = lead_server_connection.get_state()
     physics_engine = lead_server_connection._caching_physics_engine
@@ -57,10 +55,10 @@ def main(args: argparse.Namespace):
         if not networking:
             # When we're not networking, allow user input.
             physics_engine.handle_requests(gui.pop_commands())
-        gui.rate(common.FRAMERATE)
+        gui.rate(FRAMERATE)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

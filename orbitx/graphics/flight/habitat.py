@@ -4,7 +4,8 @@ import numpy as np
 import vpython
 
 from orbitx import common
-from orbitx.data_structures import Entity, PhysicsState
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import PhysicsState
 from orbitx.graphics.flight.threedeeobj import ThreeDeeObj
 from orbitx.physics import calc
 from orbitx.strings import AYSE

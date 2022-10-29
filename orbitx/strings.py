@@ -28,11 +28,11 @@ TRN1 = 'TRN1'
 BUS1 = 'Primary Habitat Bus'
 BUS2 = 'Secondary Habitat Bus'
 BUS3 = 'Tertiary Habitat Bus'
-ABUS = 'Ayse Power Bus'
+AYSE_BUS = 'Ayse Power Bus'
 TRN2 = 'TRN2'
 FCELL = 'Fuel Cell'
-BAT2 = 'BAT'
-BAT3 = 'BACKUP BAT'
+BAT1 = 'BAT'
+BAT2 = 'BACKUP BAT'
 AYSE_BAT = 'AYSE BAT'
 RCSP = 'RCSP'
 COM = 'COM'
@@ -69,7 +69,10 @@ RAD8 = 'RAD 8'
 EECOM = 'EECOM'
 NETWORK = 'Network'
 
-# This is referenced by data_structures.ComponentView.name!
+# This list is actually the single source-of-truth for what is and isn't a
+# component!
+# Changing the length of this list will likely invalidate any saves that have
+# data about components. Changing the ordering will also have similar effects!
 COMPONENT_NAMES = [
     RADS1,
     RADS2,
@@ -86,11 +89,9 @@ COMPONENT_NAMES = [
     ION3,
     ACC4,
     ION4,
-    TRN1,
-    TRN2,
     FCELL,
+    BAT1,
     BAT2,
-    BAT3,
     AYSE_BAT,
     RCSP,
     COM,
@@ -105,7 +106,7 @@ COMPONENT_NAMES = [
     RADAR,
     INS,
     EECOM,
-    NETWORK
+    NETWORK,
 ]
 
 # This is referenced by data_structures.CoolantView.name!
@@ -113,3 +114,5 @@ COOLANT_LOOP_NAMES = [LP1, LP2, LP3]
 
 # This is referenced by data_structures.RadiatorView.name!
 RADIATOR_NAMES = [RAD1, RAD2, RAD3, RAD4, RAD5, RAD6, RAD7, RAD8]
+
+BUS_NAMES = [BUS1, BUS2, BUS3, AYSE_BUS]

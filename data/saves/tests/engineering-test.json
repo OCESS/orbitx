@@ -1,126 +1,184 @@
 {
-    "timestamp": 0.0,
-    "craft": "Habitat",
-    "entities":
-    [
-        {
-            "name": "Habitat",
-            "r": 50.0,
-            "mass": 300.0,
-            "fuel": 100.0,
-            "vx": 5,
-            "artificial": true
-        }
-    ],
-    "engineering":
+  "entities": [
     {
-        "rad_shield_percentage": 5,
-        "components":
-        [
-            {
-                "connected": true,
-                "capacity": 0.9,
-                "temperature": 31.3,
-                "coolant_hab_one": true
-            },
-            {
-                "connected": true,
-                "capacity": 0.8,
-                "temperature": 50,
-                "coolant_hab_one": false,
-                "coolant_hab_two": true,
-                "coolant_ayse": false
-            },
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {
-                "connected": true,
-                "temperature": 25.6,
-                "coolant_hab_two": true
-            },
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            {}
-        ],
-        "coolantLoops":
-        [
-            {
-                "coolantTemp": 15.0,
-                "primaryPumpOn": true,
-                "secondaryPumpOn": true
-            },
-            {
-                "coolantTemp": 20.0,
-                "primaryPumpOn": true,
-                "secondaryPumpOn": true
-            },
-            {
-                "coolantTemp": 20.0,
-                "primaryPumpOn": true,
-                "secondaryPumpOn": true
-            }
-        ],
-        "radiators":
-        [
-            {
-                "attachedToCoolantLoop": 1,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 2,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 1,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 2,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 1,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 2,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 3,
-                "functioning": true
-            },
-            {
-                "attachedToCoolantLoop": 3,
-                "functioning": true
-            }
-        ]
+      "name": "Habitat",
+      "vx": 5.0,
+      "r": 50.0,
+      "mass": 300.0,
+      "fuel": 100.0,
+      "artificial": true
     }
+  ],
+  "timestamp": 1.0,
+  "time_acc": 1.0,
+  "craft": "Habitat",
+  "reference": "Earth",
+  "target": "AYSE",
+  "srb_time": -1.0,
+  "engineering": {
+    "components": [
+      {
+        "connected": true,
+        "capacity": 0.9,
+        "temperature": 31.3,
+        "coolant_hab_one": true,
+        "name": "RAD-S1"
+      },
+      {
+        "connected": true,
+        "capacity": 0.8,
+        "temperature": 50.0,
+        "coolant_hab_two": true,
+        "name": "RAD-S2"
+      },
+      {
+        "name": "A GRAV"
+      },
+      {
+        "name": "R-CON1"
+      },
+      {
+        "name": "R-CON2"
+      },
+      {
+        "name": "Ayse R-CON1"
+      },
+      {
+        "name": "Ayse R-CON2"
+      },
+      {
+        "name": "ACC1"
+      },
+      {
+        "connected": true,
+        "temperature": 25.6,
+        "coolant_hab_two": true,
+        "name": "ION1"
+      },
+      {
+        "name": "ACC2"
+      },
+      {
+        "name": "ION2"
+      },
+      {
+        "name": "ACC3"
+      },
+      {
+        "name": "ION3"
+      },
+      {
+        "name": "ACC4"
+      },
+      {
+        "name": "ION4"
+      },
+      {
+        "name": "Fuel Cell"
+      },
+      {
+        "name": "BAT"
+      },
+      {
+        "name": "BACKUP BAT"
+      },
+      {
+        "name": "AYSE BAT"
+      },
+      {
+        "name": "RCSP"
+      },
+      {
+        "name": "COM"
+      },
+      {
+        "name": "HAB reactor"
+      },
+      {
+        "name": "INJECTOR 1"
+      },
+      {
+        "name": "INJECTOR 2"
+      },
+      {
+        "name": "REACT INJ1"
+      },
+      {
+        "name": "REACT INJ2"
+      },
+      {
+        "name": "F-CELL INJ"
+      },
+      {
+        "name": "AYSE reactor"
+      },
+      {
+        "name": "DOCK MOD"
+      },
+      {
+        "name": "RADAR"
+      },
+      {
+        "name": "INS"
+      },
+      {
+        "name": "EECOM"
+      },
+      {
+        "name": "Network"
+      }
+    ],
+    "coolant_loops": [
+      {
+        "coolant_temp": 15.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
+      },
+      {
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
+      },
+      {
+        "coolant_temp": 20.0,
+        "primary_pump_on": true,
+        "secondary_pump_on": true
+      }
+    ],
+    "radiators": [
+      {
+        "attached_to_coolant_loop": 1,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 2,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 1,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 2,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 1,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 2,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 3,
+        "functioning": true
+      },
+      {
+        "attached_to_coolant_loop": 3,
+        "functioning": true
+      }
+    ],
+    "rad_shield_percentage": 5
+  }
 }

@@ -11,23 +11,25 @@ from orbitx.physics import calc, ode_solver
 from orbitx import common
 from orbitx import logs
 from orbitx import network
-from orbitx import physics
-from orbitx.data_structures import (
-    EngineeringState, _EntityView, Entity, PhysicsState,
-    N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS,
-    _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
-)
+from orbitx import strings
+from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
+from orbitx.data_structures.engineering import EngineeringState
+from orbitx.data_structures.entity import _EntityView, Entity
+from orbitx.data_structures.space import PhysicsState
+from orbitx.data_structures import savefile
+from orbitx.physics import electroconstants
+from orbitx.physics.simulation import PhysicsEngine
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')
 
 
-class PhysicsEngine:
+class PhysicsEngineHarness:
     """Ensures that the simthread is always shut down on test exit/failure."""
 
-    def __init__(self, savefile):
-        self.physics_engine = physics.PhysicsEngine(
-            common.load_savefile(common.savefile(savefile)))
+    def __init__(self, savefile_name):
+        self.physics_engine = PhysicsEngine(
+            savefile.load_savefile(savefile.full_path(savefile_name)))
 
     def __enter__(self):
         return self.physics_engine
@@ -41,7 +43,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_simple_collision(self):
         """Test elastic collisions of two small-mass objects colliding."""
-        with PhysicsEngine('tests/simple-collision.json') as physics_engine:
+        with PhysicsEngineHarness('tests/simple-collision.json') as physics_engine:
             # In this case, the first entity is standing still and the second
             # on a collision course going left to right. The two should bounce.
             # Entity 0 has r=50 and everything else 0.
@@ -60,30 +62,33 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_basic_movement(self):
         """Test that a moving object changes its position."""
-        with PhysicsEngine('tests/only-sun.json') as physics_engine:
+        with PhysicsEngineHarness('tests/only-sun.json') as physics_engine:
             # In this case, the only entity is the Sun. It starts at (0, 0)
             # with a speed of (1, -1). It should move.
-            t_delta = 100
-            initial = physics_engine.get_state(0)
+            initial = physics_engine.get_state(1)
             moved = physics_engine.get_state(100)
-            self.assertEqual(initial.timestamp, 0)
+            t0 = initial.timestamp
+            t1 = moved.timestamp
+            self.assertEqual(initial.timestamp, 1)
             self.assertAlmostEqual(initial[0].x, 0)
             self.assertAlmostEqual(initial[0].y, 0)
             self.assertAlmostEqual(initial[0].vx, 1)
             self.assertAlmostEqual(initial[0].vy, -1)
-            self.assertEqual(moved.timestamp, t_delta)
-            self.assertAlmostEqual(moved[0].x, t_delta)
-            self.assertAlmostEqual(moved[0].y, -t_delta)
+            self.assertEqual(moved.timestamp, t1)
+            self.assertAlmostEqual(moved[0].x, t1 - t0)
+            self.assertAlmostEqual(moved[0].y, -(t1 - t0))
             self.assertAlmostEqual(moved[0].vx, 1)
             self.assertAlmostEqual(moved[0].vy, -1)
 
     def test_gravitation(self):
         """Test that gravitational acceleration at t=0 is as expected."""
-        with PhysicsEngine('tests/massive-objects.json') as physics_engine:
+        with PhysicsEngineHarness('tests/massive-objects.json') as physics_engine:
             # In this case, the first entity is very massive and the second
             # entity should gravitate towards the first entity.
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(1)
+            t0 = 1
+            t1 = 2
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
             # https://www.wolframalpha.com/input/?i=1e30+kg+*+G+%2F+(1e8+m)%5E2
             # According to the above, this should be somewhere between 6500 and
             # 7000 m/s after one second.
@@ -103,52 +108,49 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(common.G * initial[1].mass /
-                                   (y0.X[0] - y0.X[1]) ** 2))
+                             round(common.G * initial[1].mass
+                                   / (y0.X[0] - y0.X[1]) ** 2))
             self.assertAlmostEqual(dy.VY[0], 0)
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(common.G * initial[0].mass /
-                                   (y0.X[1] - y0.X[0]) ** 2))
+                             round(common.G * initial[0].mass
+                                   / (y0.X[1] - y0.X[0]) ** 2))
             self.assertAlmostEqual(dy.VY[1], 0)
 
     def test_engines(self):
         """Test that engines use fuel and accelerate at the expected."""
-        with PhysicsEngine('tests/habitat.json') as physics_engine:
+        with PhysicsEngineHarness('tests/habitat.json') as physics_engine:
             # In this test case, there is a single entity that has 300 kg fuel.
             # heading, velocity, and position are all 0.
             throttle = 1
-            t_delta = 5
+            t0 = 1
+            t1 = 5
 
             physics_engine.handle_requests([
-                network.Request(
-                    ident=network.Request.HAB_THROTTLE_SET,
+                common.Request(
+                    ident=common.Request.HAB_THROTTLE_SET,
                     throttle_set=throttle)],
-                requested_t=0)
+                requested_t=t0)
 
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(t_delta)
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
 
             self.assertAlmostEqual(initial[0].heading, 0)
 
             self.assertAlmostEqual(
                 moved[0].fuel,
-                (initial[0].fuel -
-                 t_delta * throttle *
-                 common.craft_capabilities[HABITAT].fuel_cons))
+                (initial[0].fuel
+                 - (t1 - t0) * throttle
+                 * common.craft_capabilities[HABITAT].fuel_cons))
             self.assertTrue(
-                moved[0].vx <
-                (t_delta * calc.engine_acceleration(moved)))
+                moved[0].vx
+                < ((t1 - t0) * calc.engine_acceleration(moved)))
 
-            t_no_fuel = (initial[0].fuel
-                         / (throttle *
-                            common.craft_capabilities[HABITAT].fuel_cons
-                            )
-                         )
+            t_no_fuel = t0 + initial[0].fuel / (throttle * common.craft_capabilities[HABITAT].fuel_cons)
             empty_fuel = physics_engine.get_state(t_no_fuel)
-            after_empty_fuel = physics_engine.get_state(t_no_fuel + t_delta)
+            after_empty_fuel = physics_engine.get_state(t_no_fuel + (t1 - t0))
 
             self.assertEqual(round(empty_fuel[0].fuel), 0)
             self.assertEqual(round(after_empty_fuel[0].vx),
@@ -156,34 +158,34 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_srbs(self):
         """Test that SRBs move the craft, and run out of fuel."""
-        with PhysicsEngine('tests/habitat.json') as physics_engine:
-            t_delta = 5
-
+        with PhysicsEngineHarness('tests/habitat.json') as physics_engine:
+            t0 = 1
+            t1 = 5
             physics_engine.handle_requests(
-                [network.Request(ident=network.Request.IGNITE_SRBS)],
-                requested_t=0)
+                [common.Request(ident=common.Request.IGNITE_SRBS)],
+                requested_t=t0)
 
-            initial = physics_engine.get_state(0)
-            moved = physics_engine.get_state(t_delta)
+            initial = physics_engine.get_state(t0)
+            moved = physics_engine.get_state(t1)
 
             self.assertAlmostEqual(initial[0].heading, 0)
             self.assertAlmostEqual(initial[0].vx, 0)
             self.assertAlmostEqual(moved[0].vx,
-                                   t_delta * calc.engine_acceleration(moved))
+                                   (t1 - t0) * calc.engine_acceleration(moved))
 
-            srb_empty = physics_engine.get_state(common.SRB_BURNTIME)
-            after_srb_empty = physics_engine.get_state(common.SRB_BURNTIME + 5)
+            srb_empty = physics_engine.get_state(common.SRB_BURNTIME + t0)
+            after_srb_empty = physics_engine.get_state(common.SRB_BURNTIME + (t1 - t0))
 
             self.assertAlmostEqual(srb_empty[0].vx, after_srb_empty[0].vx)
 
     def test_three_body(self):
         """Test gravitational acceleration between three bodies is expected."""
-        with PhysicsEngine('tests/three-body.json') as physics_engine:
+        with PhysicsEngineHarness('tests/three-body.json') as physics_engine:
             # In this case, three entities form a 90-45-45 triangle, with the
             # entity at the right angle being about as massive as the sun.
             # The first entity is the massive entity, the second is far to the
             # left, and the third is far to the top.
-            physics_state = physics_engine.get_state(0)
+            physics_state = physics_engine.get_state(1)
 
             # Test that every single entity has the correct accelerations.
             y0 = physics_state
@@ -196,44 +198,44 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertAlmostEqual(dy.X[0], y0.VX[0])
             self.assertAlmostEqual(dy.Y[0], y0.VY[0])
             self.assertEqual(round(abs(dy.VX[0])),
-                             round(common.G * physics_state[1].mass /
-                                   (y0.X[0] - y0.X[1]) ** 2))
+                             round(common.G * physics_state[1].mass
+                                   / (y0.X[0] - y0.X[1]) ** 2))
             self.assertEqual(round(abs(dy.VY[0])),
-                             round(common.G * physics_state[2].mass /
-                                   (y0.Y[0] - y0.Y[2]) ** 2))
+                             round(common.G * physics_state[2].mass
+                                   / (y0.Y[0] - y0.Y[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[1], y0.VX[1])
             self.assertAlmostEqual(dy.Y[1], y0.VY[1])
             self.assertEqual(round(abs(dy.VX[1])),
-                             round(common.G * physics_state[0].mass /
-                                   (y0.X[1] - y0.X[0]) ** 2 +
+                             round(common.G * physics_state[0].mass
+                                   / (y0.X[1] - y0.X[0]) ** 2
 
-                                   np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2
+                                   + np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2
                                    ))
             self.assertEqual(round(abs(dy.VY[1])),
-                             round(np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2))
+                             round(np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2))
 
             self.assertAlmostEqual(dy.X[2], y0.VX[2])
             self.assertAlmostEqual(dy.Y[2], y0.VY[2])
             self.assertEqual(round(abs(dy.VX[2])),
-                             round(np.sqrt(2) * common.G *
-                                   physics_state[2].mass /
-                                   (y0.X[1] - y0.X[2]) ** 2))
+                             round(np.sqrt(2) * common.G
+                                   * physics_state[2].mass
+                                   / (y0.X[1] - y0.X[2]) ** 2))
             self.assertEqual(round(abs(dy.VY[2])),
                              round(
-                                 common.G * physics_state[0].mass /
-                                 (y0.Y[2] - y0.Y[0]) ** 2 +
+                                 common.G * physics_state[0].mass
+                                 / (y0.Y[2] - y0.Y[0]) ** 2
 
-                                 np.sqrt(2) * common.G * physics_state[1].mass
+                                 + np.sqrt(2) * common.G * physics_state[1].mass
                                  / (y0.Y[2] - y0.Y[1]) ** 2
-                             ))
+            ))
 
     def test_landing(self):
-        with PhysicsEngine('tests/artificial-collision.json') \
+        with PhysicsEngineHarness('tests/artificial-collision.json') \
                 as physics_engine:
             # This case is the same as simple-collision, but the first entity
             # has the artificial flag set. Thus it should land and stick.
@@ -248,18 +250,18 @@ class PhysicsEngineTestCase(unittest.TestCase):
             self.assertTrue(before[2].vx > 0)
             self.assertAlmostEqual(after[0].vx, after[2].vx)
             self.assertAlmostEqual(after[0].x,
-                                   (after[2].x +
-                                    after[0].r +
-                                    after[2].r))
+                                   (after[2].x
+                                    + after[0].r
+                                    + after[2].r))
 
     def test_longterm_stable_landing(self):
         """Test that landed ships have stable altitude in the long term."""
-        savestate = common.load_savefile(common.savefile('OCESS.json'))
+        savestate = savefile.load_savefile(savefile.full_path('OCESS.json'))
         initial_t = savestate.timestamp
-        with PhysicsEngine('OCESS.json') as physics_engine:
+        with PhysicsEngineHarness('OCESS.json') as physics_engine:
             initial = physics_engine.get_state(initial_t + 10)
             physics_engine.handle_requests(
-                [network.Request(ident=network.Request.TIME_ACC_SET,
+                [common.Request(ident=common.Request.TIME_ACC_SET,
                                  time_acc_set=common.TIME_ACCS[-1].value)],
                 requested_t=initial_t + 10)
             final = physics_engine.get_state(initial_t + 100_000)
@@ -274,7 +276,7 @@ class PhysicsEngineTestCase(unittest.TestCase):
 
     def test_drag(self):
         """Test that drag is small but noticeable during unpowered flight."""
-        atmosphere_save = common.load_savefile(common.savefile(
+        atmosphere_save = savefile.load_savefile(savefile.full_path(
             'tests/atmosphere.json'))
         # The habitat starts 1 km in the air, the same speed as the Earth.
 
@@ -347,38 +349,38 @@ class PhysicsStateTestCase(unittest.TestCase):
         eng_fields = np.zeros(EngineeringState.N_ENGINEERING_FIELDS)
         component_array = eng_fields[EngineeringState._COMPONENT_START_INDEX:EngineeringState._COMPONENT_END_INDEX]
         for comp_i in range(0, N_COMPONENTS):
-            component_array[comp_i+N_COMPONENTS*0] = True  # connected
-            component_array[comp_i+N_COMPONENTS*1] = 1 + (0.01 * comp_i)  # capacity
-            component_array[comp_i+N_COMPONENTS*2] = 222200 + comp_i  # temperature
-            component_array[comp_i+N_COMPONENTS*3] = comp_i % 2  # coolant_hab_one
-            component_array[comp_i+N_COMPONENTS*4] = True  # coolant_hab_two
-            component_array[comp_i+N_COMPONENTS*5] = False  # coolant_ayse
+            component_array[comp_i + N_COMPONENTS * 0] = True  # connected
+            component_array[comp_i + N_COMPONENTS * 1] = 1 + (0.01 * comp_i)  # capacity
+            component_array[comp_i + N_COMPONENTS * 2] = 222200 + comp_i  # temperature
+            component_array[comp_i + N_COMPONENTS * 3] = comp_i % 2  # coolant_hab_one
+            component_array[comp_i + N_COMPONENTS * 4] = True  # coolant_hab_two
+            component_array[comp_i + N_COMPONENTS * 5] = False  # coolant_ayse
 
         coolant_array = eng_fields[EngineeringState._COOLANT_START_INDEX:EngineeringState._COOLANT_END_INDEX]
         for cool_i in range(0, N_COOLANT_LOOPS):
-            coolant_array[cool_i+N_COOLANT_LOOPS*0] = 555500 + cool_i  # coolant_temp
-            coolant_array[cool_i+N_COOLANT_LOOPS*1] = cool_i % 2  # primary_pump_on
-            coolant_array[cool_i+N_COOLANT_LOOPS*2] = True  # secondary_pump_on
+            coolant_array[cool_i + N_COOLANT_LOOPS * 0] = 555500 + cool_i  # coolant_temp
+            coolant_array[cool_i + N_COOLANT_LOOPS * 1] = cool_i % 2  # primary_pump_on
+            coolant_array[cool_i + N_COOLANT_LOOPS * 2] = True  # secondary_pump_on
 
         rad_array = eng_fields[EngineeringState._RADIATOR_START_INDEX:EngineeringState._RADIATOR_END_INDEX]
         for rad_i in range(0, N_RADIATORS):
-            rad_array[rad_i+N_RADIATORS*0] = rad_i % 4  # attached_to_coolant_loop
-            rad_array[rad_i+N_RADIATORS*1] = rad_i % 2  # functioning
+            rad_array[rad_i + N_RADIATORS * 0] = rad_i % 4  # attached_to_coolant_loop
+            rad_array[rad_i + N_RADIATORS * 1] = rad_i % 2  # functioning
 
         y0 = np.concatenate((np.array([
-                0x111, 0x222,  # x
-                0x333, 0x444,  # y
-                0x555, 0x777,  # vx
-                0x888, 0x999,  # vy
-                0.01, 0.02,  # heading
-                0.03, 0.04,  # spin
-                0xEEE, 0xFFF,  # fuel
-                5, 6,  # throttle
-                1, -1,  # only First is landed on Second
-                0, 1,  # Second is broken
-                common.SRB_EMPTY,
-                1  # time_acc
-            ]),
+            0x111, 0x222,  # x
+            0x333, 0x444,  # y
+            0x555, 0x777,  # vx
+            0x888, 0x999,  # vy
+            0.01, 0.02,  # heading
+            0.03, 0.04,  # spin
+            0xEEE, 0xFFF,  # fuel
+            5, 6,  # throttle
+            1, -1,  # only First is landed on Second
+            0, 1,  # Second is broken
+            common.SRB_EMPTY,
+            1  # time_acc
+        ]),
             eng_fields
         ))
 
@@ -474,7 +476,7 @@ class CalculationsTestCase(unittest.TestCase):
         # Again, see
         # https://www.wolframalpha.com/input/?i=International+Space+Station
         # For these expected values
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/gui-test.json'))
         iss = physics_state[0]
         earth = physics_state[1]
@@ -503,7 +505,7 @@ class CalculationsTestCase(unittest.TestCase):
         # talking about Sedna! The expected values are arrived at through
         # calculation, and also
         # http://orbitsimulator.com/formulas/OrbitalElements.html
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/sedna.json'))
         sun = physics_state[0]
         oumuamua = physics_state[1]
@@ -524,7 +526,7 @@ class CalculationsTestCase(unittest.TestCase):
             delta=0.01 * 78989185420.15271)
 
     def test_speeds(self):
-        physics_state = common.load_savefile(common.savefile(
+        physics_state = savefile.load_savefile(savefile.full_path(
             'tests/gui-test.json'))
         iss = physics_state[0]
         earth = physics_state[1]
@@ -537,7 +539,7 @@ class EngineeringViewTestCase(unittest.TestCase):
     """Test that the various accessors of EngineeringState are correct."""
 
     def test_component_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -562,7 +564,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(engineering.components[1].connected_coolant_loops()[0].coolant_temp, 20.0)
 
     def test_as_proto(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             state = physics_engine.get_state()
             engineering = state.engineering
 
@@ -584,7 +586,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(physics_state_proto.engineering.components[1].temperature, 12.3)
 
     def test_coolant_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -601,7 +603,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.coolant_loops[1].secondary_pump_on, True)
 
     def test_radiator_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         # Test getters work
@@ -620,7 +622,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         """Test that the internal array representation of EngineeringState is
         just a view into PhysicsState._array_rep, otherwise EngineeringState will
         write new data into the ether and it won't update PhysicsState.y0()."""
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             state = physics_engine.get_state()
 
         engineering = state.engineering
@@ -631,7 +633,7 @@ class EngineeringViewTestCase(unittest.TestCase):
     def test_eng_single_fields(self):
         """Test that non-repeated fields in the EngineeringState can be
            accessed/set properly."""
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         self.assertEqual(engineering.master_alarm, False)
@@ -659,7 +661,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertEqual(engineering.rad_shield_percentage, 69)
 
     def test_misc_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             physics_state = physics_engine.get_state()
 
         self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 100)
@@ -669,7 +671,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         self.assertAlmostEqual(physics_state.engineering.habitat_fuel, 50)
 
     def test_convenience_accessors(self):
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         self.assertTrue(engineering.components[0].coolant_hab_one)
@@ -687,7 +689,7 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         Test that the CoolantConnectionMatrix is returning the correct size of a matrix
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
@@ -698,9 +700,8 @@ class EngineeringViewTestCase(unittest.TestCase):
         """
         Test that the matrix math to be used for something actually works
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
 
@@ -709,12 +710,40 @@ class EngineeringViewTestCase(unittest.TestCase):
         # np.newaxis is required for tranposed vector to be used in matrix math
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
 
-        component_temperature_matrix = (component_temperature_row_vector * connected_loops -
-                                        connected_loops * coolant_temperature_col_vector.transpose())
+        component_temperature_matrix = (
+            component_temperature_row_vector * connected_loops
+            - connected_loops * coolant_temperature_col_vector.transpose()
+        )
 
-        self.assertAlmostEqual(component_temperature_matrix[0][0], engineering.components[0].temperature - 15, delta=0.001)
-        self.assertAlmostEqual(component_temperature_matrix[1][8], engineering.components[8].temperature - 20, delta=0.001)
+        self.assertAlmostEqual(component_temperature_matrix[0][0],
+                               engineering.components[0].temperature - 15, delta=0.001)
+        self.assertAlmostEqual(component_temperature_matrix[1][8],
+                               engineering.components[8].temperature - 20, delta=0.001)
         self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
+
+    def test_electricals_accessors(self):
+        """
+        Basic checks for the OhmicVars of all components.
+        """
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+
+        electricals = engineering.components.Electricals()
+
+        # Check RADS1 is drawing power
+        self.assertEqual(engineering.components[strings.RADS1].connected, True)
+        self.assertNotEqual(engineering.components[strings.RADS1].capacity, 0.0)
+        self.assertNotEqual(electricals[strings.RADS1].resistance, np.inf)
+        self.assertNotEqual(electricals[strings.RADS1].current, 0.0)
+        self.assertAlmostEqual(
+            electricals[strings.RADS1].voltage, electroconstants.HAB_PRIMARY_BUS.nominal_voltage,
+            delta=50  # Voltage is within 50 V of nominal.
+        )
+
+        # Check ACC1 is not drawing power, i.e. the opposite of RADS1
+        self.assertNotEqual(engineering.components[strings.ACC1].connected, True)
+        self.assertEqual(electricals[strings.ACC1].resistance, np.inf)
+        self.assertEqual(electricals[strings.ACC1].current, 0.0)
 
 
 class CoolantTestCase(unittest.TestCase):
@@ -723,9 +752,8 @@ class CoolantTestCase(unittest.TestCase):
         """
         Test that the CoolantConnectionMatrix is returning the correct size of a matrix
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops = engineering.components.CoolantConnectionMatrix()
         self.assertEqual(connected_loops.shape, (3, N_COMPONENTS))
@@ -734,9 +762,8 @@ class CoolantTestCase(unittest.TestCase):
         """
         Test that the matrix math used in ode_solver.py actually works
         """
-        with PhysicsEngine('tests/engineering-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-            physics_state = physics_engine.get_state()
 
         connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
 
@@ -746,8 +773,8 @@ class CoolantTestCase(unittest.TestCase):
         coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
 
         temperature_difference_matrix = (
-            component_temperature_row_vector * connected_loops_matrix -
-            connected_loops_matrix * coolant_temperature_col_vector.transpose()
+            component_temperature_row_vector * connected_loops_matrix
+            - connected_loops_matrix * coolant_temperature_col_vector.transpose()
         )
 
         self.assertAlmostEqual(
@@ -757,10 +784,9 @@ class CoolantTestCase(unittest.TestCase):
         self.assertEqual(len(np.nonzero(temperature_difference_matrix)), 2)
 
     def test_component_coolant(self):
-        with PhysicsEngine('tests/coolant-test.json') as physics_engine:
-            initial = physics_engine.get_state(0).engineering
+        with PhysicsEngineHarness('tests/coolant-test.json') as physics_engine:
+            initial = physics_engine.get_state(1).engineering
             final = physics_engine.get_state(20).engineering
-            physics_state = physics_engine.get_state(20)
 
         temperature_1 = initial.components[1].temperature
         temperature_2 = final.components[1].temperature
@@ -771,18 +797,18 @@ def test_performance():
     # This just runs for 10 seconds and collects profiling data.
     import time
 
-    with PhysicsEngine('OCESS.json') as physics_engine:
+    with PhysicsEngineHarness('OCESS.json') as physics_engine:
         physics_engine.handle_requests([
-            network.Request(ident=network.Request.TIME_ACC_SET,
-                            time_acc_set=common.TIME_ACCS[-2].value)])
+            common.Request(ident=common.Request.TIME_ACC_SET,
+                            time_acc_set=1000)])
 
-        end_time = time.time() + 10
-        print(f"Profiling performance for {end_time - time.time()} seconds.")
+        initial_state = physics_engine.get_state()  # Warm up the simulation
+        simtime_to_simulate = initial_state.timestamp + initial_state.time_acc * 1000
+
+        print('Starting profiler...')
         common.start_profiling()
 
-        while time.time() < end_time:
-            time.sleep(0.05)
-            physics_engine.get_state()
+        physics_engine.get_state(simtime_to_simulate)
 
 
 if __name__ == '__main__':

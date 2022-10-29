@@ -4,9 +4,9 @@ from typing import Callable
 
 from orbitx.graphics.eng.tkinter_style import Style
 from typing import Union, Optional
-from orbitx.network import Request
 from orbitx import strings
-from orbitx.data_structures import EngineeringState
+from orbitx.common import Request
+from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 
 
@@ -113,7 +113,7 @@ class Indicator(tk.Button, EngWidget):
         """
         parent: The tkinter widget under which this Indicator is grouped
         style: an optional style override, e.g. cw.Style('flat')
-        command_on_press: a network.Request that will be sent to the physics server when this Indicator is activated
+        command_on_press: a Request that will be sent to the physics server when this Indicator is activated
         command_on_unpress: as above, but when this Indicator is unpressed (defaults to the value of command_on_press)
         """
         super().__init__(parent, *args, **kwargs)

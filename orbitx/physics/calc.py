@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from typing import List, Optional, Tuple
 import collections
 import logging
@@ -9,7 +11,8 @@ import vpython
 import numpy as np
 
 from orbitx import common
-from orbitx.data_structures import Entity, Navmode, PhysicsState
+from orbitx.common import Navmode
+from orbitx.data_structures.entity import Entity
 from orbitx.strings import HABITAT
 
 log = logging.getLogger('orbitx')
@@ -40,8 +43,8 @@ def phase_angle(A: Entity,
     CB = C.pos - B.pos
 
     return np.degrees(
-        np.arctan2(AB[1], AB[0]) -
-        np.arctan2(CB[1], CB[0])
+        np.arctan2(AB[1], AB[0])
+        - np.arctan2(CB[1], CB[0])
     ) % 360
 
 
@@ -50,9 +53,9 @@ def orb_speed(habitat: Entity,
     """The orbital speed of an astronomical body or object.
     Equation referenced from https://en.wikipedia.org/wiki/Orbital_speed"""
     return math.sqrt(
-        (reference.mass ** 2 * common.G) /
-        ((habitat.mass + reference.mass) *
-         distance(reference, habitat)))
+        (reference.mass ** 2 * common.G)
+        / ((habitat.mass + reference.mass) * distance(reference, habitat))
+    )
 
 
 def altitude(A: Entity, B: Entity) -> float:
@@ -110,8 +113,8 @@ def engine_acceleration(state: PhysicsState) -> float:
     else:
         srb_thrust = 0
 
-    return (common.craft_capabilities[craft.name].thrust * craft.throttle +
-            srb_thrust) / (craft.mass + craft.fuel)
+    return (common.craft_capabilities[craft.name].thrust * craft.throttle
+            + srb_thrust) / (craft.mass + craft.fuel)
 
 
 def landing_acceleration(A: Entity,
@@ -134,14 +137,14 @@ def landing_acceleration(A: Entity,
     v = A.v - B.v
     vx, vy = v
     r = A.r + B.r
-    if (-x ** 2 * vy ** 2 + 2 * x * y * vx * vy -
-        y ** 2 * vx ** 2 + r ** 2 * vx ** 2 + r ** 2 * vy ** 2) < 0 or \
+    if (-x ** 2 * vy ** 2 + 2 * x * y * vx * vy
+        - y ** 2 * vx ** 2 + r ** 2 * vx ** 2 + r ** 2 * vy ** 2) < 0 or \
             vx ** 2 + vy ** 2 == 0:
         return None
 
     # np.inner(vector, vector) is the squared norm, i.e. |vector|^2
-    return ((common.G * (A.mass + B.mass)) / np.inner(pos, pos) +
-            np.inner(v, v) / (2 * fastnorm(A.pos - B.pos)))
+    return ((common.G * (A.mass + B.mass)) / np.inner(pos, pos)
+            + np.inner(v, v) / (2 * fastnorm(A.pos - B.pos)))
 
 
 def semimajor_axis(A: Entity,
@@ -169,8 +172,8 @@ def eccentricity(A: Entity,
     mu = common.G * (B.mass + A.mass)
     # e⃗ = [ (v*v - μ/r)r⃗  - (r⃗ ∙ v⃗)v⃗ ] / μ
     return (
-                   (fastnorm(v) ** 2 - mu / fastnorm(r)) * r - np.dot(r, v) * v
-           ) / mu
+        (fastnorm(v) ** 2 - mu / fastnorm(r)) * r - np.dot(r, v) * v
+    ) / mu
 
 
 def periapsis(A: Entity, B: Entity) -> float:
@@ -179,8 +182,8 @@ def periapsis(A: Entity, B: Entity) -> float:
     A negative periapsis means at some point in A's orbit, A will crash into
     the surface of B."""
     peri_distance = (
-            semimajor_axis(A, B) *
-            (1 - fastnorm(eccentricity(A, B)))
+        semimajor_axis(A, B)
+        * (1 - fastnorm(eccentricity(A, B)))
     )
     return max(peri_distance - B.r, 0)
 
@@ -191,8 +194,8 @@ def apoapsis(A: Entity, B: Entity) -> float:
     A positive apoapsis means at some point in A's orbit, A will
     be above the surface of B."""
     apo_distance = (
-            semimajor_axis(A, B) *
-            (1 + fastnorm(eccentricity(A, B)))
+        semimajor_axis(A, B)
+        * (1 + fastnorm(eccentricity(A, B)))
     )
     return max(apo_distance - B.r, 0)
 
@@ -430,9 +433,7 @@ def relevant_atmosphere(flight_state: PhysicsState) \
         # We use the squared distance because it's much faster to calculate.
         if dist < closest_distance:
             # We found a closer planet with an atmosphere
-            exponential = (
-                    -(dist - craft.r - atmosphere.r) / 1000 /
-                    atmosphere.atmosphere_scaling)
+            exponential = -(dist - craft.r - atmosphere.r) / 1000 / atmosphere.atmosphere_scaling
             if exponential > -20:
                 # Entity has an atmosphere and it's close enough to be relevant
                 closest_distance = dist
@@ -449,10 +450,9 @@ def pressure(craft: Entity,
     # https://en.wikipedia.org/wiki/Barometric_formula
     dist = fastnorm(atmosphere.pos - craft.pos)
     return (
-            atmosphere.atmosphere_thickness *
-            np.exp(
-                -(dist - craft.r - atmosphere.r) / 1000 /
-                atmosphere.atmosphere_scaling))
+        atmosphere.atmosphere_thickness
+        * np.exp(-(dist - craft.r - atmosphere.r) / 1000 / atmosphere.atmosphere_scaling)
+    )
 
 
 def drag(flight_state: PhysicsState) -> np.ndarray:

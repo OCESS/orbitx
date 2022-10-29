@@ -13,7 +13,7 @@ import grpc
 
 from orbitx import network
 from orbitx import orbitv_file_interface
-from orbitx import programs
+from orbitx.common import Program, Request
 from orbitx.graphics.compat_gui import CompatGui, StartupFailedGui
 
 log = logging.getLogger('orbitx')
@@ -44,7 +44,7 @@ argument_parser.add_argument(
 
 def main(args: argparse.Namespace):
     orbitx_connection = network.NetworkedStateClient(
-        network.Request.COMPAT, args.physics_server)
+        Request.COMPAT, args.physics_server)
     log.info(f'Connecting to OrbitX Physics Server: {args.physics_server}')
 
     intermediary = orbitv_file_interface.OrbitVIntermediary(
@@ -53,7 +53,7 @@ def main(args: argparse.Namespace):
     try:
         # Make sure we have a connection before continuing.
         orbitx_connection.get_state(
-            [network.Request(ident=network.Request.NOOP)])
+            [Request(ident=Request.NOOP)])
     except grpc.RpcError as err:
         log.error(f'Could not connect to Physics Server: {err.code()}')
         StartupFailedGui(args.physics_server, err)
@@ -69,7 +69,7 @@ def main(args: argparse.Namespace):
             orbitsse_modified_time = intermediary.orbitsse.stat().st_mtime
             if orbitsse_modified_time == last_orbitsse_modified_time:
                 # We've already seen this version of ORBITSSE.RND.
-                update = network.Request(ident=network.Request.NOOP)
+                update = Request(ident=Request.NOOP)
             else:
                 last_orbitsse_modified_time = orbitsse_modified_time
                 last_orbitsse_read_datetime = datetime.now()
@@ -85,7 +85,7 @@ def main(args: argparse.Namespace):
         gui.notify_shutdown(err)
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

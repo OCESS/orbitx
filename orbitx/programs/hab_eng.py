@@ -7,14 +7,13 @@ Communicates to orbitx with GRPC.
 
 import argparse
 import logging
+from typing import List
 
 import grpc
 
 from orbitx import network
-from orbitx import programs
+from orbitx.common import Program, Request
 from orbitx.graphics.compat_gui import StartupFailedGui
-from orbitx.network import Request
-from typing import List
 from orbitx.graphics.eng.main_window import MainApplication
 
 
@@ -46,7 +45,7 @@ def main(args: argparse.Namespace):
     try:
         # Make sure we have a connection before continuing.
         orbitx_connection = network.NetworkedStateClient(
-            network.Request.HAB_ENG, args.physics_server)
+            Request.HAB_ENG, args.physics_server)
     except grpc.RpcError as err:
         log.error(f'Could not connect to Physics Server: {err.code()}')
         StartupFailedGui(args.physics_server, err)
@@ -78,7 +77,7 @@ def pop_commands() -> List[Request]:
     return commands
 
 
-program = programs.Program(
+program = Program(
     name=name,
     description=description,
     main=main,

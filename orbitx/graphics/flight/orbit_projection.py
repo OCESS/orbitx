@@ -3,7 +3,8 @@ from typing import List
 
 import vpython
 
-from orbitx.data_structures import Entity, PhysicsState
+from orbitx.data_structures.entity import Entity
+from orbitx.data_structures.space import PhysicsState
 from orbitx.physics import calc
 
 

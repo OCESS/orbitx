@@ -1,4 +1,5 @@
 """Network-related classes."""
+from __future__ import annotations
 
 import logging
 import threading
@@ -10,10 +11,11 @@ from typing import Dict, List, Optional, Iterable
 import grpc
 
 from orbitx import common
-from orbitx import physics
+# from orbitx.physics.simulation import PhysicsEngine  # Deferred import  - this import is deferred down below
 from orbitx import orbitx_pb2 as protos
 from orbitx import orbitx_pb2_grpc as grpc_stubs
-from orbitx.data_structures import PhysicsState, Request
+from orbitx.common import Request
+from orbitx.data_structures.space import PhysicsState
 
 log = logging.getLogger('orbitx')
 
@@ -86,11 +88,10 @@ class StateServer(grpc_stubs.StateServerServicer):
         assert client_type is not None
 
         if context.peer() not in self.addr_to_connected_clients:
-            self.addr_to_connected_clients[context.peer()] = \
-                SimpleNamespace(
-                    client_type=self.CLIENT_TYPE_TO_STR[client_type],
-                    client_addr=context.peer()
-                )
+            self.addr_to_connected_clients[context.peer()] = SimpleNamespace(
+                client_type=self.CLIENT_TYPE_TO_STR[client_type],
+                client_addr=context.peer()
+            )
 
         self.addr_to_connected_clients[context.peer()].last_contact = \
             time.monotonic()
@@ -128,15 +129,17 @@ class NetworkedStateClient:
     """
 
     def __init__(self, client: protos.Command.ClientType, hostname: str):
+        from orbitx.physics.simulation import PhysicsEngine  # Deferred import
+
         self.channel = grpc.insecure_channel(
             f'{hostname}:{DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
         self.client_type = client
 
         initial_state = PhysicsState(None, self.stub.get_physical_state(iter([
-                Request(ident=Request.NOOP, client=self.client_type)])))
+            Request(ident=Request.NOOP, client=self.client_type)])))
 
-        self._caching_physics_engine = physics.PhysicsEngine(initial_state)
+        self._caching_physics_engine = PhysicsEngine(initial_state)
         self._time_of_next_network_update = 0.0
 
     def get_state(self, commands: List[Request] = None) \
@@ -173,9 +176,7 @@ class NetworkedStateClient:
                 # input lag.
                 self._time_of_next_network_update = current_time + 0.15
             else:
-                self._time_of_next_network_update = (
-                        current_time + common.TIME_BETWEEN_NETWORK_UPDATES
-                )
+                self._time_of_next_network_update = current_time + common.TIME_BETWEEN_NETWORK_UPDATES
 
         else:
             returned_state = self._caching_physics_engine.get_state()

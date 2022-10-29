@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 """Common code and class interfaces."""
-
 import atexit
+import argparse
 import logging
 import pytz
-import sys
+from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
 import numpy
-import google.protobuf.json_format
 import vpython  # type: ignore
 
 from orbitx import orbitx_pb2 as protos
-from orbitx import data_structures
 from orbitx import strings
 
 TIME_BETWEEN_NETWORK_UPDATES = 1.0
@@ -30,6 +28,24 @@ class TimeAcc(NamedTuple):
     accurate_bound: float
 
 
+class OhmicVars(NamedTuple):
+    """
+    Encapsulates a Voltage, Current, and Resistance where V = IR.
+    This class is called 'Ohmic' because it's all the things for Ohm's law.
+    I don't think Ohmic is a word. I made it up. I like to think it sounds cool.
+    """
+    voltage: float
+    current: float
+    resistance: float
+
+
+# Make sure this is in sync with the corresponding enum in orbitx.proto!
+Navmode = Enum('Navmode', zip([  # type: ignore
+    'Manual', 'CCW Prograde', 'CW Retrograde', 'Depart Reference',
+    'Approach Target', 'Pro Targ Velocity', 'Anti Targ Velocity'
+], protos.Navmode.values()))
+
+
 # If you change the 'Pause' element of this list, change the corresponding
 # JS code in flight_gui_footer.html also.
 TIME_ACCS = [
@@ -43,6 +59,10 @@ TIME_ACCS = [
     TimeAcc(value=10_000, desc='10,000×', accurate_bound=1),
     TimeAcc(value=100_000, desc='100,000×', accurate_bound=0.1)
 ]
+
+DEFAULT_INITIAL_TIMESTAMP = 1.0
+DEFAULT_TIME_ACC = TIME_ACCS[1]
+assert DEFAULT_TIME_ACC.value != 0
 
 # ---------------- Graphics-related constants ---------------
 DEFAULT_CENTRE = strings.HABITAT
@@ -111,22 +131,31 @@ SRB_FULL = -1
 SRB_EMPTY = -2
 SRB_BURNTIME = 120  # 120s of burntime.
 
+
+# ---------------- Engineering-related constants ----------------------
+
+N_COMPONENTS = len(strings.COMPONENT_NAMES)
+N_COOLANT_LOOPS = len(strings.COOLANT_LOOP_NAMES)
+N_RADIATORS = len(strings.RADIATOR_NAMES)
+
 DANGEROUS_REACTOR_TEMP = 110  # We can change this later
 
 
-# ---------- Other runtime constants ----------
+# ---------- Other runtime functions and constants ----------
 PERF_FILE = 'flamegraph-data.log'
 
-if getattr(sys, 'frozen', False):
-    # We're running from a PyInstaller exe, use the path of the exe
-    PROGRAM_PATH = Path(sys.executable).parent
-elif sys.path[0] == '':
-    # We're running from a Python REPL. For information on what sys.path[0]
-    # means, read https://docs.python.org/3/library/sys.html#sys.path
-    # note path[0] == '' means Python is running as an interpreter.
-    PROGRAM_PATH = Path.cwd()
-else:
-    PROGRAM_PATH = Path(sys.path[0])
+# This Request class is just an alias of the Command protobuf message. We
+# provide this so that nobody has to directly import orbitx_pb2, and so that
+# we can this wrapper class in the future.
+Request = protos.Command
+
+
+class Program(NamedTuple):
+    """Defines a runnable orbitx program."""
+    main: Callable[[argparse.Namespace], None]
+    name: str
+    description: str
+    argparser: argparse.ArgumentParser
 
 
 def format_num(num: Optional[float], unit: str,
@@ -136,64 +165,6 @@ def format_num(num: Optional[float], unit: str,
     if num is None:
         return ''
     return '{:,.5g}'.format(round(num, ndigits=decimals)) + unit
-
-
-def savefile(name: str) -> Path:
-    return PROGRAM_PATH / 'data' / 'saves' / name
-
-
-def load_savefile(file: Path) -> 'data_structures.PhysicsState':
-    """Loads the physics state represented by the input file.
-    If the input file is an OrbitX-style .json file, simply loads it.
-    If the input file is an OrbitV-style .rnd file, tries to interpret it
-    and also loads the adjacent STARSr file to produce a PhysicsState."""
-
-    # We shouldn't import orbitv_file_interface at the top of common.py, since
-    # common.py is imported by lots of modules and shouldn't circularly depend
-    # on anything.
-    from orbitx import orbitv_file_interface
-    physics_state: data_structures.PhysicsState
-    logging.getLogger().info(f'Loading savefile {file.resolve()}')
-
-    assert isinstance(file, Path)
-    if file.suffix.lower() == '.rnd':
-        physics_state = \
-            orbitv_file_interface.clone_orbitv_state(file)
-
-    else:
-        if file.suffix.lower() != '.json':
-            logging.getLogger().warning(
-                f'{file} is not a .json file, trying to load it anyways.')
-
-        with open(file, 'r') as f:
-            data = f.read()
-        read_state = protos.PhysicalState()
-        google.protobuf.json_format.Parse(data, read_state)
-        physics_state = data_structures.PhysicsState(None, read_state)
-
-    if physics_state.time_acc == 0:
-        physics_state.time_acc = 1
-    if physics_state.reference == '':
-        physics_state.reference = DEFAULT_REFERENCE
-    if physics_state.target == '':
-        physics_state.target = DEFAULT_TARGET
-    if physics_state.srb_time == 0:
-        physics_state.srb_time = SRB_FULL
-    return physics_state
-
-
-def write_savefile(state: 'data_structures.PhysicsState', file: Path):
-    """Writes state to the specified savefile path (use common.savefile to get
-    a savefile path in data/saves/). Returns a possibly-different path that it
-    was saved under."""
-    if file.suffix.lower() != '.json':
-        # Ensure a .json suffix.
-        file = file.parent / (file.name + '.json')
-    logging.getLogger().info(f'Saving to savefile {file.resolve()}')
-    with open(file, 'w') as outfile:
-        outfile.write(
-            google.protobuf.json_format.MessageToJson(state.as_proto()))
-    return file
 
 
 def start_flamegraphing():

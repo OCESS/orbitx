@@ -25,9 +25,10 @@ import scipy.spatial
 import scipy.special
 
 from orbitx import common
+from orbitx.common import Request
 from orbitx.physics import helpers, ode_solver
 from orbitx.orbitx_pb2 import PhysicalState
-from orbitx.data_structures import PhysicsState, Request
+from orbitx.data_structures.space import PhysicsState
 
 SOLUTION_CACHE_SIZE = 2
 
@@ -123,6 +124,13 @@ class PhysicsEngine:
             )
             self._last_monotime = time.monotonic()
 
+            # TODO: This will likely cause the simulation to hang for a bit when
+            # stepping down values of time acceleration; the _last_simtime will
+            # probably have been set by a call to _simtime() with a high time acc,
+            # and a subsequent call to _simtime with (e.g.) a 10x slower time acc
+            # will not have any effect until the simulation time advances to the
+            # most recently-requested time, which will now take 10x as much alpha
+            # time.
             simtime = self._last_simtime
 
             assert self._time_acc_changes
@@ -131,8 +139,8 @@ class PhysicsEngine:
             # starts farther in the future than we will increment simtime.
             while len(self._time_acc_changes) > 1 and \
                     self._time_acc_changes[1].start_simtime < (
-                    simtime + self._time_acc_changes[0].time_acc *
-                    alpha_time_elapsed):
+                    simtime + self._time_acc_changes[0].time_acc
+                    * alpha_time_elapsed):
                 remaining_simtime = \
                     self._time_acc_changes[1].start_simtime - simtime
                 simtime = self._time_acc_changes[1].start_simtime
@@ -257,11 +265,11 @@ class PhysicsEngine:
             self._last_simtime = requested_t
             self._solutions_cond.wait_for(
                 # Wait until we're paused, there's a solution, or an exception.
-                lambda:
-                self._last_physical_state.time_acc == 0 or
-                (len(self._solutions) != 0 and
-                 self._solutions[-1].t_max >= requested_t) or
-                self._simthread_exception is not None
+                lambda: (
+                    self._last_physical_state.time_acc == 0
+                    or (len(self._solutions) != 0 and self._solutions[-1].t_max >= requested_t)
+                    or self._simthread_exception is not None
+                )
             )
 
             # Check if the simthread crashed, and do some logging.
@@ -383,9 +391,9 @@ class PhysicsEngine:
                 # until the main thread has caught up.
                 self._solutions_cond.wait_for(
                     lambda:
-                    len(self._solutions) < SOLUTION_CACHE_SIZE or
-                    self._last_simtime > self._solutions[0].t_max or
-                    self._stopping_simthread
+                    len(self._solutions) < SOLUTION_CACHE_SIZE
+                    or self._last_simtime > self._solutions[0].t_max
+                    or self._stopping_simthread
                 )
                 if self._stopping_simthread:
                     break

@@ -10,8 +10,8 @@ from typing import List
 import vpython
 
 from orbitx import common
-from orbitx import network
-from orbitx.data_structures import PhysicsState
+from orbitx.data_structures import savefile
+from orbitx.data_structures.space import PhysicsState
 from orbitx.graphics import vpython_widgets
 
 log = logging.getLogger('orbitx')
@@ -21,7 +21,7 @@ class ServerGui:
     UPDATES_PER_SECOND = 10
 
     def __init__(self):
-        self._commands: List[network.Request] = []
+        self._commands: List[common.Request] = []
         self._last_state_for_saving: PhysicsState
         canvas = vpython.canvas(width=1, height=1)
 
@@ -79,7 +79,7 @@ document.querySelector(
         canvas.delete()
         common.remove_vpython_css()
 
-    def pop_commands(self) -> List[network.Request]:
+    def pop_commands(self) -> List[common.Request]:
         """Take gathered user input and send it off."""
         old_commands = self._commands
         self._commands = []
@@ -129,19 +129,19 @@ document.querySelector(
         self._clients_table.text = text
 
     def _save_hook(self, textbox: vpython.winput):
-        full_path = common.savefile(textbox.text)
+        full_path = savefile.full_path(textbox.text)
         try:
-            full_path = common.write_savefile(self._last_state_for_saving, full_path)
+            full_path = savefile.write_savefile(self._last_state_for_saving, full_path)
             textbox.text = f'Saved to {full_path}!'
         except OSError:
             log.exception('Caught exception during file saving')
             textbox.text = f'Error writing file to {full_path}'
 
     def _load_hook(self, textbox: vpython.winput):
-        full_path = common.savefile(textbox.text)
+        full_path = savefile.full_path(textbox.text)
         if full_path.is_file():
-            self._commands.append(network.Request(
-                ident=network.Request.LOAD_SAVEFILE, loadfile=textbox.text))
+            self._commands.append(common.Request(
+                ident=common.Request.LOAD_SAVEFILE, loadfile=textbox.text))
             textbox.text = f'Loaded {full_path}!'
         else:
             log.warning(f'Ignored non-existent loadfile: {full_path}')

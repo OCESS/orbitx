@@ -1,5 +1,6 @@
 import tkinter as tk
 
+
 class coolantPage(tk.Frame):
     """
     An second tab for coolants and radiators
@@ -113,4 +114,3 @@ class coolantPage(tk.Frame):
                     widgets['hl{}_R{}'.format(m, v)].press()
             else:
                 pass
-

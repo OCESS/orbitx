@@ -24,7 +24,7 @@ class GridPage(tk.Frame):
         grid_background = ImageTk.PhotoImage(
             Image.open(Path('data', 'engineering', 'powergrid-background.png')))
         bg_label = tk.Label(self, image=grid_background)
-        bg_label.image = grid_background
+        bg_label.image = grid_background  # TODO: does this do anything? Label has no image attribute
         bg_label.place(x=0, y=0)
 
         widgets.ComponentConnection.load_glyphs()

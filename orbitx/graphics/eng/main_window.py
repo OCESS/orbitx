@@ -6,8 +6,8 @@ from orbitx.graphics.eng.coolant_window import coolantPage
 from orbitx.graphics.eng.grid_window import GridPage
 #import orbitx.graphics.eng.tkinter_widgets as cw
 #from orbitx.graphics.eng.coolant_window import coolantPage
-from orbitx.data_structures import PhysicsState
-from orbitx.network import Request
+from orbitx.data_structures.space import PhysicsState
+from orbitx.common import Request
 from PIL import Image, ImageTk
 from orbitx import strings
 

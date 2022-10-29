@@ -10,7 +10,6 @@ import grpc
 import vpython
 
 from orbitx import common
-from orbitx import network
 from orbitx import orbitx_pb2
 from orbitx.graphics import vpython_widgets
 from orbitx.orbitv_file_interface import OrbitVIntermediary
@@ -82,7 +81,7 @@ class CompatGui:
         canvas.append_to_caption("<th scope='col'>Field value</th>")
         canvas.append_to_caption("</tr>")
 
-        def row_text_setter(eng_update: network.Request.OrbitVEngineeringUpdate,
+        def row_text_setter(eng_update: common.Request.OrbitVEngineeringUpdate,
                             field_name: str) -> str:
             return getattr(eng_update, field_name)
 
@@ -102,9 +101,9 @@ class CompatGui:
         canvas.delete()
         common.remove_vpython_css()
 
-    def update(self, eng_update: network.Request, orbitx_names: List[str],
+    def update(self, eng_update: common.Request, orbitx_names: List[str],
                last_orbitsse_read_datetime: datetime):
-        if eng_update.ident == network.Request.ENGINEERING_UPDATE:
+        if eng_update.ident == common.Request.ENGINEERING_UPDATE:
             for field in self._eng_fields:
                 field.update(eng_update.engineering_update)
 
