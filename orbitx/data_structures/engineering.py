@@ -4,7 +4,7 @@ Contains all data about engineering systems in OrbitX, wrapped in the class
 data_structures.space).
 
 A good chunk of the engineering complexity is handled by the relevant classes
-for components, coolant loops, etc (see data_structures.eng_systems).
+for components, coolant loops, etc (see data_structures.eng_subsystems).
 """
 from __future__ import annotations
 
@@ -16,10 +16,8 @@ import numpy as np
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
 from orbitx.common import OhmicVars, N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
-from orbitx.physics import electrofunctions
-from orbitx.physics.electroconstants import PowerSource, PowerBus
-from orbitx.data_structures.eng_systems import (
-    CoolantView, ComponentView, RadiatorView,
+from orbitx.physics import electrofunctions, electroconstants
+from orbitx.data_structures.eng_subsystems import (
     ComponentList, CoolantLoopList, RadiatorList,
     _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
@@ -104,12 +102,14 @@ class EngineeringState:
     def BusElectricals(self) -> Dict[str, OhmicVars]:
         """Return Voltage, Current, Resistance, mapped to every bus."""
         component_resistances = electrofunctions.component_resistances(self.components)
-        electricals_list = electrofunctions.bus_electricities(component_resistances)
+        electricals_list = electrofunctions._bus_electricals(component_resistances)
 
         bus_electricals: Dict[str, OhmicVars] = {}
 
-        for bus_index, bus_name in enumerate(strings.BUS_NAMES):
-            bus_electricals[bus_name] = electricals_list[bus_index]
+        # We assume electricals_list to be in the same order as electroconstants.POWER_BUSES,
+        # i.e. hab primary is first etc.
+        for bus_index, bus in enumerate(electroconstants.POWER_BUSES):
+            bus_electricals[bus.name] = electricals_list[bus_index]
 
         return bus_electricals
 

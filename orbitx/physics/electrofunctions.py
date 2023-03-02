@@ -6,7 +6,7 @@ This module contains helpers to calculate the Voltage/Current/Resistance and
 resistive heating of electrical components on our power grid."""
 from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import List
 
 import numpy as np
 
@@ -14,41 +14,51 @@ from orbitx.common import OhmicVars
 from orbitx.physics import electroconstants
 
 
-def bus_electricities(component_resistances: np.ndarray) -> List[OhmicVars]:
-    """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole."""
+def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
+    """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole.
+    Outputs a List[OhmicVars], where the first element is the primary bus, etc, per the order defined
+    in electroconstants.POWER_BUSES."""
 
-    buses: List[OhmicVars] = []
+    bus_resistances: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
+    bus_voltages: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
+    bus_currents: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
 
     # It might be slightly more efficient to do matrix math instead of using a for loop, but this
     # is more readable :)
-    for bus_n in range(0, 4):
+    for bus_n, bus in enumerate(electroconstants.POWER_BUSES):
         # Calculate 1/resistance for each component, then sum them all up to find the resistance on a power bus.
         # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
         # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
+
+        # The right side of this first assignment evaluates to an array with a 0 or 1 for every component.
         components_on_this_bus = (electroconstants.COMPONENT_BUS_CONNECTION_MATRIX[bus_n] != 0)
+        # For every component attached to this bus, sum 1/(component_resistance)
         sum_of_reciprocals = np.sum(np.reciprocal(component_resistances[components_on_this_bus]))
 
         if sum_of_reciprocals == 0.0:
-            # There are no components connected, so this simplifies our calculations.
-            buses.append(
-                OhmicVars(resistance=np.inf, current=0, voltage=electroconstants.HAB_PRIMARY_BUS.nominal_voltage))
-            continue
-
-        bus_resistance = 1 / sum_of_reciprocals
+            # There are no components connected.
+            bus_resistance = np.inf
+        else:
+            bus_resistance = 1 / sum_of_reciprocals
+        bus_resistances[bus_n] = bus_resistance
 
         # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
         # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
         # R_reactor_internal = (V_bus_nominal / V_bus_loaded - 1) * R_bus_loaded
         # If we solve for V_bus_loaded (since we know the value of all other variables):
         # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
-        bus_voltage = (
-            electroconstants.HAB_PRIMARY_BUS.nominal_voltage
-            / (electroconstants.HAB_PRIMARY_BUS.primary_power_source.internal_resistance / bus_resistance + 1)
-        )
+        bus_voltages[bus_n] = bus.nominal_voltage / (bus.primary_power_source.internal_resistance / bus_resistance + 1)
+        # TODO: Take into account secondary voltage sources.
+        # TODO: Take into account what buses are connected to each other.
 
-        # Ohm's law gives us this.
-        bus_current = bus_voltage / bus_resistance
-        buses.append(OhmicVars(voltage=bus_voltage, current=bus_current, resistance=bus_resistance))
+    # https://en.wikipedia.org/wiki/Nodal_admittance_matrix calculate what current is 'admitted' to other buses.
+    bus_currents = electroconstants.BUS_ADMITTANCE_MATRIX * bus_voltages
+
+    buses: List[OhmicVars] = []
+    for bus_n in range(0, len(electroconstants.POWER_BUSES)):
+        buses.append(OhmicVars(voltage=bus_voltages[bus_n],
+                               current=bus_voltages[bus_n],
+                               resistance=bus_resistances[bus_n]))
 
     return buses
 
@@ -70,9 +80,6 @@ def component_resistances(components: ComponentList) -> np.ndarray:
         + electroconstants.ALPHA_RESIST_GAIN * components.Temperatures()
         * electroconstants.BASE_COMPONENT_RESISTANCES
     )
-
-    # TODO: put DM's code for connecting electrical buses into orbitx, like
-    # have a way for engineering to encode the connection between buses.
 
     return np.divide(
         component_resistances_assuming_full_capacity,

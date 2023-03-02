@@ -10,7 +10,7 @@ See data_structures.__init__ for other documentation.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import numpy as np
 
@@ -232,7 +232,7 @@ class ComponentList:
     def Electricals(self) -> Dict[str, OhmicVars]:
         """Return Voltage, Current, Resistance for every component."""
         component_resistances = electrofunctions.component_resistances(self)
-        electrical_buses = electrofunctions.bus_electricities(component_resistances)
+        electrical_buses = electrofunctions._bus_electricals(component_resistances)
         bus_voltages = [bus.voltage for bus in electrical_buses]
 
         component_electricals: Dict[str, OhmicVars] = {}

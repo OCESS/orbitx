@@ -53,6 +53,7 @@ class PowerBus(NamedTuple):
     Represents one of the power buses, to which components and power sources
     are connected.
     """
+    name: str
     nominal_voltage: float
     primary_power_source: PowerSource
     secondary_power_source: Optional[PowerSource]
@@ -61,6 +62,7 @@ class PowerBus(NamedTuple):
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
 HAB_PRIMARY_BUS: Final = PowerBus(
+    name=strings.BUS1,
     nominal_voltage=10_000,
     primary_power_source=PowerSource(
         name=strings.HAB_REACT, internal_resistance=0.00025),
@@ -68,6 +70,7 @@ HAB_PRIMARY_BUS: Final = PowerBus(
 )
 
 HAB_SECONDARY_BUS: Final = PowerBus(
+    name=strings.BUS2,
     nominal_voltage=120,
     primary_power_source=PowerSource(
         name=strings.FCELL, internal_resistance=0.00325),
@@ -76,6 +79,7 @@ HAB_SECONDARY_BUS: Final = PowerBus(
 )
 
 HAB_TERTIARY_BUS: Final = PowerBus(
+    name=strings.BUS3,
     nominal_voltage=120,
     primary_power_source=PowerSource(
         name=strings.BAT2, internal_resistance=0.0085),
@@ -83,6 +87,7 @@ HAB_TERTIARY_BUS: Final = PowerBus(
 )
 
 AYSE_BUS: Final = PowerBus(
+    name=strings.AYSE_BUS,
     nominal_voltage=100_000,
     primary_power_source=PowerSource(
         name=strings.AYSE_REACT, internal_resistance=0.00003),
@@ -90,12 +95,39 @@ AYSE_BUS: Final = PowerBus(
         name=strings.AYSE_BAT, internal_resistance=0.0055)
 )
 
+# Collects the power buses together.
 POWER_BUSES: Final = (
     HAB_PRIMARY_BUS,
     HAB_SECONDARY_BUS,
     HAB_TERTIARY_BUS,
     AYSE_BUS
 )
+
+# Calculate the admittances between each bus, put them into a convenient
+# connection matrix.
+
+
+def _admittance_function(i, j) -> float:
+    if i == j:
+        # Calculate the self-admittance of bus i to every other bus (including itself, where admittance=1).
+        bus_i_self_admittance = 0.0
+        for bus in POWER_BUSES:
+            bus_i_self_admittance += POWER_BUSES[i].nominal_voltage / bus.nominal_voltage
+        return bus_i_self_admittance
+    else:
+        return -1 * POWER_BUSES[i].nominal_voltage / POWER_BUSES[j].nominal_voltage
+
+
+BUS_ADMITTANCE_MATRIX: Final[np.ndarray] = np.fromfunction(
+    np.vectorize(_admittance_function),
+    (len(POWER_BUSES), len(POWER_BUSES)),
+    dtype=np.int
+)
+
+
+# TODO: Functionality for changing what buses are connected
+BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.identity(len(POWER_BUSES))
+
 
 # Temporary variable, just to build the component/powerbus connection matrix.
 # Don't use this dict outside of this module, use one of the matrices or
@@ -135,7 +167,6 @@ _component_to_bus_mapping = {
     strings.EECOM: 2,
     strings.NETWORK: 2,
 }
-
 assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 
 # A 4*N matrix, with exactly N number of 1s in it (N = N_COMPONENTS).
@@ -160,6 +191,7 @@ COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(N_COMPONEN
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MAPPING[strings.COMPONENT_NAMES.index(component_name)] = bus
 
+del _component_to_bus_mapping
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #
 # -- These have been cribbed from Dr. Magwood's obitsej.txt data file.      -- #

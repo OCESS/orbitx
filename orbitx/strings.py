@@ -114,5 +114,3 @@ COOLANT_LOOP_NAMES = [LP1, LP2, LP3]
 
 # This is referenced by data_structures.RadiatorView.name!
 RADIATOR_NAMES = [RAD1, RAD2, RAD3, RAD4, RAD5, RAD6, RAD7, RAD8]
-
-BUS_NAMES = [BUS1, BUS2, BUS3, AYSE_BUS]
