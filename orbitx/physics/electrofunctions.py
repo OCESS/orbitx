@@ -57,7 +57,7 @@ def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
     buses: List[OhmicVars] = []
     for bus_n in range(0, len(electroconstants.POWER_BUSES)):
         buses.append(OhmicVars(voltage=bus_voltages[bus_n],
-                               current=bus_voltages[bus_n],
+                               current=bus_currents[bus_n],
                                resistance=bus_resistances[bus_n]))
 
     return buses
