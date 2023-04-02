@@ -45,19 +45,19 @@ def vpython_error_message():
     """Lets the user know that something bad happened.
     Note, if there's no vpython canvas, this vpython code has no effect."""
     error_message = (
-            "<p>&#9888; Sorry, spacesimmer! OrbitX has crashed for "
-            "some reason.</p>"
+        "<p>&#9888; Sorry, spacesimmer! OrbitX has crashed for "
+        "some reason.</p>"
 
-            "<p>Any information that OrbitX has on the crash has "
-            "been saved to a logfile. If you want to get this problem fixed,"
-            " send the contents of the log file "
-            "<blockquote>" +
-            logs.logfile_name.replace('\\', '\\\\') +
-            "</blockquote> "
-            "to Patrick Melanson along with a description of what was "
-            "happening in the program when it crashed.</p>"
+        "<p>Any information that OrbitX has on the crash has "
+        "been saved to a logfile. If you want to get this problem fixed,"
+        " send the contents of the log file "
+        "<blockquote>" +
+        logs.logfile_name.replace('\\', '\\\\') +
+        "</blockquote> "
+        "to Patrick Melanson along with a description of what was "
+        "happening in the program when it crashed.</p>"
 
-            "<p>Again, thank you for using OrbitX!</p>"
+        "<p>Again, thank you for using OrbitX!</p>"
     )
     vpython.canvas.get_selected().append_to_caption(f"""<script>
         if (document.querySelector('div.error') == null) {{
@@ -90,14 +90,6 @@ def vpython_error_message():
 
 def main():
     """Delegate work to one of the OrbitX programs."""
-
-    # vpython uses deprecated python features, but we shouldn't get a fatal
-    # exception if we try to use vpython. DeprecationWarnings are normally
-    # enabled when __name__ == __main__
-    warnings.filterwarnings('once', category=DeprecationWarning)
-    # vpython generates other warnings, as well as its dependent libraries
-    warnings.filterwarnings('ignore', category=ResourceWarning)
-    warnings.filterwarnings('ignore', module='vpython|asyncio|autobahn|txaio')
 
     log_git_info()
 
