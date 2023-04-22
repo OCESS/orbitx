@@ -157,9 +157,7 @@ def main():
                 sys.exit(1)
 
             log.warning('A likely fix for this fatal exception is to run the')
-            log.warning('`build` target of orbitx/Makefile, or at least')
-            log.warning('copy-pasting the contents of the `build` target and')
-            log.warning('running it in your shell.')
+            log.warning('generate-protobuf script for your platform!')
             log.warning('You\'ll have to do this every time you change')
             log.warning(str(proto_file))
             log.warning('================================================')
