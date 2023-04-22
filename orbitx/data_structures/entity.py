@@ -176,7 +176,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
     else:
         field_n = None
 
-    if field.cpp_type in [field.CPPTYPE_FLOAT, field.CPPTYPE_DOUBLE]:
+    if field.type in [field.TYPE_FLOAT, field.TYPE_DOUBLE]:
         def entity_view_mutable_fget(self, field_n=field_n):
             return self._creator._array_rep[
                 self._creator._n * field_n + self._index]
@@ -184,7 +184,7 @@ for field in protos.Entity.DESCRIPTOR.fields:
         def entity_view_mutable_fset(self, val, field_n=field_n):
             self._creator._array_rep[
                 self._creator._n * field_n + self._index] = val
-    elif field.cpp_type == field.CPPTYPE_BOOL:
+    elif field.type == field.TYPE_BOOL:
         # Same as if it's a float, but we have to convert float -> bool.
         def entity_view_mutable_fget(self, field_n=field_n):
             return bool(
@@ -211,12 +211,12 @@ for field in protos.Entity.DESCRIPTOR.fields:
             self._creator._array_rep[
                 self._creator._n * field_n + self._index] = \
                 self._creator._name_to_index(val)
-    elif field.cpp_type == field.CPPTYPE_STRING:
+    elif field.type == field.TYPE_STRING:
         assert field.name in _PER_ENTITY_UNCHANGING_FIELDS
     else:
         raise NotImplementedError(
             "Encountered a field in the protobuf definition of Entity that "
-            "is of a type we haven't handled.")
+            f"is of a type we haven't handled: {field.type}.")
 
     if field.name in _PER_ENTITY_UNCHANGING_FIELDS:
         # Note there is no fdel defined. The data is owned by the PhysicalState
