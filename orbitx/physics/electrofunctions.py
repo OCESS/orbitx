@@ -50,11 +50,9 @@ def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
         bus_voltages[bus_n] = bus.nominal_voltage / (bus.primary_power_source.internal_resistance / bus_resistance + 1)
         # TODO: Take into account secondary voltage sources. Specifically, we can share current across multiple sources
         # scaling with 1/Rn / (1/R1 + 1/R2) * current.
-        # TODO: Take into account what buses are connected to each other. Specifically, the voltage drop should happen
-        # across multiple buses, in addition to current sharing. Maybe some sort of big matrix multiplication?
 
     # https://en.wikipedia.org/wiki/Nodal_admittance_matrix calculate what current is 'admitted' to other buses.
-    bus_currents = electroconstants.BUS_ADMITTANCE_MATRIX * bus_voltages
+    bus_currents = np.dot(electroconstants.BUS_ADMITTANCE_MATRIX, bus_voltages)
 
     buses: List[OhmicVars] = []
     for bus_n in range(0, len(electroconstants.POWER_BUSES)):

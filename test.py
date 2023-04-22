@@ -793,6 +793,21 @@ class CoolantTestCase(unittest.TestCase):
         self.assertNotEqual(temperature_1, temperature_2)
 
 
+class ElectrofunctionsTestCase(unittest.TestCase):
+    def test_debug_print(self):
+
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
+            engineering = physics_engine.get_state().engineering
+        print(electroconstants.BUS_ADMITTANCE_MATRIX)
+        for bus in engineering.BusElectricals().items():
+            print(bus)
+        import fractions
+        np.set_printoptions(formatter={'all':lambda x: str(fractions.Fraction(x).limit_denominator())})
+        print(electroconstants.BUS_ADMITTANCE_MATRIX)
+        for bus in engineering.BusElectricals().items():
+            print(bus)
+
+
 def test_performance():
     # This just runs for 10 seconds and collects profiling data.
     import time

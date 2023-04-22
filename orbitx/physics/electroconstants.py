@@ -105,8 +105,6 @@ POWER_BUSES: Final = (
 
 # Calculate the admittances between each bus, put them into a convenient
 # connection matrix.
-
-
 def _admittance_function(i, j) -> float:
     if i == j:
         # Calculate the self-admittance of bus i to every other bus (including itself, where admittance=1).
