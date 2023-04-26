@@ -1,0 +1,59 @@
+Just caring about the primary and secondary hab power buses, and assuming only the fuel cell and reactor are on
+
+GOSUB 900 for our purposes is effectively ->
+Rdenom# = -R1 - R6 - R1*R6/R2
+I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/Rdenom
+P1# = R1 * I1 * I1
+Vout# = V1 - R1*I1
+
+Fuel cell for bus1:
+V1# = Vfc
+V2# = Vr / 83.33334
+R1# = R_fc
+R2# = R_reactor / 6944.445
+R6# = R_t_bus1 / 6944.445
+GOSUB 900
+Ibus1fc = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+
+
+Fuel cell for bus2:
+same variable setup, but
+R6 = R_t_bus2
+GOSUB 900
+Ibus2fc = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+
+
+Reactor for bus1:
+V1 = Vr
+V2 = Vfc * 83.33334
+R1 = R_reactor
+R2 = R_fc * 6944.445
+R6 = R_t_bus1
+GOSUB 900
+Ibus1R = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+
+Reactor for bus2:
+same variable setup, but
+R6 = R_t_bus2 * 6944.445
+GOSUB 900
+Ibus2R = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+
+
+Putting it all together at the bottom:
+bus_currents[0] = Ibus1R + Ibus1fc/83.33334
+bus_currents[1] = Ibus2R*83.33334 + Ibus2fc
+reactor_current = Ibus1R + Ibus2R
+fuel_cell_current = Ibus1fc + Ibus2fc
+
+Reactor_V_out = Vr - reactor_current * R_reactor
+FC_V_out = Vfc - fuel_cell_current * R_fc
+
+V_bus1 = (Reactor_V_out*Ibus1R + FC_V_out*Ibus1fc) / bus_currents[0]
+V_bus2 = (Reactor_V_out*Ibus2R + FC_V_out*Ibus2fc) / bus_currents[1]
+
+--------------------------------------------
+
+So overall, we go from
+- knowing the resistance of all components on a bus
+- to calculating the current/voltage/power coming from each power source
+- to putting those together and finding the current/voltage/power on each bus
