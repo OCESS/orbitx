@@ -14,14 +14,8 @@ from orbitx.common import OhmicVars
 from orbitx.physics import electroconstants
 
 
-def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
-    """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole.
-    Outputs a List[OhmicVars], where the first element is the primary bus, etc, per the order defined
-    in electroconstants.POWER_BUSES."""
-
-    bus_resistances: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
-    bus_voltages: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
-    bus_currents: List[float] = np.zeros(len(electroconstants.POWER_BUSES))
+def _bus_resistances(component_resistances: np.ndarray) -> np.ndarray:
+    bus_resistances = np.zeros(len(electroconstants.POWER_BUSES))
 
     # It might be slightly more efficient to do matrix math instead of using a for loop, but this
     # is more readable :)
@@ -42,24 +36,54 @@ def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
             bus_resistance = 1 / sum_of_reciprocals
         bus_resistances[bus_n] = bus_resistance
 
-        # Assuming the hab reactor has an internal resistance, calculate the voltage drop given the bus load.
-        # This equation is derived from https://en.wikipedia.org/wiki/Internal_resistance, specifically
-        # R_reactor_internal = (V_bus_nominal / V_bus_loaded - 1) * R_bus_loaded
-        # If we solve for V_bus_loaded (since we know the value of all other variables):
-        # V_bus_loaded = V_bus_nominal / (R_reactor_internal / R_bus_loaded + 1)
-        bus_voltages[bus_n] = bus.nominal_voltage / (bus.primary_power_source.internal_resistance / bus_resistance + 1)
-        # TODO: Take into account secondary voltage sources. Specifically, we can share current across multiple sources
-        # scaling with 1/Rn / (1/R1 + 1/R2) * current.
+    return bus_resistances
 
-    # https://en.wikipedia.org/wiki/Nodal_admittance_matrix calculate what current is 'admitted' to other buses.
-    bus_currents = np.dot(electroconstants.BUS_ADMITTANCE_MATRIX, bus_voltages)
+
+def _bus_and_source_current_matrix(component_resistances: np.ndarray) -> np.ndarray:
+    # TODO: update
+    """Given resistances for each component, calculate the V, I, R for the electrical bus as a whole.
+    Outputs a List[OhmicVars], where the first element is the primary bus, etc, per the order defined
+    in electroconstants.POWER_BUSES."""
+
+    bus_resistances = _bus_resistances(component_resistances)
+
+    # Figure out, for each combination of (power source, bus), how much current is flowing between the two.
+    current_matrix = np.zeros((len(electroconstants.POWER_BUSES), len(electroconstants.POWER_SOURCES)))
+    for source_n, source in enumerate(electroconstants.POWER_SOURCES):
+        # TODO: better descriptions of these.
+        source_voltage_scalers = source.nominal_voltage / electroconstants.SOURCE_VOLTAGES
+        source_resistance_scaler = (source.internal_resistance / electroconstants.SOURCE_RESISTANCES).sum()
+        voltage_flow = (
+            (source.nominal_voltage - electroconstants.SOURCE_VOLTAGES * source_voltage_scalers)
+            / electroconstants.SOURCE_RESISTANCES
+        ).sum()
+
+        for bus_n, bus in enumerate(electroconstants.POWER_BUSES):
+            if bus_resistances[bus_n] == np.inf:
+                current_matrix[bus_n][source_n] = 0.0
+            else:
+                current_matrix[bus_n][source_n] = (
+                    (source.nominal_voltage - bus_resistances[bus_n] * voltage_flow)
+                    / (source.internal_resistance + bus_resistances[bus_n] * (source_resistance_scaler))
+                )
+
+    return current_matrix
+
+
+def _bus_electricals(component_resistances: np.ndarray) -> List[OhmicVars]:
+    bus_currents = _bus_and_source_current_matrix(component_resistances).sum(axis=1)
+    assert len(bus_currents) == len(electroconstants.POWER_BUSES), bus_currents
+
+    bus_resistances = _bus_resistances(component_resistances)
+
+    # If resistance = inf, voltage = 0.
+    bus_voltages = bus_currents * np.where(bus_resistances != np.inf, bus_resistances, 0)
 
     buses: List[OhmicVars] = []
     for bus_n in range(0, len(electroconstants.POWER_BUSES)):
         buses.append(OhmicVars(voltage=bus_voltages[bus_n],
                                current=bus_currents[bus_n],
                                resistance=bus_resistances[bus_n]))
-
     return buses
 
 
@@ -101,6 +125,7 @@ def component_heating_rate(
     # Calculate the voltage of each component.
     # Really, this is just a fancy way of selecting which of the four bus voltages
     # to use.
+    # TODO: fixup
     bus_voltages_column_vector = np.array([[
         power_buses[0].voltage,
         power_buses[1].voltage,

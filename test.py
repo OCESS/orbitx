@@ -798,11 +798,10 @@ class ElectrofunctionsTestCase(unittest.TestCase):
 
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
-        print(electroconstants.BUS_ADMITTANCE_MATRIX)
         for bus in engineering.BusElectricals().items():
             print(bus)
         import fractions
-        np.set_printoptions(formatter={'all':lambda x: str(fractions.Fraction(x).limit_denominator())})
+        np.set_printoptions(formatter={'all': lambda x: str(fractions.Fraction(x).limit_denominator())})
         print(electroconstants.BUS_ADMITTANCE_MATRIX)
         for bus in engineering.BusElectricals().items():
             print(bus)

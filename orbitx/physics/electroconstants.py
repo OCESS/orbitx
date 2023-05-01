@@ -9,7 +9,7 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 YOLO.
 """
 
-from typing import NamedTuple, Optional, Final
+from typing import List, NamedTuple, Optional, Final
 
 import numpy as np
 
@@ -46,6 +46,7 @@ class PowerSource(NamedTuple):
     """Represents a reactor, fuel cell, or battery."""
     name: str
     internal_resistance: float
+    nominal_voltage: float
 
 
 class PowerBus(NamedTuple):
@@ -54,7 +55,6 @@ class PowerBus(NamedTuple):
     are connected.
     """
     name: str
-    nominal_voltage: float
     primary_power_source: PowerSource
     secondary_power_source: Optional[PowerSource]
 
@@ -63,65 +63,57 @@ class PowerBus(NamedTuple):
 # and then make a matrix/array copy of the same data for more efficient math.
 HAB_PRIMARY_BUS: Final = PowerBus(
     name=strings.BUS1,
-    nominal_voltage=10_000,
     primary_power_source=PowerSource(
-        name=strings.HAB_REACT, internal_resistance=0.00025),
+        name=strings.HAB_REACT, internal_resistance=0.00025, nominal_voltage=10_000
+    ),
     secondary_power_source=None
 )
 
 HAB_SECONDARY_BUS: Final = PowerBus(
     name=strings.BUS2,
-    nominal_voltage=120,
     primary_power_source=PowerSource(
-        name=strings.FCELL, internal_resistance=0.00325),
+        name=strings.FCELL, internal_resistance=0.00325, nominal_voltage=120
+    ),
     secondary_power_source=PowerSource(
-        name=strings.BAT1, internal_resistance=0.01)
+        name=strings.BAT1, internal_resistance=0.01, nominal_voltage=120
+    )
 )
 
 HAB_TERTIARY_BUS: Final = PowerBus(
     name=strings.BUS3,
-    nominal_voltage=120,
     primary_power_source=PowerSource(
-        name=strings.BAT2, internal_resistance=0.0085),
+        name=strings.BAT2, internal_resistance=0.0085, nominal_voltage=120
+    ),
     secondary_power_source=None
 )
 
 AYSE_BUS: Final = PowerBus(
     name=strings.AYSE_BUS,
-    nominal_voltage=100_000,
     primary_power_source=PowerSource(
-        name=strings.AYSE_REACT, internal_resistance=0.00003),
+        name=strings.AYSE_REACT, internal_resistance=0.00003, nominal_voltage=100_000
+    ),
     secondary_power_source=PowerSource(
-        name=strings.AYSE_BAT, internal_resistance=0.0055)
+        name=strings.AYSE_BAT, internal_resistance=0.0055, nominal_voltage=100_000
+    )
 )
 
 # Collects the power buses together.
-POWER_BUSES: Final = (
+POWER_BUSES: List[PowerBus] = [
     HAB_PRIMARY_BUS,
     HAB_SECONDARY_BUS,
     HAB_TERTIARY_BUS,
     AYSE_BUS
-)
+]
 
-# Calculate the admittances between each bus, put them into a convenient
-# connection matrix.
-def _admittance_function(i, j) -> float:
-    if i == j:
-        # Calculate the self-admittance of bus i to every other bus (including itself, where admittance=1).
-        bus_i_self_admittance = 0.0
-        for bus in POWER_BUSES:
-            bus_i_self_admittance += POWER_BUSES[i].nominal_voltage / bus.nominal_voltage
-        return bus_i_self_admittance
-    else:
-        return -1 * POWER_BUSES[i].nominal_voltage / POWER_BUSES[j].nominal_voltage
+# Same for power sources
+POWER_SOURCES: List[PowerSource] = []
+for bus in POWER_BUSES:
+    POWER_SOURCES.append(bus.primary_power_source)
+    if bus.secondary_power_source:
+        POWER_SOURCES.append(bus.secondary_power_source)
 
-
-BUS_ADMITTANCE_MATRIX: Final[np.ndarray] = np.fromfunction(
-    np.vectorize(_admittance_function),
-    (len(POWER_BUSES), len(POWER_BUSES)),
-    dtype=np.int
-)
-
+SOURCE_VOLTAGES: Final[np.ndarray] = np.array([source.nominal_voltage for source in POWER_SOURCES])
+SOURCE_RESISTANCES: Final[np.ndarray] = np.array([source.internal_resistance for source in POWER_SOURCES])
 
 # TODO: Functionality for changing what buses are connected
 BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.identity(len(POWER_BUSES))

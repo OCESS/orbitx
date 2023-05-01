@@ -20,7 +20,9 @@ Fuel cell for bus2:
 same variable setup, but
 R6 = R_t_bus2
 GOSUB 900
-Ibus2fc = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+Ibus2fc = I1#
+= (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+= (V1 + R6*(V1/R2 - V2/R2))/(R1 + R6*(R1/R2))
 
 
 Reactor for bus1:
@@ -30,7 +32,9 @@ R1 = R_reactor
 R2 = R_fc * 6944.445
 R6 = R_t_bus1
 GOSUB 900
-Ibus1R = I1# = (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+Ibus1R = I1#
+= (-V1 - V1*R6/R2 + V2*R6/R2)/(-R1 - R6 - R1*R6/R2)
+= (V1 + R6*(V1/R2-V2/R2))/(R1 + R6*(1+R1/R2))
 
 Reactor for bus2:
 same variable setup, but
@@ -51,9 +55,20 @@ FC_V_out = Vfc - fuel_cell_current * R_fc
 V_bus1 = (Reactor_V_out*Ibus1R + FC_V_out*Ibus1fc) / bus_currents[0]
 V_bus2 = (Reactor_V_out*Ibus2R + FC_V_out*Ibus2fc) / bus_currents[1]
 
+So it seems like the inputs to GOSUB 900 are:
+V1 -> nominal voltage of power source under analysis
+R1 -> internal resistance of power source under analysis
+R6 -> total resistance of target bus
+V2, V3, V4, V5 -> other nominal power source voltages
+R2, R3, R4, R5 -> other internal power source resistances
+
 --------------------------------------------
 
 So overall, we go from
 - knowing the resistance of all components on a bus
 - to calculating the current/voltage/power coming from each power source
 - to putting those together and finding the current/voltage/power on each bus
+
+Importantly:
+- it's probably easier to do nodal analysis per-power source, instead of per-bus
+- maybe it's not worth it to come up with a 
