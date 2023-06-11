@@ -24,19 +24,23 @@ ACC3 = 'ACC3'
 ION3 = 'ION3'
 ACC4 = 'ACC4'
 ION4 = 'ION4'
-TRN1 = 'TRN1'
-BUS1 = 'Primary Habitat Bus'
-BUS2 = 'Secondary Habitat Bus'
-BUS3 = 'Tertiary Habitat Bus'
-AYSE_BUS = 'Ayse Power Bus'
-TRN2 = 'TRN2'
+PRIMARY_PUMP_1 = 'Loop 1 Primary Coolant Pump'
+PRIMARY_PUMP_2 = 'Loop 2 Primary Coolant Pump'
+SECONDARY_PUMP_1 = 'Loop 1 Secondary Coolant Pump'
+SECONDARY_PUMP_2 = 'Loop 2 Secondary Coolant Pump'
+HAB_CONV = 'High-Low Voltage Converter'
+BUS1 = 'High-voltage Habitat Bus'
+BUS2 = 'Low-voltage Habitat Bus'
+AYSE_BUS = 'AYSE Power Bus'
+AYSE_CONV = 'AYSE-Habitat Link'
 FCELL = 'Fuel Cell'
-BAT1 = 'BAT'
+BAT1 = 'BATT'
 BAT2 = 'BACKUP BAT'
 AYSE_BAT = 'AYSE BAT'
 RCSP = 'RCSP'
 COM = 'COM'
 HAB_REACT = 'HAB reactor'
+REACTOR_HEATER = 'Reactor Heater'
 INJ1 = 'INJECTOR 1'
 INJ2 = 'INJECTOR 2'
 REACT_INJ1 = 'REACT INJ1'
@@ -89,6 +93,7 @@ COMPONENT_NAMES = [
     ION3,
     ACC4,
     ION4,
+    REACTOR_HEATER,
     FCELL,
     BAT1,
     BAT2,
@@ -107,6 +112,12 @@ COMPONENT_NAMES = [
     INS,
     EECOM,
     NETWORK,
+    HAB_CONV,
+    AYSE_CONV,
+    PRIMARY_PUMP_1,
+    PRIMARY_PUMP_2,
+    SECONDARY_PUMP_1,
+    SECONDARY_PUMP_2,
 ]
 
 # This is referenced by data_structures.CoolantView.name!

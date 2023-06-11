@@ -9,7 +9,7 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 YOLO.
 """
 
-from typing import List, NamedTuple, Optional, Final
+from typing import List, NamedTuple, Optional, Union, Final
 
 import numpy as np
 
@@ -42,120 +42,119 @@ K_CONDUCTIVITY: Final = 0.75
 BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
 
 
+class VoltageConverter(NamedTuple):
+    """Represents a DC-DC converter between two buses.
+    For example, the AYSE-Habitat converter would have input_bus = AYSE_BUS,
+    and would act similarly to a PowerSource."""
+    name: str
+    input_bus: PowerBus
+
 class PowerSource(NamedTuple):
     """Represents a reactor, fuel cell, or battery."""
     name: str
     internal_resistance: float
-    nominal_voltage: float
 
 
 class PowerBus(NamedTuple):
     """
     Represents one of the power buses, to which components and power sources
-    are connected.
-    """
+    are connected."""
     name: str
-    primary_power_source: PowerSource
-    secondary_power_source: Optional[PowerSource]
+    nominal_voltage: float
+    # Ordered list; the *first* power source will be used to power this bus.
+    power_sources: List[Union[PowerSource, VoltageConverter]]
 
+
+AYSE_BUS: Final = PowerBus(
+    name=strings.AYSE_BUS,
+    nominal_voltage=100_000,
+    power_sources=[
+        PowerSource(name=strings.AYSE_REACT, internal_resistance=0.00003),
+        PowerSource(name=strings.AYSE_BAT, internal_resistance=0.0055)
+    ]
+)
 
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
 HAB_PRIMARY_BUS: Final = PowerBus(
     name=strings.BUS1,
-    primary_power_source=PowerSource(
-        name=strings.HAB_REACT, internal_resistance=0.00025, nominal_voltage=10_000
-    ),
-    secondary_power_source=None
+    nominal_voltage=10_000,
+    power_sources=[
+        VoltageConverter(name=strings.AYSE_CONV, input=AYSE_BUS)
+        PowerSource(name=strings.HAB_REACT, internal_resistance=0.00025),
+    ]
 )
 
 HAB_SECONDARY_BUS: Final = PowerBus(
     name=strings.BUS2,
-    primary_power_source=PowerSource(
-        name=strings.FCELL, internal_resistance=0.00325, nominal_voltage=120
-    ),
-    secondary_power_source=PowerSource(
-        name=strings.BAT1, internal_resistance=0.01, nominal_voltage=120
-    )
-)
-
-HAB_TERTIARY_BUS: Final = PowerBus(
-    name=strings.BUS3,
-    primary_power_source=PowerSource(
-        name=strings.BAT2, internal_resistance=0.0085, nominal_voltage=120
-    ),
-    secondary_power_source=None
-)
-
-AYSE_BUS: Final = PowerBus(
-    name=strings.AYSE_BUS,
-    primary_power_source=PowerSource(
-        name=strings.AYSE_REACT, internal_resistance=0.00003, nominal_voltage=100_000
-    ),
-    secondary_power_source=PowerSource(
-        name=strings.AYSE_BAT, internal_resistance=0.0055, nominal_voltage=100_000
-    )
+    nominal_voltage=120,
+    power_sources=[
+        VoltageConverter(name=strings.HAB_CONV, input=HAB_PRIMARY_BUS, ),
+        PowerSource(name=strings.FCELL, internal_resistance=0.00325),
+        PowerSource(name=strings.BAT1, internal_resistance=0.01),
+        PowerSource(name=strings.BAT2, internal_resistance=0.01)
+    ]
 )
 
 # Collects the power buses together.
 POWER_BUSES: List[PowerBus] = [
-    HAB_PRIMARY_BUS,
     HAB_SECONDARY_BUS,
-    HAB_TERTIARY_BUS,
+    HAB_PRIMARY_BUS,
     AYSE_BUS
 ]
 
-# Same for power sources
+# Same for power sources and voltage converters
 POWER_SOURCES: List[PowerSource] = []
+# Mapping the output power bus powered by a voltage converter -> a voltage converter (e.g. HAB_PRIMARY -> AYSE_CONV)
+VOLTAGE_CONVERTERS: Dict[PowerBus: VoltageConverter] = []
 for bus in POWER_BUSES:
-    POWER_SOURCES.append(bus.primary_power_source)
-    if bus.secondary_power_source:
-        POWER_SOURCES.append(bus.secondary_power_source)
-
-SOURCE_VOLTAGES: Final[np.ndarray] = np.array([source.nominal_voltage for source in POWER_SOURCES])
-SOURCE_RESISTANCES: Final[np.ndarray] = np.array([source.internal_resistance for source in POWER_SOURCES])
-
-# TODO: Functionality for changing what buses are connected
-BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.identity(len(POWER_BUSES))
+    for power_source in bus.power_sources:
+        if isinstance(power_source, PowerSource):
+            POWER_SOURCES.append(power_source)
+        elif isinstance(power_source, VoltageConverter):
+            VOLTAGE_CONVERTERS[bus] = power_source
 
 
 # Temporary variable, just to build the component/powerbus connection matrix.
 # Don't use this dict outside of this module, use one of the matrices or
 # NamedTuples instead.
 _component_to_bus_mapping = {
-    strings.RADS1: 0,
-    strings.RADS2: 0,
-    strings.AGRAV: 0,
-    strings.RCON1: 0,
-    strings.RCON2: 0,
-    strings.ARCON1: 3,
-    strings.ARCON2: 3,
-    strings.ACC1: 0,
-    strings.ION1: 0,
-    strings.ACC2: 0,
-    strings.ION2: 0,
-    strings.ACC3: 0,
-    strings.ION3: 0,
-    strings.ACC4: 0,
-    strings.ION4: 0,
-    strings.FCELL: 1,
-    strings.BAT1: 1,
-    strings.BAT2: 2,
-    strings.AYSE_BAT: 3,
-    strings.RCSP: 0,
-    strings.COM: 2,
-    strings.HAB_REACT: 0,
-    strings.INJ1: 0,
-    strings.INJ2: 0,
-    strings.REACT_INJ1: 0,
-    strings.REACT_INJ2: 0,
-    strings.FCELL_INJ: 1,
-    strings.AYSE_REACT: 3,
-    strings.DOCK_MOD: 0,
-    strings.RADAR: 0,
-    strings.INS: 2,
-    strings.EECOM: 2,
-    strings.NETWORK: 2,
+    strings.REACTOR_HEATER: 0,
+    strings.FCELL_INJ: 0,
+    strings.SECONDARY_PUMP_1: 0,
+    strings.SECONDARY_PUMP_2: 0,
+    strings.EECOM: 0,
+    strings.NETWORK: 0,
+    strings.COM: 0,
+    strings.INS: 0,
+    strings.LOS: 0,
+    strings.GNC: 0,
+    strings.HAB_CONV: 1,
+    strings.PRIMARY_PUMP_1: 1,
+    strings.PRIMARY_PUMP_2: 1,
+    strings.RADS1: 1,
+    strings.RADS2: 1,
+    strings.AGRAV: 1,
+    strings.RCON1: 1,
+    strings.RCON2: 1,
+    strings.ACC1: 1,
+    strings.ION1: 1,
+    strings.ACC2: 1,
+    strings.ION2: 1,
+    strings.ACC3: 1,
+    strings.ION3: 1,
+    strings.ACC4: 1,
+    strings.ION4: 1,
+    strings.RCSP: 1,
+    strings.INJ1: 1,
+    strings.INJ2: 1,
+    strings.REACT_INJ1: 1,
+    strings.REACT_INJ2: 1,
+    strings.DOCK_MOD: 1,
+    strings.RADAR: 1,
+    strings.AYSE_CONV: 2,
+    strings.ARCON1: 2,
+    strings.ARCON2: 2,
 }
 assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 
@@ -163,19 +162,18 @@ assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 # A 1 at COMPONENT_BUS_CONNECTION_MATRIX[bus_k][component_j] means
 # component_j is connected to bus_k.
 # The matrix looks roughly like:
-# [1 1 1 0 0 1 0 ... 0]  Hab primary bus components
 # [0 0 0 1 0 0 1 ... 0]  Hab secondary bus components
-# [0 0 0 0 1 0 0 ... 0]  Hab tertiary bus components
+# [1 1 1 0 0 1 0 ... 0]  Hab primary bus components
 # [0 0 0 0 0 0 0 ... 1]  AYSE bus components
 COMPONENT_BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.zeros(
-    shape=(4, N_COMPONENTS), dtype=int
+    shape=(len(POWER_BUSES), N_COMPONENTS), dtype=int
 )
 
-# Use the compont -> bus mapping we defined to build the connection matrix.
+# Use the component -> bus mapping we defined to build the connection matrix.
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
-# Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 3]
+# Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 1]
 COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(N_COMPONENTS), dtype=int)
 
 for component_name, bus in _component_to_bus_mapping.items():
