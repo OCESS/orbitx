@@ -8,8 +8,9 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 
 YOLO.
 """
+from __future__ import annotations
 
-from typing import List, NamedTuple, Optional, Union, Final
+from typing import Dict, List, NamedTuple, Union, Final
 
 import numpy as np
 
@@ -37,9 +38,8 @@ K_CONDUCTIVITY: Final = 0.75
 # it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
-# This array is populated later in this module, but for now the default value
-# is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
-BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
+# This array is populated later in this module, but for now the default value is infinte, i.e. does not draw power.
+BASE_COMPONENT_RESISTANCES: Final = np.full(N_COMPONENTS, np.inf)
 
 
 class VoltageConverter(NamedTuple):
@@ -48,6 +48,8 @@ class VoltageConverter(NamedTuple):
     and would act similarly to a PowerSource."""
     name: str
     input_bus: PowerBus
+    scale_factor: float  # input voltage * scale_factor = output voltage.
+
 
 class PowerSource(NamedTuple):
     """Represents a reactor, fuel cell, or battery."""
@@ -80,7 +82,8 @@ HAB_PRIMARY_BUS: Final = PowerBus(
     name=strings.BUS1,
     nominal_voltage=10_000,
     power_sources=[
-        VoltageConverter(name=strings.AYSE_CONV, input=AYSE_BUS)
+        VoltageConverter(
+            name=strings.AYSE_CONV, input_bus=AYSE_BUS, scale_factor=10_000 / AYSE_BUS.nominal_voltage),
         PowerSource(name=strings.HAB_REACT, internal_resistance=0.00025),
     ]
 )
@@ -89,7 +92,8 @@ HAB_SECONDARY_BUS: Final = PowerBus(
     name=strings.BUS2,
     nominal_voltage=120,
     power_sources=[
-        VoltageConverter(name=strings.HAB_CONV, input=HAB_PRIMARY_BUS, ),
+        VoltageConverter(
+            name=strings.HAB_CONV, input_bus=HAB_PRIMARY_BUS, scale_factor=120 / HAB_PRIMARY_BUS.nominal_voltage),
         PowerSource(name=strings.FCELL, internal_resistance=0.00325),
         PowerSource(name=strings.BAT1, internal_resistance=0.01),
         PowerSource(name=strings.BAT2, internal_resistance=0.01)
@@ -97,6 +101,8 @@ HAB_SECONDARY_BUS: Final = PowerBus(
 )
 
 # Collects the power buses together.
+# Note: If bus A can be powered by a voltage converter attached to bus B, bus A must come before bus B
+# (e.g., the Habitat power bus comes before the AYSE power bus).
 POWER_BUSES: List[PowerBus] = [
     HAB_SECONDARY_BUS,
     HAB_PRIMARY_BUS,
@@ -106,7 +112,7 @@ POWER_BUSES: List[PowerBus] = [
 # Same for power sources and voltage converters
 POWER_SOURCES: List[PowerSource] = []
 # Mapping the output power bus powered by a voltage converter -> a voltage converter (e.g. HAB_PRIMARY -> AYSE_CONV)
-VOLTAGE_CONVERTERS: Dict[PowerBus: VoltageConverter] = []
+VOLTAGE_CONVERTERS: Dict[PowerBus, VoltageConverter] = {}
 for bus in POWER_BUSES:
     for power_source in bus.power_sources:
         if isinstance(power_source, PowerSource):
