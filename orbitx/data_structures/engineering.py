@@ -12,6 +12,7 @@ import logging
 from typing import Dict
 
 import numpy as np
+import numpy.typing as npt
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
@@ -100,18 +101,19 @@ class EngineeringState:
             assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
 
     def BusElectricals(self) -> Dict[str, OhmicVars]:
-        """Return Voltage, Current, Resistance, mapped to every bus."""
+        """Return Voltage, Current, Resistance, mapped to every bus name."""
         component_resistances = electrofunctions.component_resistances(self.components)
-        electricals_list = electrofunctions._bus_electricals(component_resistances)
+        active_power_sources = electrofunctions.active_power_sources(self.components)
+        bus_electricals = electrofunctions.bus_electricals(component_resistances, active_power_sources)
 
-        bus_electricals: Dict[str, OhmicVars] = {}
+        bus_electricals_map: Dict[str, OhmicVars] = {}
 
         # We assume electricals_list to be in the same order as electroconstants.POWER_BUSES,
         # i.e. hab primary is first etc.
         for bus_index, bus in enumerate(electroconstants.POWER_BUSES):
-            bus_electricals[bus.name] = electricals_list[bus_index]
+            bus_electricals_map[bus.name] = bus_electricals[bus_index]
 
-        return bus_electricals
+        return bus_electricals_map
 
     @property
     def habitat_fuel(self):

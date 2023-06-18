@@ -38,8 +38,8 @@ K_CONDUCTIVITY: Final = 0.75
 # it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
-# This array is populated later in this module, but for now the default value is infinte, i.e. does not draw power.
-BASE_COMPONENT_RESISTANCES: Final = np.full(N_COMPONENTS, np.inf)
+# This array is populated later in this module, but for now the default value is 1 Ohm.
+BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
 
 
 class VoltageConverter(NamedTuple):
@@ -109,17 +109,6 @@ POWER_BUSES: List[PowerBus] = [
     AYSE_BUS
 ]
 
-# Same for power sources and voltage converters
-POWER_SOURCES: List[PowerSource] = []
-# Mapping the output power bus powered by a voltage converter -> a voltage converter (e.g. HAB_PRIMARY -> AYSE_CONV)
-VOLTAGE_CONVERTERS: Dict[PowerBus, VoltageConverter] = {}
-for bus in POWER_BUSES:
-    for power_source in bus.power_sources:
-        if isinstance(power_source, PowerSource):
-            POWER_SOURCES.append(power_source)
-        elif isinstance(power_source, VoltageConverter):
-            VOLTAGE_CONVERTERS[bus] = power_source
-
 
 # Temporary variable, just to build the component/powerbus connection matrix.
 # Don't use this dict outside of this module, use one of the matrices or
@@ -135,6 +124,9 @@ _component_to_bus_mapping = {
     strings.INS: 0,
     strings.LOS: 0,
     strings.GNC: 0,
+    strings.FCELL: 0,
+    strings.BAT1: 0,
+    strings.BAT2: 0,
     strings.HAB_CONV: 1,
     strings.PRIMARY_PUMP_1: 1,
     strings.PRIMARY_PUMP_2: 1,
@@ -144,21 +136,24 @@ _component_to_bus_mapping = {
     strings.RCON1: 1,
     strings.RCON2: 1,
     strings.ACC1: 1,
-    strings.ION1: 1,
     strings.ACC2: 1,
-    strings.ION2: 1,
     strings.ACC3: 1,
-    strings.ION3: 1,
     strings.ACC4: 1,
+    strings.ION1: 1,
+    strings.ION2: 1,
+    strings.ION3: 1,
     strings.ION4: 1,
     strings.RCSP: 1,
     strings.INJ1: 1,
     strings.INJ2: 1,
+    strings.HAB_REACT: 1,
     strings.REACT_INJ1: 1,
     strings.REACT_INJ2: 1,
     strings.DOCK_MOD: 1,
     strings.RADAR: 1,
     strings.AYSE_CONV: 2,
+    strings.AYSE_REACT: 2,
+    strings.AYSE_BAT: 2,
     strings.ARCON1: 2,
     strings.ARCON2: 2,
 }
@@ -211,7 +206,7 @@ PASSIVE_HEAT_LOSS: Final = np.zeros(N_COMPONENTS)
 COOLANT_CONDUCTIVITY_MATRIX: Final = np.zeros((3, N_COMPONENTS))
 
 # If a component is above this temperature, it will cool faster.
-RESTING_TEMPERATURE: Final = np.zeros(N_COMPONENTS)
+RESTING_TEMPERATURE: Final = np.ones(N_COMPONENTS)
 
 
 def _set_base_resistance(name: str, base_resistance: float):
@@ -273,3 +268,8 @@ _set_base_resistance(strings.ION1, 610.0)
 _set_base_resistance(strings.ION2, 610.0)
 _set_base_resistance(strings.ION3, 610.0)
 _set_base_resistance(strings.ION4, 610.0)
+_set_base_resistance(strings.PRIMARY_PUMP_1, 1000.0)
+_set_base_resistance(strings.PRIMARY_PUMP_2, 1000.0)
+_set_base_resistance(strings.SECONDARY_PUMP_1, 10.0)
+_set_base_resistance(strings.SECONDARY_PUMP_2, 10.0)
+_set_base_resistance(strings.COM, 8.0)

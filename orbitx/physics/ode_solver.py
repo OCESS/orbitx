@@ -145,7 +145,8 @@ def simulation_differential_function(
 
     # Time for the Engineering section.
     component_resistances = electrofunctions.component_resistances(y.engineering.components)
-    bus_electricals = electrofunctions._bus_electricals(component_resistances)
+    active_power_sources = electrofunctions.active_power_sources(y.engineering.components)
+    bus_electricals = electrofunctions.bus_electricals(component_resistances, active_power_sources)
     bus_power = bus_electricals[0].voltage * bus_electricals[0].current
 
     # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.

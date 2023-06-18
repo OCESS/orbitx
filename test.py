@@ -795,16 +795,12 @@ class CoolantTestCase(unittest.TestCase):
 
 class ElectrofunctionsTestCase(unittest.TestCase):
     def test_debug_print(self):
-
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
         for bus in engineering.BusElectricals().items():
             print(bus)
-        import fractions
-        np.set_printoptions(formatter={'all': lambda x: str(fractions.Fraction(x).limit_denominator())})
-        print(electroconstants.BUS_ADMITTANCE_MATRIX)
-        for bus in engineering.BusElectricals().items():
-            print(bus)
+        # TODO: Maybe check the main hab bus resistors, get some actual values, and see if we get
+        # the right numbers and they're consistent with orbitv?
 
 
 def test_performance():

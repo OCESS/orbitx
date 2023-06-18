@@ -18,17 +18,71 @@
   "engineering": {
     "components": [
       {
+        "name": "Reactor Heater"
+      },
+      {
+        "name": "F-CELL INJ"
+      },
+      {
+        "name": "Loop 1 Secondary Coolant Pump",
         "connected": true,
-        "capacity": 0.9,
-        "temperature": 31.3,
-        "coolant_hab_one": true,
+        "capacity": 1.0,
+      },
+      {
+        "name": "Loop 2 Secondary Coolant Pump",
+        "connected": true,
+        "capacity": 1.0,
+      },
+      {
+        "name": "EECOM"
+      },
+      {
+        "name": "Network"
+      },
+      {
+        "name": "COM",
+        "connected": true,
+        "capacity": 1.0,
+        "temperature": 5.5,
+        "coolant_hab_one": true
+      },
+      {
+        "name": "INS"
+      },
+      {
+        "name": "LOS"
+      },
+      {
+        "name": "GNC"
+      },
+      {
+        "name": "Fuel Cell"
+      },
+      {
+        "name": "BATT"
+      },
+      {
+        "name": "BACKUP BAT"
+      },
+      {
+        "name": "High-Low Voltage Converter",
+        "connected": true,
+        "capacity": 1.0
+      },
+      {
+        "name": "Loop 1 Primary Coolant Pump",
+        "connected": true,
+        "capacity": 1.0,
+      },
+      {
+        "name": "Loop 2 Primary Coolant Pump",
+        "connected": true,
+        "capacity": 1.0,
+      },
+      {
         "name": "RAD-S1"
       },
       {
-        "connected": true,
-        "capacity": 0.8,
-        "temperature": 50.0,
-        "coolant_hab_two": true,
         "name": "RAD-S2"
       },
       {
@@ -41,58 +95,34 @@
         "name": "R-CON2"
       },
       {
-        "name": "Ayse R-CON1"
-      },
-      {
-        "name": "Ayse R-CON2"
-      },
-      {
         "name": "ACC1"
-      },
-      {
-        "connected": true,
-        "temperature": 25.6,
-        "coolant_hab_two": true,
-        "name": "ION1"
       },
       {
         "name": "ACC2"
       },
       {
-        "name": "ION2"
-      },
-      {
         "name": "ACC3"
-      },
-      {
-        "name": "ION3"
       },
       {
         "name": "ACC4"
       },
       {
+        "name": "ION1",
+        "connected": true,
+        "temperature": 25.6,
+        "coolant_hab_two": true
+      },
+      {
+        "name": "ION2"
+      },
+      {
+        "name": "ION3"
+      },
+      {
         "name": "ION4"
       },
       {
-        "name": "Fuel Cell"
-      },
-      {
-        "name": "BAT"
-      },
-      {
-        "name": "BACKUP BAT"
-      },
-      {
-        "name": "AYSE BAT"
-      },
-      {
         "name": "RCSP"
-      },
-      {
-        "name": "COM"
-      },
-      {
-        "name": "HAB reactor"
       },
       {
         "name": "INJECTOR 1"
@@ -101,16 +131,15 @@
         "name": "INJECTOR 2"
       },
       {
+        "name": "HAB reactor",
+        "connected": true,
+        "capacity": 1.0
+      },
+      {
         "name": "REACT INJ1"
       },
       {
         "name": "REACT INJ2"
-      },
-      {
-        "name": "F-CELL INJ"
-      },
-      {
-        "name": "AYSE reactor"
       },
       {
         "name": "DOCK MOD"
@@ -119,13 +148,19 @@
         "name": "RADAR"
       },
       {
-        "name": "INS"
+        "name": "AYSE-Habitat Link"
       },
       {
-        "name": "EECOM"
+        "name": "AYSE reactor"
       },
       {
-        "name": "Network"
+        "name": "AYSE BAT"
+      },
+      {
+        "name": "Ayse R-CON1"
+      },
+      {
+        "name": "Ayse R-CON2"
       }
     ],
     "coolant_loops": [

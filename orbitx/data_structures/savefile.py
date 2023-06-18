@@ -14,6 +14,7 @@ import google.protobuf.json_format
 from orbitx import common
 from orbitx import strings
 from orbitx.data_structures.space import PhysicsState
+from orbitx.physics import electroconstants
 
 import orbitx.orbitx_pb2 as protos
 
@@ -69,10 +70,13 @@ def load_savefile(file: Path) -> PhysicsState:
         with open(file, 'r') as f:
             json_dict = json.load(f)
 
-        for component in json_dict['engineering']['components']:
-            # This is just an informational field we add in while saving, get rid of it.
+        for component_i, component in enumerate(json_dict['engineering']['components']):
             if 'name' in component:
+                # This is just an informational field we add in while saving, get rid of it.
                 del component['name']
+            if 'temperature' not in component:
+                # Default for this field should be the resting temperature, not zero.
+                component['temperature'] = electroconstants.RESTING_TEMPERATURE[component_i]
 
         read_state = protos.PhysicalState()
         google.protobuf.json_format.ParseDict(json_dict, read_state)

@@ -9,34 +9,45 @@ from __future__ import annotations
 from typing import List, Union
 
 import numpy as np
+import numpy.typing as npt
 
 from orbitx import strings
-from orbitx.common import OhmicVars
-from orbitx.data_structures.engineering import EngineeringState
-from orbitx.physics.eng_subsystems import ComponentList
+from orbitx import common
+from orbitx.data_structures.eng_subsystems import ComponentList
 from orbitx.physics import electroconstants
-from orbitx.physics.electroconstants.electroconstants import PowerSource, VoltageConverter
-
-
-# dont have power sources have a resistance
-# instead, calculate component resistances naively,
-# then select the active power source for each bus,
-# allowing for cross-bus voltage converters (e.g. bus1 -> AYSE Reactor).
-# Once you have Optional[generator] -> List[bus] mapping, each generator will calculate current draw via
-# 1/Rt = 1/a + 1/b + .. [+ 1/output_bus_total_resistance if there's a connection]
-#   solve for Rt, then Vnominal/(Rintern/Rt+1) = Vactual
-#   Then Vactual/Rt = current out of generator
-#   And Vactual*scale_factor = Vactual_on_output_bus
-#   And thus, Ioutputbus = Vactual*scale_factor/output_bus_total_resistance
+from orbitx.physics.electroconstants import PowerSource, VoltageConverter
 
 
 def bus_electricals(
-    component_resistances: np.ndarray,
+    component_resistances: npt.NDArray[np.float64],
     active_power_sources: List[Union[PowerSource, VoltageConverter, None]]
-) -> List[OhmicVars]:
-    bus_resistances = np.full(len(electroconstants.POWER_BUSES), np.nan)
-    bus_voltages = np.full(len(electroconstants.POWER_BUSES), np.nan)
-    bus_currents = np.full(len(electroconstants.POWER_BUSES), np.nan)
+) -> npt.NDArray[np.record]:
+    """Calculate the resistance, current, and voltage for each power bus.
+
+    A 'power bus' is effectively a parallel circuit of multiple attached components, each with their own resistance,
+    current, and voltage.
+    The voltage on a bus is the same for all components, and we already have the resistance for each component.
+    So once we calculate the voltage on a bus, we can get the currents for everything by solving V=IR!
+    The only complication is that the resistance of a 'voltage converter' component depends on the resistance of other
+    components.
+
+    The general flow of this function is:
+    1. For each bus, calculate total resistance (keeping in mind the voltage converter special case)
+    2. For each bus, calculate the actual voltage (taking into account internal resistance of the power generator, if
+       it's being powered by one)
+    3. For each bus, calculate 
+    """
+    # dont have power sources have a resistance
+    # instead, calculate component resistances naively,
+    # then select the active power source for each bus,
+    # allowing for cross-bus voltage converters (e.g. bus1 -> AYSE Reactor).
+    # Once you have Optional[generator] -> List[bus] mapping, each generator will calculate current draw via
+    # 1/Rt = 1/a + 1/b + .. [+ 1/output_bus_total_resistance if there's a connection]
+    #   solve for Rt, then Vnominal/(Rintern/Rt+1) = Vactual
+    #   Then Vactual/Rt = current out of generator
+    #   And Vactual*scale_factor = Vactual_on_output_bus
+    #   And thus, Ioutputbus = Vactual*scale_factor/output_bus_total_resistance
+    bus_electricals = common.OhmicVarArray(len(electroconstants.POWER_BUSES))
 
     # Step 1: Calculate total resistances on each bus.
     for bus_i, no_power_source in enumerate(active_power_sources):
@@ -45,9 +56,9 @@ def bus_electricals(
             # Only unpowered buses.
             continue
 
-        bus_resistances[bus_i] = np.inf
-        bus_currents[bus_i] = 0
-        bus_voltages[bus_i] = 0
+        bus_electricals[bus_i].resistance = np.inf
+        bus_electricals[bus_i].voltage = 0
+        bus_electricals[bus_i].current = 0
 
     for bus_i, voltage_converter in enumerate(active_power_sources):
         # Then calculate the resistances of any buses powered by a power converter.
@@ -56,62 +67,42 @@ def bus_electricals(
             # Only voltage converters, thank you very much.
             continue
 
-        bus_resistances[bus_i] = _bus_resistance(bus_i, component_resistances)
+        bus_electricals[bus_i].resistance = _bus_resistance(bus_i, component_resistances)
 
         # Then, set the resistance of the voltage converter so that the input bus will realize it's a load.
         converter_i = strings.COMPONENT_NAMES.index(voltage_converter.name)
-        component_resistances[converter_i] = bus_resistances[bus_i]
+        component_resistances[converter_i] = bus_electricals[bus_i].resistance
 
     for bus_i, generator in enumerate(active_power_sources):
         if not isinstance(generator, PowerSource):
             # Only actual power sources like reactors now, we've done everything else.
             continue
 
-        bus_resistances[bus_i] = _bus_resistance(bus_i, component_resistances)
+        bus_electricals[bus_i] = _bus_resistance(bus_i, component_resistances)
 
         # Step 2: Calculate the actual voltage output of each power generator.
         # We figure out the voltage drop on each bus by reading the equation in
         # https://en.wikipedia.org/wiki/Internal_resistance and solving for V_fl.
-        bus_voltages[bus_i] = (
+        bus_electricals[bus_i].voltage = (
             electroconstants.POWER_BUSES[bus_i].nominal_voltage
-            / (generator.internal_resistance / bus_resistances[bus_i] + 1)
+            / (generator.internal_resistance / bus_electricals[bus_i].resistance + 1)
         )
-        bus_currents[bus_i] = bus_voltages[bus_i] / bus_resistances[bus_i]
+        bus_electricals[bus_i].current = bus_electricals[bus_i].voltage / bus_electricals[bus_i].resistance
 
     for output_bus_i, voltage_converter in enumerate(active_power_sources):
-        # Step 3: Now that we know the voltage of the input bus that's powering this converter,
-        # calculate the voltage of the output bus that is powered by this converter.
         if not isinstance(voltage_converter, VoltageConverter):
             # Only voltage converters, thank you very much.
             continue
 
-        input_bus_i = electroconstants.POWER_BUSES.index(voltage_converter.input_bus.name)
-        bus_voltages[output_bus_i] = bus_voltages[input_bus_i] * voltage_converter.scale_factor
-        bus_currents[output_bus_i] = bus_currents[input_bus_i] / voltage_converter.scale_factor
+        # Step 3: Now that we know the voltage of the input bus that's powering this converter,
+        # calculate the voltage of the output bus that is powered by this converter.
+        input_bus_i = electroconstants.POWER_BUSES.index(voltage_converter.input_bus)
+        bus_electricals[output_bus_i].voltage = bus_electricals[input_bus_i].voltage * voltage_converter.scale_factor
+        bus_electricals[output_bus_i].current = (
+            bus_electricals[output_bus_i].voltage / bus_electricals[output_bus_i].resistance
+        )
 
-    buses: List[OhmicVars] = []
-    for bus_n in range(0, len(electroconstants.POWER_BUSES)):
-        buses.append(OhmicVars(voltage=bus_voltages[bus_n],
-                               current=bus_currents[bus_n],
-                               resistance=bus_resistances[bus_n]))
-    return buses
-
-
-def _bus_resistance(bus_i: int, component_resistances: np.ndarray) -> float:
-    # Calculate 1/resistance for each component, then sum them all up to find the resistance on a power bus.
-    # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
-    # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
-
-    # The right side of this first assignment evaluates to an array with a 0 or 1 for every component.
-    components_on_this_bus = (electroconstants.COMPONENT_BUS_CONNECTION_MATRIX[bus_i] != 0)
-    # For every component attached to this bus, sum 1/(component_resistance)
-    sum_of_reciprocals = np.sum(np.reciprocal(component_resistances[components_on_this_bus]))
-
-    if sum_of_reciprocals == 0.0:
-        # There are no components connected.
-        return np.inf
-    else:
-        return 1 / sum_of_reciprocals
+    return bus_electricals
 
 
 def component_resistances(components: ComponentList) -> np.ndarray:
@@ -147,20 +138,14 @@ def component_resistances(components: ComponentList) -> np.ndarray:
 
 
 def component_heating_rate(
-        y: EngineeringState, component_resist_array: np.ndarray, power_buses: List[OhmicVars]
+        y: EngineeringState, component_resistances: npt.NDArray[np.float64], power_buses: np.recarray
 ) -> np.ndarray:
     """Calculate an array of length N_COMPONENTS, for how much each component is heating or cooling."""
 
     # Calculate the voltage of each component.
-    # Really, this is just a fancy way of selecting which of the four bus voltages
-    # to use.
+    # Really, this is just a fancy way of selecting which of the bus voltages to use.
     # TODO: fixup
-    bus_voltages_column_vector = np.array([[
-        power_buses[0].voltage,
-        power_buses[1].voltage,
-        power_buses[2].voltage,
-        power_buses[3].voltage
-    ]]).T
+    bus_voltages_column_vector = power_buses.voltage[np.newaxis].T
 
     component_voltages = np.sum(bus_voltages_column_vector * electroconstants.COMPONENT_BUS_CONNECTION_MATRIX, axis=0)
 
@@ -168,7 +153,7 @@ def component_heating_rate(
     # Since P = IV and I = V/R, we can just use the P = V^2 / R shortcut.
     # We use the voltage of the respective power bus, since the voltage of
     # every component in a single parallel circuit is the same.
-    component_powers = np.square(component_voltages) / component_resist_array
+    component_powers = np.square(component_voltages) / component_resistances
 
     # A bit of the power going through a component gets turned into heat.
     resistive_heating = component_powers * electroconstants.POWER_INEFFICIENCY
@@ -211,7 +196,7 @@ def component_heating_rate(
     return capped_net_heating
 
 
-def active_power_sources(components: ComponentList) -> List[PowerSource, VoltageConverter, None]:
+def active_power_sources(components: ComponentList) -> List[Union[PowerSource, VoltageConverter, None]]:
     """TODO explain lmao."""
     active_power_source_list = []
 
@@ -229,3 +214,20 @@ def active_power_sources(components: ComponentList) -> List[PowerSource, Voltage
         active_power_source_list.append(active_power_source)
 
     return active_power_source_list
+
+
+def _bus_resistance(bus_i: int, component_resistances: npt.NDArray[np.float64]) -> float:
+    # Calculate 1/resistance for each component, then sum them all up to find the resistance on a power bus.
+    # We shouldn't have to guard against divide-by-zero here, because resistances shouldn't
+    # be zero. If we _do_ divide by zero, we've configured np.seterr elsewhere to raise an exception.
+
+    # The right side of this first assignment evaluates to an array with a 0 or 1 for every component.
+    components_on_this_bus = (electroconstants.COMPONENT_BUS_CONNECTION_MATRIX[bus_i] != 0)
+    # For every component attached to this bus, sum 1/(component_resistance)
+    sum_of_reciprocals = np.sum(np.reciprocal(component_resistances[components_on_this_bus]))
+
+    if sum_of_reciprocals == 0.0:
+        # There are no components connected.
+        return np.inf
+    else:
+        return 1 / sum_of_reciprocals
