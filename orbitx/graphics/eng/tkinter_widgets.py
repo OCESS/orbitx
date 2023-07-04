@@ -8,12 +8,21 @@ from pathlib import Path
 from abc import ABCMeta, abstractmethod
 import tkinter as tk
 from PIL import Image, ImageTk
-from typing import List, Optional, Callable
+import re
+from typing import Callable, NamedTuple, Optional, List
+from xml.etree import ElementTree as ET
 
 from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 from orbitx import strings
+
+
+class Coords(NamedTuple):
+    x: int
+    y: int
+    width: int
+    height: int
 
 
 class Redrawable(metaclass=ABCMeta):
@@ -264,19 +273,20 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
     def __init__(
             self,
             parent: tk.Widget,
+            component_name: str,
             *,
-            #component_name: str,
-            x: int,
-            y: int):
+            svg_tree: ET.Element):
 
-        tk.LabelFrame.__init__(self, parent, text=strings.BAT1, labelanchor=tk.N)
+        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+
+        self.place(x=coords.x, y=coords.y)
 
         pholder = 9999
 
-        tk.Label(self, text=f"{strings.BAT1} {pholder} Ah").grid(row=0, column=0)
+        tk.Label(self, text=f"{coords}").grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass
@@ -439,3 +449,39 @@ class ComponentConnection(tk.Button, Redrawable):
 
     def _onpress(self):
         hab_eng.push_command(Request(ident=Request.TOGGLE_COMPONENT, component_to_toggle=self._connected_component_n))
+
+
+def _find_coords_from_svg(text: str, svg: ET.Element) -> Coords:
+    x = y = width = height = None
+    margin_left_regex = re.compile(r'margin-left: (\d+)px')
+    padding_top_regex = re.compile(r'padding-top: (\d+)px')
+    width_regex = re.compile(r'width: (\d+)px')
+    height_regex = re.compile(r'height: (\d+)px')
+    for element in svg.findall(f".//{{*}}*[.='{text}']"):
+        style_text = element.get('style', default='')
+
+        if margin_left_regex.search(style_text):
+            assert x is None, \
+                f'Unexpected second value: {x} would be overwritten by {margin_left_regex.search(style_text).group(0)}'
+            x = int(margin_left_regex.search(style_text).group(1))
+        if padding_top_regex.search(style_text):
+            assert y is None, \
+                f'Unexpected second value: {y} would be overwritten by {padding_top_regex.search(style_text).group(0)}'
+            y = int(padding_top_regex.search(style_text).group(1))
+        if width_regex.search(style_text):
+            assert width is None, \
+                f'Unexpected second value: {width} would be overwritten by {width_regex.search(style_text).group(0)}'
+            width = int(width_regex.search(style_text).group(1))
+        if height_regex.search(style_text):
+            assert height is None, \
+                f'Unexpected second value: {height} would be overwritten by {height_regex.search(style_text).group(0)}'
+            height = int(height_regex.search(style_text).group(1))
+
+    assert x is not None
+    assert y is not None
+    assert width is not None
+    assert height is not None
+    if height <= 1:
+        height = 18
+
+    return Coords(x=x - width, y=y - height, width=width, height=height)

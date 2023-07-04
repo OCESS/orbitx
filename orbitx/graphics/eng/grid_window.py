@@ -1,6 +1,7 @@
 import tkinter as tk
-from PIL import Image, ImageTk
+import tksvg
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from orbitx import strings
 from orbitx.graphics.eng import tkinter_widgets as widgets
@@ -21,11 +22,13 @@ class GridPage(tk.Frame):
 
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
-        grid_background = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'powergrid-background.png')))
+        svg_path = Path('data', 'engineering', 'orbitx-powergrid.svg')
+        grid_background = tksvg.SvgImage(file=svg_path)
         bg_label = tk.Label(self, image=grid_background)
         bg_label.image = grid_background  # TODO: does this do anything? Label has no image attribute
         bg_label.place(x=0, y=0)
+
+        svg_tree = ET.parse(svg_path).getroot()
 
         widgets.ComponentConnection.load_glyphs()
 
@@ -48,7 +51,7 @@ class GridPage(tk.Frame):
         """ Secondary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, strings.BUS2, x=60, y=500)
 
-        widgets.BatteryFrame(self, x=230, y=610)
+        widgets.BatteryFrame(self, strings.BAT1, svg_tree=svg_tree)
         widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
         widgets.SimpleFrame(self, strings.COM, x=80, y=400)
 
@@ -56,7 +59,7 @@ class GridPage(tk.Frame):
         widgets.SimpleFrame(self, strings.INS, x=465, y=400)
         widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
         widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
-        widgets.BatteryFrame(self, x=650, y=400)
+        widgets.BatteryFrame(self, strings.BAT2, svg_tree=svg_tree)
         widgets.SimpleFrame(self, strings.EECOM, x=750, y=480)
         widgets.SimpleFrame(self, strings.NETWORK, x=750, y=530)
 
