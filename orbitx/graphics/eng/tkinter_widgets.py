@@ -6,6 +6,7 @@ Every widget should inherit from Redrawable.
 
 from pathlib import Path
 from abc import ABCMeta, abstractmethod
+import logging
 import tkinter as tk
 from PIL import Image, ImageTk
 import re
@@ -16,6 +17,13 @@ from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 from orbitx import strings
+
+log = logging.getLogger('orbitx')
+
+MARGIN_LEFT_REGEX = re.compile(r'margin-left: (\d+)px')
+PADDING_TOP_REGEX = re.compile(r'padding-top: (\d+)px')
+WIDTH_REGEX = re.compile(r'width: (\d+)px')
+HEIGHT_REGEX = re.compile(r'height: (\d+)px')
 
 
 class Coords(NamedTuple):
@@ -116,7 +124,6 @@ class CoolantButton(tk.Button, Redrawable):
         coolant_loop_texts = [strings.LP1, strings.LP2, strings.LP3]
 
         tk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
-        #self.grid(fill=tk.X, expand=True)
         Redrawable.__init__(self)
 
         self._component_n = component_n
@@ -141,11 +148,12 @@ class SimpleFrame(tk.LabelFrame, Redrawable):
     Represents a simple component, with no buttons, labels, etc.
     """
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
-        self.place(x=x, y=y)
-        tk.Label(self, textvariable=component_name).grid(row=0, column=0)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
+        tk.Label(self, text=component_name).grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass
@@ -162,8 +170,7 @@ class RCONFrame(tk.LabelFrame, Redrawable):
                  optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
                  has_coolant_controls: bool = True,
                  *,
-                 x: int,
-                 y: int):
+                 svg_tree: ET.Element):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -173,7 +180,9 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         """
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
-        self.place(x=x, y=y)
+
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
         self._component_name = component_name
 
@@ -196,73 +205,18 @@ class RCONFrame(tk.LabelFrame, Redrawable):
 
 class EngineFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        self._component_name = "Engines"
+        self._component_name = component_name
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
-
-        # Draws buttons in numerical order
-        for i in range(0, 4):
-            tk.Button(self, text=f"GPD{i+1}").grid(row=i // 2, column=i % 2)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class EngineControlFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, component_name: str, is_ionizers: bool, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @component_name: The name of the component the widget is displaying
-        @is_ionizers: Used to distinguish between ionizer and accelerator frames.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        # Tuples used for managing strings in buttons
-        ionizers = (strings.ION1, strings.ION2, strings.ION3, strings.ION4)
-        accelerators = (strings.ACC1, strings.ACC2, strings.ACC3, strings.ACC4)
-        engine_names = ionizers if is_ionizers else accelerators
-
-        self.place(x=x, y=y)
-
-        # Draws ionizers/accelerators
-        for i in range(0, 4):
-            tk.Button(self, text=engine_names[i]).grid(row=i // 2, column=i % 2)
-
-        for i in range(0, 2):
-            tk.Button(self, text=f"LP{i+1}").grid(row=2, column=i)
-
-        pholder = 80
-
-        tk.Label(self, text="Main Temp:").grid(row=3, column=0)
-        tk.Label(self, text=f"{pholder:,}%").grid(row=3, column=1)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class AGRAVFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
-
-        tk.LabelFrame.__init__(self, parent, text=strings.AGRAV, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._component_name = strings.AGRAV
-        CoolantSection(self, 0)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
     def redraw(self, state: EngineeringState):
         pass
@@ -281,10 +235,7 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
         Redrawable.__init__(self)
 
         coords = _find_coords_from_svg(component_name, svg_tree)
-
         self.place(x=coords.x, y=coords.y)
-
-        pholder = 9999
 
         tk.Label(self, text=f"{coords}").grid(row=0, column=0)
 
@@ -294,17 +245,18 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
 
 class FuelFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        self._component_name = "Habitat Fuel"
+        self._component_name = component_name
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
         self._fuel_count_text = tk.StringVar()
         tk.Label(self, textvariable=self._fuel_count_text).pack(side=tk.TOP)
@@ -315,7 +267,7 @@ class FuelFrame(tk.LabelFrame, Redrawable):
 
 class ReactorFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
         """
         @parent: The GridPage that this will be placed in.
         @component_name: The string name of the component
@@ -325,7 +277,8 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
         self._reactor_status = tk.StringVar()
         self._temperature_text = tk.StringVar()
@@ -346,7 +299,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
 
 class RadShieldFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, has_coolant_controls: bool = True, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -356,7 +309,8 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=self._component_name, bg='#AADDEE', labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
         self._rad_strength = tk.StringVar()
 
@@ -374,13 +328,14 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
 
 class PowerBusFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
+    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
 
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         self._component_name = component_name
         Redrawable.__init__(self)
 
-        self.place(x=x, y=y)
+        coords = _find_coords_from_svg(component_name, svg_tree)
+        self.place(x=coords.x, y=coords.y)
 
         self._power = tk.StringVar()
         self._current = tk.StringVar()
@@ -400,88 +355,35 @@ class PowerBusFrame(tk.LabelFrame, Redrawable):
         self._voltage.set(str(bus_electricals.voltage))
 
 
-class ComponentConnection(tk.Button, Redrawable):
-    """
-    Visually represents a switch to connect or disconnect a component from a power bus.
-    """
-
-    # Images representing a connected or disconnected switch, horizontal or vertical.
-    # We can't load images
-    H_CONNECTED: ImageTk.PhotoImage
-    V_CONNECTED: ImageTk.PhotoImage
-    H_DISCONNECTED: ImageTk.PhotoImage
-    V_DISCONNECTED: ImageTk.PhotoImage
-
-    @staticmethod
-    def load_glyphs():
-        """
-        Call this method only once after Tk has been fully initialized.
-        """
-        ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'h-connected.png')))
-        ComponentConnection.V_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'v-connected.png')))
-        ComponentConnection.H_DISCONNECTED = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'h-disconnected.png')))
-        ComponentConnection.V_DISCONNECTED = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'v-disconnected.png')))
-
-    def __init__(self, parent: tk.Widget, connected_component: str, vertical: bool = True, *, x: int, y: int):
-        # A button wide enough for 1 character, with no internal padding.
-        tk.Button.__init__(self, parent, command=self._onpress, padx=0, pady=0)
-        Redrawable.__init__(self)
-        self.place(x=x, y=y)
-
-        self._connected_component_name = connected_component
-        self._connected_component_n = strings.COMPONENT_NAMES.index(connected_component)
-
-        if vertical:
-            self._connected_glyph = ComponentConnection.V_CONNECTED
-            self._disconnected_glyph = ComponentConnection.V_DISCONNECTED
-        else:
-            self._connected_glyph = ComponentConnection.H_CONNECTED
-            self._disconnected_glyph = ComponentConnection.H_DISCONNECTED
-
-    def redraw(self, state: EngineeringState):
-        connected = state.components[self._connected_component_name].connected
-        if connected:
-            self.configure(image=self._connected_glyph)
-        else:
-            self.configure(image=self._disconnected_glyph)
-
-    def _onpress(self):
-        hab_eng.push_command(Request(ident=Request.TOGGLE_COMPONENT, component_to_toggle=self._connected_component_n))
-
-
 def _find_coords_from_svg(text: str, svg: ET.Element) -> Coords:
     x = y = width = height = None
-    margin_left_regex = re.compile(r'margin-left: (\d+)px')
-    padding_top_regex = re.compile(r'padding-top: (\d+)px')
-    width_regex = re.compile(r'width: (\d+)px')
-    height_regex = re.compile(r'height: (\d+)px')
+
     for element in svg.findall(f".//{{*}}*[.='{text}']"):
         style_text = element.get('style', default='')
+        x_match = MARGIN_LEFT_REGEX.search(style_text)
+        y_match = PADDING_TOP_REGEX.search(style_text)
+        width_match = WIDTH_REGEX.search(style_text)
+        height_match = HEIGHT_REGEX.search(style_text)
 
-        if margin_left_regex.search(style_text):
-            assert x is None, \
-                f'Unexpected second value: {x} would be overwritten by {margin_left_regex.search(style_text).group(0)}'
-            x = int(margin_left_regex.search(style_text).group(1))
-        if padding_top_regex.search(style_text):
-            assert y is None, \
-                f'Unexpected second value: {y} would be overwritten by {padding_top_regex.search(style_text).group(0)}'
-            y = int(padding_top_regex.search(style_text).group(1))
-        if width_regex.search(style_text):
-            assert width is None, \
-                f'Unexpected second value: {width} would be overwritten by {width_regex.search(style_text).group(0)}'
-            width = int(width_regex.search(style_text).group(1))
-        if height_regex.search(style_text):
-            assert height is None, \
-                f'Unexpected second value: {height} would be overwritten by {height_regex.search(style_text).group(0)}'
-            height = int(height_regex.search(style_text).group(1))
+        if x_match:
+            assert x is None, f"Unexpected second value for {text}: {x} would be overwritten by {x_match.group(0)}"
+            x = int(x_match.group(1))
+        if y_match:
+            assert y is None, f"Unexpected second value for {text}: {y} would be overwritten by {y_match.group(0)}"
+            y = int(y_match.group(1))
+        if width_match:
+            assert width is None, f"Unexpected second value for {text}: {width} would be overwritten by {width_match.group(0)}"
+            width = int(width_match.group(1))
+        if height_match:
+            assert height is None, f"Unexpected second value for {text}: {height} would be overwritten by {height_match.group(0)}"
+            height = int(height_match.group(1))
 
-    assert x is not None
-    assert y is not None
-    assert width is not None
-    assert height is not None
+    assert x is not None, f"No x value found for {text}"
+    assert y is not None, f"No y value found for {text}"
+    assert width is not None, f"No width value found for {text}"
+    assert height is not None, f"No height value found for {text}"
     if height <= 1:
         height = 18
 
+    log.debug(f"Found {text} at {x}+{width}, {y}+{height}.")
     return Coords(x=x - width, y=y - height, width=width, height=height)

@@ -25,48 +25,51 @@ class GridPage(tk.Frame):
         svg_path = Path('data', 'engineering', 'orbitx-powergrid.svg')
         grid_background = tksvg.SvgImage(file=svg_path)
         bg_label = tk.Label(self, image=grid_background)
-        bg_label.image = grid_background  # TODO: does this do anything? Label has no image attribute
+        bg_label.image = grid_background
         bg_label.place(x=0, y=0)
 
         svg_tree = ET.parse(svg_path).getroot()
 
-        widgets.ComponentConnection.load_glyphs()
-
-#        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
-
         """ Primary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS1, x=325, y=325)
+        widgets.PowerBusFrame(self, strings.BUS1, svg_tree=svg_tree)
 
-        widgets.ReactorFrame(self, strings.HAB_REACT, x=75, y=275)
-        widgets.FuelFrame(self, x=75, y=100)
-        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=220, y=95)
-        widgets.RCONFrame(self,  strings.RCON2, lambda x: "Current", x=345, y=95)
-        widgets.RadShieldFrame(self, x=495, y=95)
-        widgets.SimpleFrame(self, strings.RADAR, x=650, y=160)
-        widgets.SimpleFrame(self, strings.RCSP, x=730, y=160)
-        widgets.AGRAVFrame(self, x=815, y=95)
-        widgets.EngineControlFrame(self, "Engine Ionizers", True, x=910, y=10)
-        widgets.EngineControlFrame(self, "Engine Accelerators", False, x=1080, y=10)
+        widgets.ReactorFrame(self, strings.HAB_REACT, svg_tree=svg_tree)
+        widgets.FuelFrame(self, strings.HAB_FUEL, svg_tree=svg_tree)
+        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", svg_tree=svg_tree)
+        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", svg_tree=svg_tree)
+        widgets.RadShieldFrame(self, strings.RADS1, svg_tree=svg_tree)
+        widgets.RadShieldFrame(self, strings.RADS2, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.RADAR, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.RCSP, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.AGRAV, svg_tree=svg_tree)
+
+        widgets.EngineFrame(self, strings.ACC1, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ACC2, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ACC3, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ACC4, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ION1, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ION2, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ION3, svg_tree=svg_tree)
+        widgets.EngineFrame(self, strings.ION4, svg_tree=svg_tree)
 
         """ Secondary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS2, x=60, y=500)
+        widgets.PowerBusFrame(self, strings.BUS2, svg_tree=svg_tree)
 
         widgets.BatteryFrame(self, strings.BAT1, svg_tree=svg_tree)
-        widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
-        widgets.SimpleFrame(self, strings.COM, x=80, y=400)
+        widgets.SimpleFrame(self, strings.FCELL, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.COM, svg_tree=svg_tree)
 
         """ Tertiary Habitat Bus Widgets """
-        widgets.SimpleFrame(self, strings.INS, x=465, y=400)
-        widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
-        widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
+        widgets.SimpleFrame(self, strings.INS, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.LOS, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.GNC, svg_tree=svg_tree)
         widgets.BatteryFrame(self, strings.BAT2, svg_tree=svg_tree)
-        widgets.SimpleFrame(self, strings.EECOM, x=750, y=480)
-        widgets.SimpleFrame(self, strings.NETWORK, x=750, y=530)
+        widgets.SimpleFrame(self, strings.EECOM, svg_tree=svg_tree)
+        widgets.SimpleFrame(self, strings.NETWORK, svg_tree=svg_tree)
 
         """ Ayse Power Bus Widgets """
-        widgets.PowerBusFrame(self, strings.AYSE_BUS, x=1040, y=640)
+        widgets.PowerBusFrame(self, strings.AYSE_BUS, svg_tree=svg_tree)
 
-        widgets.EngineFrame(self, x=1080, y=850)
-        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", x=830, y=730)
-        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", x=830, y=620)
-        widgets.ReactorFrame(self, strings.AYSE_REACT, x=980, y=460)
+        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", svg_tree=svg_tree)
+        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", svg_tree=svg_tree)
+        widgets.ReactorFrame(self, strings.AYSE_REACT, svg_tree=svg_tree)
