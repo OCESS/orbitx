@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2023-09-29T22:34:53.150Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0" etag="JX5t7KGM94jV_1ixlki-" version="21.6.5" type="github">
+<mxfile host="app.diagrams.net" modified="2023-10-08T03:53:16.220Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0" etag="HVhC1JpJZyNRKPYU425T" version="22.0.0" type="github">
   <diagram name="engineering powergrid" id="7e0a89b8-554c-2b80-1dc8-d5c74ca68de4">
-    <mxGraphModel dx="1562" dy="854" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="960" background="none" math="0" shadow="0">
+    <mxGraphModel dx="1488" dy="813" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="960" background="none" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -36,11 +36,12 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="_JEZ3J47ZPrk2JFdRRhO-14" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.4;exitDx=0;exitDy=0;exitPerimeter=0;labelBackgroundColor=default;strokeColor=#001DBC;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=none;endFill=0;spacing=6;spacingLeft=4;spacingRight=4;" parent="1" source="1ztC85pV6qE-m2-LkMGd-18" target="1ztC85pV6qE-m2-LkMGd-61" edge="1">
+        <mxCell id="_JEZ3J47ZPrk2JFdRRhO-14" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.4;exitDx=0;exitDy=0;exitPerimeter=0;labelBackgroundColor=default;strokeColor=#001DBC;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=none;endFill=0;spacing=6;spacingLeft=4;spacingRight=4;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="1ztC85pV6qE-m2-LkMGd-18" target="1ztC85pV6qE-m2-LkMGd-61" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
+              <mxPoint x="200" y="162" />
               <mxPoint x="160" y="162" />
-              <mxPoint x="160" y="119" />
+              <mxPoint x="160" y="95" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -110,10 +111,10 @@
           <mxGeometry x="190" y="380" width="70" height="100" as="geometry" />
         </mxCell>
         <mxCell id="1ztC85pV6qE-m2-LkMGd-61" value="&lt;div&gt;Primary Battery&lt;br&gt;&lt;/div&gt;" style="pointerEvents=1;verticalLabelPosition=middle;shadow=0;dashed=0;align=center;html=1;verticalAlign=middle;shape=mxgraph.electrical.signal_sources.source;aspect=fixed;points=[[0.5,0,0],[1,0.5,0],[0.5,1,0],[0,0.5,0]];elSignalType=dc3;direction=east;labelPosition=center;spacingBottom=0;spacingLeft=4;spacing=6;spacingTop=0;fillColor=none;fontFamily=Helvetica;fontSize=11;fontColor=default;strokeWidth=2;whiteSpace=wrap;spacingRight=4;" parent="1" vertex="1">
-          <mxGeometry x="35" y="90" width="50" height="50" as="geometry" />
+          <mxGeometry x="35" y="70" width="50" height="50" as="geometry" />
         </mxCell>
         <mxCell id="1ztC85pV6qE-m2-LkMGd-62" value="&lt;div&gt;Backup Battery&lt;br&gt;&lt;/div&gt;" style="pointerEvents=1;verticalLabelPosition=middle;shadow=0;dashed=0;align=center;html=1;verticalAlign=middle;shape=mxgraph.electrical.signal_sources.source;aspect=fixed;points=[[0.5,0,0],[1,0.5,0],[0.5,1,0],[0,0.5,0]];elSignalType=dc3;direction=east;labelPosition=center;spacingBottom=0;spacingLeft=4;spacing=6;spacingTop=0;fillColor=none;fontFamily=Helvetica;fontSize=11;fontColor=default;strokeWidth=2;whiteSpace=wrap;spacingRight=4;" parent="1" vertex="1">
-          <mxGeometry x="35" y="30" width="50" height="50" as="geometry" />
+          <mxGeometry x="35" y="1" width="50" height="50" as="geometry" />
         </mxCell>
         <mxCell id="1ztC85pV6qE-m2-LkMGd-64" value="High-Low Voltage Converter" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;dashed=0;pointerEvents=1;strokeColor=default;strokeWidth=2;fontFamily=Helvetica;fontSize=8;fontColor=default;fillColor=default;align=center;spacing=6;spacingLeft=4;spacingRight=4;" parent="1" vertex="1">
           <mxGeometry x="200" y="255" width="60" height="55" as="geometry" />
@@ -534,7 +535,7 @@
           <mxGeometry x="660" y="750" width="80" height="70" as="geometry" />
         </mxCell>
         <mxCell id="myox8_UyH-Cyfy9n1glV-161" value="[Control Panel]" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=20;fontColor=default;spacing=6;spacingLeft=4;spacingRight=4;" parent="1" vertex="1">
-          <mxGeometry x="1030" y="230" width="170" height="220" as="geometry" />
+          <mxGeometry x="1110" y="240" width="170" height="220" as="geometry" />
         </mxCell>
         <mxCell id="tQ9dKehXmJsp5aBIyWJH-1" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;jumpStyle=arc;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;labelBackgroundColor=none;strokeColor=#999900;fontFamily=Helvetica;fontSize=8;fontColor=default;endArrow=none;endFill=0;spacing=6;spacingLeft=4;spacingRight=4;" parent="1" source="myox8_UyH-Cyfy9n1glV-60" target="1ztC85pV6qE-m2-LkMGd-46" edge="1">
           <mxGeometry relative="1" as="geometry">
