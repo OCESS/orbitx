@@ -11,7 +11,6 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import re
 from typing import Callable, NamedTuple, Optional, List
-from xml.etree import ElementTree as ET
 
 from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
@@ -148,11 +147,13 @@ class SimpleFrame(tk.LabelFrame, Redrawable):
     Represents a simple component, with no buttons, labels, etc.
     """
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
-        coords = _find_coords_from_svg(component_name, svg_tree)
-        self.place(x=coords.x, y=coords.y)
+        self._component_name = component_name
+        self.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
+        if component_name == 'EECOM':
+            self.place(x=coords.x, y=0, width=coords.width, height=coords.height)
         tk.Label(self, text=component_name).grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
@@ -170,7 +171,7 @@ class RCONFrame(tk.LabelFrame, Redrawable):
                  optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
                  has_coolant_controls: bool = True,
                  *,
-                 svg_tree: ET.Element):
+                 coords: Coords):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -181,7 +182,6 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         self._component_name = component_name
@@ -205,7 +205,7 @@ class RCONFrame(tk.LabelFrame, Redrawable):
 
 class EngineFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -215,7 +215,6 @@ class EngineFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
     def redraw(self, state: EngineeringState):
@@ -229,12 +228,11 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
             parent: tk.Widget,
             component_name: str,
             *,
-            svg_tree: ET.Element):
+            coords: Coords):
 
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         tk.Label(self, text=f"{coords}").grid(row=0, column=0)
@@ -245,7 +243,7 @@ class BatteryFrame(tk.LabelFrame, Redrawable):
 
 class FuelFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -255,7 +253,6 @@ class FuelFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         self._fuel_count_text = tk.StringVar()
@@ -267,7 +264,7 @@ class FuelFrame(tk.LabelFrame, Redrawable):
 
 class ReactorFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
         """
         @parent: The GridPage that this will be placed in.
         @component_name: The string name of the component
@@ -277,7 +274,6 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         self._reactor_status = tk.StringVar()
@@ -299,7 +295,7 @@ class ReactorFrame(tk.LabelFrame, Redrawable):
 
 class RadShieldFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
@@ -309,7 +305,6 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
         tk.LabelFrame.__init__(self, parent, text=self._component_name, bg='#AADDEE', labelanchor=tk.N)
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         self._rad_strength = tk.StringVar()
@@ -328,13 +323,12 @@ class RadShieldFrame(tk.LabelFrame, Redrawable):
 
 class PowerBusFrame(tk.LabelFrame, Redrawable):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, svg_tree: ET.Element):
+    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
 
         tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
         self._component_name = component_name
         Redrawable.__init__(self)
 
-        coords = _find_coords_from_svg(component_name, svg_tree)
         self.place(x=coords.x, y=coords.y)
 
         self._power = tk.StringVar()
@@ -353,37 +347,3 @@ class PowerBusFrame(tk.LabelFrame, Redrawable):
         self._power.set(str(bus_electricals.current * bus_electricals.voltage))
         self._current.set(str(bus_electricals.current))
         self._voltage.set(str(bus_electricals.voltage))
-
-
-def _find_coords_from_svg(text: str, svg: ET.Element) -> Coords:
-    x = y = width = height = None
-
-    for element in svg.findall(f".//{{*}}*[.='{text}']"):
-        style_text = element.get('style', default='')
-        x_match = MARGIN_LEFT_REGEX.search(style_text)
-        y_match = PADDING_TOP_REGEX.search(style_text)
-        width_match = WIDTH_REGEX.search(style_text)
-        height_match = HEIGHT_REGEX.search(style_text)
-
-        if x_match:
-            assert x is None, f"Unexpected second value for {text}: {x} would be overwritten by {x_match.group(0)}"
-            x = int(x_match.group(1))
-        if y_match:
-            assert y is None, f"Unexpected second value for {text}: {y} would be overwritten by {y_match.group(0)}"
-            y = int(y_match.group(1))
-        if width_match:
-            assert width is None, f"Unexpected second value for {text}: {width} would be overwritten by {width_match.group(0)}"
-            width = int(width_match.group(1))
-        if height_match:
-            assert height is None, f"Unexpected second value for {text}: {height} would be overwritten by {height_match.group(0)}"
-            height = int(height_match.group(1))
-
-    assert x is not None, f"No x value found for {text}"
-    assert y is not None, f"No y value found for {text}"
-    assert width is not None, f"No width value found for {text}"
-    assert height is not None, f"No height value found for {text}"
-    if height <= 1:
-        height = 18
-
-    log.debug(f"Found {text} at {x}+{width}, {y}+{height}.")
-    return Coords(x=x - width, y=y - height, width=width, height=height)
