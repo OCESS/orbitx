@@ -19,10 +19,7 @@ from orbitx import strings
 
 log = logging.getLogger('orbitx')
 
-MARGIN_LEFT_REGEX = re.compile(r'margin-left: (\d+)px')
-PADDING_TOP_REGEX = re.compile(r'padding-top: (\d+)px')
-WIDTH_REGEX = re.compile(r'width: (\d+)px')
-HEIGHT_REGEX = re.compile(r'height: (\d+)px')
+INNER_TEXT_MARGIN = 2
 
 
 class Coords(NamedTuple):
@@ -142,19 +139,16 @@ class CoolantButton(tk.Button, Redrawable):
             self.config(relief=tk.RAISED)
 
 
-class SimpleFrame(tk.LabelFrame, Redrawable):
+class SimpleText(tk.Label, Redrawable):
     """
     Represents a simple component, with no buttons, labels, etc.
     """
 
     def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
+        tk.Label.__init__(self, parent, text=component_name, wraplength=coords.width - INNER_TEXT_MARGIN, relief='ridge')
         Redrawable.__init__(self)
         self._component_name = component_name
         self.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
-        if component_name == 'EECOM':
-            self.place(x=coords.x, y=0, width=coords.width, height=coords.height)
-        tk.Label(self, text=component_name).grid(row=0, column=0)
 
     def redraw(self, state: EngineeringState):
         pass

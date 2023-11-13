@@ -45,9 +45,9 @@ class GridPage(tk.Frame):
         widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", coords=drawio_svg.widget_coords(strings.RCON2))
         widgets.RadShieldFrame(self, strings.RADS1, coords=drawio_svg.widget_coords(strings.RADS1))
         widgets.RadShieldFrame(self, strings.RADS2, coords=drawio_svg.widget_coords(strings.RADS2))
-        widgets.SimpleFrame(self, strings.RADAR, coords=drawio_svg.widget_coords(strings.RADAR))
-        widgets.SimpleFrame(self, strings.RCSP, coords=drawio_svg.widget_coords(strings.RCSP))
-        widgets.SimpleFrame(self, strings.AGRAV, coords=drawio_svg.widget_coords(strings.AGRAV))
+        widgets.SimpleText(self, strings.RADAR, coords=drawio_svg.widget_coords(strings.RADAR))
+        widgets.SimpleText(self, strings.RCSP, coords=drawio_svg.widget_coords(strings.RCSP))
+        widgets.SimpleText(self, strings.AGRAV, coords=drawio_svg.widget_coords(strings.AGRAV))
 
         widgets.EngineFrame(self, strings.ACC1, coords=drawio_svg.widget_coords(strings.ACC1))
         widgets.EngineFrame(self, strings.ACC2, coords=drawio_svg.widget_coords(strings.ACC2))
@@ -62,16 +62,16 @@ class GridPage(tk.Frame):
         widgets.PowerBusFrame(self, strings.BUS2, coords=drawio_svg.widget_coords(strings.BUS2))
 
         widgets.BatteryFrame(self, strings.BAT1, coords=drawio_svg.widget_coords(strings.BAT1))
-        widgets.SimpleFrame(self, strings.FCELL, coords=drawio_svg.widget_coords(strings.FCELL))
-        widgets.SimpleFrame(self, strings.COM, coords=drawio_svg.widget_coords(strings.COM))
+        widgets.SimpleText(self, strings.FCELL, coords=drawio_svg.widget_coords(strings.FCELL))
+        widgets.SimpleText(self, strings.COM, coords=drawio_svg.widget_coords(strings.COM))
 
         """ Tertiary Habitat Bus Widgets """
-        widgets.SimpleFrame(self, strings.INS, coords=drawio_svg.widget_coords(strings.INS))
-        widgets.SimpleFrame(self, strings.LOS, coords=drawio_svg.widget_coords(strings.LOS))
-        widgets.SimpleFrame(self, strings.GNC, coords=drawio_svg.widget_coords(strings.GNC))
+        widgets.SimpleText(self, strings.INS, coords=drawio_svg.widget_coords(strings.INS))
+        widgets.SimpleText(self, strings.LOS, coords=drawio_svg.widget_coords(strings.LOS))
+        widgets.SimpleText(self, strings.GNC, coords=drawio_svg.widget_coords(strings.GNC))
         widgets.BatteryFrame(self, strings.BAT2, coords=drawio_svg.widget_coords(strings.BAT2))
-        widgets.SimpleFrame(self, strings.EECOM, coords=drawio_svg.widget_coords(strings.EECOM))
-        widgets.SimpleFrame(self, strings.NETWORK, coords=drawio_svg.widget_coords(strings.NETWORK))
+        widgets.SimpleText(self, strings.EECOM, coords=drawio_svg.widget_coords(strings.EECOM))
+        widgets.SimpleText(self, strings.NETWORK, coords=drawio_svg.widget_coords(strings.NETWORK))
 
         """ Ayse Power Bus Widgets """
         widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=drawio_svg.widget_coords(strings.AYSE_BUS))
@@ -106,10 +106,11 @@ class DrawioSvgBackground:
                 continue
             no_html_widget_text = re.sub(r'<.+?>', '', raw_widget_text)
             widget_text = re.sub(r'\s+', ' ', no_html_widget_text.strip())
+            widget_text_normalized = widget_text.lower()
 
             mxGeometry = mxCell.find('./mxGeometry')
             if mxGeometry is None:
-                log.error(f"Couldn't find mxGeometry for {widget_text}!")
+                log.error(f"Couldn't find mxGeometry for {widget_text_normalized}!")
                 continue
             try:
                 x = round(float(mxGeometry.attrib['x']))
@@ -122,22 +123,22 @@ class DrawioSvgBackground:
                 else:
                     border = 2
             except KeyError:
-                log.error(f"Couldn't find x/y/width/height for {widget_text}!")
+                log.error(f"Couldn't find x/y/width/height for {widget_text_normalized}!")
                 continue
 
-            log.debug(f"Found {widget_text} at {x}+{width}, {y}+{height}.")
+            log.debug(f"Found {widget_text_normalized} at {x}+{width}, {y}+{height}.")
             coords = widgets.Coords(x=x, y=y, width=width + border * 2, height=height + border * 2)
 
-            assert widget_text not in self._widget_text_to_coords, \
-                f"Found unexpected duplicate widget in drawio diagram: {widget_text}!"
-            self._widget_text_to_coords[widget_text] = coords
+            assert widget_text_normalized not in self._widget_text_to_coords, \
+                f"Found unexpected duplicate widget in drawio diagram: {widget_text_normalized}!"
+            self._widget_text_to_coords[widget_text_normalized] = coords
 
     def svg_image(self) -> tksvg.SvgImage:
         return tksvg.SvgImage(file=self._svg_path)
 
     def widget_coords(self, widget_text: str) -> widgets.Coords:
         try:
-            return self._widget_text_to_coords[widget_text]
+            return self._widget_text_to_coords[widget_text.lower()]
         except KeyError:
-            log.error(f"Didn't find {widget_text} with corresponding x, y, width, and height in the drawio diagram!")
+            log.error(f"Didn't find {widget_text.lower()} with corresponding x, y, width, and height in the drawio diagram!")
             raise
