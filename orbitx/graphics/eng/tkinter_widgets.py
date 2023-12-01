@@ -10,7 +10,7 @@ import logging
 import tkinter as tk
 from PIL import Image, ImageTk
 import re
-from typing import Callable, NamedTuple, Optional, List
+from typing import Callable, NamedTuple, Optional, List, Union
 
 from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
@@ -139,19 +139,31 @@ class CoolantButton(tk.Button, Redrawable):
             self.config(relief=tk.RAISED)
 
 
-class SimpleText(tk.Label, Redrawable):
+class SimpleText(tk.LabelFrame, Redrawable):
     """
-    Represents a simple component, with no buttons, labels, etc.
+    Redrawable of a simple box, with the inner text controlled by a StringVar
+
+    Args:
+        parent (tk.Widget): Required by tkinter, the parent widget that this is created in.
+        inner_text (tk.StringVar or str): The initial text in the widget (a str will be converted to a StringVar)
+        coords (Coords): the x, y, width, and height of the widget
+
+    Attributes:
+        stringvar (tk.StringVar): Update this to change the text of the widget
     """
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
-        tk.Label.__init__(self, parent, text=component_name, wraplength=coords.width - INNER_TEXT_MARGIN, relief='ridge')
+    _stringvar: tk.StringVar
+    _text_generator: Callable[[EngineeringState], str]
+
+    def __init__(self, parent: tk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
+        self._stringvar = tk.StringVar()
+        tk.Label.__init__(self, parent, textvariable=self._stringvar, wraplength=coords.width - INNER_TEXT_MARGIN, relief='ridge')
         Redrawable.__init__(self)
-        self._component_name = component_name
         self.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
+        self._text_generator = text_function
 
     def redraw(self, state: EngineeringState):
-        pass
+        self._stringvar.set(self._text_generator(state))
 
 
 class RCONFrame(tk.LabelFrame, Redrawable):
@@ -213,78 +225,6 @@ class EngineFrame(tk.LabelFrame, Redrawable):
 
     def redraw(self, state: EngineeringState):
         pass
-
-
-class BatteryFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(
-            self,
-            parent: tk.Widget,
-            component_name: str,
-            *,
-            coords: Coords):
-
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=coords.x, y=coords.y)
-
-        tk.Label(self, text=f"{coords}").grid(row=0, column=0)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class FuelFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        self._component_name = component_name
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=coords.x, y=coords.y)
-
-        self._fuel_count_text = tk.StringVar()
-        tk.Label(self, textvariable=self._fuel_count_text).pack(side=tk.TOP)
-
-    def redraw(self, state: EngineeringState):
-        self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
-
-
-class ReactorFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
-        """
-        @parent: The GridPage that this will be placed in.
-        @component_name: The string name of the component
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=coords.x, y=coords.y)
-
-        self._reactor_status = tk.StringVar()
-        self._temperature_text = tk.StringVar()
-
-        tk.Label(self, text="Status:").grid(row=0, column=0)
-        tk.Label(self, textvariable=self._reactor_status).grid(row=0, column=1)
-        tk.Label(self, text="Temp:").grid(row=1, column=0)
-        tk.Label(self, textvariable=self._temperature_text).grid(row=1, column=1)
-
-    def redraw(self, state: EngineeringState):
-        if state.components[strings.HAB_REACT].connected:
-            self._reactor_status.set("Online")
-        else:
-            self._reactor_status.set("Offline")
-
-        self._temperature_text.set(f"{state.components[strings.HAB_REACT].temperature:,} %")
 
 
 class RadShieldFrame(tk.LabelFrame, Redrawable):

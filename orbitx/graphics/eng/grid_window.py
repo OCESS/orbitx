@@ -29,7 +29,7 @@ class GridPage(tk.Frame):
 
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
-        svg_path = Path('data', 'engineering', 'orbitx-powergrid.svg')
+        svg_path = Path('data', 'engineering', 'orbitx-powergrid.drawio.svg')
         drawio_xml_path = Path('data', 'engineering', 'orbitx-powergrid.drawio')
         drawio_svg = DrawioSvgBackground(svg_path, drawio_xml_path)
         grid_background = drawio_svg.svg_image()
@@ -39,15 +39,22 @@ class GridPage(tk.Frame):
 
         """ Primary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, strings.BUS1, coords=drawio_svg.widget_coords(strings.BUS1))
-        widgets.ReactorFrame(self, strings.HAB_REACT, coords=drawio_svg.widget_coords(strings.HAB_REACT))
-        widgets.FuelFrame(self, strings.HAB_FUEL, coords=drawio_svg.widget_coords(strings.HAB_FUEL))
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.HAB_REACT), text_function=lambda state:
+            f"{strings.HAB_REACT}\n"
+            f"Status: {'Online' if state.components[strings.HAB_REACT].connected else 'Offline'}\n"
+            f"Temperature: {state.components[strings.HAB_REACT].temperature:,} %"
+        )
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.HAB_FUEL), text_function=lambda state:
+            f"{strings.HAB_FUEL}\n"
+            f"{state.habitat_fuel:,} kg"
+        )
         widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", coords=drawio_svg.widget_coords(strings.RCON1))
         widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", coords=drawio_svg.widget_coords(strings.RCON2))
         widgets.RadShieldFrame(self, strings.RADS1, coords=drawio_svg.widget_coords(strings.RADS1))
         widgets.RadShieldFrame(self, strings.RADS2, coords=drawio_svg.widget_coords(strings.RADS2))
-        widgets.SimpleText(self, strings.RADAR, coords=drawio_svg.widget_coords(strings.RADAR))
-        widgets.SimpleText(self, strings.RCSP, coords=drawio_svg.widget_coords(strings.RCSP))
-        widgets.SimpleText(self, strings.AGRAV, coords=drawio_svg.widget_coords(strings.AGRAV))
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
 
         widgets.EngineFrame(self, strings.ACC1, coords=drawio_svg.widget_coords(strings.ACC1))
         widgets.EngineFrame(self, strings.ACC2, coords=drawio_svg.widget_coords(strings.ACC2))
@@ -61,25 +68,28 @@ class GridPage(tk.Frame):
         """ Secondary Habitat Bus Widgets """
         widgets.PowerBusFrame(self, strings.BUS2, coords=drawio_svg.widget_coords(strings.BUS2))
 
-        widgets.BatteryFrame(self, strings.BAT1, coords=drawio_svg.widget_coords(strings.BAT1))
-        widgets.SimpleText(self, strings.FCELL, coords=drawio_svg.widget_coords(strings.FCELL))
-        widgets.SimpleText(self, strings.COM, coords=drawio_svg.widget_coords(strings.COM))
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.COM), text_function=lambda _: strings.COM)
 
         """ Tertiary Habitat Bus Widgets """
-        widgets.SimpleText(self, strings.INS, coords=drawio_svg.widget_coords(strings.INS))
-        widgets.SimpleText(self, strings.LOS, coords=drawio_svg.widget_coords(strings.LOS))
-        widgets.SimpleText(self, strings.GNC, coords=drawio_svg.widget_coords(strings.GNC))
-        widgets.BatteryFrame(self, strings.BAT2, coords=drawio_svg.widget_coords(strings.BAT2))
-        widgets.SimpleText(self, strings.EECOM, coords=drawio_svg.widget_coords(strings.EECOM))
-        widgets.SimpleText(self, strings.NETWORK, coords=drawio_svg.widget_coords(strings.NETWORK))
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.INS), text_function=lambda _: strings.INS)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.LOS), text_function=lambda _: strings.LOS)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.GNC), text_function=lambda _: strings.GNC)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.BAT2), text_function=lambda _: strings.BAT2)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.EECOM), text_function=lambda _: strings.EECOM)
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
         widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=drawio_svg.widget_coords(strings.AYSE_BUS))
 
         widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", coords=drawio_svg.widget_coords(strings.ARCON1))
         widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", coords=drawio_svg.widget_coords(strings.ARCON2))
-        widgets.ReactorFrame(self, strings.AYSE_REACT, coords=drawio_svg.widget_coords(strings.AYSE_REACT))
-
+        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.AYSE_REACT), text_function=lambda state:
+            f"{strings.AYSE_REACT}\n"
+            f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"
+            f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %"
+        )
 
 class DrawioSvgBackground:
     """Collects a .svg and the corresponding .drawio XML file together,
