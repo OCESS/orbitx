@@ -1,7 +1,6 @@
 import re
 import logging
 import tkinter as tk
-import tksvg
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from typing import Dict
@@ -29,76 +28,80 @@ class GridPage(tk.Frame):
 
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
-        svg_path = Path('data', 'engineering', 'orbitx-powergrid.drawio.svg')
+        png_path = Path('data', 'engineering', 'orbitx-powergrid.drawio.png')
         drawio_xml_path = Path('data', 'engineering', 'orbitx-powergrid.drawio')
-        drawio_svg = DrawioSvgBackground(svg_path, drawio_xml_path)
-        grid_background = drawio_svg.svg_image()
-        bg_label = tk.Label(self, image=grid_background)
-        bg_label.image = grid_background
+        background = DrawioBackground(png_path, drawio_xml_path)
+        bg_label = tk.Label(self, image=background.raster_background)
+        bg_label.image = background.raster_background
         bg_label.place(x=0, y=0)
 
         """ Primary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS1, coords=drawio_svg.widget_coords(strings.BUS1))
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.HAB_REACT), text_function=lambda state:
+        widgets.PowerBusFrame(self, strings.BUS1, coords=background.widget_coords(strings.BUS1))
+        widgets.SimpleText(self, coords=background.widget_coords(strings.HAB_REACT), text_function=lambda state:
             f"{strings.HAB_REACT}\n"
             f"Status: {'Online' if state.components[strings.HAB_REACT].connected else 'Offline'}\n"
             f"Temperature: {state.components[strings.HAB_REACT].temperature:,} %"
         )
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.HAB_FUEL), text_function=lambda state:
+        widgets.SimpleText(self, coords=background.widget_coords(strings.HAB_FUEL), text_function=lambda state:
             f"{strings.HAB_FUEL}\n"
             f"{state.habitat_fuel:,} kg"
         )
-        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", coords=drawio_svg.widget_coords(strings.RCON1))
-        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", coords=drawio_svg.widget_coords(strings.RCON2))
-        widgets.RadShieldFrame(self, strings.RADS1, coords=drawio_svg.widget_coords(strings.RADS1))
-        widgets.RadShieldFrame(self, strings.RADS2, coords=drawio_svg.widget_coords(strings.RADS2))
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
+        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", coords=background.widget_coords(strings.RCON1))
+        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", coords=background.widget_coords(strings.RCON2))
+        widgets.RadShieldFrame(self, strings.RADS1, coords=background.widget_coords(strings.RADS1))
+        widgets.RadShieldFrame(self, strings.RADS2, coords=background.widget_coords(strings.RADS2))
+        widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
 
-        widgets.EngineFrame(self, strings.ACC1, coords=drawio_svg.widget_coords(strings.ACC1))
-        widgets.EngineFrame(self, strings.ACC2, coords=drawio_svg.widget_coords(strings.ACC2))
-        widgets.EngineFrame(self, strings.ACC3, coords=drawio_svg.widget_coords(strings.ACC3))
-        widgets.EngineFrame(self, strings.ACC4, coords=drawio_svg.widget_coords(strings.ACC4))
-        widgets.EngineFrame(self, strings.ION1, coords=drawio_svg.widget_coords(strings.ION1))
-        widgets.EngineFrame(self, strings.ION2, coords=drawio_svg.widget_coords(strings.ION2))
-        widgets.EngineFrame(self, strings.ION3, coords=drawio_svg.widget_coords(strings.ION3))
-        widgets.EngineFrame(self, strings.ION4, coords=drawio_svg.widget_coords(strings.ION4))
+        widgets.EngineFrame(self, strings.ACC1, coords=background.widget_coords(strings.ACC1))
+        widgets.EngineFrame(self, strings.ACC2, coords=background.widget_coords(strings.ACC2))
+        widgets.EngineFrame(self, strings.ACC3, coords=background.widget_coords(strings.ACC3))
+        widgets.EngineFrame(self, strings.ACC4, coords=background.widget_coords(strings.ACC4))
+        widgets.EngineFrame(self, strings.ION1, coords=background.widget_coords(strings.ION1))
+        widgets.EngineFrame(self, strings.ION2, coords=background.widget_coords(strings.ION2))
+        widgets.EngineFrame(self, strings.ION3, coords=background.widget_coords(strings.ION3))
+        widgets.EngineFrame(self, strings.ION4, coords=background.widget_coords(strings.ION4))
 
         """ Secondary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS2, coords=drawio_svg.widget_coords(strings.BUS2))
+        widgets.PowerBusFrame(self, strings.BUS2, coords=background.widget_coords(strings.BUS2))
 
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.COM), text_function=lambda _: strings.COM)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.COM), text_function=lambda _: strings.COM)
 
         """ Tertiary Habitat Bus Widgets """
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.INS), text_function=lambda _: strings.INS)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.LOS), text_function=lambda _: strings.LOS)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.GNC), text_function=lambda _: strings.GNC)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.BAT2), text_function=lambda _: strings.BAT2)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.EECOM), text_function=lambda _: strings.EECOM)
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.INS), text_function=lambda _: strings.INS)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.LOS), text_function=lambda _: strings.LOS)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.GNC), text_function=lambda _: strings.GNC)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.BAT2), text_function=lambda _: strings.BAT2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.EECOM), text_function=lambda _: strings.EECOM)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
-        widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=drawio_svg.widget_coords(strings.AYSE_BUS))
+        widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=background.widget_coords(strings.AYSE_BUS))
 
-        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", coords=drawio_svg.widget_coords(strings.ARCON1))
-        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", coords=drawio_svg.widget_coords(strings.ARCON2))
-        widgets.SimpleText(self, coords=drawio_svg.widget_coords(strings.AYSE_REACT), text_function=lambda state:
+        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", coords=background.widget_coords(strings.ARCON1))
+        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", coords=background.widget_coords(strings.ARCON2))
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_REACT), text_function=lambda state:
             f"{strings.AYSE_REACT}\n"
             f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"
             f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %"
         )
 
-class DrawioSvgBackground:
+
+class DrawioBackground:
     """Collects a .svg and the corresponding .drawio XML file together,
     provides useful accessor methods for both."""
 
-    def __init__(self, svg_path: Path, xml_path: Path):
-        self._svg_path = svg_path
+    raster_background: tk.PhotoImage
+
+    def __init__(self, png_path: Path, xml_path: Path):
+        self._png_path = png_path
         self._xml_path = xml_path
         self._widget_text_to_coords: Dict[str, widgets.Coords] = {}
+
+        self.raster_background = tk.PhotoImage(file=self._png_path)
 
         # Build an index of each mxCell, where a widget is, and the name of the
         # widget there. Normally we would just search for the text of the
@@ -142,9 +145,6 @@ class DrawioSvgBackground:
             assert widget_text_normalized not in self._widget_text_to_coords, \
                 f"Found unexpected duplicate widget in drawio diagram: {widget_text_normalized}!"
             self._widget_text_to_coords[widget_text_normalized] = coords
-
-    def svg_image(self) -> tksvg.SvgImage:
-        return tksvg.SvgImage(file=self._svg_path)
 
     def widget_coords(self, widget_text: str) -> widgets.Coords:
         try:

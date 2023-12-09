@@ -15,4 +15,3 @@ yappi
 numba
 icc_rt
 Pillow
-tksvg
