@@ -217,8 +217,7 @@ class EngineFrame(SimpleText):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        self._component_name = component_name
-        super(EngineFrame, self).__init__(parent, coords, component_name)
+        super(EngineFrame, self).__init__(parent, coords, text_function)
 
         self.place(x=coords.x, y=coords.y)
 

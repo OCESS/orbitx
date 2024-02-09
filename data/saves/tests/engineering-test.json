@@ -18,7 +18,11 @@
   "engineering": {
     "components": [
       {
-        "name": "Reactor Heater"
+        "name": "Reactor Heater",
+        "connected": true,
+        "capacity": 0.9,
+        "temperature": 31.3,
+        "coolant_hab_one": true
       },
       {
         "name": "F-CELL INJ"
@@ -26,12 +30,12 @@
       {
         "name": "Loop 1 Secondary Coolant Pump",
         "connected": true,
-        "capacity": 1.0,
+        "capacity": 1.0
       },
       {
         "name": "Loop 2 Secondary Coolant Pump",
         "connected": true,
-        "capacity": 1.0,
+        "capacity": 1.0
       },
       {
         "name": "EECOM"
@@ -72,15 +76,17 @@
       {
         "name": "Loop 1 Primary Coolant Pump",
         "connected": true,
-        "capacity": 1.0,
+        "capacity": 1.0
       },
       {
         "name": "Loop 2 Primary Coolant Pump",
         "connected": true,
-        "capacity": 1.0,
+        "capacity": 1.0
       },
       {
-        "name": "RAD-S1"
+        "name": "RAD-S1",
+        "connected": true,
+        "capacity": 1.0
       },
       {
         "name": "RAD-S2"

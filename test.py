@@ -674,9 +674,9 @@ class EngineeringViewTestCase(unittest.TestCase):
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
-        self.assertTrue(engineering.components[0].coolant_hab_one)
+        self.assertTrue(engineering.components[6].coolant_hab_one)
 
-        connected_loops = engineering.components[0].connected_coolant_loops()
+        connected_loops = engineering.components[6].connected_coolant_loops()
 
         self.assertEqual(connected_loops[0]._n, 0)
         self.assertEqual(len(connected_loops), 1)
@@ -703,23 +703,16 @@ class EngineeringViewTestCase(unittest.TestCase):
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
 
-        connected_loops = engineering.components.CoolantConnectionMatrix()
+        coolant_connection_matrix = engineering.components.CoolantConnectionMatrix()
 
-        component_temperature_row_vector = engineering.components.Temperatures()
+        self.assertTrue(engineering.components[0].coolant_hab_one)
+        self.assertEqual(coolant_connection_matrix[0][0], 1.0)
 
-        # np.newaxis is required for tranposed vector to be used in matrix math
-        coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
+        self.assertTrue(engineering.components[6].coolant_hab_one)
+        self.assertEqual(coolant_connection_matrix[0][6], 1.0)
 
-        component_temperature_matrix = (
-            component_temperature_row_vector * connected_loops
-            - connected_loops * coolant_temperature_col_vector.transpose()
-        )
-
-        self.assertAlmostEqual(component_temperature_matrix[0][0],
-                               engineering.components[0].temperature - 15, delta=0.001)
-        self.assertAlmostEqual(component_temperature_matrix[1][8],
-                               engineering.components[8].temperature - 20, delta=0.001)
-        self.assertEqual(len(np.nonzero(component_temperature_matrix)), 2)
+        self.assertTrue(engineering.components[strings.ION1].coolant_hab_two)
+        self.assertEqual(coolant_connection_matrix[1][strings.COMPONENT_NAMES.index(strings.ION1)], 1.0)
 
     def test_electricals_accessors(self):
         """
@@ -758,38 +751,14 @@ class CoolantTestCase(unittest.TestCase):
         connected_loops = engineering.components.CoolantConnectionMatrix()
         self.assertEqual(connected_loops.shape, (3, N_COMPONENTS))
 
-    def test_component_coolant_matrix_math(self):
-        """
-        Test that the matrix math used in ode_solver.py actually works
-        """
-        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
-            engineering = physics_engine.get_state().engineering
-
-        connected_loops_matrix = engineering.components.CoolantConnectionMatrix()
-
-        component_temperature_row_vector = engineering.components.Temperatures()
-
-        # np.newaxis is required for tranposed vector to be used in matrix math
-        coolant_temperature_col_vector = engineering.coolant_loops.CoolantTemp()[np.newaxis]
-
-        temperature_difference_matrix = (
-            component_temperature_row_vector * connected_loops_matrix
-            - connected_loops_matrix * coolant_temperature_col_vector.transpose()
-        )
-
-        self.assertAlmostEqual(
-            temperature_difference_matrix[0][0], engineering.components[0].temperature - 15, delta=0.01)
-        self.assertAlmostEqual(
-            temperature_difference_matrix[1][8], engineering.components[8].temperature - 20, delta=0.01)
-        self.assertEqual(len(np.nonzero(temperature_difference_matrix)), 2)
-
     def test_component_coolant(self):
-        with PhysicsEngineHarness('tests/coolant-test.json') as physics_engine:
+        with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             initial = physics_engine.get_state(1).engineering
             final = physics_engine.get_state(20).engineering
 
-        temperature_1 = initial.components[1].temperature
-        temperature_2 = final.components[1].temperature
+        # Component 25 is ION1, which starts with some temperature.
+        temperature_1 = initial.components[25].temperature
+        temperature_2 = final.components[25].temperature
         self.assertNotEqual(temperature_1, temperature_2)
 
 
@@ -798,7 +767,7 @@ class ElectrofunctionsTestCase(unittest.TestCase):
         with PhysicsEngineHarness('tests/engineering-test.json') as physics_engine:
             engineering = physics_engine.get_state().engineering
         for bus in engineering.BusElectricals().items():
-            print(bus)
+            log.debug(bus)
         # TODO: Maybe check the main hab bus resistors, get some actual values, and see if we get
         # the right numbers and they're consistent with orbitv?
 

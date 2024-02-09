@@ -66,9 +66,9 @@ class EngineeringState:
                       pieces of data from the parent, e.g. hab fuel.
         populate_array: flag that is set when we need to fill array_rep with data.
         """
-        assert len(proto_state.components) == N_COMPONENTS
-        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS
-        assert len(proto_state.radiators) == N_RADIATORS
+        assert len(proto_state.components) == N_COMPONENTS, f"{len(proto_state.components)} != {N_COMPONENTS}"
+        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS, f"{len(proto_state.coolant_loops)} != {N_COOLANT_LOOPS}"
+        assert len(proto_state.radiators) == N_RADIATORS, f"{len(proto_state.radiators)} != {N_RADIATORS}"
 
         self._array = array_rep
         self._proto_state = proto_state

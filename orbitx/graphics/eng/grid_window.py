@@ -81,7 +81,8 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_REACT), text_function=lambda state:
             f"{strings.AYSE_REACT}\n"
             f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"
-            f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %"
+            f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %\n"
+            f"Voltage: {state.components.Electricals()[strings.AYSE_REACT].voltage:,} V"
         )
 
 

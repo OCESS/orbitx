@@ -84,8 +84,12 @@ def load_savefile(file: Path) -> PhysicsState:
         if len(read_state.engineering.components) == 0:
             # We allow savefiles to not specify any components.
             # If we see this, create a list of empty components in the protobuf before parsing it.
-            empty_components = [protos.EngineeringState.Component()] * common.N_COMPONENTS
-            read_state.engineering.components.extend(empty_components)
+            for i in range(0, common.N_COMPONENTS):
+                read_state.engineering.components.append(
+                    protos.EngineeringState.Component(
+                        temperature=electroconstants.RESTING_TEMPERATURE[i]
+                    )
+                )
 
         physics_state = PhysicsState(None, read_state)
 
