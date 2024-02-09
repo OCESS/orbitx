@@ -36,7 +36,6 @@ class GridPage(tk.Frame):
         bg_label.place(x=0, y=0)
 
         """ Primary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS1, coords=background.widget_coords(strings.BUS1))
         widgets.SimpleText(self, coords=background.widget_coords(strings.HAB_REACT), text_function=lambda state:
             f"{strings.HAB_REACT}\n"
             f"Status: {'Online' if state.components[strings.HAB_REACT].connected else 'Offline'}\n"
@@ -54,18 +53,16 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
 
-        widgets.EngineFrame(self, strings.ACC1, coords=background.widget_coords(strings.ACC1))
-        widgets.EngineFrame(self, strings.ACC2, coords=background.widget_coords(strings.ACC2))
-        widgets.EngineFrame(self, strings.ACC3, coords=background.widget_coords(strings.ACC3))
-        widgets.EngineFrame(self, strings.ACC4, coords=background.widget_coords(strings.ACC4))
-        widgets.EngineFrame(self, strings.ION1, coords=background.widget_coords(strings.ION1))
-        widgets.EngineFrame(self, strings.ION2, coords=background.widget_coords(strings.ION2))
-        widgets.EngineFrame(self, strings.ION3, coords=background.widget_coords(strings.ION3))
-        widgets.EngineFrame(self, strings.ION4, coords=background.widget_coords(strings.ION4))
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC1), text_function=lambda _: strings.ACC1)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC2), text_function=lambda _: strings.ACC2)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC3), text_function=lambda _: strings.ACC3)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC4), text_function=lambda _: strings.ACC4)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ION1), text_function=lambda _: strings.ION1)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ION2), text_function=lambda _: strings.ION2)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ION3), text_function=lambda _: strings.ION3)
+        widgets.EngineFrame(self, coords=background.widget_coords(strings.ION4), text_function=lambda _: strings.ION4)
 
         """ Secondary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, strings.BUS2, coords=background.widget_coords(strings.BUS2))
-
         widgets.SimpleText(self, coords=background.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
         widgets.SimpleText(self, coords=background.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
         widgets.SimpleText(self, coords=background.widget_coords(strings.COM), text_function=lambda _: strings.COM)
@@ -79,8 +76,6 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
-        widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=background.widget_coords(strings.AYSE_BUS))
-
         widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", coords=background.widget_coords(strings.ARCON1))
         widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", coords=background.widget_coords(strings.ARCON2))
         widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_REACT), text_function=lambda state:

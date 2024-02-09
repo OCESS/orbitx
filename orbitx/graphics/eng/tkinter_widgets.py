@@ -209,17 +209,16 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         self._temperature_text.set(str(state.components[self._component_name].temperature))
 
 
-class EngineFrame(tk.LabelFrame, Redrawable):
+class EngineFrame(SimpleText):
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, coords: Coords):
+    def __init__(self, parent: tk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
         """
         @parent: The GridPage that this will be placed in.
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
         self._component_name = component_name
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
+        super(EngineFrame, self).__init__(parent, coords, component_name)
 
         self.place(x=coords.x, y=coords.y)
 
