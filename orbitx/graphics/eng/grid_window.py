@@ -52,6 +52,8 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
         widgets.SimpleText(self, coords=background.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
+
 
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC1), text_function=lambda _: strings.ACC1)
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC2), text_function=lambda _: strings.ACC2)
@@ -76,8 +78,11 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
-        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", coords=background.widget_coords(strings.ARCON1))
-        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", coords=background.widget_coords(strings.ARCON2))
+        widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=background.widget_coords(strings.AYSE_BUS))
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_BAT), text_function=lambda _: strings.AYSE_BAT)
+
+        widgets.RCONFrame(self, coords=background.widget_coords(strings.ARCON1), text_function=lambda _: strings.ARCON1)
+        widgets.RCONFrame(self, coords=background.widget_coords(strings.ARCON2), text_function=lambda _: strings.ARCON2)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_REACT), text_function=lambda state:
             f"{strings.AYSE_REACT}\n"
             f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"

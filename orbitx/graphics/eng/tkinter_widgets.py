@@ -166,18 +166,16 @@ class SimpleText(tk.LabelFrame, Redrawable):
         self._stringvar.set(self._text_generator(state))
 
 
-class RCONFrame(tk.LabelFrame, Redrawable):
+class RCONFrame(SimpleText):
     """
     Visually represents a component, such as RCON1.
     """
 
     def __init__(self,
                  parent: tk.Widget,
-                 component_name: str,
-                 optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
-                 has_coolant_controls: bool = True,
-                 *,
-                 coords: Coords):
+                 coords: Coords,
+                 text_function: Optional[Callable[[EngineeringState], str]] = None,
+                 has_coolant_controls: bool = True,):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -185,8 +183,7 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
+        SimpleText.__init__(coords=coords, text_function=text_function)
 
         self.place(x=coords.x, y=coords.y)
 
