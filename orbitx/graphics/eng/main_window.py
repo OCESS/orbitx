@@ -50,18 +50,18 @@ class MainApplication(tk.Tk):
         # Create tabbed view
         self._tab_control = tk.ttk.Notebook(self)
 
-        # Initialise main page
-        self._main_tab = HabPage(self._tab_control)
-        self._coolant_tab = coolantPage(self._tab_control)
-        self._tab_control.add(self._main_tab, text='Main tab')
+        # Initialise electrical grid page
+        self._grid_tab = GridPage(self._tab_control)
+        self._tab_control.add(self._grid_tab, text='Electrical Grid')
 
         # Add coolant tab
         self._coolant_tab = coolantPage(self._tab_control)
         self._tab_control.add(self._coolant_tab, text='Coolant tab')
 
-        # Initialise electrical grid page
-        self._grid_tab = GridPage(self._tab_control)
-        self._tab_control.add(self._grid_tab, text='Electrical Grid')
+        # Initialise main page
+        self._main_tab = HabPage(self._tab_control)
+        self._coolant_tab = coolantPage(self._tab_control)
+        self._tab_control.add(self._main_tab, text='Main tab')
 
         self._tab_control.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         # Testing
