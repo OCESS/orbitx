@@ -174,7 +174,7 @@ class RCONFrame(SimpleText):
     def __init__(self,
                  parent: tk.Widget,
                  coords: Coords,
-                 text_function: Optional[Callable[[EngineeringState], str]] = None,
+                 text_function: Callable[[EngineeringState], str],
                  has_coolant_controls: bool = True,):
         """
         @parent: The GridPage that this will be placed in
@@ -183,27 +183,15 @@ class RCONFrame(SimpleText):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        SimpleText.__init__(coords=coords, text_function=text_function)
+        SimpleText.__init__(self, parent=parent, coords=coords, text_function=text_function)
 
         self.place(x=coords.x, y=coords.y)
 
-        self._component_name = component_name
-
-        self._optional_text_generator = optional_text_function
         self._optional_text_value = tk.StringVar()
         tk.Label(self, textvariable=self._optional_text_value).grid(row=0, column=0)
 
         self._temperature_text = tk.StringVar()
         tk.Label(self, textvariable=self._temperature_text).grid(row=0, column=1)
-
-        if has_coolant_controls:
-            CoolantSection(self, 1)
-
-    def redraw(self, state: EngineeringState):
-        if self._optional_text_generator is not None:
-            self._optional_text_value.set(self._optional_text_generator(state))
-
-        self._temperature_text.set(str(state.components[self._component_name].temperature))
 
 
 class EngineFrame(SimpleText):

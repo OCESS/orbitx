@@ -45,15 +45,14 @@ class GridPage(tk.Frame):
             f"{strings.HAB_FUEL}\n"
             f"{state.habitat_fuel:,} kg"
         )
-        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", coords=background.widget_coords(strings.RCON1))
-        widgets.RCONFrame(self, strings.RCON2, lambda x: "Current", coords=background.widget_coords(strings.RCON2))
+        widgets.RCONFrame(self, background.widget_coords(strings.RCON1), lambda x: f"{strings.RCON1} Current")
+        widgets.RCONFrame(self, background.widget_coords(strings.RCON2), lambda x: f"{strings.RCON1} Current")
         widgets.RadShieldFrame(self, strings.RADS1, coords=background.widget_coords(strings.RADS1))
         widgets.RadShieldFrame(self, strings.RADS2, coords=background.widget_coords(strings.RADS2))
         widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
         widgets.SimpleText(self, coords=background.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
         widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
-
 
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC1), text_function=lambda _: strings.ACC1)
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC2), text_function=lambda _: strings.ACC2)
