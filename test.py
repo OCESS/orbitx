@@ -757,8 +757,12 @@ class CoolantTestCase(unittest.TestCase):
             final = physics_engine.get_state(20).engineering
 
         # Component 25 is ION1, which starts with some temperature.
-        temperature_1 = initial.components[25].temperature
-        temperature_2 = final.components[25].temperature
+        self.assertNotEqual(
+            initial.components[strings.ION1],
+            electroconstants.RESTING_TEMPERATURE[strings.COMPONENT_NAMES.index(strings.ION1)]
+        )
+        temperature_1 = initial.components[strings.ION1].temperature
+        temperature_2 = final.components[strings.ION1].temperature
         self.assertNotEqual(temperature_1, temperature_2)
 
 

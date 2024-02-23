@@ -287,7 +287,7 @@ class HabPage(tk.Frame):
 
         widgets['h_INJ1'].set_redrawer(
             lambda injector_widget, state:
-            injector_widget.update(state.components[strings.INJ1].connected)
+            injector_widget.update(state.components[strings.FUEL_INJ1].connected)
         )
 
         widgets['h_INJ2'].grid(row=1, column=0)

@@ -53,6 +53,14 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.RCSP), text_function=lambda _: strings.RCSP)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AGRAV), text_function=lambda _: strings.AGRAV)
         widgets.SimpleText(self, coords=background.widget_coords(strings.RADAR), text_function=lambda _: strings.RADAR)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.FUEL_INJ1), text_function=lambda _: strings.FUEL_INJ1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.FUEL_INJ2), text_function=lambda _: strings.FUEL_INJ2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.REACT_INJ1), text_function=lambda _: strings.REACT_INJ1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.REACT_INJ2), text_function=lambda _: strings.REACT_INJ2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.ENGINE_INJ1), text_function=lambda _: strings.ENGINE_INJ1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.ENGINE_INJ2), text_function=lambda _: strings.ENGINE_INJ2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.PRIMARY_PUMP_1), text_function=lambda _: strings.PRIMARY_PUMP_1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.PRIMARY_PUMP_2), text_function=lambda _: strings.PRIMARY_PUMP_2)
 
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC1), text_function=lambda _: strings.ACC1)
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ACC2), text_function=lambda _: strings.ACC2)
@@ -67,6 +75,9 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
         widgets.SimpleText(self, coords=background.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
         widgets.SimpleText(self, coords=background.widget_coords(strings.COM), text_function=lambda _: strings.COM)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.SECONDARY_PUMP_1), text_function=lambda _: strings.SECONDARY_PUMP_1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.SECONDARY_PUMP_2), text_function=lambda _: strings.SECONDARY_PUMP_2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.REACTOR_HEATER), text_function=lambda _: strings.REACTOR_HEATER)
 
         """ Tertiary Habitat Bus Widgets """
         widgets.SimpleText(self, coords=background.widget_coords(strings.INS), text_function=lambda _: strings.INS)

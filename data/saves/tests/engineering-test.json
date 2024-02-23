@@ -18,155 +18,232 @@
   "engineering": {
     "components": [
       {
-        "name": "Reactor Heater",
         "connected": true,
         "capacity": 0.9,
         "temperature": 31.3,
-        "coolant_hab_one": true
+        "coolant_hab_one": true,
+        "name": "Primary Radiation Shielding"
       },
       {
-        "name": "F-CELL INJ"
+        "temperature": 0.25,
+        "name": "Secondary Radiation Shielding"
       },
       {
-        "name": "Loop 1 Secondary Coolant Pump",
         "connected": true,
-        "capacity": 1.0
+        "capacity": 1.0,
+        "temperature": 0.25,
+        "name": "Artificial Gravity"
       },
       {
-        "name": "Loop 2 Secondary Coolant Pump",
         "connected": true,
-        "capacity": 1.0
+        "capacity": 1.0,
+        "temperature": 0.25,
+        "name": "Primary Reactor Containment"
       },
       {
-        "name": "EECOM"
+        "temperature": 0.25,
+        "name": "Secondary Reactor Containment"
       },
       {
-        "name": "Network"
+        "temperature": 1.0,
+        "name": "Primary AYSE Reactor Containment"
       },
       {
-        "name": "COM",
         "connected": true,
         "capacity": 1.0,
         "temperature": 5.5,
-        "coolant_hab_one": true
+        "coolant_hab_one": true,
+        "name": "Secondary AYSE Reactor Containment"
       },
       {
-        "name": "INS"
-      },
-      {
-        "name": "LOS"
-      },
-      {
-        "name": "GNC"
-      },
-      {
-        "name": "Fuel Cell"
-      },
-      {
-        "name": "BATT"
-      },
-      {
-        "name": "BACKUP BAT"
-      },
-      {
-        "name": "High-Low Voltage Converter",
-        "connected": true,
-        "capacity": 1.0
-      },
-      {
-        "name": "Loop 1 Primary Coolant Pump",
-        "connected": true,
-        "capacity": 1.0
-      },
-      {
-        "name": "Loop 2 Primary Coolant Pump",
-        "connected": true,
-        "capacity": 1.0
-      },
-      {
-        "name": "RAD-S1",
-        "connected": true,
-        "capacity": 1.0
-      },
-      {
-        "name": "RAD-S2"
-      },
-      {
-        "name": "A GRAV"
-      },
-      {
-        "name": "R-CON1"
-      },
-      {
-        "name": "R-CON2"
-      },
-      {
+        "temperature": 25.0,
         "name": "ACC1"
       },
       {
+        "temperature": 32.0,
+        "coolant_hab_two": true,
+        "name": "ION1"
+      },
+      {
+        "temperature": 25.0,
         "name": "ACC2"
       },
       {
-        "name": "ACC3"
-      },
-      {
-        "name": "ACC4"
-      },
-      {
-        "name": "ION1",
-        "connected": true,
-        "temperature": 25.6,
-        "coolant_hab_two": true
-      },
-      {
+        "temperature": 25.0,
         "name": "ION2"
       },
       {
+        "temperature": 25.0,
+        "name": "ACC3"
+      },
+      {
+        "temperature": 25.0,
         "name": "ION3"
       },
       {
+        "connected": true,
+        "capacity": 1.0,
+        "temperature": 25.0,
+        "name": "ACC4"
+      },
+      {
+        "connected": true,
+        "capacity": 1.0,
+        "temperature": 25.0,
         "name": "ION4"
       },
       {
-        "name": "RCSP"
-      },
-      {
-        "name": "INJECTOR 1"
-      },
-      {
-        "name": "INJECTOR 2"
-      },
-      {
-        "name": "HAB reactor",
         "connected": true,
-        "capacity": 1.0
+        "capacity": 1.0,
+        "temperature": 1.0,
+        "name": "Loop 1 Primary Coolant Pump"
       },
       {
-        "name": "REACT INJ1"
+        "connected": true,
+        "capacity": 1.0,
+        "temperature": 1.0,
+        "name": "Loop 2 Primary Coolant Pump"
       },
       {
-        "name": "REACT INJ2"
+        "temperature": 1.0,
+        "name": "Loop 1 Secondary Coolant Pump"
       },
       {
-        "name": "DOCK MOD"
+        "temperature": 1.0,
+        "name": "Loop 2 Secondary Coolant Pump"
       },
       {
-        "name": "RADAR"
+        "temperature": 1.0,
+        "name": "High-Low Voltage Converter"
       },
       {
+        "temperature": 0.5,
+        "name": "Fuel Cell"
+      },
+      {
+        "temperature": 0.5,
+        "name": "Primary Battery"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Backup Battery"
+      },
+      {
+        "name": "AYSE Battery"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Reaction Control Thrusters"
+      },
+      {
+        "connected": true,
+        "temperature": 25.6,
+        "coolant_hab_two": true,
+        "name": "COM"
+      },
+      {
+        "temperature": 80.5,
+        "connected": true,
+        "capacity": 1.0,
+        "name": "Habitat Tokamak Reactor"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Reactor Heater"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Primary Reactor Injector"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Secondary Reactor Injector"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Primary Engine Injector"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Secondary Engine Injector"
+      },
+      {
+        "connected": true,
+        "capacity": 1.0,
+        "temperature": 1.0,
+        "name": "Fuel Cell Injector"
+      },
+      {
+        "temperature": 1.0,
         "name": "AYSE-Habitat Link"
       },
       {
-        "name": "AYSE reactor"
+        "temperature": 1.0,
+        "name": "AYSE Tokamak Reactor"
       },
       {
-        "name": "AYSE BAT"
+        "temperature": 1.0,
+        "name": "Radar"
       },
       {
-        "name": "Ayse R-CON1"
+        "temperature": 1.0,
+        "name": "INS"
       },
       {
-        "name": "Ayse R-CON2"
+        "temperature": 1.0,
+        "name": "GNC"
+      },
+      {
+        "temperature": 1.0,
+        "name": "LOS"
+      },
+      {
+        "temperature": 1.0,
+        "name": "SRB"
+      },
+      {
+        "temperature": 1.0,
+        "name": "EECOM"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Network"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Graviton Emitter 1"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Graviton Emitter 2"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Graviton Emitter 3"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Graviton Emitter 4"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Tachyon-Tardyon Collider"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Primary AYSE Injector"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Secondary AYSE Injector"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Primary AYSE Coolant Pump"
+      },
+      {
+        "temperature": 1.0,
+        "name": "Secondary AYSE Coolant Pump"
       }
     ],
     "coolant_loops": [

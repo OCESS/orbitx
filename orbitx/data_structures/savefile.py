@@ -81,10 +81,10 @@ def load_savefile(file: Path) -> PhysicsState:
         read_state = protos.PhysicalState()
         google.protobuf.json_format.ParseDict(json_dict, read_state)
 
-        if len(read_state.engineering.components) == 0:
+        if len(read_state.engineering.components) < common.N_COMPONENTS:
             # We allow savefiles to not specify any components.
             # If we see this, create a list of empty components in the protobuf before parsing it.
-            for i in range(0, common.N_COMPONENTS):
+            for i in range(len(read_state.engineering.components), common.N_COMPONENTS):
                 read_state.engineering.components.append(
                     protos.EngineeringState.Component(
                         temperature=electroconstants.RESTING_TEMPERATURE[i]
@@ -131,3 +131,14 @@ def write_savefile(state: PhysicsState, file: Path):
         json.dump(savefile_json_dict, outfile, indent=2)
 
     return file
+
+
+# To upgrade savefiles, you can run the following command:
+# python -c 'from orbitx.data_structures.savefile import upgrade_savefile; from pathlib import Path; upgrade_savefile(Path(\"data/saves/tests/engineering-test.json\"))'
+# Change the path to anything you want.
+def upgrade_savefile(file: Path):
+    """Take a savefile, parse it, and write it back out again.
+    Use this if e.g. an older version of orbitx wrote the savefile, and you want
+    to upgrade the savefile."""
+    physics_state = load_savefile(file)
+    write_savefile(physics_state, file)
