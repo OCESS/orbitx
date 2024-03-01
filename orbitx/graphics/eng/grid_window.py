@@ -70,6 +70,8 @@ class GridPage(tk.Frame):
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ION3), text_function=lambda _: strings.ION3)
         widgets.EngineFrame(self, coords=background.widget_coords(strings.ION4), text_function=lambda _: strings.ION4)
 
+        widgets.SimpleText(self, coords=background.widget_coords(strings.HAB_CONV), text_function=lambda _: strings.HAB_CONV)
+
         """ Secondary Habitat Bus Widgets """
         widgets.SimpleText(self, coords=background.widget_coords(strings.BAT1), text_function=lambda _: strings.BAT1)
         widgets.SimpleText(self, coords=background.widget_coords(strings.FCELL), text_function=lambda _: strings.FCELL)
@@ -87,8 +89,15 @@ class GridPage(tk.Frame):
         widgets.SimpleText(self, coords=background.widget_coords(strings.NETWORK), text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
-        widgets.PowerBusFrame(self, strings.AYSE_BUS, coords=background.widget_coords(strings.AYSE_BUS))
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_CONV), text_function=lambda _: strings.AYSE_CONV)
         widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_BAT), text_function=lambda _: strings.AYSE_BAT)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.GPD1), text_function=lambda _: strings.GPD1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.GPD2), text_function=lambda _: strings.GPD2)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.GPD3), text_function=lambda _: strings.GPD3)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.GPD4), text_function=lambda _: strings.GPD4)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.TTC), text_function=lambda _: strings.TTC)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_PUMP_1), text_function=lambda _: strings.AYSE_PUMP_1)
+        widgets.SimpleText(self, coords=background.widget_coords(strings.AYSE_PUMP_2), text_function=lambda _: strings.AYSE_PUMP_2)
 
         widgets.RCONFrame(self, coords=background.widget_coords(strings.ARCON1), text_function=lambda _: strings.ARCON1)
         widgets.RCONFrame(self, coords=background.widget_coords(strings.ARCON2), text_function=lambda _: strings.ARCON2)
