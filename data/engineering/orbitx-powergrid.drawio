@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2024-03-01T19:07:52.222Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0" etag="kjGbSipBrEaLplL1sjIX" version="24.0.0" type="github">
+<mxfile host="app.diagrams.net" modified="2024-03-01T19:17:32.269Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0" etag="hjRdUSHomw0eVK8nvTTX" version="24.0.0" type="github">
   <diagram name="engineering powergrid" id="7e0a89b8-554c-2b80-1dc8-d5c74ca68de4">
     <mxGraphModel dx="1947" dy="770" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="960" background="none" math="0" shadow="0">
       <root>
@@ -498,12 +498,6 @@
             <mxPoint x="1234" y="100" as="targetPoint" />
             <mxPoint x="823" y="179" as="sourcePoint" />
           </mxGeometry>
-        </mxCell>
-        <mxCell id="hoR6StkbCMHp0mI4zMyg-2" value="&lt;div&gt;Primary Engine Injector&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;dashed=0;pointerEvents=1;strokeColor=default;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=default;spacing=6;spacingLeft=4;spacingRight=4;" vertex="1" parent="1">
-          <mxGeometry x="844" y="503" width="190" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="hoR6StkbCMHp0mI4zMyg-3" value="Secondary Engine Injector" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;dashed=0;pointerEvents=1;strokeColor=default;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=default;spacing=6;spacingLeft=4;spacingRight=4;" vertex="1" parent="1">
-          <mxGeometry x="844" y="569" width="190" height="60" as="geometry" />
         </mxCell>
         <mxCell id="hoR6StkbCMHp0mI4zMyg-4" value="Fuel Cell Injector" style="rounded=0;html=1;shadow=0;dashed=0;pointerEvents=1;strokeColor=default;strokeWidth=2;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=default;whiteSpace=wrap;spacing=6;spacingLeft=4;spacingRight=4;" vertex="1" parent="1">
           <mxGeometry x="825" y="19" width="140" height="70" as="geometry" />
