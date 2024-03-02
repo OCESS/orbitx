@@ -1,9 +1,11 @@
 import re
 import logging
 import tkinter as tk
+import tkinter.ttk as ttk
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from typing import Dict
+import sv_ttk
 
 from orbitx import strings
 from orbitx.graphics.eng import tkinter_widgets as widgets
@@ -13,7 +15,7 @@ log = logging.getLogger('orbitx')
 BORDER_WIDTH_REGEX = re.compile(r'strokeWidth=(\d+)')
 
 
-class GridPage(tk.Frame):
+class GridPage(ttk.Frame):
     """
     Contains the power grid, i.e. all components and power buses.
     Also contains component detail and temperature warning frames.
@@ -23,15 +25,15 @@ class GridPage(tk.Frame):
     that's a _lot_ more work and isn't a priority.
     """
 
-    def __init__(self, parent: tk.Widget):
-        tk.Frame.__init__(self, parent)
+    def __init__(self, parent: ttk.Widget):
+        ttk.Frame.__init__(self, parent)
 
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
         png_path = Path('data', 'engineering', 'orbitx-powergrid.drawio.png')
         drawio_xml_path = Path('data', 'engineering', 'orbitx-powergrid.drawio')
         background = DrawioBackground(png_path, drawio_xml_path)
-        bg_label = tk.Label(self, image=background.raster_background)
+        bg_label = ttk.Label(self, image=background.raster_background)
         bg_label.image = background.raster_background
         bg_label.place(x=0, y=0)
 
@@ -107,6 +109,8 @@ class GridPage(tk.Frame):
             f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %\n"
             f"Voltage: {state.components.Electricals()[strings.AYSE_REACT].voltage:,} V"
         )
+
+        sv_ttk.set_theme("light")
 
 
 class DrawioBackground:
