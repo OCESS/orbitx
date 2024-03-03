@@ -10,7 +10,6 @@ import logging
 import tkinter as tk
 import tkinter.ttk as ttk
 from PIL import Image, ImageTk
-import re
 from typing import Callable, NamedTuple, Optional, List, Union
 
 from orbitx.common import Request
@@ -158,7 +157,10 @@ class SimpleText(ttk.LabelFrame, Redrawable):
 
     def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
         self._stringvar = tk.StringVar()
-        ttk.Label.__init__(self, parent, textvariable=self._stringvar, wraplength=coords.width - INNER_TEXT_MARGIN)
+        ttk.Label.__init__(
+            self, parent, textvariable=self._stringvar,
+            justify=tk.CENTER, anchor=tk.CENTER, wraplength=coords.width - INNER_TEXT_MARGIN
+        )
         Redrawable.__init__(self)
         self.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
         self._text_generator = text_function
@@ -186,8 +188,6 @@ class RCONFrame(SimpleText):
         """
         SimpleText.__init__(self, parent=parent, coords=coords, text_function=text_function)
 
-        self.place(x=coords.x, y=coords.y)
-
         self._optional_text_value = tk.StringVar()
         ttk.Label(self, textvariable=self._optional_text_value).grid(row=0, column=0)
 
@@ -198,70 +198,16 @@ class RCONFrame(SimpleText):
 class EngineFrame(SimpleText):
 
     def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
         super(EngineFrame, self).__init__(parent, coords, text_function)
 
         self.place(x=coords.x, y=coords.y)
 
-    def redraw(self, state: EngineeringState):
-        pass
 
+class RadShieldFrame(SimpleText):
 
-class RadShieldFrame(ttk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: ttk.Widget, component_name: str, *, coords: Coords):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        self._component_name = strings.RADS1
-        ttk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=coords.x, y=coords.y)
-
-        self._rad_strength = tk.StringVar()
+    def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
+        super(RadShieldFrame, self).__init__(parent, coords, text_function)
 
         # Grid used instead of packing to organize widgets for formatting purposes
-        ttk.Label(self, text="Current").grid(row=0, column=0)
-        ttk.Label(self, textvariable=self._rad_strength).grid(row=0, column=1)
         ttk.Button(self, text="SET").grid(row=1, column=0)
         ttk.Entry(self, width=5).grid(row=1, column=1)
-
-        CoolantSection(self, 2)
-
-    def redraw(self, state: EngineeringState):
-        self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
-
-
-class PowerBusFrame(ttk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: ttk.Widget, component_name: str, *, coords: Coords):
-
-        ttk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        self._component_name = component_name
-        Redrawable.__init__(self)
-
-        self.place(x=coords.x, y=coords.y)
-
-        self._power = tk.StringVar()
-        self._current = tk.StringVar()
-        self._voltage = tk.StringVar()
-
-        ttk.Label(self, text="Power: ").grid(row=0, column=0)
-        ttk.Label(self, textvariable=self._power).grid(row=0, column=1)
-        ttk.Label(self, text="Current: ").grid(row=0, column=2)
-        ttk.Label(self, textvariable=self._current).grid(row=0, column=3)
-        ttk.Label(self, text="Voltage: ").grid(row=0, column=4)
-        ttk.Label(self, textvariable=self._voltage).grid(row=0, column=5)
-
-    def redraw(self, state: EngineeringState):
-        bus_electricals = state.BusElectricals()[self._component_name]
-        self._power.set(str(bus_electricals.current * bus_electricals.voltage))
-        self._current.set(str(bus_electricals.current))
-        self._voltage.set(str(bus_electricals.voltage))
