@@ -4,13 +4,15 @@ Custom TKinter Widgets, reuseable across different Engineering views.
 Every widget should inherit from Redrawable.
 """
 
+import re
 from pathlib import Path
 from abc import ABCMeta, abstractmethod
 import logging
 import tkinter as tk
 import tkinter.ttk as ttk
 from PIL import Image, ImageTk
-from typing import Callable, NamedTuple, Optional, List, Union
+import xml.etree.ElementTree as ET
+from typing import Callable, Dict, NamedTuple, Optional, List
 
 from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
@@ -20,6 +22,9 @@ from orbitx import strings
 log = logging.getLogger('orbitx')
 
 INNER_TEXT_MARGIN = 2
+AUX_BUTTON_MARGIN = 36
+
+BORDER_WIDTH_REGEX = re.compile(r'strokeWidth=(\d+)')
 
 
 class Coords(NamedTuple):
@@ -62,6 +67,70 @@ class Redrawable(metaclass=ABCMeta):
         Redrawable.all_instantiated_widgets.append(self)
 
 
+class DrawioBackground:
+    """Collects a .svg and the corresponding .drawio XML file together,
+    provides useful accessor methods for both."""
+
+    raster_background: tk.PhotoImage
+
+    def __init__(self, png_path: Path, xml_path: Path):
+        self._png_path = png_path
+        self._xml_path = xml_path
+        self._widget_text_to_coords: Dict[str, Coords] = {}
+
+        self.raster_background = tk.PhotoImage(file=self._png_path)
+
+        # Build an index of each mxCell, where a widget is, and the name of the
+        # widget there. Normally we would just search for the text of the
+        # widget directly, but any formatting or extra whitespaces in the XML's
+        # conception of the widget name will break this. Specifically, I would
+        # try to match "High-Voltage Habitat Bus" on
+        # value="&lt;div style=&quot;font-size: 12px;&quot;&gt;High-Voltage Habitat Bus&lt;br style=&quot;font-size: 12px;&quot;&gt;&lt;/div&gt;"
+        # and fail.
+        xml_tree = ET.parse(xml_path).getroot()
+        for mxCell in xml_tree.findall('.//mxCell'):
+            if 'value' not in mxCell.attrib:
+                continue
+            raw_widget_text = mxCell.attrib['value']
+            if raw_widget_text == '':
+                continue
+            no_html_widget_text = re.sub(r'<.+?>', '', raw_widget_text)
+            widget_text = re.sub(r'\s+', ' ', no_html_widget_text.strip())
+            widget_text_normalized = widget_text.lower()
+
+            mxGeometry = mxCell.find('./mxGeometry')
+            if mxGeometry is None:
+                log.error(f"Couldn't find mxGeometry for {widget_text_normalized}!")
+                continue
+            try:
+                x = round(float(mxGeometry.attrib['x']))
+                y = round(float(mxGeometry.attrib['y']))
+                width = round(float(mxGeometry.attrib['width']))
+                height = round(float(mxGeometry.attrib['height']))
+                border_match = BORDER_WIDTH_REGEX.search(mxCell.attrib['style'])
+                if border_match:
+                    border = round(float(border_match.group(1)))
+                else:
+                    border = 2
+            except KeyError:
+                log.error(f"Couldn't find x/y/width/height for {widget_text_normalized}!")
+                continue
+
+            log.debug(f"Found {widget_text_normalized} at {x}+{width}, {y}+{height}.")
+            coords = Coords(x=x, y=y, width=width + border * 2, height=height + border * 2)
+
+            assert widget_text_normalized not in self._widget_text_to_coords, \
+                f"Found unexpected duplicate widget in drawio diagram: {widget_text_normalized}!"
+            self._widget_text_to_coords[widget_text_normalized] = coords
+
+    def widget_coords(self, widget_text: str) -> Coords:
+        try:
+            return self._widget_text_to_coords[widget_text.lower()]
+        except KeyError:
+            log.error(f"Didn't find {widget_text.lower()} with corresponding x, y, width, and height in the drawio diagram!")
+            raise
+
+
 class DetailsFrame(ttk.Frame, Redrawable):
     """
     Displays information about the currently-selected component in
@@ -94,9 +163,7 @@ class CoolantSection():
     buttons on a given row inside a widget.
     """
 
-    def __init__(self, parent: ttk.Widget, row_n: int):
-
-        component_n = strings.COMPONENT_NAMES.index(parent._component_name)
+    def __init__(self, parent: ttk.Widget, component_n: int, coords: Coords):
         self._lp1 = CoolantButton(parent, component_n, 0)
         self._lp1.grid(row=row_n, column=0)
         self._lp2 = CoolantButton(parent, component_n, 1)
@@ -117,7 +184,7 @@ class CoolantButton(ttk.Button, Redrawable):
                     Coolant 0 is the first Hab coolant loop, and coolant 2 is
                     AYSE loop.
         """
-        coolant_loop_texts = [strings.LP1, strings.LP2, strings.LP3]
+        coolant_loop_texts = ['❄1', '❄2', '❄']
 
         ttk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
         Redrawable.__init__(self)
@@ -130,6 +197,11 @@ class CoolantButton(ttk.Button, Redrawable):
             Request(ident=Request.TOGGLE_COMPONENT_COOLANT,
                     component_to_loop=Request.ComponentToLoop(component=self._component_n, loop=self._coolant_n)))
 
+        if self.instate(['pressed']):
+            self.state(['!pressed'])
+        else:
+            self.state(['pressed'])
+
     def redraw(self, state: EngineeringState):
 
         component = state.components[self._component_n]
@@ -139,7 +211,7 @@ class CoolantButton(ttk.Button, Redrawable):
             self.state(['!pressed'])
 
 
-class SimpleText(ttk.LabelFrame, Redrawable):
+class SimpleText(Redrawable):
     """
     Redrawable of a simple box, with the inner text controlled by a StringVar
 
@@ -155,15 +227,26 @@ class SimpleText(ttk.LabelFrame, Redrawable):
     _stringvar: tk.StringVar
     _text_generator: Callable[[EngineeringState], str]
 
-    def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
+
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        coords = background.widget_coords(component_name)
         self._stringvar = tk.StringVar()
-        ttk.Label.__init__(
-            self, parent, textvariable=self._stringvar,
+        self._frame = ttk.Frame(parent)
+        self._frame.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
+        super().__init__()
+
+        # Add the text area
+        self._label = ttk.Label(
+            self._frame, textvariable=self._stringvar,
             justify=tk.CENTER, anchor=tk.CENTER, wraplength=coords.width - INNER_TEXT_MARGIN
         )
-        Redrawable.__init__(self)
-        self.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
         self._text_generator = text_function
+
+        # Pack coolant buttons around the text area
+        self._coolant_button_0 = CoolantButton(self._frame, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=0)
+
+        self._label.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        self._coolant_button_0.pack(side=tk.LEFT)
 
     def redraw(self, state: EngineeringState):
         self._stringvar.set(self._text_generator(state))
@@ -176,9 +259,10 @@ class RCONFrame(SimpleText):
 
     def __init__(self,
                  parent: ttk.Widget,
-                 coords: Coords,
+                 background: DrawioBackground,
+                 component_name: str,
                  text_function: Callable[[EngineeringState], str],
-                 has_coolant_controls: bool = True,):
+                 has_coolant_controls: bool = True):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -186,28 +270,26 @@ class RCONFrame(SimpleText):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        SimpleText.__init__(self, parent=parent, coords=coords, text_function=text_function)
+        SimpleText.__init__(self, parent=parent, background=background, component_name=component_name, text_function=text_function)
 
         self._optional_text_value = tk.StringVar()
-        ttk.Label(self, textvariable=self._optional_text_value).grid(row=0, column=0)
+        ttk.Label(parent, textvariable=self._optional_text_value).grid(row=0, column=0)
 
         self._temperature_text = tk.StringVar()
-        ttk.Label(self, textvariable=self._temperature_text).grid(row=0, column=1)
+        ttk.Label(parent, textvariable=self._temperature_text).grid(row=0, column=1)
 
 
 class EngineFrame(SimpleText):
 
-    def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
-        super(EngineFrame, self).__init__(parent, coords, text_function)
-
-        self.place(x=coords.x, y=coords.y)
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        super().__init__(parent, background, component_name, text_function)
 
 
 class RadShieldFrame(SimpleText):
 
-    def __init__(self, parent: ttk.Widget, coords: Coords, text_function: Callable[[EngineeringState], str]):
-        super(RadShieldFrame, self).__init__(parent, coords, text_function)
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        super().__init__(parent, background, component_name, text_function)
 
         # Grid used instead of packing to organize widgets for formatting purposes
-        ttk.Button(self, text="SET").grid(row=1, column=0)
-        ttk.Entry(self, width=5).grid(row=1, column=1)
+        ttk.Button(parent, text="SET").grid(row=1, column=0)
+        ttk.Entry(parent, width=5).grid(row=1, column=1)
