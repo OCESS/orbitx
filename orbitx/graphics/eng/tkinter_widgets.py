@@ -157,17 +157,23 @@ class WarningsFrame(ttk.Frame, Redrawable):
         Redrawable.__init__(self)
 
 
-class CoolantSection():
+class CoolantButtonsFrame(ttk.Frame):
     """
-    Contains two coolant buttons horizontally side by side. Places these coolant
-    buttons on a given row inside a widget.
+    Contains two coolant buttons, stacked vertically against the right wall
+    of the parent widget.
     """
 
-    def __init__(self, parent: ttk.Widget, component_n: int, coords: Coords):
-        self._lp1 = CoolantButton(parent, component_n, 0)
-        self._lp1.grid(row=row_n, column=0)
-        self._lp2 = CoolantButton(parent, component_n, 1)
-        self._lp2.grid(row=row_n, column=1)
+    def __init__(self, parent: ttk.Widget, component_name: str):
+        # Construct this CoolantButtonsFrame as a child widget of the parent
+        super().__init__(parent)
+
+        # Construct two CoolantButtons, vertically stacked
+        self._coolant_button_0 = CoolantButton(
+            self, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=0)
+        self._coolant_button_1 = CoolantButton(
+            self, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=1)
+        self._coolant_button_0.pack(side=tk.TOP, expand=True, fill=tk.Y)
+        self._coolant_button_1.pack(side=tk.BOTTOM, expand=True, fill=tk.Y)
 
 
 class CoolantButton(ttk.Button, Redrawable):
@@ -184,7 +190,7 @@ class CoolantButton(ttk.Button, Redrawable):
                     Coolant 0 is the first Hab coolant loop, and coolant 2 is
                     AYSE loop.
         """
-        coolant_loop_texts = ['❄1', '❄2', '❄']
+        coolant_loop_texts = ['❄1', '❄2', '❄3']
 
         ttk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
         Redrawable.__init__(self)
@@ -227,7 +233,6 @@ class SimpleText(Redrawable):
     _stringvar: tk.StringVar
     _text_generator: Callable[[EngineeringState], str]
 
-
     def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
         coords = background.widget_coords(component_name)
         self._stringvar = tk.StringVar()
@@ -242,11 +247,12 @@ class SimpleText(Redrawable):
         )
         self._text_generator = text_function
 
-        # Pack coolant buttons around the text area
-        self._coolant_button_0 = CoolantButton(self._frame, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=0)
+        # Add coolant buttons
+        self._coolant_buttons_frame = CoolantButtonsFrame(self._frame, component_name)
 
-        self._label.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
-        self._coolant_button_0.pack(side=tk.LEFT)
+        # The label, with all the text, goes on the left. Coolant buttons on the right.
+        self._label.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self._coolant_buttons_frame.pack(side=tk.RIGHT, expand=False, fill=tk.Y)
 
     def redraw(self, state: EngineeringState):
         self._stringvar.set(self._text_generator(state))
@@ -260,9 +266,7 @@ class RCONFrame(SimpleText):
     def __init__(self,
                  parent: ttk.Widget,
                  background: DrawioBackground,
-                 component_name: str,
-                 text_function: Callable[[EngineeringState], str],
-                 has_coolant_controls: bool = True):
+                 component_name: str):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -270,7 +274,10 @@ class RCONFrame(SimpleText):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        SimpleText.__init__(self, parent=parent, background=background, component_name=component_name, text_function=text_function)
+        SimpleText.__init__(
+            self, parent=parent, background=background, component_name=component_name,
+            text_function=lambda eng_state:
+                f"{strings.RCON1}\nCurrent: {eng_state.components.Electricals()[component_name].current}")
 
         self._optional_text_value = tk.StringVar()
         ttk.Label(parent, textvariable=self._optional_text_value).grid(row=0, column=0)

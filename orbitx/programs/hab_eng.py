@@ -63,7 +63,7 @@ def main(args: argparse.Namespace):
         gui.after(int(1000), network_task)
 
     network_task()
-    sv_ttk.set_theme('light')
+    # sv_ttk.set_theme('light')
     gui.mainloop()
 
 

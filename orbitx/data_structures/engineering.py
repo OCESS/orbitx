@@ -12,7 +12,6 @@ import logging
 from typing import Dict
 
 import numpy as np
-import numpy.typing as npt
 
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
@@ -101,7 +100,10 @@ class EngineeringState:
             assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
 
     def BusElectricals(self) -> Dict[str, OhmicVars]:
-        """Return Voltage, Current, Resistance, mapped to every bus name."""
+        """Return Voltage, Current, Resistance, mapped to every bus name.
+        
+        For the voltage, current, and resistance of individual components, see
+        the ComponentList subclass."""
         component_resistances = electrofunctions.component_resistances(self.components)
         active_power_sources = electrofunctions.active_power_sources(self.components)
         bus_electricals = electrofunctions.bus_electricals(component_resistances, active_power_sources)

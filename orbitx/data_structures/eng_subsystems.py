@@ -230,7 +230,11 @@ class ComponentList:
         return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
     def Electricals(self) -> Dict[str, OhmicVars]:
-        """Return Voltage, Current, Resistance for every component."""
+        """Return Voltage, Current, Resistance for every component.
+
+        For example,
+            rcon_current = state.engineering.components.Electricals()[strings.RCON1].current
+        """
         component_resistances = electrofunctions.component_resistances(self)
         active_power_sources = electrofunctions.active_power_sources(self)
         electrical_buses = electrofunctions.bus_electricals(component_resistances, active_power_sources)

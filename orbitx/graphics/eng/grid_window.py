@@ -41,8 +41,8 @@ class GridPage(ttk.Frame):
         #     f"{strings.HAB_FUEL}\n"
         #     f"{state.habitat_fuel:,} kg"
         # )
-        widgets.RCONFrame(self, background=background, component_name=strings.RCON1, text_function=lambda x: f"{strings.RCON1} Current")
-        widgets.RCONFrame(self, background=background, component_name=strings.RCON2, text_function=lambda x: f"{strings.RCON1} Current")
+        widgets.RCONFrame(self, background=background, component_name=strings.RCON1)
+        widgets.RCONFrame(self, background=background, component_name=strings.RCON2)
         widgets.RadShieldFrame(self, background=background, component_name=strings.RADS1, text_function=lambda state: f"{state.rad_shield_percentage:,} %")
         widgets.RadShieldFrame(self, background=background, component_name=strings.RADS2, text_function=lambda state: f"{state.rad_shield_percentage:,} %")
         widgets.SimpleText(self, background=background, component_name=strings.RADAR, text_function=lambda _: strings.RADAR)
@@ -95,8 +95,8 @@ class GridPage(ttk.Frame):
         widgets.SimpleText(self, background=background, component_name=strings.AYSE_PUMP_1, text_function=lambda _: strings.AYSE_PUMP_1)
         widgets.SimpleText(self, background=background, component_name=strings.AYSE_PUMP_2, text_function=lambda _: strings.AYSE_PUMP_2)
 
-        widgets.RCONFrame(self, background=background, component_name=strings.ARCON1, text_function=lambda _: strings.ARCON1)
-        widgets.RCONFrame(self, background=background, component_name=strings.ARCON2, text_function=lambda _: strings.ARCON2)
+        widgets.RCONFrame(self, background=background, component_name=strings.ARCON1)
+        widgets.RCONFrame(self, background=background, component_name=strings.ARCON2)
         widgets.SimpleText(self, background=background, component_name=strings.AYSE_REACT, text_function=lambda state:
             f"{strings.AYSE_REACT}\n"
             f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"
@@ -104,4 +104,4 @@ class GridPage(ttk.Frame):
             f"Voltage: {state.components.Electricals()[strings.AYSE_REACT].voltage:,} V"
         )
 
-        sv_ttk.set_theme("light")
+        # sv_ttk.set_theme("light")
