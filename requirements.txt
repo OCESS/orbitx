@@ -14,4 +14,4 @@ pytz
 yappi
 numba
 icc_rt
-Pillow
+sv-ttk

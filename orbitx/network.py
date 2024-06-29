@@ -131,8 +131,7 @@ class NetworkedStateClient:
     def __init__(self, client: protos.Command.ClientType, hostname: str):
         from orbitx.physics.simulation import PhysicsEngine  # Deferred import
 
-        self.channel = grpc.insecure_channel(
-            f'{hostname}:{DEFAULT_PORT}')
+        self.channel = grpc.insecure_channel(f'{hostname}:{DEFAULT_PORT}')
         self.stub = grpc_stubs.StateServerStub(self.channel)
         self.client_type = client
 

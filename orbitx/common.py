@@ -7,9 +7,10 @@ import pytz
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Callable, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional, Tuple, Union
 
-import numpy
+import numpy as np
+import numpy.typing as npt
 import vpython  # type: ignore
 
 from orbitx import orbitx_pb2 as protos
@@ -37,6 +38,13 @@ class OhmicVars(NamedTuple):
     voltage: float
     current: float
     resistance: float
+
+
+def OhmicVarArray(shape: int) -> npt.NDArray[np.record]:
+    """Numpy array version of OhmicVars."""
+    var_array = np.recarray(shape, dtype=[('voltage', float), ('current', float), ('resistance', float)])
+    var_array.fill(np.nan)
+    return var_array
 
 
 # Make sure this is in sync with the corresponding enum in orbitx.proto!
@@ -111,19 +119,19 @@ MIN_THROTTLE = -1.00  # -100%
 MAX_THROTTLE = 1.00  # 100%
 
 # The max speed at which the autopilot will spin the craft.
-AUTOPILOT_SPEED = numpy.radians(20)
+AUTOPILOT_SPEED = np.radians(20)
 
 # The margin on either side of the target heading that the autopilot will slow
 # down its adjustments.
-AUTOPILOT_FINE_CONTROL_RADIUS = numpy.radians(5)
+AUTOPILOT_FINE_CONTROL_RADIUS = np.radians(5)
 
 # Rotating the craft changes the spin by this amount per button press.
-SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
-FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
+SPIN_CHANGE = np.radians(5)  # 5 degrees per second.
+FINE_SPIN_CHANGE = np.radians(0.5)  # Half a degree per second.
 
 # Rotating the craft changes the spin by this amount per button press.
-SPIN_CHANGE = numpy.radians(5)  # 5 degrees per second.
-FINE_SPIN_CHANGE = numpy.radians(0.5)  # Half a degree per second.
+SPIN_CHANGE = np.radians(5)  # 5 degrees per second.
+FINE_SPIN_CHANGE = np.radians(0.5)  # Half a degree per second.
 
 # These special values mean that the SRBs are full but haven't been used, and
 # that the SRBs have been fully used, respectively.

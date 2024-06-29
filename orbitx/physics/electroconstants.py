@@ -8,8 +8,9 @@ Some values imported from Dr. Magwood's OBIT5SEJ.txt.
 
 YOLO.
 """
+from __future__ import annotations
 
-from typing import NamedTuple, Optional, Final
+from typing import Dict, List, NamedTuple, Union, Final
 
 import numpy as np
 
@@ -37,9 +38,17 @@ K_CONDUCTIVITY: Final = 0.75
 # it's at 100% capacity.
 # Used to calculate the resistance of a component at any temperature:
 # R(temp) = BASE_RESISTANCE * (1 + common.ALPHA_RESIST_GAIN * temp)
-# This array is populated later in this module, but for now the default value
-# is 1 Ohm (not 0 Ohms, which would result in divide-by-zero errors).
+# This array is populated later in this module, but for now the default value is 1 Ohm.
 BASE_COMPONENT_RESISTANCES: Final = np.ones(N_COMPONENTS)
+
+
+class VoltageConverter(NamedTuple):
+    """Represents a DC-DC converter between two buses.
+    For example, the AYSE-Habitat converter would have input_bus = AYSE_BUS,
+    and would act similarly to a PowerSource."""
+    name: str
+    input_bus: PowerBus
+    scale_factor: float  # input voltage * scale_factor = output voltage.
 
 
 class PowerSource(NamedTuple):
@@ -51,115 +60,136 @@ class PowerSource(NamedTuple):
 class PowerBus(NamedTuple):
     """
     Represents one of the power buses, to which components and power sources
-    are connected.
-    """
+    are connected."""
+    name: str
     nominal_voltage: float
-    primary_power_source: PowerSource
-    secondary_power_source: Optional[PowerSource]
+    # Ordered list; the *first* power source will be used to power this bus.
+    power_sources: List[Union[PowerSource, VoltageConverter]]
 
+
+AYSE_BUS: Final = PowerBus(
+    name=strings.AYSE_BUS,
+    nominal_voltage=100_000,
+    power_sources=[
+        PowerSource(name=strings.AYSE_REACT, internal_resistance=0.00003),
+        PowerSource(name=strings.AYSE_BAT, internal_resistance=0.0055)
+    ]
+)
 
 # Define some electrical buses and sources as nice structured NamedTuples,
 # and then make a matrix/array copy of the same data for more efficient math.
 HAB_PRIMARY_BUS: Final = PowerBus(
+    name=strings.BUS1,
     nominal_voltage=10_000,
-    primary_power_source=PowerSource(
-        name=strings.HAB_REACT, internal_resistance=0.00025),
-    secondary_power_source=None
+    power_sources=[
+        VoltageConverter(
+            name=strings.AYSE_CONV, input_bus=AYSE_BUS, scale_factor=10_000 / AYSE_BUS.nominal_voltage),
+        PowerSource(name=strings.HAB_REACT, internal_resistance=0.00025),
+    ]
 )
 
 HAB_SECONDARY_BUS: Final = PowerBus(
+    name=strings.BUS2,
     nominal_voltage=120,
-    primary_power_source=PowerSource(
-        name=strings.FCELL, internal_resistance=0.00325),
-    secondary_power_source=PowerSource(
-        name=strings.BAT1, internal_resistance=0.01)
+    power_sources=[
+        VoltageConverter(
+            name=strings.HAB_CONV, input_bus=HAB_PRIMARY_BUS, scale_factor=120 / HAB_PRIMARY_BUS.nominal_voltage),
+        PowerSource(name=strings.FCELL, internal_resistance=0.00325),
+        PowerSource(name=strings.BAT1, internal_resistance=0.01),
+        PowerSource(name=strings.BAT2, internal_resistance=0.01)
+    ]
 )
 
-HAB_TERTIARY_BUS: Final = PowerBus(
-    nominal_voltage=120,
-    primary_power_source=PowerSource(
-        name=strings.BAT2, internal_resistance=0.0085),
-    secondary_power_source=None
-)
-
-AYSE_BUS: Final = PowerBus(
-    nominal_voltage=100_000,
-    primary_power_source=PowerSource(
-        name=strings.AYSE_REACT, internal_resistance=0.00003),
-    secondary_power_source=PowerSource(
-        name=strings.AYSE_BAT, internal_resistance=0.0055)
-)
-
-POWER_BUSES: Final = (
-    HAB_PRIMARY_BUS,
+# Collects the power buses together.
+# Note: If bus A can be powered by a voltage converter attached to bus B, bus A must come before bus B
+# (e.g., the Habitat power bus comes before the AYSE power bus).
+POWER_BUSES: List[PowerBus] = [
     HAB_SECONDARY_BUS,
-    HAB_TERTIARY_BUS,
+    HAB_PRIMARY_BUS,
     AYSE_BUS
-)
+]
+
 
 # Temporary variable, just to build the component/powerbus connection matrix.
 # Don't use this dict outside of this module, use one of the matrices or
 # NamedTuples instead.
 _component_to_bus_mapping = {
-    strings.RADS1: 0,
-    strings.RADS2: 0,
-    strings.AGRAV: 0,
-    strings.RCON1: 0,
-    strings.RCON2: 0,
-    strings.ARCON1: 3,
-    strings.ARCON2: 3,
-    strings.ACC1: 0,
-    strings.ION1: 0,
-    strings.ACC2: 0,
-    strings.ION2: 0,
-    strings.ACC3: 0,
-    strings.ION3: 0,
-    strings.ACC4: 0,
-    strings.ION4: 0,
-    strings.FCELL: 1,
-    strings.BAT1: 1,
-    strings.BAT2: 2,
-    strings.AYSE_BAT: 3,
-    strings.RCSP: 0,
-    strings.COM: 2,
-    strings.HAB_REACT: 0,
-    strings.INJ1: 0,
-    strings.INJ2: 0,
-    strings.REACT_INJ1: 0,
-    strings.REACT_INJ2: 0,
-    strings.FCELL_INJ: 1,
-    strings.AYSE_REACT: 3,
-    strings.DOCK_MOD: 0,
-    strings.RADAR: 0,
-    strings.INS: 2,
-    strings.EECOM: 2,
-    strings.NETWORK: 2,
+    strings.RADS1: 1,
+    strings.RADS2: 1,
+    strings.AGRAV: 1,
+    strings.RCON1: 1,
+    strings.RCON2: 1,
+    strings.ARCON1: 2,
+    strings.ARCON2: 2,
+    strings.ACC1: 1,
+    strings.ION1: 1,
+    strings.ACC2: 1,
+    strings.ION2: 1,
+    strings.ACC3: 1,
+    strings.ION3: 1,
+    strings.ACC4: 1,
+    strings.ION4: 1,
+    strings.PRIMARY_PUMP_1: 1,
+    strings.PRIMARY_PUMP_2: 1,
+    strings.SECONDARY_PUMP_1: 0,
+    strings.SECONDARY_PUMP_2: 0,
+    strings.HAB_CONV: 1,
+    strings.FCELL: 0,
+    strings.BAT1: 0,
+    strings.BAT2: 0,
+    strings.AYSE_BAT: 2,
+    strings.RCSP: 1,
+    strings.COM: 0,
+    strings.HAB_REACT: 1,
+    strings.REACTOR_HEATER: 0,
+    strings.REACT_INJ1: 1,
+    strings.REACT_INJ2: 1,
+    strings.ENGINE_INJ1: 1,
+    strings.ENGINE_INJ2: 1,
+    strings.FCELL_INJ: 0,
+    strings.AYSE_CONV: 2,
+    strings.AYSE_REACT: 2,
+    strings.RADAR: 1,
+    strings.INS: 0,
+    strings.GNC: 0,
+    strings.LOS: 0,
+    strings.SRB: 1,
+    strings.EECOM: 0,
+    strings.NETWORK: 0,
+    strings.GPD1: 2,
+    strings.GPD2: 2,
+    strings.GPD3: 2,
+    strings.GPD4: 2,
+    strings.TTC: 2,
+    strings.AYSE_PUMP_1: 2,
+    strings.AYSE_PUMP_2: 2,
+    strings.AYSE_INJ1: 2,
+    strings.AYSE_INJ2: 2,
 }
-
 assert len(_component_to_bus_mapping) == len(strings.COMPONENT_NAMES)
 
 # A 4*N matrix, with exactly N number of 1s in it (N = N_COMPONENTS).
 # A 1 at COMPONENT_BUS_CONNECTION_MATRIX[bus_k][component_j] means
 # component_j is connected to bus_k.
 # The matrix looks roughly like:
-# [1 1 1 0 0 1 0 ... 0]  Hab primary bus components
 # [0 0 0 1 0 0 1 ... 0]  Hab secondary bus components
-# [0 0 0 0 1 0 0 ... 0]  Hab tertiary bus components
+# [1 1 1 0 0 1 0 ... 0]  Hab primary bus components
 # [0 0 0 0 0 0 0 ... 1]  AYSE bus components
 COMPONENT_BUS_CONNECTION_MATRIX: Final[np.ndarray] = np.zeros(
-    shape=(4, N_COMPONENTS), dtype=int
+    shape=(len(POWER_BUSES), N_COMPONENTS), dtype=int
 )
 
-# Use the compont -> bus mapping we defined to build the connection matrix.
+# Use the component -> bus mapping we defined to build the connection matrix.
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MATRIX[bus][strings.COMPONENT_NAMES.index(component_name)] = 1
 
-# Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 3]
+# Same as above, but in the 1-D form of [0 0 0 1 2 0 ... 1]
 COMPONENT_BUS_CONNECTION_MAPPING: Final[np.ndarray] = np.zeros(shape=(N_COMPONENTS), dtype=int)
 
 for component_name, bus in _component_to_bus_mapping.items():
     COMPONENT_BUS_CONNECTION_MAPPING[strings.COMPONENT_NAMES.index(component_name)] = bus
 
+del _component_to_bus_mapping
 
 # -- Below here are heating/cooling and thermal exchange-related constants. -- #
 # -- These have been cribbed from Dr. Magwood's obitsej.txt data file.      -- #
@@ -185,7 +215,7 @@ PASSIVE_HEAT_LOSS: Final = np.zeros(N_COMPONENTS)
 COOLANT_CONDUCTIVITY_MATRIX: Final = np.zeros((3, N_COMPONENTS))
 
 # If a component is above this temperature, it will cool faster.
-RESTING_TEMPERATURE: Final = np.zeros(N_COMPONENTS)
+RESTING_TEMPERATURE: Final = np.ones(N_COMPONENTS)
 
 
 def _set_base_resistance(name: str, base_resistance: float):
@@ -247,3 +277,8 @@ _set_base_resistance(strings.ION1, 610.0)
 _set_base_resistance(strings.ION2, 610.0)
 _set_base_resistance(strings.ION3, 610.0)
 _set_base_resistance(strings.ION4, 610.0)
+_set_base_resistance(strings.PRIMARY_PUMP_1, 1000.0)
+_set_base_resistance(strings.PRIMARY_PUMP_2, 1000.0)
+_set_base_resistance(strings.SECONDARY_PUMP_1, 10.0)
+_set_base_resistance(strings.SECONDARY_PUMP_2, 10.0)
+_set_base_resistance(strings.COM, 8.0)

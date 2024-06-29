@@ -47,7 +47,7 @@ class NumpyLogger:
 
 def set_floating_point_fatality():
     """Decide what to do when this thread encounters a floating point error in scipy/numpy."""
-    warnings.simplefilter('error')  # Raise exception on scipy/numpy RuntimeWarning
+    warnings.filterwarnings('error', module='scipy|numpy')  # Raise exception on scipy/numpy RuntimeWarning
     scipy.special.seterr(all='raise')
     np.seterrcall(NumpyLogger())
     np.seterr(all='raise')

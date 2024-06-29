@@ -4,7 +4,7 @@ Contains all data about engineering systems in OrbitX, wrapped in the class
 data_structures.space).
 
 A good chunk of the engineering complexity is handled by the relevant classes
-for components, coolant loops, etc (see data_structures.eng_systems).
+for components, coolant loops, etc (see data_structures.eng_subsystems).
 """
 from __future__ import annotations
 
@@ -16,10 +16,8 @@ import numpy as np
 from orbitx import orbitx_pb2 as protos
 from orbitx import strings
 from orbitx.common import OhmicVars, N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS
-from orbitx.physics import electrofunctions
-from orbitx.physics.electroconstants import PowerSource, PowerBus
-from orbitx.data_structures.eng_systems import (
-    CoolantView, ComponentView, RadiatorView,
+from orbitx.physics import electrofunctions, electroconstants
+from orbitx.data_structures.eng_subsystems import (
     ComponentList, CoolantLoopList, RadiatorList,
     _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
@@ -67,9 +65,9 @@ class EngineeringState:
                       pieces of data from the parent, e.g. hab fuel.
         populate_array: flag that is set when we need to fill array_rep with data.
         """
-        assert len(proto_state.components) == N_COMPONENTS
-        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS
-        assert len(proto_state.radiators) == N_RADIATORS
+        assert len(proto_state.components) == N_COMPONENTS, f"{len(proto_state.components)} != {N_COMPONENTS}"
+        assert len(proto_state.coolant_loops) == N_COOLANT_LOOPS, f"{len(proto_state.coolant_loops)} != {N_COOLANT_LOOPS}"
+        assert len(proto_state.radiators) == N_RADIATORS, f"{len(proto_state.radiators)} != {N_RADIATORS}"
 
         self._array = array_rep
         self._proto_state = proto_state
@@ -102,16 +100,22 @@ class EngineeringState:
             assert write_marker == len(self._array), f"{write_marker} != {len(self._array)}"
 
     def BusElectricals(self) -> Dict[str, OhmicVars]:
-        """Return Voltage, Current, Resistance, mapped to every bus."""
+        """Return Voltage, Current, Resistance, mapped to every bus name.
+        
+        For the voltage, current, and resistance of individual components, see
+        the ComponentList subclass."""
         component_resistances = electrofunctions.component_resistances(self.components)
-        electricals_list = electrofunctions.bus_electricities(component_resistances)
+        active_power_sources = electrofunctions.active_power_sources(self.components)
+        bus_electricals = electrofunctions.bus_electricals(component_resistances, active_power_sources)
 
-        bus_electricals: Dict[str, OhmicVars] = {}
+        bus_electricals_map: Dict[str, OhmicVars] = {}
 
-        for bus_index, bus_name in enumerate(strings.BUS_NAMES):
-            bus_electricals[bus_name] = electricals_list[bus_index]
+        # We assume electricals_list to be in the same order as electroconstants.POWER_BUSES,
+        # i.e. hab primary is first etc.
+        for bus_index, bus in enumerate(electroconstants.POWER_BUSES):
+            bus_electricals_map[bus.name] = bus_electricals[bus_index]
 
-        return bus_electricals
+        return bus_electricals_map
 
     @property
     def habitat_fuel(self):

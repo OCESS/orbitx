@@ -4,16 +4,34 @@ Custom TKinter Widgets, reuseable across different Engineering views.
 Every widget should inherit from Redrawable.
 """
 
+import re
 from pathlib import Path
 from abc import ABCMeta, abstractmethod
+import logging
 import tkinter as tk
+import tkinter.ttk as ttk
 from PIL import Image, ImageTk
-from typing import List, Optional, Callable
+import xml.etree.ElementTree as ET
+from typing import Callable, Dict, NamedTuple, Optional, List
 
 from orbitx.common import Request
 from orbitx.data_structures.engineering import EngineeringState
 from orbitx.programs import hab_eng
 from orbitx import strings
+
+log = logging.getLogger('orbitx')
+
+INNER_TEXT_MARGIN = 2
+AUX_BUTTON_MARGIN = 36
+
+BORDER_WIDTH_REGEX = re.compile(r'strokeWidth=(\d+)')
+
+
+class Coords(NamedTuple):
+    x: int
+    y: int
+    width: int
+    height: int
 
 
 class Redrawable(metaclass=ABCMeta):
@@ -49,7 +67,71 @@ class Redrawable(metaclass=ABCMeta):
         Redrawable.all_instantiated_widgets.append(self)
 
 
-class DetailsFrame(tk.Frame, Redrawable):
+class DrawioBackground:
+    """Collects a .svg and the corresponding .drawio XML file together,
+    provides useful accessor methods for both."""
+
+    raster_background: tk.PhotoImage
+
+    def __init__(self, png_path: Path, xml_path: Path):
+        self._png_path = png_path
+        self._xml_path = xml_path
+        self._widget_text_to_coords: Dict[str, Coords] = {}
+
+        self.raster_background = tk.PhotoImage(file=self._png_path)
+
+        # Build an index of each mxCell, where a widget is, and the name of the
+        # widget there. Normally we would just search for the text of the
+        # widget directly, but any formatting or extra whitespaces in the XML's
+        # conception of the widget name will break this. Specifically, I would
+        # try to match "High-Voltage Habitat Bus" on
+        # value="&lt;div style=&quot;font-size: 12px;&quot;&gt;High-Voltage Habitat Bus&lt;br style=&quot;font-size: 12px;&quot;&gt;&lt;/div&gt;"
+        # and fail.
+        xml_tree = ET.parse(xml_path).getroot()
+        for mxCell in xml_tree.findall('.//mxCell'):
+            if 'value' not in mxCell.attrib:
+                continue
+            raw_widget_text = mxCell.attrib['value']
+            if raw_widget_text == '':
+                continue
+            no_html_widget_text = re.sub(r'<.+?>', '', raw_widget_text)
+            widget_text = re.sub(r'\s+', ' ', no_html_widget_text.strip())
+            widget_text_normalized = widget_text.lower()
+
+            mxGeometry = mxCell.find('./mxGeometry')
+            if mxGeometry is None:
+                log.error(f"Couldn't find mxGeometry for {widget_text_normalized}!")
+                continue
+            try:
+                x = round(float(mxGeometry.attrib['x']))
+                y = round(float(mxGeometry.attrib['y']))
+                width = round(float(mxGeometry.attrib['width']))
+                height = round(float(mxGeometry.attrib['height']))
+                border_match = BORDER_WIDTH_REGEX.search(mxCell.attrib['style'])
+                if border_match:
+                    border = round(float(border_match.group(1)))
+                else:
+                    border = 2
+            except KeyError:
+                log.error(f"Couldn't find x/y/width/height for {widget_text_normalized}!")
+                continue
+
+            log.debug(f"Found {widget_text_normalized} at {x}+{width}, {y}+{height}.")
+            coords = Coords(x=x, y=y, width=width + border * 2, height=height + border * 2)
+
+            assert widget_text_normalized not in self._widget_text_to_coords, \
+                f"Found unexpected duplicate widget in drawio diagram: {widget_text_normalized}!"
+            self._widget_text_to_coords[widget_text_normalized] = coords
+
+    def widget_coords(self, widget_text: str) -> Coords:
+        try:
+            return self._widget_text_to_coords[widget_text.lower()]
+        except KeyError:
+            log.error(f"Didn't find {widget_text.lower()} with corresponding x, y, width, and height in the drawio diagram!")
+            raise
+
+
+class DetailsFrame(ttk.Frame, Redrawable):
     """
     Displays information about the currently-selected component in
     the bottom left of the window.
@@ -59,44 +141,48 @@ class DetailsFrame(tk.Frame, Redrawable):
     shield setting, reactor status).
     """
 
-    def __init__(self, parent: tk.Widget):
-        tk.Frame.__init__(self, parent)
+    def __init__(self, parent: ttk.Widget):
+        ttk.Frame.__init__(self, parent)
         Redrawable.__init__(self)
 
 
-class WarningsFrame(tk.Frame, Redrawable):
+class WarningsFrame(ttk.Frame, Redrawable):
     """
     Displays a list of warnings in a frame at the bottom of the window,
     next to DetailsFrame.
     """
 
-    def __init__(self, parent: tk.Widget):
-        tk.Frame.__init__(self, parent)
+    def __init__(self, parent: ttk.Widget):
+        ttk.Frame.__init__(self, parent)
         Redrawable.__init__(self)
 
 
-class CoolantSection():
+class CoolantButtonsFrame(ttk.Frame):
     """
-    Contains two coolant buttons horizontally side by side. Places these coolant
-    buttons on a given row inside a widget.
+    Contains two coolant buttons, stacked vertically against the right wall
+    of the parent widget.
     """
 
-    def __init__(self, parent: tk.Widget, row_n: int):
+    def __init__(self, parent: ttk.Widget, component_name: str):
+        # Construct this CoolantButtonsFrame as a child widget of the parent
+        super().__init__(parent)
 
-        component_n = strings.COMPONENT_NAMES.index(parent._component_name)
-        self._lp1 = CoolantButton(parent, component_n, 0)
-        self._lp1.grid(row=row_n, column=0)
-        self._lp2 = CoolantButton(parent, component_n, 1)
-        self._lp2.grid(row=row_n, column=1)
+        # Construct two CoolantButtons, vertically stacked
+        self._coolant_button_0 = CoolantButton(
+            self, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=0)
+        self._coolant_button_1 = CoolantButton(
+            self, component_n=strings.COMPONENT_NAMES.index(component_name), coolant_n=1)
+        self._coolant_button_0.pack(side=tk.TOP, expand=True, fill=tk.Y)
+        self._coolant_button_1.pack(side=tk.BOTTOM, expand=True, fill=tk.Y)
 
 
-class CoolantButton(tk.Button, Redrawable):
+class CoolantButton(ttk.Button, Redrawable):
     """
     A component will own this button. Clicking this button will send a request
     to hook up a component to a certain coolant loop.
     """
 
-    def __init__(self, parent: tk.Widget, component_n: int, coolant_n: int):
+    def __init__(self, parent: ttk.Widget, component_n: int, coolant_n: int):
         """
         @parent: The ComponentBlock that owns this CoolantButton.
         @component_n: The index of the component that owns this.
@@ -104,10 +190,9 @@ class CoolantButton(tk.Button, Redrawable):
                     Coolant 0 is the first Hab coolant loop, and coolant 2 is
                     AYSE loop.
         """
-        coolant_loop_texts = [strings.LP1, strings.LP2, strings.LP3]
+        coolant_loop_texts = ['❄1', '❄2', '❄3']
 
-        tk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
-        #self.grid(fill=tk.X, expand=True)
+        ttk.Button.__init__(self, parent, text=coolant_loop_texts[coolant_n], command=self._onpress)
         Redrawable.__init__(self)
 
         self._component_n = component_n
@@ -118,43 +203,70 @@ class CoolantButton(tk.Button, Redrawable):
             Request(ident=Request.TOGGLE_COMPONENT_COOLANT,
                     component_to_loop=Request.ComponentToLoop(component=self._component_n, loop=self._coolant_n)))
 
+        if self.instate(['pressed']):
+            self.state(['!pressed'])
+        else:
+            self.state(['pressed'])
+
     def redraw(self, state: EngineeringState):
 
         component = state.components[self._component_n]
         if state.coolant_loops[self._coolant_n] in component.connected_coolant_loops():
-            self.config(relief=tk.SUNKEN)
+            self.state(['pressed'])
         else:
-            self.config(relief=tk.RAISED)
+            self.state(['!pressed'])
 
 
-class SimpleFrame(tk.LabelFrame, Redrawable):
+class SimpleText(Redrawable):
     """
-    Represents a simple component, with no buttons, labels, etc.
+    Redrawable of a simple box, with the inner text controlled by a StringVar
+
+    Args:
+        parent (ttk.Widget): Required by tkinter, the parent widget that this is created in.
+        inner_text (tk.StringVar or str): The initial text in the widget (a str will be converted to a StringVar)
+        coords (Coords): the x, y, width, and height of the widget
+
+    Attributes:
+        stringvar (tk.StringVar): Update this to change the text of the widget
     """
 
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-        self.place(x=x, y=y)
-        tk.Label(self, textvariable=component_name).grid(row=0, column=0)
+    _stringvar: tk.StringVar
+    _text_generator: Callable[[EngineeringState], str]
+
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        coords = background.widget_coords(component_name)
+        self._stringvar = tk.StringVar()
+        self._frame = ttk.Frame(parent)
+        self._frame.place(x=coords.x, y=coords.y, width=coords.width, height=coords.height)
+        super().__init__()
+
+        # Add the text area
+        self._label = ttk.Label(
+            self._frame, textvariable=self._stringvar,
+            justify=tk.CENTER, anchor=tk.CENTER, wraplength=coords.width - INNER_TEXT_MARGIN
+        )
+        self._text_generator = text_function
+
+        # Add coolant buttons
+        self._coolant_buttons_frame = CoolantButtonsFrame(self._frame, component_name)
+
+        # The label, with all the text, goes on the left. Coolant buttons on the right.
+        self._label.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        self._coolant_buttons_frame.pack(side=tk.RIGHT, expand=False, fill=tk.Y)
 
     def redraw(self, state: EngineeringState):
-        pass
+        self._stringvar.set(self._text_generator(state))
 
 
-class RCONFrame(tk.LabelFrame, Redrawable):
+class RCONFrame(SimpleText):
     """
     Visually represents a component, such as RCON1.
     """
 
     def __init__(self,
-                 parent: tk.Widget,
-                 component_name: str,
-                 optional_text_function: Optional[Callable[[EngineeringState], str]] = None,
-                 has_coolant_controls: bool = True,
-                 *,
-                 x: int,
-                 y: int):
+                 parent: ttk.Widget,
+                 background: DrawioBackground,
+                 component_name: str):
         """
         @parent: The GridPage that this will be placed in
         @optional_text: Optional. An EngineeringState->str function, this RCONFrame will reserve
@@ -162,280 +274,29 @@ class RCONFrame(tk.LabelFrame, Redrawable):
         @x: The x position of the top-left corner.
         @y: The y position of the top-left corner.
         """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-        self.place(x=x, y=y)
+        SimpleText.__init__(
+            self, parent=parent, background=background, component_name=component_name,
+            text_function=lambda eng_state:
+                f"{strings.RCON1}\nCurrent: {eng_state.components.Electricals()[component_name].current}")
 
-        self._component_name = component_name
-
-        self._optional_text_generator = optional_text_function
         self._optional_text_value = tk.StringVar()
-        tk.Label(self, textvariable=self._optional_text_value).grid(row=0, column=0)
+        ttk.Label(parent, textvariable=self._optional_text_value).grid(row=0, column=0)
 
         self._temperature_text = tk.StringVar()
-        tk.Label(self, textvariable=self._temperature_text).grid(row=0, column=1)
-
-        if has_coolant_controls:
-            CoolantSection(self, 1)
-
-    def redraw(self, state: EngineeringState):
-        if self._optional_text_generator is not None:
-            self._optional_text_value.set(self._optional_text_generator(state))
-
-        self._temperature_text.set(str(state.components[self._component_name].temperature))
+        ttk.Label(parent, textvariable=self._temperature_text).grid(row=0, column=1)
 
 
-class EngineFrame(tk.LabelFrame, Redrawable):
+class EngineFrame(SimpleText):
 
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        self._component_name = "Engines"
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        # Draws buttons in numerical order
-        for i in range(0, 4):
-            tk.Button(self, text=f"GPD{i+1}").grid(row=i // 2, column=i % 2)
-
-    def redraw(self, state: EngineeringState):
-        pass
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        super().__init__(parent, background, component_name, text_function)
 
 
-class EngineControlFrame(tk.LabelFrame, Redrawable):
+class RadShieldFrame(SimpleText):
 
-    def __init__(self, parent: tk.Widget, component_name: str, is_ionizers: bool, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @component_name: The name of the component the widget is displaying
-        @is_ionizers: Used to distinguish between ionizer and accelerator frames.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        # Tuples used for managing strings in buttons
-        ionizers = (strings.ION1, strings.ION2, strings.ION3, strings.ION4)
-        accelerators = (strings.ACC1, strings.ACC2, strings.ACC3, strings.ACC4)
-        engine_names = ionizers if is_ionizers else accelerators
-
-        self.place(x=x, y=y)
-
-        # Draws ionizers/accelerators
-        for i in range(0, 4):
-            tk.Button(self, text=engine_names[i]).grid(row=i // 2, column=i % 2)
-
-        for i in range(0, 2):
-            tk.Button(self, text=f"LP{i+1}").grid(row=2, column=i)
-
-        pholder = 80
-
-        tk.Label(self, text="Main Temp:").grid(row=3, column=0)
-        tk.Label(self, text=f"{pholder:,}%").grid(row=3, column=1)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class AGRAVFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
-
-        tk.LabelFrame.__init__(self, parent, text=strings.AGRAV, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._component_name = strings.AGRAV
-        CoolantSection(self, 0)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class BatteryFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(
-            self,
-            parent: tk.Widget,
-            *,
-            #component_name: str,
-            x: int,
-            y: int):
-
-        tk.LabelFrame.__init__(self, parent, text=strings.BAT1, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        pholder = 9999
-
-        tk.Label(self, text=f"{strings.BAT1} {pholder} Ah").grid(row=0, column=0)
-
-    def redraw(self, state: EngineeringState):
-        pass
-
-
-class FuelFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        self._component_name = "Habitat Fuel"
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._fuel_count_text = tk.StringVar()
-        tk.Label(self, textvariable=self._fuel_count_text).pack(side=tk.TOP)
-
-    def redraw(self, state: EngineeringState):
-        self._fuel_count_text.set(f"{state.habitat_fuel:,} kg")
-
-
-class ReactorFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @component_name: The string name of the component
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._reactor_status = tk.StringVar()
-        self._temperature_text = tk.StringVar()
-
-        tk.Label(self, text="Status:").grid(row=0, column=0)
-        tk.Label(self, textvariable=self._reactor_status).grid(row=0, column=1)
-        tk.Label(self, text="Temp:").grid(row=1, column=0)
-        tk.Label(self, textvariable=self._temperature_text).grid(row=1, column=1)
-
-    def redraw(self, state: EngineeringState):
-        if state.components[strings.HAB_REACT].connected:
-            self._reactor_status.set("Online")
-        else:
-            self._reactor_status.set("Offline")
-
-        self._temperature_text.set(f"{state.components[strings.HAB_REACT].temperature:,} %")
-
-
-class RadShieldFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, has_coolant_controls: bool = True, *, x: int, y: int):
-        """
-        @parent: The GridPage that this will be placed in.
-        @x: The x position of the top-left corner.
-        @y: The y position of the top-left corner.
-        """
-        self._component_name = strings.RADS1
-        tk.LabelFrame.__init__(self, parent, text=self._component_name, bg='#AADDEE', labelanchor=tk.N)
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._rad_strength = tk.StringVar()
+    def __init__(self, parent: ttk.Widget, background: DrawioBackground, component_name: str, text_function: Callable[[EngineeringState], str]):
+        super().__init__(parent, background, component_name, text_function)
 
         # Grid used instead of packing to organize widgets for formatting purposes
-        tk.Label(self, text="Current", bg='#AADDEE').grid(row=0, column=0)
-        tk.Label(self, textvariable=self._rad_strength).grid(row=0, column=1)
-        tk.Button(self, text="SET", bg='#AADDEE').grid(row=1, column=0)
-        tk.Entry(self, width=5).grid(row=1, column=1)
-
-        CoolantSection(self, 2)
-
-    def redraw(self, state: EngineeringState):
-        self._rad_strength.set(f"{state.rad_shield_percentage:,} %")
-
-
-class PowerBusFrame(tk.LabelFrame, Redrawable):
-
-    def __init__(self, parent: tk.Widget, component_name: str, *, x: int, y: int):
-
-        tk.LabelFrame.__init__(self, parent, text=component_name, labelanchor=tk.N)
-        self._component_name = component_name
-        Redrawable.__init__(self)
-
-        self.place(x=x, y=y)
-
-        self._power = tk.StringVar()
-        self._current = tk.StringVar()
-        self._voltage = tk.StringVar()
-
-        tk.Label(self, text="Power: ").grid(row=0, column=0)
-        tk.Label(self, textvariable=self._power).grid(row=0, column=1)
-        tk.Label(self, text="Current: ").grid(row=0, column=2)
-        tk.Label(self, textvariable=self._current).grid(row=0, column=3)
-        tk.Label(self, text="Voltage: ").grid(row=0, column=4)
-        tk.Label(self, textvariable=self._voltage).grid(row=0, column=5)
-
-    def redraw(self, state: EngineeringState):
-        bus_electricals = state.BusElectricals()[self._component_name]
-        self._power.set(str(bus_electricals.current * bus_electricals.voltage))
-        self._current.set(str(bus_electricals.current))
-        self._voltage.set(str(bus_electricals.voltage))
-
-
-class ComponentConnection(tk.Button, Redrawable):
-    """
-    Visually represents a switch to connect or disconnect a component from a power bus.
-    """
-
-    # Images representing a connected or disconnected switch, horizontal or vertical.
-    # We can't load images
-    H_CONNECTED: ImageTk.PhotoImage
-    V_CONNECTED: ImageTk.PhotoImage
-    H_DISCONNECTED: ImageTk.PhotoImage
-    V_DISCONNECTED: ImageTk.PhotoImage
-
-    @staticmethod
-    def load_glyphs():
-        """
-        Call this method only once after Tk has been fully initialized.
-        """
-        ComponentConnection.H_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'h-connected.png')))
-        ComponentConnection.V_CONNECTED = ImageTk.PhotoImage(Image.open(Path('data', 'engineering', 'v-connected.png')))
-        ComponentConnection.H_DISCONNECTED = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'h-disconnected.png')))
-        ComponentConnection.V_DISCONNECTED = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'v-disconnected.png')))
-
-    def __init__(self, parent: tk.Widget, connected_component: str, vertical: bool = True, *, x: int, y: int):
-        # A button wide enough for 1 character, with no internal padding.
-        tk.Button.__init__(self, parent, command=self._onpress, padx=0, pady=0)
-        Redrawable.__init__(self)
-        self.place(x=x, y=y)
-
-        self._connected_component_name = connected_component
-        self._connected_component_n = strings.COMPONENT_NAMES.index(connected_component)
-
-        if vertical:
-            self._connected_glyph = ComponentConnection.V_CONNECTED
-            self._disconnected_glyph = ComponentConnection.V_DISCONNECTED
-        else:
-            self._connected_glyph = ComponentConnection.H_CONNECTED
-            self._disconnected_glyph = ComponentConnection.H_DISCONNECTED
-
-    def redraw(self, state: EngineeringState):
-        connected = state.components[self._connected_component_name].connected
-        if connected:
-            self.configure(image=self._connected_glyph)
-        else:
-            self.configure(image=self._disconnected_glyph)
-
-    def _onpress(self):
-        hab_eng.push_command(Request(ident=Request.TOGGLE_COMPONENT, component_to_toggle=self._connected_component_n))
+        ttk.Button(parent, text="SET").grid(row=1, column=0)
+        ttk.Entry(parent, width=5).grid(row=1, column=1)

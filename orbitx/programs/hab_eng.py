@@ -10,6 +10,7 @@ import logging
 from typing import List
 
 import grpc
+import sv_ttk
 
 from orbitx import network
 from orbitx.common import Program, Request
@@ -62,6 +63,7 @@ def main(args: argparse.Namespace):
         gui.after(int(1000), network_task)
 
     network_task()
+    # sv_ttk.set_theme('light')
     gui.mainloop()
 
 

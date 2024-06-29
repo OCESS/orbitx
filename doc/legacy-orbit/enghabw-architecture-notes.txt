@@ -3,7 +3,7 @@ I've tried to describe the structure of variables in enghabw here.
 ------- Patrick's understanding of the switch(i, x) and other fields ----------------------
 
 switch(i, 5)   0 or 1, representing something being on. In a hot start, switch(38, 5) = 1 which represents REACT INJ1 being on.
-switch(i, 6)   is the internal resistance of a device
+switch(i, 6)   is the resistance of a device
 switch(i, 8)   is the temperature of a device
 switch(i, 11)  is a bitmask of what coolants a device is connected to
 switch(i, 12)  is a coefficient that models how much power a device loses to resistive

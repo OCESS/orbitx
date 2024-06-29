@@ -14,7 +14,7 @@ from orbitx import strings
 from orbitx import common
 from orbitx.common import N_COMPONENTS, N_COOLANT_LOOPS, N_RADIATORS  # These get typed a lot, import them directly.
 from orbitx.data_structures.engineering import EngineeringState
-from orbitx.data_structures.eng_systems import (
+from orbitx.data_structures.eng_subsystems import (
     _N_COMPONENT_FIELDS, _N_COOLANT_FIELDS, _N_RADIATOR_FIELDS
 )
 from orbitx.data_structures.space import PhysicsState
@@ -145,15 +145,16 @@ def simulation_differential_function(
 
     # Time for the Engineering section.
     component_resistances = electrofunctions.component_resistances(y.engineering.components)
-    electrical_buses = electrofunctions.bus_electricities(component_resistances)
-    bus_power = electrical_buses[0].voltage * electrical_buses[0].current
+    active_power_sources = electrofunctions.active_power_sources(y.engineering.components)
+    bus_electricals = electrofunctions.bus_electricals(component_resistances, active_power_sources)
+    bus_power = bus_electricals[0].voltage * bus_electricals[0].current
 
     # Just lifted this from DM's enghabw.bas code. Probably has deeper significance.
     fuel_usage_rate = .05 * bus_power / 50_000_000
     # TODO: Replace the existing fuel consumption calculations with this calculation.
 
     component_heating_rate_array = electrofunctions.component_heating_rate(
-        y.engineering, component_resistances, electrical_buses
+        y.engineering, component_resistances, bus_electricals
     )
 
     # Sets velocity and spin of a couple more entities.

@@ -18,7 +18,7 @@ if not hasattr(sys, 'frozen'):
     # Made sure we're not in a frozen binary, like a distributed .exe file.
     # If this file doesn't exist, we must be running as orbitx.exe.
     assert target_file.is_file(), \
-        '--- Remember to run the `build` command from `orbitx/Makefile` to generate the orbitx_pb2_grpc.py file!! ---'
+        '--- Remember to run the generate-protobuf script to generate the orbitx_pb2_grpc.py file!! ---'
     with open(target_file, 'r') as grpc_py:
         replaced_file = grpc_py.read().replace(
             '\nimport orbitx_pb2', '\nfrom . import orbitx_pb2')

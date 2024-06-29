@@ -10,7 +10,7 @@ See data_structures.__init__ for other documentation.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import numpy as np
 
@@ -230,9 +230,14 @@ class ComponentList:
         return self._component_array[2 * N_COMPONENTS:3 * N_COMPONENTS]
 
     def Electricals(self) -> Dict[str, OhmicVars]:
-        """Return Voltage, Current, Resistance for every component."""
+        """Return Voltage, Current, Resistance for every component.
+
+        For example,
+            rcon_current = state.engineering.components.Electricals()[strings.RCON1].current
+        """
         component_resistances = electrofunctions.component_resistances(self)
-        electrical_buses = electrofunctions.bus_electricities(component_resistances)
+        active_power_sources = electrofunctions.active_power_sources(self)
+        electrical_buses = electrofunctions.bus_electricals(component_resistances, active_power_sources)
         bus_voltages = [bus.voltage for bus in electrical_buses]
 
         component_electricals: Dict[str, OhmicVars] = {}

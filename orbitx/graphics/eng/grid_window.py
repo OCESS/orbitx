@@ -1,12 +1,15 @@
-import tkinter as tk
-from PIL import Image, ImageTk
+import logging
+import tkinter.ttk as ttk
 from pathlib import Path
+import sv_ttk
 
 from orbitx import strings
 from orbitx.graphics.eng import tkinter_widgets as widgets
 
+log = logging.getLogger('orbitx')
 
-class GridPage(tk.Frame):
+
+class GridPage(ttk.Frame):
     """
     Contains the power grid, i.e. all components and power buses.
     Also contains component detail and temperature warning frames.
@@ -16,57 +19,89 @@ class GridPage(tk.Frame):
     that's a _lot_ more work and isn't a priority.
     """
 
-    def __init__(self, parent: tk.Widget):
-        tk.Frame.__init__(self, parent)
+    def __init__(self, parent: ttk.Widget):
+        ttk.Frame.__init__(self, parent)
 
         # Load a background image. If the image is any larger than the window's
         # dimensions, the extra will be cut off.
-        grid_background = ImageTk.PhotoImage(
-            Image.open(Path('data', 'engineering', 'powergrid-background.png')))
-        bg_label = tk.Label(self, image=grid_background)
-        bg_label.image = grid_background  # TODO: does this do anything? Label has no image attribute
+        png_path = Path('data', 'engineering', 'orbitx-powergrid.drawio.png')
+        drawio_xml_path = Path('data', 'engineering', 'orbitx-powergrid.drawio')
+        background = widgets.DrawioBackground(png_path, drawio_xml_path)
+        bg_label = ttk.Label(self, image=background.raster_background)
+        bg_label.image = background.raster_background
         bg_label.place(x=0, y=0)
 
-        widgets.ComponentConnection.load_glyphs()
-
-#        widgets.ComponentConnection(self, strings.ACC1, x=5, y=50)
-
         """ Primary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, "Primary Habitat Bus", x=325, y=325)
+        widgets.SimpleText(self, background=background, component_name=strings.HAB_REACT, text_function=lambda state:
+            f"{strings.HAB_REACT}\n"
+            f"Status: {'Online' if state.components[strings.HAB_REACT].connected else 'Offline'}\n"
+            f"Temperature: {state.components[strings.HAB_REACT].temperature:,} %"
+        )
+        # widgets.SimpleText(self, background=background, component_name=strings.HAB_FUEL, text_function=lambda state:
+        #     f"{strings.HAB_FUEL}\n"
+        #     f"{state.habitat_fuel:,} kg"
+        # )
+        widgets.RCONFrame(self, background=background, component_name=strings.RCON1)
+        widgets.RCONFrame(self, background=background, component_name=strings.RCON2)
+        widgets.RadShieldFrame(self, background=background, component_name=strings.RADS1, text_function=lambda state: f"{state.rad_shield_percentage:,} %")
+        widgets.RadShieldFrame(self, background=background, component_name=strings.RADS2, text_function=lambda state: f"{state.rad_shield_percentage:,} %")
+        widgets.SimpleText(self, background=background, component_name=strings.RADAR, text_function=lambda _: strings.RADAR)
+        widgets.SimpleText(self, background=background, component_name=strings.RCSP, text_function=lambda _: strings.RCSP)
+        widgets.SimpleText(self, background=background, component_name=strings.AGRAV, text_function=lambda _: strings.AGRAV)
+        widgets.SimpleText(self, background=background, component_name=strings.RADAR, text_function=lambda _: strings.RADAR)
+        widgets.SimpleText(self, background=background, component_name=strings.FCELL_INJ, text_function=lambda _: strings.FCELL_INJ)
+        widgets.SimpleText(self, background=background, component_name=strings.REACT_INJ1, text_function=lambda _: strings.REACT_INJ1)
+        widgets.SimpleText(self, background=background, component_name=strings.REACT_INJ2, text_function=lambda _: strings.REACT_INJ2)
+        widgets.SimpleText(self, background=background, component_name=strings.ENGINE_INJ1, text_function=lambda _: strings.ENGINE_INJ1)
+        widgets.SimpleText(self, background=background, component_name=strings.ENGINE_INJ2, text_function=lambda _: strings.ENGINE_INJ2)
+        widgets.SimpleText(self, background=background, component_name=strings.PRIMARY_PUMP_1, text_function=lambda _: strings.PRIMARY_PUMP_1)
+        widgets.SimpleText(self, background=background, component_name=strings.PRIMARY_PUMP_2, text_function=lambda _: strings.PRIMARY_PUMP_2)
 
-        widgets.ReactorFrame(self, strings.HAB_REACT, x=75, y=275)
-        widgets.FuelFrame(self, x=75, y=100)
-        widgets.RCONFrame(self, strings.RCON1, lambda x: "Current", x=220, y=95)
-        widgets.RCONFrame(self,  strings.RCON2, lambda x: "Current", x=345, y=95)
-        widgets.RadShieldFrame(self, x=495, y=95)
-        widgets.SimpleFrame(self, strings.RADAR, x=650, y=160)
-        widgets.SimpleFrame(self, strings.RCSP, x=730, y=160)
-        widgets.AGRAVFrame(self, x=815, y=95)
-        widgets.EngineControlFrame(self, "Engine Ionizers", True, x=910, y=10)
-        widgets.EngineControlFrame(self, "Engine Accelerators", False, x=1080, y=10)
+        widgets.EngineFrame(self, background=background, component_name=strings.ACC1, text_function=lambda _: strings.ACC1)
+        widgets.EngineFrame(self, background=background, component_name=strings.ACC2, text_function=lambda _: strings.ACC2)
+        widgets.EngineFrame(self, background=background, component_name=strings.ACC3, text_function=lambda _: strings.ACC3)
+        widgets.EngineFrame(self, background=background, component_name=strings.ACC4, text_function=lambda _: strings.ACC4)
+        widgets.EngineFrame(self, background=background, component_name=strings.ION1, text_function=lambda _: strings.ION1)
+        widgets.EngineFrame(self, background=background, component_name=strings.ION2, text_function=lambda _: strings.ION2)
+        widgets.EngineFrame(self, background=background, component_name=strings.ION3, text_function=lambda _: strings.ION3)
+        widgets.EngineFrame(self, background=background, component_name=strings.ION4, text_function=lambda _: strings.ION4)
+
+        widgets.SimpleText(self, background=background, component_name=strings.HAB_CONV, text_function=lambda _: strings.HAB_CONV)
 
         """ Secondary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, "Secondary Habitat Bus", x=60, y=500)
-
-        widgets.BatteryFrame(self, x=230, y=610)
-        widgets.SimpleFrame(self, "Fuel Cell", x=45, y=600)
-        widgets.SimpleFrame(self, strings.COM, x=80, y=400)
+        widgets.SimpleText(self, background=background, component_name=strings.BAT1, text_function=lambda _: strings.BAT1)
+        widgets.SimpleText(self, background=background, component_name=strings.FCELL, text_function=lambda _: strings.FCELL)
+        widgets.SimpleText(self, background=background, component_name=strings.COM, text_function=lambda _: strings.COM)
+        widgets.SimpleText(self, background=background, component_name=strings.SECONDARY_PUMP_1, text_function=lambda _: strings.SECONDARY_PUMP_1)
+        widgets.SimpleText(self, background=background, component_name=strings.SECONDARY_PUMP_2, text_function=lambda _: strings.SECONDARY_PUMP_2)
+        widgets.SimpleText(self, background=background, component_name=strings.REACTOR_HEATER, text_function=lambda _: strings.REACTOR_HEATER)
 
         """ Tertiary Habitat Bus Widgets """
-        widgets.PowerBusFrame(self, "Tertiary Habitat Bus", x=465, y=500)
-
-        widgets.SimpleFrame(self, strings.INS, x=465, y=400)
-        widgets.SimpleFrame(self, strings.LOS, x=515, y=400)
-        widgets.SimpleFrame(self, strings.GNC, x=565, y=400)
-        widgets.BatteryFrame(self, x=650, y=400)
-        widgets.SimpleFrame(self, strings.EECOM, x=750, y=480)
-        widgets.SimpleFrame(self, strings.NETWORK, x=750, y=530)
+        widgets.SimpleText(self, background=background, component_name=strings.INS, text_function=lambda _: strings.INS)
+        widgets.SimpleText(self, background=background, component_name=strings.LOS, text_function=lambda _: strings.LOS)
+        widgets.SimpleText(self, background=background, component_name=strings.GNC, text_function=lambda _: strings.GNC)
+        widgets.SimpleText(self, background=background, component_name=strings.BAT2, text_function=lambda _: strings.BAT2)
+        widgets.SimpleText(self, background=background, component_name=strings.EECOM, text_function=lambda _: strings.EECOM)
+        widgets.SimpleText(self, background=background, component_name=strings.NETWORK, text_function=lambda _: strings.NETWORK)
 
         """ Ayse Power Bus Widgets """
-        widgets.PowerBusFrame(self, "Ayse Power Bus", x=1040, y=640)
+        widgets.SimpleText(self, background=background, component_name=strings.AYSE_CONV, text_function=lambda _: strings.AYSE_CONV)
+        widgets.SimpleText(self, background=background, component_name=strings.AYSE_BAT, text_function=lambda _: strings.AYSE_BAT)
+        widgets.SimpleText(self, background=background, component_name=strings.GPD1, text_function=lambda _: strings.GPD1)
+        widgets.SimpleText(self, background=background, component_name=strings.GPD2, text_function=lambda _: strings.GPD2)
+        widgets.SimpleText(self, background=background, component_name=strings.GPD3, text_function=lambda _: strings.GPD3)
+        widgets.SimpleText(self, background=background, component_name=strings.GPD4, text_function=lambda _: strings.GPD4)
+        widgets.SimpleText(self, background=background, component_name=strings.TTC, text_function=lambda _: strings.TTC)
+        widgets.SimpleText(self, background=background, component_name=strings.AYSE_PUMP_1, text_function=lambda _: strings.AYSE_PUMP_1)
+        widgets.SimpleText(self, background=background, component_name=strings.AYSE_PUMP_2, text_function=lambda _: strings.AYSE_PUMP_2)
 
-        widgets.EngineFrame(self, x=1080, y=850)
-        widgets.RCONFrame(self, strings.ARCON1, lambda x: "Current", x=830, y=730)
-        widgets.RCONFrame(self, strings.ARCON2, lambda x: "Current", x=830, y=620)
-        widgets.ReactorFrame(self, strings.AYSE_REACT, x=980, y=460)
+        widgets.RCONFrame(self, background=background, component_name=strings.ARCON1)
+        widgets.RCONFrame(self, background=background, component_name=strings.ARCON2)
+        widgets.SimpleText(self, background=background, component_name=strings.AYSE_REACT, text_function=lambda state:
+            f"{strings.AYSE_REACT}\n"
+            f"Status: {'Online' if state.components[strings.AYSE_REACT].connected else 'Offline'}\n"
+            f"Temperature: {state.components[strings.AYSE_REACT].temperature:,} %\n"
+            f"Voltage: {state.components.Electricals()[strings.AYSE_REACT].voltage:,} V"
+        )
 
+        # sv_ttk.set_theme("light")

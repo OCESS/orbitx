@@ -17,6 +17,7 @@ logs/*
 flamegraph.pl
 
 *.svg
+!data/engineering/orbitx-powergrid.svg
 
 *.sublime-workspace
 
